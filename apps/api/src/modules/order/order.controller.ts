@@ -1,0 +1,87 @@
+import type { FastifyRequest } from 'fastify';
+
+import { success } from '../../utils/response';
+import type { OrderService } from './order.service';
+
+export class OrderController {
+  constructor(private readonly service: OrderService) {}
+
+  getQuote = async (request: FastifyRequest) => {
+    const body = request.body as { size: 'SMALL' | 'MEDIUM' | 'LARGE'; pickupAddress: string; deliveryAddress: string };
+    return success(await this.service.getQuote(body.size, body.pickupAddress, body.deliveryAddress), 'Quote generated');
+  };
+
+  createOrder = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    return success(await this.service.createOrder(userId, request.body as never), 'Order created');
+  };
+
+  getUserOrders = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const query = request.query as { page?: number; limit?: number; status?: string };
+    return success(await this.service.getUserOrders(userId, query), 'Orders fetched');
+  };
+
+  getOrderDetail = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.getOrderDetail(userId, id), 'Order fetched');
+  };
+
+  getOrderByTrackingCode = async (request: FastifyRequest) => {
+    const { code } = request.params as { code: string };
+    return success(await this.service.getOrderByTrackingCode(code), 'Order fetched');
+  };
+
+  cancelOrder = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    const { reason } = request.body as { reason: string };
+    return success(await this.service.cancelOrder(userId, id, reason), 'Order cancelled');
+  };
+
+  confirmDelivery = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.confirmDelivery(userId, id), 'Delivery confirmed');
+  };
+
+  rateOrder = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    const { userRating, userComment } = request.body as { userRating: number; userComment?: string };
+    return success(await this.service.rateOrder(userId, id, userRating, userComment), 'Order rated');
+  };
+
+  disputeOrder = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    const { reason } = request.body as { reason: string };
+    return success(await this.service.disputeOrder(userId, id, reason), 'Order disputed');
+  };
+
+  getAvailableOrders = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    return success(await this.service.getAvailableOrders(driverId), 'Available orders fetched');
+  };
+
+  acceptOrder = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.acceptOrder(driverId, id), 'Order accepted');
+  };
+
+  driverRateOrder = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const { id } = request.params as { id: string };
+    const { driverRating, driverComment } = request.body as { driverRating: number; driverComment?: string };
+    return success(await this.service.driverRateOrder(driverId, id, driverRating, driverComment), 'Customer rated');
+  };
+
+  updateOrderStatus = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const { id } = request.params as { id: string };
+    const { status, lat, lng } = request.body as { status: 'IN_TRANSIT' | 'DELIVERED'; lat?: number; lng?: number };
+    return success(await this.service.updateOrderStatus(driverId, id, status, lat, lng), 'Order status updated');
+  };
+}

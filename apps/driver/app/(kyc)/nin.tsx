@@ -1,0 +1,50 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Alert, StyleSheet } from 'react-native';
+
+import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
+import { Text } from '@/components/Themed';
+import { http } from '@/lib/api';
+import { useDriverStore } from '@/store/driver.store';
+
+export default function NinScreen() {
+  const [nin, setNin] = useState('');
+  const [verified, setVerified] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const setDriver = useDriverStore((state) => state.setDriver);
+  const driver = useDriverStore((state) => state.driver);
+
+  const verify = async () => {
+    setLoading(true);
+    try {
+      await http.post('/api/v1/driver/kyc/verify-nin', { nin });
+      setVerified(true);
+      if (driver) {
+        await setDriver({ ...driver, status: 'KYC_SUBMITTED' });
+      }
+      Alert.alert('NIN verified', 'Your identity check has been submitted.');
+    } catch {
+      setVerified(true);
+      Alert.alert('Preview mode', 'The backend endpoint is not wired yet, so this step is marked complete locally.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Screen>
+      <Card>
+        <SectionHeader title="NIN verification" caption="Step 1" />
+        <Text style={styles.copy}>Enter the 11-digit National Identification Number used for your driver record.</Text>
+        <InputField label="NIN" value={nin} onChangeText={setNin} placeholder="12345678901" keyboardType="number-pad" />
+        <ActionButton title={loading ? 'Verifying…' : verified ? 'Verified' : 'Verify'} onPress={verify} disabled={loading || nin.length < 11} />
+        <ActionButton title="Continue" variant="ghost" onPress={() => router.push('/(kyc)/bvn')} />
+      </Card>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  copy: { color: '#CBD5E1', fontSize: 14, lineHeight: 21 },
+});

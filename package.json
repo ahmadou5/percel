@@ -1,0 +1,32 @@
+{
+  "name": "percel",
+  "private": true,
+  "packageManager": "pnpm@8.15.3",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check"
+  },
+  "devDependencies": {
+    "@types/estree": "^1.0.9",
+    "@types/json-schema": "^7.0.15",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-native": "^5.0.0",
+    "turbo": "^2.0.0"
+  },
+  "dependencies": {
+    "@bull-board/api": "^7.1.5",
+    "@bull-board/fastify": "^7.1.5",
+    "expo-server-sdk": "^6.1.0",
+    "firebase-admin": "^13.10.0"
+  }
+}

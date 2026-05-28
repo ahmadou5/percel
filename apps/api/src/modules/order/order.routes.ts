@@ -1,0 +1,28 @@
+import type { FastifyPluginAsync } from 'fastify';
+
+import { OrderController } from './order.controller';
+import { OrderService } from './order.service';
+import { CancelBody, CreateOrderBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema';
+import { WalletService } from '../wallet/wallet.service';
+
+const orderRoutes: FastifyPluginAsync = async (app) => {
+  const walletService = new WalletService(app.prisma, app.log, app);
+  const service = new OrderService(app.prisma, walletService, app.log, app);
+  const controller = new OrderController(service);
+
+  app.post('/orders/quote', { preHandler: [app.authenticate], schema: { body: QuoteBody } }, controller.getQuote);
+  app.post('/orders', { preHandler: [app.authenticate], schema: { body: CreateOrderBody } }, controller.createOrder);
+  app.get('/orders', { preHandler: [app.authenticate], schema: { querystring: OrderQuery } }, controller.getUserOrders);
+  app.get('/orders/:id', { preHandler: [app.authenticate] }, controller.getOrderDetail);
+  app.get('/orders/track/:code', controller.getOrderByTrackingCode);
+  app.post('/orders/:id/cancel', { preHandler: [app.authenticate], schema: { body: CancelBody } }, controller.cancelOrder);
+  app.post('/orders/:id/confirm', { preHandler: [app.authenticate] }, controller.confirmDelivery);
+  app.post('/orders/:id/rate', { preHandler: [app.authenticate], schema: { body: RateOrderBody } }, controller.rateOrder);
+  app.post('/orders/:id/dispute', { preHandler: [app.authenticate], schema: { body: DisputeBody } }, controller.disputeOrder);
+  app.get('/driver/orders', { preHandler: [app.authenticateDriver] }, controller.getAvailableOrders);
+  app.post('/driver/orders/:id/accept', { preHandler: [app.authenticateDriver] }, controller.acceptOrder);
+  app.post('/driver/orders/:id/rate', { preHandler: [app.authenticateDriver], schema: { body: DriverRateOrderBody } }, controller.driverRateOrder);
+  app.patch('/driver/orders/:id/status', { preHandler: [app.authenticateDriver], schema: { body: StatusBody } }, controller.updateOrderStatus);
+};
+
+export default orderRoutes;
