@@ -1,58 +1,38 @@
-import { useEffect } from 'react';
-import * as ScreenCapture from 'expo-screen-capture';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Camera, ChevronRight, Gift, ShieldCheck, Settings2 } from 'lucide-react-native';
 
-import { Button } from '@/components/ui/Button';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useLogout } from '@/hooks/useAuth';
-import { useWallet } from '@/hooks/useWallet';
 import { useProfile, useUpdateAvatar } from '@/hooks/useProfile';
-import { usePreferencesStore } from '@/store/preferences.store';
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Not set';
-  return new Intl.DateTimeFormat('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
-}
-
-function maskPhone(value?: string | null) {
-  if (!value) return 'Not available';
-  const digits = value.replace(/\D/g, '');
-  if (digits.length < 7) return value;
-  return `${digits.slice(0, 3)}****${digits.slice(-4)}`;
-}
+import { useAuthStore } from '@/store/auth.store';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
+  const palette = Colors[scheme];
   const profileQuery = useProfile();
-  const walletQuery = useWallet();
-  const logout = useLogout();
   const updateAvatar = useUpdateAvatar();
-  const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
-  const notificationsLoading = usePreferencesStore((state) => state.isLoading);
-  const hydratePreferences = usePreferencesStore((state) => state.hydrate);
-  const setNotificationsEnabled = usePreferencesStore((state) => state.setNotificationsEnabled);
-  const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
-  const profile = profileQuery.data;
+  const authUser = useAuthStore((state) => state.user);
+  const profile = profileQuery.data ?? authUser;
 
-  useEffect(() => {
-    void ScreenCapture.preventScreenCaptureAsync();
-    return () => {
-      void ScreenCapture.allowScreenCaptureAsync();
-    };
-  }, []);
-
-  useEffect(() => {
-    void hydratePreferences();
-  }, [hydratePreferences]);
+  const displayName = profile?.fullName ?? 'Account';
+  const initials = useMemo(() => {
+    const segments = displayName.split(/\s+/).filter(Boolean);
+    const next = segments.length > 1 ? `${segments[0][0] ?? ''}${segments[1][0] ?? ''}` : displayName.slice(0, 2);
+    return next.toUpperCase();
+  }, [displayName]);
+  const username = `@${(profile?.phone ?? authUser?.phone ?? '00000000').replace(/\D/g, '').slice(-8)}`;
+  const verified = profile?.status === 'ACTIVE';
 
   const changeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo access to change your avatar.');
+      Alert.alert('Permission required', 'Allow photo access to update your avatar.');
       return;
     }
 
@@ -83,127 +63,89 @@ export default function ProfileScreen() {
     }
   };
 
-  const confirmLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to sign out of Percel?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => void logout.mutateAsync() },
-    ]);
-  };
-
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
-        <Pressable style={styles.avatar} onPress={() => void changeAvatar()}>
-          {profile?.avatarUrl ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(profile?.fullName ?? 'A').slice(0, 1)}</Text>}
-        </Pressable>
-        <Text style={styles.eyebrow}>Profile</Text>
-        <Text style={styles.title}>{profile?.fullName ?? 'Account'}</Text>
-        <Text style={styles.subtitle}>{profile?.email ?? 'Your account, security, and delivery settings live here.'}</Text>
+    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerSpacer} />
+        <Text style={[styles.headerTitle, { color: palette.text }]}>Profile</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Quick info</Text>
-        <Row label="Phone" value={maskPhone(profile?.phone)} />
-        <Row label="Birthday" value={formatDate(profile?.dateOfBirth)} />
-        <Row label="Address" value={profile?.address ?? 'Add your default pickup address'} />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Account</Text>
-        <Text style={styles.cardMeta}>Update your name, avatar, birth date, and address in one place.</Text>
-        <Button title="Edit profile" onPress={() => router.push('./edit')} />
-        <Button title="Change password" variant="secondary" onPress={() => router.push('./edit')} />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Wallet shortcut</Text>
-        <Text style={styles.cardValue}>₦{Number(walletQuery.data?.balance ?? 0).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</Text>
-        <Text style={styles.cardMeta}>{walletPinSet ? 'Transfer PIN is active.' : 'Set a transfer PIN for wallet transfers.'}</Text>
-        <Button title="Open Wallet" variant="secondary" onPress={() => router.push('/wallet')} />
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.switchRow}>
-          <View style={styles.switchCopy}>
-            <Text style={styles.cardLabel}>Notification settings</Text>
-            <Text style={styles.cardMeta}>Control whether this device registers for push notifications.</Text>
+      <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable onPress={() => void changeAvatar()} style={({ pressed }) => [styles.avatarWrap, pressed ? { transform: [{ scale: 0.98 }] } : null]}>
+          <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
+            {profile?.avatarUrl ? (
+              <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarText, { color: palette.card }]}>{initials}</Text>
+            )}
           </View>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={(value) => void setNotificationsEnabled(value)}
-            disabled={notificationsLoading}
-          />
+          <View style={[styles.cameraBadge, { backgroundColor: palette.primary, borderColor: palette.card }]}>
+            <Camera size={12} color={palette.card} />
+          </View>
+        </Pressable>
+
+        <View style={styles.identityBlock}>
+          <Text style={[styles.name, { color: palette.text }]}>{displayName}</Text>
+          <Text style={[styles.username, { color: palette.textSecondary }]}>{username}</Text>
+          <View style={[styles.badge, { backgroundColor: verified ? 'rgba(48, 209, 88, 0.16)' : 'rgba(255, 214, 10, 0.16)' }]}>
+            <ShieldCheck size={12} color={verified ? palette.success : palette.warning} />
+            <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'Verified' : 'Pending verification'}</Text>
+          </View>
         </View>
+
+        <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: scheme === 'dark' ? 'rgba(10, 132, 255, 0.14)' : 'rgba(10, 132, 255, 0.08)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
+          <View style={[styles.referralIcon, { backgroundColor: palette.primary }]}> 
+            <Gift size={20} color={palette.card} />
+          </View>
+          <View style={styles.referralCopy}>
+            <Text style={[styles.referralTitle, { color: palette.text }]}>Refer & Earn</Text>
+            <Text style={[styles.referralSubtitle, { color: palette.textSecondary }]}>Invite friends and earn rewards</Text>
+          </View>
+          <ChevronRight size={18} color={palette.textSecondary} />
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/settings')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
+          <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
+            <Settings2 size={16} color={palette.card} />
+          </View>
+          <View style={styles.settingsCopy}>
+            <Text style={[styles.settingsTitle, { color: palette.text }]}>Account Settings</Text>
+            <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Manage identity, security, and support</Text>
+          </View>
+          <ChevronRight size={18} color={palette.textSecondary} />
+        </Pressable>
       </View>
-
-      <Pressable
-        style={styles.linkCard}
-        onPress={() => Linking.openURL('mailto:support@percel.app?subject=Percel%20Support')}
-      >
-        <Text style={styles.linkTitle}>Help & Support</Text>
-        <Text style={styles.linkMeta}>Email support@percel.app for help with deliveries, wallet issues, or account access.</Text>
-      </Pressable>
-
-      <Button title={logout.isPending ? 'Signing out…' : 'Logout'} variant="danger" onPress={confirmLogout} loading={logout.isPending} />
     </ScrollView>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, backgroundColor: Colors.light.bg, paddingBottom: Spacing.xl * 2 },
-  hero: {
-    borderRadius: 28,
-    padding: Spacing.xl,
-    backgroundColor: Colors.light.primaryDark,
-    gap: Spacing.sm,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.primary,
-    overflow: 'hidden',
-  },
+  screen: { flex: 1 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 2 },
+  headerSpacer: { width: 42 },
+  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center', flex: 1 },
+  profileCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
+  avatarWrap: { alignSelf: 'center' },
+  avatar: { width: 80, height: 80, borderRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
-  avatarText: { color: Colors.light.text, fontSize: 28, fontWeight: Typography.bold },
-  eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontWeight: Typography.bold },
-  title: { color: '#fff', fontSize: 32, lineHeight: 38, fontWeight: Typography.bold },
-  subtitle: { color: 'rgba(255,255,255,0.78)', fontSize: Typography.md, lineHeight: 22 },
-  card: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 24,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    gap: Spacing.md,
-  },
-  cardLabel: { color: Colors.light.textSecondary, fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
-  cardValue: { color: Colors.light.text, fontSize: 22, fontWeight: Typography.bold },
-  cardMeta: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 20 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md, paddingVertical: Spacing.xs },
-  rowLabel: { color: Colors.light.textSecondary, fontSize: Typography.sm },
-  rowValue: { color: Colors.light.text, fontSize: Typography.sm, fontWeight: Typography.semibold, maxWidth: '62%', textAlign: 'right' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
-  switchCopy: { flex: 1, gap: Spacing.xs },
-  linkCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 24,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    gap: Spacing.xs,
-  },
-  linkTitle: { color: Colors.light.text, fontSize: Typography.lg, fontWeight: Typography.bold },
-  linkMeta: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 20 },
+  avatarText: { fontSize: 28, fontFamily: Typography.family.bold, letterSpacing: -0.4 },
+  cameraBadge: { position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
+  identityBlock: { alignItems: 'center', gap: 8 },
+  name: { fontSize: 28, lineHeight: 32, fontFamily: Typography.family.bold, textAlign: 'center', letterSpacing: -0.8 },
+  username: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  badgeText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  referralCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, padding: Spacing.md, borderWidth: 1 },
+  referralIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  referralCopy: { flex: 1, gap: 2 },
+  referralTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  referralSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md },
+  settingsIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  settingsCopy: { flex: 1, gap: 2 },
+  settingsTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  settingsSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  pressed: { opacity: 0.92 },
 });

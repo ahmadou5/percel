@@ -25,7 +25,6 @@ export function useLogin(
       await useAuthStore.getState().setTokens(data.data.tokens);
       useAuthStore.getState().setUser(data.data.user);
       useAuthStore.getState().unlock();
-      useAuthStore.getState().unlock();
       await persistUser(data.data.user);
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.register_success', level: 'info', data: { userId: data.data.user.id } });
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.login_success', level: 'info', data: { userId: data.data.user.id } });
@@ -56,7 +55,6 @@ export function useRegister(
     onSuccess: async (data, vars, onMutateResult, ctx) => {
       await useAuthStore.getState().setTokens(data.data.tokens);
       useAuthStore.getState().setUser(data.data.user);
-      useAuthStore.getState().unlock();
       useAuthStore.getState().unlock();
       await persistUser(data.data.user);
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.register_success', level: 'info', data: { userId: data.data.user.id } });

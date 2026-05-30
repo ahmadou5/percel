@@ -342,6 +342,9 @@ importers:
       expo-linking:
         specifier: ~8.0.11
         version: 8.0.12(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)
+      expo-local-authentication:
+        specifier: ~17.0.8
+        version: 17.0.8(expo@54.0.35)
       expo-notifications:
         specifier: ~0.32.17
         version: 0.32.17(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)(typescript@5.9.3)
@@ -7446,6 +7449,15 @@ packages:
     transitivePeerDependencies:
       - expo
       - supports-color
+    dev: false
+
+  /expo-local-authentication@17.0.8(expo@54.0.35):
+    resolution: {integrity: sha512-Q5fXHhu6w3pVPlFCibU72SYIAN+9wX7QpFn9h49IUqs0Equ44QgswtGrxeh7fdnDqJrrYGPet5iBzjnE70uolA==}
+    peerDependencies:
+      expo: '*'
+    dependencies:
+      expo: 54.0.35(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5)(react@19.1.0)(typescript@5.9.3)
+      invariant: 2.2.4
     dev: false
 
   /expo-location@19.0.8(expo@54.0.35):

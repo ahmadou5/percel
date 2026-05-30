@@ -26,6 +26,10 @@ type SetTransferPinResult = {
   updated: boolean;
 };
 
+type VerifyTransferPinResult = {
+  verified: boolean;
+};
+
 type BillResult = {
   reference: string;
   status: string;
@@ -153,6 +157,17 @@ export function useResetTransferPin(options?: MutationOptions<WalletApiResponse<
     onSuccess: async (data, variables, onMutateResult, context) => {
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
       await options?.onSuccess?.(data, variables, onMutateResult, context);
+    },
+  });
+}
+
+export function useVerifyTransferPin(options?: MutationOptions<WalletApiResponse<VerifyTransferPinResult>, { pin: string }>) {
+  return useMutation({
+    ...options,
+    mutationFn: async (payload) => {
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.pin_verify_requested', level: 'info' });
+      const response = await http.post<WalletApiResponse<VerifyTransferPinResult>>('/api/v1/wallet/pin/verify', payload);
+      return response.data;
     },
   });
 }

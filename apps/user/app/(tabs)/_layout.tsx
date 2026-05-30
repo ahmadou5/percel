@@ -6,9 +6,10 @@ import { useAuthStore } from "@/store/auth.store";
 export { ErrorBoundary } from "@/components/AppErrorBoundary";
 
 export default function TabsLayout() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, isUnlocked } = useAuthStore();
   if (isLoading) return null;
   if (!isAuthenticated) return <Redirect href="/(auth)/welcome" />;
+  if (!isUnlocked) return <Redirect href="/auth-lock" />;
 
   return (
     <Tabs
