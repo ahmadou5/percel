@@ -15,7 +15,6 @@
     },
     "ios": {
       "supportsTablet": true,
-      "googleServicesFile": "./GoogleService-info.plist",
       "bundleIdentifier": "com.percel.user"
     },
     "android": {

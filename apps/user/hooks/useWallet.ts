@@ -50,11 +50,11 @@ export function useWallet() {
 }
 
 export function useTransactions(filters: WalletTransactionsQuery = {}) {
-  return useInfiniteQuery({
+  return useInfiniteQuery<WalletTransactionsResponse>({
     queryKey: ['wallet-transactions', filters],
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
-      const response = await http.get<WalletTransactionsResponse>('/api/v1/wallet/transactions', {
+      const response = await http.get<{ data: WalletTransactionsResponse }>('/api/v1/wallet/transactions', {
         params: {
           page: pageParam,
           limit: filters.limit ?? 20,
@@ -62,11 +62,14 @@ export function useTransactions(filters: WalletTransactionsQuery = {}) {
         },
       });
 
-      return response.data;
+      return response.data.data;
     },
     getNextPageParam: (lastPage) => {
-      const nextPage = lastPage.pagination.page + 1;
-      return nextPage <= lastPage.pagination.totalPages ? nextPage : undefined;
+      const pagination = lastPage.pagination;
+      if (!pagination) return undefined;
+
+      const nextPage = pagination.page + 1;
+      return nextPage <= pagination.totalPages ? nextPage : undefined;
     },
   });
 }

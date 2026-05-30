@@ -1,34 +1,122 @@
 import { Link } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/palette';
+import { Typography } from '@/constants/typography';
+import { useColorScheme } from '@/components/useColorScheme';
 
 export default function WelcomeScreen() {
+  const scheme = useColorScheme() ?? 'dark';
+  const theme = Colors[scheme];
+
   return (
-    <View style={styles.container}>
-      <Animated.View entering={FadeInDown.duration(500)} style={styles.inner}>
-        <Text style={styles.logo}>Percel</Text>
-        <Text style={styles.tagline}>Deliver anything, anywhere.</Text>
-        <Link href="/(auth)/register" asChild>
-          <View style={{ marginTop: 24 }}>
-            <Button title="Get Started" />
+    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+      <AuthBackdrop />
+      <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)' }]} />
+      <View style={styles.shell}>
+        <Animated.View entering={FadeInDown.duration(700)} style={styles.heroWrap}>
+          <View style={[styles.heroMark, { backgroundColor: scheme === 'dark' ? 'rgba(10,132,255,0.16)' : 'rgba(10,132,255,0.12)', borderColor: scheme === 'dark' ? 'rgba(10,132,255,0.22)' : 'rgba(10,132,255,0.16)' }]}>
+            <View style={[styles.heroMarkInner, { backgroundColor: theme.primary }]} />
           </View>
-        </Link>
-        <Link href="/(auth)/login" asChild>
-          <View style={{ marginTop: 12 }}>
-            <Button title="I already have an account" variant="ghost" />
-          </View>
-        </Link>
-      </Animated.View>
+          <Text style={[styles.logo, { color: theme.text }]}>Percel</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(120).duration(620)} style={styles.copyWrap}>
+          <Text style={[styles.tagline, { color: theme.text }]}>Deliver anything, anywhere.</Text>
+          <Text style={[styles.body, { color: theme.textSecondary }]}>Fast dispatch, live tracking, and a clean payment flow built for people who move quickly.</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(220).duration(620)} style={styles.ctaWrap}>
+          <Link href="/(auth)/register" asChild>
+            <Button title="Get Started" size="lg" style={styles.primaryButton} />
+          </Link>
+          <Link href="/(auth)/login" asChild>
+            <Button title="I already have an account" variant="ghost" size="lg" style={styles.secondaryButton} />
+          </Link>
+        </Animated.View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.bg, justifyContent: 'center', padding: 20 },
-  inner: { backgroundColor: Colors.light.card, borderRadius: 20, padding: 24 },
-  logo: { fontSize: 40, fontWeight: '700', color: Colors.light.primary },
-  tagline: { marginTop: 8, fontSize: 18, color: Colors.light.textSecondary },
+  screen: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  shell: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 0,
+    width: '100%',
+    maxWidth: 460,
+  },
+  heroMark: {
+    width: 128,
+    height: 128,
+    borderRadius: 40,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+    transform: [{ rotate: '-8deg' }],
+  },
+  heroMarkInner: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    opacity: 0.92,
+    transform: [{ rotate: '18deg' }],
+  },
+  logo: {
+    fontSize: 46,
+    lineHeight: 50,
+    fontFamily: Typography.family.bold,
+    letterSpacing: -1.5,
+  },
+  copyWrap: {
+    gap: 14,
+    maxWidth: 460,
+    width: '100%',
+    marginTop: 28,
+    alignItems: 'center',
+    textAlign: 'center',
+  },
+  tagline: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: Typography.family.bold,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: Typography.family.regular,
+    textAlign: 'center',
+  },
+  ctaWrap: {
+    gap: 12,
+    marginTop: 28,
+    width: '100%',
+    maxWidth: 460,
+  },
+  primaryButton: {
+    width: '100%',
+  },
+  secondaryButton: {
+    width: '100%',
+  },
 });

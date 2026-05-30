@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import { AppState, type AppStateStatus } from 'react-native';
 import { useEffect, useRef } from 'react';
+import { router } from 'expo-router';
 
 import { http } from '@/lib/api';
 import { useUserSocketLifecycle } from '@/lib/socket';
@@ -13,6 +15,7 @@ export function UserRuntime() {
   const lastRegisteredToken = useRef<string | null>(null);
   const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
   const hydratePreferences = usePreferencesStore((state) => state.hydrate);
+  const isUnlocked = useAuthStore((state) => state.isUnlocked);
 
   useUserSocketLifecycle();
 
@@ -30,13 +33,19 @@ export function UserRuntime() {
       const next = current.status === 'granted' ? current : await Notifications.requestPermissionsAsync();
       if (cancelled || next.status !== 'granted') return;
 
-      const projectId =
-        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
-      const pushToken = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
-      if (cancelled || !pushToken || lastRegisteredToken.current === pushToken) return;
+      try {
+        const projectId =
+          Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
+        const pushToken = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
+        if (cancelled || !pushToken || lastRegisteredToken.current === pushToken) return;
 
-      await http.post('/api/v1/user/push-token', { token: pushToken });
-      lastRegisteredToken.current = pushToken;
+        await http.post('/api/v1/user/push-token', { token: pushToken });
+        lastRegisteredToken.current = pushToken;
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('Push token registration failed', error);
+        }
+      }
     }
 
     void registerPushToken();
@@ -45,6 +54,29 @@ export function UserRuntime() {
       cancelled = true;
     };
   }, [isAuthenticated, token, notificationsEnabled]);
+
+  useEffect(() => {
+    if (isAuthenticated && !isUnlocked) {
+      router.replace('/auth-lock');
+    }
+  }, [isAuthenticated, isUnlocked]);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      const auth = useAuthStore.getState();
+      if (nextState !== 'active') {
+        if (auth.isAuthenticated) auth.lock();
+        return;
+      }
+
+      if (auth.isAuthenticated && !auth.isUnlocked) {
+        router.replace('/auth-lock');
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
 
   return null;
 }

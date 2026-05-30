@@ -97,7 +97,7 @@ export default function TopUpScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.light.bg },
-  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   hero: { gap: Spacing.sm },
   eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.sm, fontWeight: Typography.bold },
   title: { color: Colors.light.text, fontSize: 28, lineHeight: 34, fontWeight: Typography.bold },

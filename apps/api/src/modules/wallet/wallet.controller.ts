@@ -53,6 +53,13 @@ export class WalletController {
     return success(data, 'Transfer PIN removed');
   };
 
+  verifyTransferPin = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { pin } = request.body as { pin: string };
+    const data = await this.service.verifyTransferPin(userId, pin);
+    return success(data, 'Transfer PIN verified');
+  };
+
   airtime = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const { phone, amount, network } = request.body as { phone: string; amount: number; network: string };

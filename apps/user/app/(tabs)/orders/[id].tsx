@@ -69,7 +69,7 @@ export default function OrderDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.light.bg },
-  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loading: { color: Colors.light.text, fontSize: Typography.lg, fontWeight: Typography.bold },
   hero: { gap: 4 },

@@ -21,6 +21,10 @@ export const ResetTransferPinBody = Type.Object({
   currentPin: Type.String({ minLength: 4, maxLength: 6 }),
 });
 
+export const VerifyTransferPinBody = Type.Object({
+  pin: Type.String({ minLength: 4, maxLength: 6 }),
+});
+
 export const AirtimeBody = Type.Object({
   phone: Type.String(),
   amount: Type.Number({ minimum: 1 }),

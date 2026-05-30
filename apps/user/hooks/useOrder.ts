@@ -34,14 +34,17 @@ export function useOrders() {
     queryKey: ['orders'],
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
-      const response = await http.get<OrderListResponse>('/api/v1/orders', {
+      const response = await http.get<{ data: OrderListResponse }>('/api/v1/orders', {
         params: { page: pageParam, limit: 20 },
       });
-      return response.data;
+      return response.data.data;
     },
     getNextPageParam: (lastPage) => {
-      const next = lastPage.pagination.page + 1;
-      return next <= lastPage.pagination.totalPages ? next : undefined;
+      const pagination = lastPage.pagination;
+      if (!pagination) return undefined;
+
+      const next = pagination.page + 1;
+      return next <= pagination.totalPages ? next : undefined;
     },
   });
 }

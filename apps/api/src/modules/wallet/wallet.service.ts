@@ -194,6 +194,20 @@ export class WalletService {
     return { updated: true };
   }
 
+  async verifyTransferPin(userId: string, pin: string) {
+    const normalizedPin = normalizePin(pin);
+    assertPinFormat(normalizedPin);
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } });
+    if (!user) throw new NotFoundError('User not found');
+    if (!user.walletPinHash) throw new ValidationError('No transfer PIN is set');
+
+    const matches = await bcrypt.compare(normalizedPin, user.walletPinHash);
+    if (!matches) throw new UnauthorizedError('Invalid transfer PIN');
+
+    return { verified: true };
+  }
+
   async handlePaystackWebhook(payload: Record<string, unknown>, signature?: string) {
     const secret = env.PAYSTACK_SECRET_KEY;
     const computed = crypto.createHmac('sha512', secret).update(JSON.stringify(payload)).digest('hex');

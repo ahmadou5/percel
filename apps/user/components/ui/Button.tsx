@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Colors } from '@/constants/palette';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 
@@ -14,14 +15,15 @@ type Props = {
   loading?: boolean;
   variant?: Variant;
   size?: Size;
+  style?: StyleProp<ViewStyle>;
 };
 
-const variantStyles: Record<Variant, object> = {
-  primary: { backgroundColor: Colors.light.primary },
-  secondary: { backgroundColor: Colors.light.primaryDark },
-  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.light.primary },
-  danger: { backgroundColor: Colors.light.error },
-};
+const variantStyles = (theme: (typeof Colors)[keyof typeof Colors]): Record<Variant, object> => ({
+  primary: { backgroundColor: theme.primary },
+  secondary: { backgroundColor: theme.primaryDark },
+  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.primary },
+  danger: { backgroundColor: theme.error },
+});
 
 const sizeStyles: Record<Size, object> = {
   sm: { paddingHorizontal: Spacing.md, minHeight: 40 },
@@ -29,16 +31,18 @@ const sizeStyles: Record<Size, object> = {
   lg: { paddingHorizontal: Spacing.xl, minHeight: 52 },
 };
 
-export function Button({ title, onPress, disabled, loading, variant = 'primary', size = 'md' }: Props) {
+export function Button({ title, onPress, disabled, loading, variant = 'primary', size = 'md', style }: Props) {
+  const scheme = useColorScheme() ?? 'dark';
+  const theme = Colors[scheme];
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.base, variantStyles[variant], sizeStyles[size], disabled ? styles.disabled : null]}
+      style={({ pressed }) => [styles.base, variantStyles(theme)[variant], sizeStyles[size], disabled ? styles.disabled : null, pressed ? styles.pressed : null, style]}
     >
       <View style={styles.row}>
-        {loading ? <ActivityIndicator color={variant === 'ghost' ? Colors.light.primary : '#fff'} /> : null}
-        <Text style={[styles.text, variant === 'ghost' ? styles.ghostText : null]}>{title}</Text>
+        {loading ? <ActivityIndicator color={variant === 'ghost' ? theme.primary : '#fff'} /> : null}
+        <Text style={[styles.text, { color: variant === 'ghost' ? theme.primary : '#fff' }]}>{title}</Text>
       </View>
     </Pressable>
   );
@@ -47,7 +51,7 @@ export function Button({ title, onPress, disabled, loading, variant = 'primary',
 const styles = StyleSheet.create({
   base: { borderRadius: 12, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   row: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  text: { color: '#fff', fontSize: Typography.md, fontWeight: Typography.semibold },
-  ghostText: { color: Colors.light.primary },
+  text: { fontSize: Typography.md, fontFamily: Typography.family.semibold },
+  pressed: { transform: [{ scale: 0.985 }], opacity: 0.94 },
   disabled: { opacity: 0.5 },
 });

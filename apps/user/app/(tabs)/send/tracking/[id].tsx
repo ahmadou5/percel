@@ -107,7 +107,7 @@ export default function TrackingScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.light.bg },
-  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { color: Colors.light.text, fontSize: Typography.xl, fontWeight: Typography.bold },
   mapCard: { backgroundColor: Colors.light.card, borderRadius: 24, borderWidth: 1, borderColor: Colors.light.border, padding: Spacing.lg, minHeight: 180, justifyContent: 'flex-end' },

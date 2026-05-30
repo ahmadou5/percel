@@ -9,4 +9,10 @@ export const Typography = {
   medium: '500' as const,
   semibold: '600' as const,
   bold: '700' as const,
-};
+  family: {
+    regular: 'SpaceGrotesk_400Regular',
+    medium: 'SpaceGrotesk_500Medium',
+    semibold: 'SpaceGrotesk_600SemiBold',
+    bold: 'SpaceGrotesk_700Bold',
+  },
+} as const;

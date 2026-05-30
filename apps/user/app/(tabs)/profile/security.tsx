@@ -145,7 +145,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, padding: Spacing.lg, gap: Spacing.lg, backgroundColor: Colors.light.bg },
+  content: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, backgroundColor: Colors.light.bg },
   hero: { gap: Spacing.sm, paddingTop: Spacing.sm },
   eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.sm, fontWeight: Typography.bold },
   title: { color: Colors.light.text, fontSize: 30, lineHeight: 36, fontWeight: Typography.bold },

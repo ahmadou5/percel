@@ -14,7 +14,9 @@ type AuthResponse = {
 export function useLogin(
   options?: UseMutationOptions<AuthResponse, Error, { identifier: string; password: string }>,
 ) {
+  const { onSuccess: userOnSuccess, ...mutationOptions } = options ?? {};
   return useMutation({
+    ...mutationOptions,
     mutationFn: async (payload: { identifier: string; password: string }) => {
       const response = await http.post<AuthResponse>('/api/v1/auth/login', payload);
       return response.data;
@@ -22,12 +24,13 @@ export function useLogin(
     onSuccess: async (data, vars, onMutateResult, ctx) => {
       await useAuthStore.getState().setTokens(data.data.tokens);
       useAuthStore.getState().setUser(data.data.user);
+      useAuthStore.getState().unlock();
+      useAuthStore.getState().unlock();
       await persistUser(data.data.user);
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.register_success', level: 'info', data: { userId: data.data.user.id } });
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.login_success', level: 'info', data: { userId: data.data.user.id } });
-      await options?.onSuccess?.(data, vars, onMutateResult, ctx);
+      await userOnSuccess?.(data, vars, onMutateResult, ctx);
     },
-    ...options,
   });
 }
 
@@ -38,7 +41,9 @@ export function useRegister(
     { email: string; phone: string; password: string; fullName: string }
   >,
 ) {
+  const { onSuccess: userOnSuccess, ...mutationOptions } = options ?? {};
   return useMutation({
+    ...mutationOptions,
     mutationFn: async (payload: {
       email: string;
       phone: string;
@@ -51,12 +56,13 @@ export function useRegister(
     onSuccess: async (data, vars, onMutateResult, ctx) => {
       await useAuthStore.getState().setTokens(data.data.tokens);
       useAuthStore.getState().setUser(data.data.user);
+      useAuthStore.getState().unlock();
+      useAuthStore.getState().unlock();
       await persistUser(data.data.user);
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.register_success', level: 'info', data: { userId: data.data.user.id } });
       Sentry.addBreadcrumb({ category: 'auth', message: 'auth.login_success', level: 'info', data: { userId: data.data.user.id } });
-      await options?.onSuccess?.(data, vars, onMutateResult, ctx);
+      await userOnSuccess?.(data, vars, onMutateResult, ctx);
     },
-    ...options,
   });
 }
 

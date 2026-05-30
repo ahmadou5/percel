@@ -159,7 +159,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: Spacing.lg, gap: Spacing.lg, backgroundColor: Colors.light.bg, paddingBottom: Spacing.xl * 2 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, backgroundColor: Colors.light.bg, paddingBottom: Spacing.xl * 2 },
   hero: {
     borderRadius: 28,
     padding: Spacing.xl,

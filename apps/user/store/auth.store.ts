@@ -23,9 +23,12 @@ type AuthState = {
   tokens: AuthTokens | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isUnlocked: boolean;
   setUser: (user: AuthUser | null) => void;
   setTokens: (tokens: AuthTokens | null) => Promise<void>;
   hydrate: () => Promise<void>;
+  unlock: () => void;
+  lock: () => void;
   logout: () => Promise<void>;
 };
 
@@ -37,6 +40,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   tokens: null,
   isLoading: true,
   isAuthenticated: false,
+  isUnlocked: false,
   setUser: (user) => {
     set({ user, isAuthenticated: Boolean(user && get().tokens) });
     Sentry.setUser(user ? { id: user.id, email: user.email } : null);
@@ -63,12 +67,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
     const user = rawUser ? (JSON.parse(rawUser) as AuthUser) : null;
 
-    set({ user, tokens, isAuthenticated: Boolean(user && tokens), isLoading: false });
+    set({ user, tokens, isAuthenticated: Boolean(user && tokens), isLoading: false, isUnlocked: false });
     Sentry.setUser(user ? { id: user.id, email: user.email } : null);
   },
+  unlock: () => set({ isUnlocked: true }),
+  lock: () => set({ isUnlocked: false }),
   logout: async () => {
     await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY), SecureStore.deleteItemAsync(USER_KEY)]);
-    set({ user: null, tokens: null, isAuthenticated: false, isLoading: false });
+    set({ user: null, tokens: null, isAuthenticated: false, isLoading: false, isUnlocked: false });
     Sentry.setUser(null);
   },
 }));

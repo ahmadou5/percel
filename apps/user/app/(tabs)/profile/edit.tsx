@@ -195,7 +195,7 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, padding: Spacing.lg, gap: Spacing.lg, backgroundColor: Colors.light.bg, paddingBottom: Spacing.xl * 2 },
+  content: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, backgroundColor: Colors.light.bg, paddingBottom: Spacing.xl * 2 },
   back: { alignSelf: 'flex-start', paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm },
   backText: { color: Colors.light.primary, fontSize: Typography.sm, fontWeight: Typography.semibold },
   hero: { gap: Spacing.sm },

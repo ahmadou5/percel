@@ -9,9 +9,17 @@ type EventHandler = (payload: any) => void;
 const listeners = new Map<string, Set<EventHandler>>();
 let socket: any = null;
 
-function safeRequire<T = any>(moduleName: string): T | null {
+function requireSocketIoClient() {
   try {
-    return require(moduleName) as T;
+    return require('socket.io-client');
+  } catch {
+    return null;
+  }
+}
+
+function requireNetInfo() {
+  try {
+    return require('@react-native-community/netinfo');
   } catch {
     return null;
   }
@@ -75,7 +83,7 @@ export function connectUserSocket() {
   const session = useAuthStore.getState();
   if (!session.isAuthenticated) return null;
 
-  const io = safeRequire<any>('socket.io-client');
+  const io = requireSocketIoClient();
   if (!io?.io && typeof io !== 'function') return null;
 
   if (!socket) {
@@ -109,7 +117,7 @@ export function useUserSocketLifecycle() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    const netInfo = safeRequire<any>('@react-native-community/netinfo');
+    const netInfo = requireNetInfo();
     if (isAuthenticated) {
       connectUserSocket();
     } else {
