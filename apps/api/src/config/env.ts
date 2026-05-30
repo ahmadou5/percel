@@ -18,7 +18,7 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1),
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
-  SENTRY_DSN: z.string().min(1),
+  SENTRY_DSN: z.string().optional().default(""),
   GIT_SHA: z.string().optional().default(''),
   CORS_ORIGIN: z.string().default('*'),
   PLATFORM_COMMISSION_PERCENT: z.coerce.number().min(0).max(100).default(10),
