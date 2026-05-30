@@ -2,6 +2,9 @@
   "name": "@percel/api",
   "version": "0.0.1",
   "private": true,
+  "engines": {
+    "node": "20"
+  },
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
