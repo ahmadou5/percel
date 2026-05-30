@@ -1,1 +1,1 @@
-export { default as driverRoutes } from './driver.routes';
+export { default as driverRoutes } from './driver.routes.js';

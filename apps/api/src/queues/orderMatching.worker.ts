@@ -1,12 +1,12 @@
 import { OrderStatus } from '@prisma/client';
 import { Worker } from 'bullmq';
-import { Sentry } from '../lib/sentry';
+import { Sentry } from '../lib/sentry.js';
 import type { FastifyInstance } from 'fastify';
 
-import { addNotificationJob } from '.';
-import { broadcastNewOrder, broadcastOrderStatusUpdate, type RealtimeApp } from '../lib/realtime';
-import { haversineDistanceKm } from '../utils/helpers';
-import { ORDER_MATCHING_QUEUE, type OrderMatchingJob } from './orderMatching.queue';
+import { addNotificationJob } from './index.js';
+import { broadcastNewOrder, broadcastOrderStatusUpdate, type RealtimeApp } from '../lib/realtime.js';
+import { haversineDistanceKm } from '../utils/helpers.js';
+import { ORDER_MATCHING_QUEUE, type OrderMatchingJob } from './orderMatching.queue.js';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

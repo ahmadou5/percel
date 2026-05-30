@@ -1,1 +1,1 @@
-export { default as walletRoutes } from './wallet.routes';
+export { default as walletRoutes } from './wallet.routes.js';

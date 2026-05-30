@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
 import {
   ForgotPasswordBody,
   ForgotPasswordSchema,
@@ -17,7 +17,7 @@ import {
   RegisterUserSchema,
   ResetPasswordBody,
   ResetPasswordSchema,
-} from './auth.schema';
+} from './auth.schema.js';
 
 const authRoutes: FastifyPluginAsync = async (app) => {
   const service = new AuthService(app.prisma, app.jwt as never, app.log);

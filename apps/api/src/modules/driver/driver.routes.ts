@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { DriverService } from './driver.service';
-import { DriverReviewsQuery, UpdateVehicleBody } from './driver.schema';
-import type { DriverKycDocumentType } from './driver.types';
-import { success, error } from '../../utils/response';
+import { DriverService } from './driver.service.js';
+import { DriverReviewsQuery, UpdateVehicleBody } from './driver.schema.js';
+import type { DriverKycDocumentType } from './driver.types.js';
+import { success, error } from '../../utils/response.js';
 
 type MultipartPart =
   | { type: 'field'; fieldname: string; value: unknown }

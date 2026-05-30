@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin';
 import cors from '@fastify/cors';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 function parseOrigins() {
   if (!env.CORS_ORIGIN || env.CORS_ORIGIN === '*') return true;

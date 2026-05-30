@@ -1,8 +1,8 @@
 import type { FastifyRequest } from 'fastify';
 
-import { ValidationError } from '../../utils/errors';
-import { success } from '../../utils/response';
-import type { UserService } from './user.service';
+import { ValidationError } from '../../utils/errors.js';
+import { success } from '../../utils/response.js';
+import type { UserService } from './user.service.js';
 
 export class UserController {
   constructor(private readonly service: UserService) {}

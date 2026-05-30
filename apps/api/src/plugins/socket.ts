@@ -1,8 +1,8 @@
 import fp from 'fastify-plugin';
 import { Server } from 'socket.io';
 
-import { DriverService } from '../modules/driver/driver.service';
-import { attachRealtimeBridge, describeSocketOrigins } from '../lib/realtime';
+import { DriverService } from '../modules/driver/driver.service.js';
+import { attachRealtimeBridge, describeSocketOrigins } from '../lib/realtime.js';
 
 function getToken(socket: { handshake: { auth?: { token?: string }; headers: Record<string, unknown> } }) {
   const authToken = socket.handshake.auth?.token;

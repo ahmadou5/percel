@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 export function initSentry() {
   if (!env.SENTRY_DSN) return;

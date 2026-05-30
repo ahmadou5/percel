@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 import type { FastifyInstance } from 'fastify';
 
-import { createOrderMatchingQueue, type OrderMatchingJob } from './orderMatching.queue';
+import { createOrderMatchingQueue, type OrderMatchingJob } from './orderMatching.queue.js';
 
 export const NOTIFICATION_QUEUE = 'send-notification';
 export const WALLET_OPS_QUEUE = 'wallet-ops';

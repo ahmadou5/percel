@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-import { PaymentError } from '../utils/errors';
+import { PaymentError } from '../utils/errors.js';
 
 type InitializeResponse = {
   authorization_url: string;

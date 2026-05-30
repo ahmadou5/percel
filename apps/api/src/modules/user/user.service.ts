@@ -2,9 +2,9 @@ import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { type PrismaClient, UserStatus } from '@prisma/client';
 
-import { uploadImageBuffer } from '../../lib/cloudinary';
-import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
-import type { ChangePasswordBody, UpdateProfileBody, UserProfileResponse } from './user.types';
+import { uploadImageBuffer } from '../../lib/cloudinary.js';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
+import type { ChangePasswordBody, UpdateProfileBody, UserProfileResponse } from './user.types.js';
 
 function toIso(value: Date | null | undefined) {
   return value ? value.toISOString() : null;

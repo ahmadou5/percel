@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { OrderController } from './order.controller';
-import { OrderService } from './order.service';
-import { CancelBody, CreateOrderBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema';
-import { WalletService } from '../wallet/wallet.service';
+import { OrderController } from './order.controller.js';
+import { OrderService } from './order.service.js';
+import { CancelBody, CreateOrderBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema.js';
+import { WalletService } from '../wallet/wallet.service.js';
 
 const orderRoutes: FastifyPluginAsync = async (app) => {
   const walletService = new WalletService(app.prisma, app.log, app);

@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 
-import { success } from '../../utils/response';
-import type { OrderService } from './order.service';
+import { success } from '../../utils/response.js';
+import type { OrderService } from './order.service.js';
 
 export class OrderController {
   constructor(private readonly service: OrderService) {}

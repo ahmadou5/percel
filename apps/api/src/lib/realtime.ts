@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type IORedis from 'ioredis';
 import type { Server } from 'socket.io';
 
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 export type RealtimeApp = FastifyInstance & {
   io: Server | null;

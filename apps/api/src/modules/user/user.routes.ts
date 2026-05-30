@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
-import { ChangePasswordBody, PushTokenBody, UpdateProfileBody } from './user.schema';
+import { UserController } from './user.controller.js';
+import { UserService } from './user.service.js';
+import { ChangePasswordBody, PushTokenBody, UpdateProfileBody } from './user.schema.js';
 
 const userRoutes: FastifyPluginAsync = async (app) => {
   const service = new UserService(app.prisma, app.log, app);

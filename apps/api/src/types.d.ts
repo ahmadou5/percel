@@ -4,7 +4,7 @@ import type { Server } from 'socket.io';
 import 'fastify';
 import '@fastify/request-context';
 
-import type { AppQueues } from './queues';
+import type { AppQueues } from './queues/index.js';
 
 declare module '@fastify/request-context' {
   interface RequestContextData {

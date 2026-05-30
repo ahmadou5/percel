@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 
-import { success } from '../../utils/response';
-import type { AuthService } from './auth.service';
+import { success } from '../../utils/response.js';
+import type { AuthService } from './auth.service.js';
 
 export class AuthController {
   constructor(private readonly service: AuthService) {}

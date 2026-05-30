@@ -3,17 +3,17 @@ import crypto from 'node:crypto';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { OrderStatus, PaymentStatus, Prisma, type OrderSize, type PrismaClient } from '@prisma/client';
 
-import { getDistanceAndDuration, geocodeAddress } from '../../lib/googleMaps';
-import { getCachedJson, setCachedJson } from '../../lib/cache';
-import { addNotificationJob } from '../../queues';
-import { broadcastOrderStatusUpdate, clearActiveDriverTracking, setActiveDriverTracking, type RealtimeApp } from '../../lib/realtime';
-import { getPriceQuote } from '../../lib/pricing';
-import { createOrderMatchingQueue } from '../../queues/orderMatching.queue';
-import { haversineDistanceKm } from '../../utils/helpers';
-import { cleanText } from '../../utils/sanitize';
-import { ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors';
-import type { WalletService } from '../wallet/wallet.service';
-import type { OrderQuote, OrderSummary } from './order.types';
+import { getDistanceAndDuration, geocodeAddress } from '../../lib/googleMaps.js';
+import { getCachedJson, setCachedJson } from '../../lib/cache.js';
+import { addNotificationJob } from '../../queues/index.js';
+import { broadcastOrderStatusUpdate, clearActiveDriverTracking, setActiveDriverTracking, type RealtimeApp } from '../../lib/realtime.js';
+import { getPriceQuote } from '../../lib/pricing.js';
+import { createOrderMatchingQueue } from '../../queues/orderMatching.queue.js';
+import { haversineDistanceKm } from '../../utils/helpers.js';
+import { cleanText } from '../../utils/sanitize.js';
+import { ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
+import type { WalletService } from '../wallet/wallet.service.js';
+import type { OrderQuote, OrderSummary } from './order.types.js';
 
 function asNumber(value: Prisma.Decimal | number | null | undefined) {
   return Number(value ?? 0);

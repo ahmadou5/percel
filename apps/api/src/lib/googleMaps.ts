@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
-import { env } from '../config/env';
-import { AppError, ValidationError } from '../utils/errors';
+import { env } from '../config/env.js';
+import { AppError, ValidationError } from '../utils/errors.js';
 
 const googleMaps = axios.create({
   baseURL: 'https://maps.googleapis.com/maps/api',

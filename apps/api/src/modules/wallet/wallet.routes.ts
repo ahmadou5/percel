@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { WalletController } from './wallet.controller';
-import { AirtimeBody, DataBody, ElectricityBody, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TxQuery } from './wallet.schema';
-import { WalletService } from './wallet.service';
+import { WalletController } from './wallet.controller.js';
+import { AirtimeBody, DataBody, ElectricityBody, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TxQuery } from './wallet.schema.js';
+import { WalletService } from './wallet.service.js';
 
 const walletRoutes: FastifyPluginAsync = async (app) => {
   const service = new WalletService(app.prisma, app.log, app);

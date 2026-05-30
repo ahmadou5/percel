@@ -1,7 +1,7 @@
 import { Expo, type ExpoPushMessage, type ExpoPushTicket } from 'expo-server-sdk';
 import type { FastifyInstance } from 'fastify';
 
-import type { NotificationJobType } from '../queues';
+import type { NotificationJobType } from '../queues/index.js';
 
 const expo = new Expo();
 

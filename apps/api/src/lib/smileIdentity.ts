@@ -2,8 +2,8 @@ import crypto from 'node:crypto';
 
 import axios from 'axios';
 
-import { env } from '../config/env';
-import { AppError } from '../utils/errors';
+import { env } from '../config/env.js';
+import { AppError } from '../utils/errors.js';
 
 type SmileIdentityResponse = {
   Verified?: boolean;

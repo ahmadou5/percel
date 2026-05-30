@@ -1,12 +1,12 @@
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { DriverKYCStatus, DriverStatus, Prisma, type PrismaClient } from '@prisma/client';
 
-import { env } from '../../config/env';
-import { addNotificationJob } from '../../queues';
-import { uploadImageBuffer } from '../../lib/cloudinary';
-import { verifyBVN, verifyNIN } from '../../lib/smileIdentity';
-import { ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
-import type { DriverKycDocumentType, DriverProfileResponse, VerifyResponse } from './driver.types';
+import { env } from '../../config/env.js';
+import { addNotificationJob } from '../../queues/index.js';
+import { uploadImageBuffer } from '../../lib/cloudinary.js';
+import { verifyBVN, verifyNIN } from '../../lib/smileIdentity.js';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors.js';
+import type { DriverKycDocumentType, DriverProfileResponse, VerifyResponse } from './driver.types.js';
 
 type DriverRecord = {
   id: string;

@@ -4,15 +4,15 @@ import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 
-import { env } from '../../config/env';
-import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache';
-import { cleanText } from '../../utils/sanitize';
-import { addNotificationJob } from '../../queues';
+import { env } from '../../config/env.js';
+import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
+import { cleanText } from '../../utils/sanitize.js';
+import { addNotificationJob } from '../../queues/index.js';
 import {
   initializeTransaction,
   initiateBillsCharge,
-} from '../../lib/paystack';
-import { NotFoundError, PaymentError, UnauthorizedError, ValidationError } from '../../utils/errors';
+} from '../../lib/paystack.js';
+import { NotFoundError, PaymentError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
 
 const PLATFORM_WALLET_ID = '00000000-0000-0000-0000-000000000001';
 

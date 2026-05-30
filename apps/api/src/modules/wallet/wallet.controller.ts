@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { success } from '../../utils/response';
-import type { WalletService } from './wallet.service';
+import { success } from '../../utils/response.js';
+import type { WalletService } from './wallet.service.js';
 
 export class WalletController {
   constructor(private readonly service: WalletService) {}

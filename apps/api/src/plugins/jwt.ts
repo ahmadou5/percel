@@ -1,8 +1,8 @@
 import fp from 'fastify-plugin';
 import jwt from '@fastify/jwt';
 
-import { env } from '../config/env';
-import { ForbiddenError, UnauthorizedError } from '../utils/errors';
+import { env } from '../config/env.js';
+import { ForbiddenError, UnauthorizedError } from '../utils/errors.js';
 
 type JwtPayload = {
   sub: string;

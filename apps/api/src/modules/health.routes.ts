@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { success } from '../utils/response';
+import { success } from '../utils/response.js';
 
 const healthRoutes: FastifyPluginAsync = async (app) => {
   app.get('/health', async () => {

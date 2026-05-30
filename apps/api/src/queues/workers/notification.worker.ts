@@ -1,9 +1,9 @@
 import { Worker } from 'bullmq';
-import { Sentry } from '../../lib/sentry';
+import { Sentry } from '../../lib/sentry.js';
 import type { FastifyInstance } from 'fastify';
 
-import { buildNotificationPayload, sendPushNotification } from '../../lib/notifications';
-import { NOTIFICATION_QUEUE, type NotificationJobData } from '..';
+import { buildNotificationPayload, sendPushNotification } from '../../lib/notifications.js';
+import { NOTIFICATION_QUEUE, type NotificationJobData } from '../index.js';
 
 export function createNotificationWorker(app: FastifyInstance) {
   return new Worker<NotificationJobData>(
