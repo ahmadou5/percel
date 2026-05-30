@@ -1,9 +1,0 @@
-[build]
-builder = "nixpacks"
-buildCommand = "pnpm --filter @percel/api exec prisma generate && pnpm --filter @percel/api build && pnpm --filter @percel/api exec prisma migrate deploy"
-
-[deploy]
-startCommand = "pnpm --filter @percel/api start"
-healthcheckPath = "/api/v1/health"
-healthcheckTimeout = 30
-restartPolicyType = "on_failure"
