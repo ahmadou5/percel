@@ -13,5 +13,5 @@ export type OrderMatchingJob = {
 };
 
 export function createOrderMatchingQueue(app: FastifyInstance) {
-  return new Queue<OrderMatchingJob>(ORDER_MATCHING_QUEUE, { connection: app.redis });
+  return new Queue<OrderMatchingJob>(ORDER_MATCHING_QUEUE, { connection: app.redis as never });
 }

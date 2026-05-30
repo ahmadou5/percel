@@ -25,12 +25,4 @@ declare module 'fastify' {
     authenticateDriver: (request: unknown) => Promise<void>;
     authenticateAdmin: (request: unknown) => Promise<void>;
   }
-
-  interface FastifyRequest {
-    user: {
-      sub: string;
-      role?: 'USER' | 'ADMIN';
-      driverId?: string;
-    } | null;
-  }
 }

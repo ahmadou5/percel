@@ -13,7 +13,7 @@ export function createNotificationWorker(app: FastifyInstance) {
       await sendPushNotification(app, job.data.userId, payload);
       return { delivered: true };
     },
-    { connection: app.redis, autorun: true, concurrency: 20 },
+    { connection: app.redis as never, autorun: true, concurrency: 20 },
   )
     .on('failed', (job, error) => {
       Sentry.captureException(error);

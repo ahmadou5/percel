@@ -81,7 +81,7 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
         userId: order.userId,
       });
     },
-    { connection: app.redis, autorun: true, concurrency: 5 },
+    { connection: app.redis as never, autorun: true, concurrency: 5 },
   )
     .on('failed', (job, error) => {
       Sentry.captureException(error);

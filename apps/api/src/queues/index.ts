@@ -39,8 +39,8 @@ export type AppQueues = {
 export function createQueues(app: FastifyInstance): AppQueues {
   return {
     orderMatchingQueue: createOrderMatchingQueue(app),
-    notificationQueue: new Queue<NotificationJobData>(NOTIFICATION_QUEUE, { connection: app.redis }),
-    walletOpsQueue: new Queue<WalletOpsJob>(WALLET_OPS_QUEUE, { connection: app.redis }),
+    notificationQueue: new Queue<NotificationJobData>(NOTIFICATION_QUEUE, { connection: app.redis as never }),
+    walletOpsQueue: new Queue<WalletOpsJob>(WALLET_OPS_QUEUE, { connection: app.redis as never }),
   };
 }
 
