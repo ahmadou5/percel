@@ -85,6 +85,36 @@ export class WalletService {
     });
   }
 
+  private async ensurePlatformWallet(trx: Prisma.TransactionClient) {
+    const platformUserId = '00000000-0000-0000-0000-000000000000';
+    const platformWalletId = '00000000-0000-0000-0000-000000000001';
+
+    let systemUser = await trx.user.findUnique({ where: { id: platformUserId } });
+    if (!systemUser) {
+      systemUser = await trx.user.create({
+        data: {
+          id: platformUserId,
+          email: 'system@percel.app',
+          phone: '+2348000000009',
+          passwordHash: '$2a$12$systemuserpasswordplaceholderhashed',
+          fullName: 'Percel System Platform',
+        },
+      });
+    }
+
+    let platformWallet = await trx.wallet.findUnique({ where: { id: platformWalletId } });
+    if (!platformWallet) {
+      platformWallet = await trx.wallet.create({
+        data: {
+          id: platformWalletId,
+          userId: platformUserId,
+          balance: 9999999999.99,
+          ledgerBalance: 9999999999.99,
+        },
+      });
+    }
+  }
+
   private async ensureDepositAccount(
     wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
     user: { email: string; fullName: string; phone: string; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
@@ -327,6 +357,7 @@ export class WalletService {
       let walletUserId: string | null = null;
 
       await this.prisma.$transaction(async (trx) => {
+        await this.ensurePlatformWallet(trx);
         const wallet = await trx.wallet.findUnique({ where: { id: tx.walletId } });
         if (!wallet) throw new NotFoundError('Wallet not found');
         walletUserId = wallet.userId;
