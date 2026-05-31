@@ -4,8 +4,10 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import { http } from '@/lib/api';
-import { useUserSocketLifecycle } from '@/lib/socket';
+import { subscribeUserSocket, useUserSocketLifecycle } from '@/lib/socket';
 import { useAuthStore } from '@/store/auth.store';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { useWallet } from '@/hooks/useWallet';
@@ -22,7 +24,20 @@ export function UserRuntime() {
   const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
   const walletReady = !walletQuery.isLoading && !walletQuery.isFetching;
 
+  const queryClient = useQueryClient();
+
   useUserSocketLifecycle();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribe = subscribeUserSocket('wallet_updated', () => {
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      void queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
+    });
+
+    return unsubscribe;
+  }, [isAuthenticated, queryClient]);
 
   useEffect(() => {
     void hydratePreferences();

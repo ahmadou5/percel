@@ -8,6 +8,7 @@ import { env } from '../../config/env.js';
 import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { cleanText } from '../../utils/sanitize.js';
 import { addNotificationJob } from '../../queues/index.js';
+import { emitToUser } from '../../lib/realtime.js';
 import {
   createCustomer,
   createDedicatedNUBAN,
@@ -46,10 +47,12 @@ function splitFullName(fullName: string) {
 function isKycComplete(user: {
   dateOfBirth: Date | null;
   address: string | null;
+  kycMethod: 'NIN' | 'BVN' | null;
   ninVerified: boolean;
   bvnVerified: boolean;
 }) {
-  return Boolean(user.dateOfBirth && user.address && user.ninVerified && user.bvnVerified);
+  if (!user.dateOfBirth || !user.address || !user.kycMethod) return false;
+  return user.kycMethod === 'BVN' ? user.bvnVerified : user.ninVerified;
 }
 
 export class WalletService {
@@ -84,7 +87,7 @@ export class WalletService {
 
   private async ensureDepositAccount(
     wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
-    user: { email: string; fullName: string; phone: string; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean },
+    user: { email: string; fullName: string; phone: string; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
   ) {
     if (wallet.nuban && wallet.bankName) {
       return { ...wallet, kycComplete: true };
@@ -142,11 +145,11 @@ export class WalletService {
         },
       }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Wallet not found');
-    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '', dateOfBirth: null, address: null, ninVerified: false, bvnVerified: false });
+    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '', dateOfBirth: null, address: null, ninVerified: false, bvnVerified: false, kycMethod: null });
     return {
       ...wallet,
       ...depositAccount,
@@ -354,6 +357,12 @@ export class WalletService {
 
       await deleteCache(this.app.redis, `cache:wallet:balance:${tx.walletId}`);
       if (walletUserId) {
+        try {
+          emitToUser(this.app, walletUserId, 'wallet_updated', { walletId: tx.walletId });
+        } catch (err) {
+          this.logger.warn({ err, walletUserId }, 'Failed to emit wallet_updated socket event');
+        }
+
         await addNotificationJob(this.app, walletUserId, 'PAYMENT_RECEIVED', {
           amount: Number(tx.amount),
           reference,
@@ -526,7 +535,7 @@ export class WalletService {
     const [wallet, sender, profile] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Sender wallet not found');

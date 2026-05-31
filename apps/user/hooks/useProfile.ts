@@ -71,6 +71,7 @@ export function useUpdateProfile() {
           ninVerified: data.ninVerified,
           bvnNumber: data.bvnNumber ?? auth.user.bvnNumber ?? null,
           bvnVerified: data.bvnVerified,
+          kycMethod: data.kycMethod,
           kycComplete: data.kycComplete,
           status: data.status,
         };
@@ -104,6 +105,7 @@ export function useVerifyNin() {
           ninVerified: data.ninVerified,
           bvnNumber: data.bvnNumber ?? auth.user.bvnNumber ?? null,
           bvnVerified: data.bvnVerified,
+          kycMethod: data.kycMethod,
           kycComplete: data.kycComplete,
           status: data.status,
         };
@@ -137,6 +139,7 @@ export function useVerifyBvn() {
           ninVerified: data.ninVerified,
           bvnNumber: data.bvnNumber ?? auth.user.bvnNumber ?? null,
           bvnVerified: data.bvnVerified,
+          kycMethod: data.kycMethod,
           kycComplete: data.kycComplete,
           status: data.status,
         };

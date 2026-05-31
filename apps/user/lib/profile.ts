@@ -10,6 +10,7 @@ export type UserProfile = {
   ninVerified: boolean;
   bvnNumber: string | null;
   bvnVerified: boolean;
+  kycMethod: 'NIN' | 'BVN' | null;
   status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
   walletPinSet: boolean;
   kycComplete: boolean;
@@ -21,6 +22,7 @@ export type UpdateProfilePayload = {
   fullName?: string;
   dateOfBirth?: string | null;
   address?: string | null;
+  kycMethod?: 'NIN' | 'BVN' | null;
 };
 
 export type VerifyNinPayload = {

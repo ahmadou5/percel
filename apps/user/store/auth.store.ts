@@ -15,6 +15,7 @@ export type AuthUser = {
   ninVerified?: boolean;
   bvnNumber?: string | null;
   bvnVerified?: boolean;
+  kycMethod?: 'NIN' | 'BVN' | null;
   status?: string | null;
   kycComplete?: boolean;
 };

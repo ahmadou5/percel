@@ -39,10 +39,12 @@ function splitFullName(fullName: string) {
 function isKycComplete(user: {
   dateOfBirth: Date | null;
   address: string | null;
+  kycMethod: 'NIN' | 'BVN' | null;
   ninVerified: boolean;
   bvnVerified: boolean;
 }) {
-  return Boolean(user.dateOfBirth && user.address && user.ninVerified && user.bvnVerified);
+  if (!user.dateOfBirth || !user.address || !user.kycMethod) return false;
+  return user.kycMethod === 'BVN' ? user.bvnVerified : user.ninVerified;
 }
 
 function toNotificationResponse(notification: {
@@ -89,6 +91,7 @@ export class UserService {
         ninVerified: true,
         bvnNumber: true,
         bvnVerified: true,
+        kycMethod: true,
         status: true,
         walletPinHash: true,
         createdAt: true,
@@ -110,6 +113,7 @@ export class UserService {
       ninVerified: user.ninVerified,
       bvnNumber: user.bvnNumber,
       bvnVerified: user.bvnVerified,
+      kycMethod: user.kycMethod,
       status: user.status,
       walletPinSet: Boolean(user.walletPinHash),
       kycComplete: isKycComplete(user),
@@ -178,6 +182,7 @@ export class UserService {
         ...(nextFullName ? { fullName: nextFullName } : {}),
         ...(data.dateOfBirth !== undefined ? { dateOfBirth: toDate(data.dateOfBirth) } : {}),
         ...(data.address !== undefined ? { address: normalizeText(data.address) } : {}),
+        ...(data.kycMethod !== undefined ? { kycMethod: data.kycMethod } : {}),
       },
       select: {
         id: true,
@@ -191,6 +196,7 @@ export class UserService {
         ninVerified: true,
         bvnNumber: true,
         bvnVerified: true,
+        kycMethod: true,
         status: true,
         walletPinHash: true,
         createdAt: true,
@@ -211,6 +217,7 @@ export class UserService {
       ninVerified: updated.ninVerified,
       bvnNumber: updated.bvnNumber,
       bvnVerified: updated.bvnVerified,
+      kycMethod: updated.kycMethod,
       status: updated.status,
       walletPinSet: Boolean(updated.walletPinHash),
       kycComplete: isKycComplete(updated),
@@ -222,7 +229,7 @@ export class UserService {
   async verifyUserNin(userId: string, nin: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { fullName: true, dateOfBirth: true, ninVerified: true, address: true },
+      select: { fullName: true, dateOfBirth: true, ninVerified: true, bvnVerified: true, address: true, kycMethod: true },
     });
 
     if (!user) throw new NotFoundError('User not found');
@@ -237,6 +244,7 @@ export class UserService {
       data: {
         ninNumber: nin.trim(),
         ninVerified: true,
+        kycMethod: 'NIN',
       },
       select: {
         id: true,
@@ -250,6 +258,7 @@ export class UserService {
         ninVerified: true,
         bvnNumber: true,
         bvnVerified: true,
+        kycMethod: true,
         status: true,
         walletPinHash: true,
         createdAt: true,
@@ -270,6 +279,7 @@ export class UserService {
       ninVerified: updated.ninVerified,
       bvnNumber: updated.bvnNumber,
       bvnVerified: updated.bvnVerified,
+      kycMethod: updated.kycMethod,
       status: updated.status,
       walletPinSet: Boolean(updated.walletPinHash),
       kycComplete: isKycComplete(updated),
@@ -281,7 +291,7 @@ export class UserService {
   async verifyUserBvn(userId: string, bvn: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { fullName: true, dateOfBirth: true, bvnVerified: true, address: true },
+      select: { fullName: true, dateOfBirth: true, ninVerified: true, bvnVerified: true, address: true, kycMethod: true },
     });
 
     if (!user) throw new NotFoundError('User not found');
@@ -296,6 +306,7 @@ export class UserService {
       data: {
         bvnNumber: bvn.trim(),
         bvnVerified: true,
+        kycMethod: 'BVN',
       },
       select: {
         id: true,
@@ -309,6 +320,7 @@ export class UserService {
         ninVerified: true,
         bvnNumber: true,
         bvnVerified: true,
+        kycMethod: true,
         status: true,
         walletPinHash: true,
         createdAt: true,
@@ -329,6 +341,7 @@ export class UserService {
       ninVerified: updated.ninVerified,
       bvnNumber: updated.bvnNumber,
       bvnVerified: updated.bvnVerified,
+      kycMethod: updated.kycMethod,
       status: updated.status,
       walletPinSet: Boolean(updated.walletPinHash),
       kycComplete: isKycComplete(updated),

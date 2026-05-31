@@ -20,6 +20,11 @@ enum UserStatus {
   PENDING_VERIFICATION
 }
 
+enum KycMethod {
+  NIN
+  BVN
+}
+
 enum DriverStatus {
   PENDING_KYC
   KYC_SUBMITTED
@@ -119,6 +124,7 @@ model User {
   ninVerified   Boolean    @default(false)
   bvnNumber     String?
   bvnVerified   Boolean    @default(false)
+  kycMethod     KycMethod?
   deletedAt     DateTime?
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)

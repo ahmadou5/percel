@@ -12,6 +12,7 @@ export type UserProfileResponse = {
   ninVerified: boolean;
   bvnNumber: string | null;
   bvnVerified: boolean;
+  kycMethod: 'NIN' | 'BVN' | null;
   status: UserStatus;
   walletPinSet: boolean;
   kycComplete: boolean;
@@ -39,6 +40,7 @@ export type UpdateProfileBody = {
   fullName?: string;
   dateOfBirth?: string | null;
   address?: string | null;
+  kycMethod?: 'NIN' | 'BVN' | null;
 };
 
 export type ChangePasswordBody = {
