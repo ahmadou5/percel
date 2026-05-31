@@ -3,20 +3,24 @@ import { useSyncExternalStore } from 'react';
 
 type PreferencesState = {
   notificationsEnabled: boolean;
+  appLockEnabled: boolean;
   isLoading: boolean;
 };
 
 type PreferencesActions = {
   hydrate: () => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
+  setAppLockEnabled: (enabled: boolean) => Promise<void>;
 };
 
 type PreferencesStore = PreferencesState & PreferencesActions;
 
-const KEY = 'percel_user_notifications_enabled';
+const NOTIFICATIONS_KEY = 'percel_user_notifications_enabled';
+const APP_LOCK_KEY = 'percel_user_app_lock_enabled';
 
 let state: PreferencesState = {
   notificationsEnabled: true,
+  appLockEnabled: false,
   isLoading: true,
 };
 
@@ -40,19 +44,34 @@ function subscribe(listener: () => void) {
 
 async function hydrate() {
   setState({ isLoading: true });
-  const raw = await SecureStore.getItemAsync(KEY);
-  setState({ notificationsEnabled: raw == null ? true : raw === 'true', isLoading: false });
+  const [notificationsRaw, appLockRaw] = await Promise.all([
+    SecureStore.getItemAsync(NOTIFICATIONS_KEY),
+    SecureStore.getItemAsync(APP_LOCK_KEY),
+  ]);
+
+  setState({
+    notificationsEnabled: notificationsRaw == null ? true : notificationsRaw === 'true',
+    appLockEnabled: appLockRaw == null ? false : appLockRaw === 'true',
+    isLoading: false,
+  });
 }
 
 async function setNotificationsEnabled(enabled: boolean) {
   state = { ...state, notificationsEnabled: enabled };
-  await SecureStore.setItemAsync(KEY, enabled ? 'true' : 'false');
+  await SecureStore.setItemAsync(NOTIFICATIONS_KEY, enabled ? 'true' : 'false');
+  emit();
+}
+
+async function setAppLockEnabled(enabled: boolean) {
+  state = { ...state, appLockEnabled: enabled };
+  await SecureStore.setItemAsync(APP_LOCK_KEY, enabled ? 'true' : 'false');
   emit();
 }
 
 const actions: PreferencesActions = {
   hydrate,
   setNotificationsEnabled,
+  setAppLockEnabled,
 };
 
 snapshot = { ...state, ...actions };

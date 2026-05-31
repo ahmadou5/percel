@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, Plus, Smartphone, Globe, Tv2, Zap, CircleHelp } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, Plus, Smartphone, Globe, Tv2, Zap, CircleHelp, ShieldCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/palette';
@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useColorScheme } from '@/components/useColorScheme';
 import { StateCard } from '@/components/ui/StateCard';
 import { useTransactions, useWallet } from '@/hooks/useWallet';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const quickActions = [
   { label: 'Airtime', href: '/wallet/airtime', Icon: Smartphone, bg: 'rgba(10, 132, 255, 0.14)' },
@@ -63,18 +64,29 @@ export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const walletQuery = useWallet();
   const txQuery = useTransactions({ limit: 5 });
+  const notificationsQuery = useNotifications(20);
   const [balanceHidden, setBalanceHidden] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [currency, setCurrency] = useState<(typeof currencies)[number]['value']>('NGN');
 
   const wallet = walletQuery.data;
+  const unreadNotifications = notificationsQuery.data?.unreadCount ?? 0;
   const balance = safeBalance(wallet?.balance);
   const transactions = useMemo(() => txQuery.data?.pages.flatMap((page) => page.data).slice(0, 5) ?? wallet?.transactions ?? [], [txQuery.data, wallet?.transactions]);
   const refresh = () => {
     void walletQuery.refetch();
     void txQuery.refetch();
   };
+  const hasPromptedForPin = useRef(false);
+  const [pinPromptVisible, setPinPromptVisible] = useState(false);
   const isInitialLoading = walletQuery.isLoading && !wallet && txQuery.isLoading;
+
+  useEffect(() => {
+    if (!walletQuery.isLoading && wallet && !wallet.walletPinSet && !hasPromptedForPin.current) {
+      hasPromptedForPin.current = true;
+      setPinPromptVisible(true);
+    }
+  }, [wallet, walletQuery.isLoading]);
 
   if (isInitialLoading) {
     return (
@@ -131,17 +143,26 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.topRow}>
-          <View style={styles.profileRow}>
+          <Pressable onPress={() => router.push('/profile')} style={styles.profileRow}>
             <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
-              <Text style={styles.avatarText}>{initialsFrom(user?.fullName ?? 'Percel User')}</Text>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>{initialsFrom(user?.fullName ?? 'Percel User')}</Text>
+              )}
             </View>
             <View>
               <Text style={[styles.greeting, { color: palette.textSecondary }]}>Welcome back</Text>
               <Text style={[styles.userName, { color: palette.text }]}>{user?.fullName ?? 'Percel User'}</Text>
             </View>
-          </View>
-          <Pressable style={[styles.bellButton, { borderColor: palette.border, backgroundColor: palette.card }]} onPress={() => router.push('/wallet/transactions')}>
+          </Pressable>
+          <Pressable style={[styles.bellButton, { borderColor: palette.border, backgroundColor: palette.card }]} onPress={() => router.push('/notifications')}>
             <Bell size={18} color={palette.text} />
+            {unreadNotifications > 0 ? (
+              <View style={[styles.badge, { backgroundColor: palette.error }]}>
+                <Text style={styles.badgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
+              </View>
+            ) : null}
           </Pressable>
         </View>
 
@@ -232,6 +253,27 @@ export default function HomeScreen() {
 
       </ScrollView>
 
+      <Modal transparent visible={pinPromptVisible} animationType='fade' onRequestClose={() => setPinPromptVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPinPromptVisible(false)} />
+          <View style={[styles.pinSheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={[styles.pinIcon, { backgroundColor: palette.primary }]}>
+              <ShieldCheck size={18} color={palette.card} />
+            </View>
+            <Text style={[styles.pinTitle, { color: palette.text }]}>Set your PIN</Text>
+            <Text style={[styles.pinBody, { color: palette.textSecondary }]}>You haven’t set a transfer PIN yet. Set one now to turn on app lock and protect your wallet.</Text>
+            <View style={styles.pinActions}>
+              <Pressable onPress={() => setPinPromptVisible(false)} style={[styles.pinSecondary, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.pinSecondaryText, { color: palette.text }]}>Later</Text>
+              </Pressable>
+              <Pressable onPress={() => { setPinPromptVisible(false); router.push('/profile/security'); }} style={[styles.pinPrimary, { backgroundColor: palette.primary }]}>
+                <Text style={[styles.pinPrimaryText, { color: palette.card }]}>Set PIN</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal transparent visible={currencyOpen} animationType="fade" onRequestClose={() => setCurrencyOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setCurrencyOpen(false)} />
@@ -255,8 +297,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.huge + 80, gap: Spacing.lg },
-  loadingContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.huge + 80, gap: Spacing.lg },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, paddingBottom: Spacing.huge + 80, gap: Spacing.lg },
+  loadingContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, paddingBottom: Spacing.huge + 80, gap: Spacing.lg },
   loadingTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   loadingAvatar: { width: 44, height: 44, borderRadius: 22 },
   loadingCopy: { flex: 1, gap: 8 },
@@ -276,11 +318,14 @@ const styles = StyleSheet.create({
   loadingSectionText: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#fff', fontFamily: Typography.family.bold, fontSize: Typography.md },
   greeting: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.semibold },
   userName: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  bellButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  bellButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, position: 'relative' },
+  badge: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { color: '#fff', fontSize: 10, lineHeight: 12, fontFamily: Typography.family.bold },
   heroWrap: { position: 'relative' },
   heroCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, overflow: 'hidden', gap: Spacing.md },
   heroDecorA: { position: 'absolute', top: -40, right: -10, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.06)' },
@@ -327,6 +372,15 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: Typography.sm, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.44)', padding: Spacing.lg },
+  pinSheet: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 12 },
+  pinIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  pinTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  pinBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+  pinActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  pinSecondary: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pinSecondaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  pinPrimary: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  pinPrimaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   currencySheet: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 8 },
   sheetTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, marginBottom: 4 },
   currencyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 16 },

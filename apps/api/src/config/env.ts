@@ -12,6 +12,8 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().default('1d'),
   PAYSTACK_SECRET_KEY: z.string().min(1),
+  VTPASS_USERNAME: z.string().min(1),
+  VTPASS_PASSWORD: z.string().min(1),
   SMILE_IDENTITY_API_KEY: z.string().min(1),
   SMILE_IDENTITY_PARTNER_ID: z.string().min(1),
   GOOGLE_MAPS_API_KEY: z.string().min(1),

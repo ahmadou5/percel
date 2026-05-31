@@ -3,7 +3,7 @@ import { CirclePlus, ClipboardList, House, Settings } from 'lucide-react-native'
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePathname } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
@@ -178,11 +178,13 @@ function TabButton({
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
   const theme = NAV_THEME[scheme];
   const insets = useSafeAreaInsets();
   const [mountReady, setMountReady] = useState(false);
-  const hiddenRoutes = ['/wallet/airtime', '/wallet/data', '/wallet/tv', '/wallet/electricity', '/settings', '/auth-lock', '/referrals'];
+
+  const hiddenRoutes = ['/wallet/airtime', '/wallet/data', '/wallet/tv', '/wallet/electricity', '/settings', '/auth-lock', '/referrals', '/notifications'];
 
   const visibleRoutes = useMemo(
     () => state.routes.filter((route): route is (typeof state.routes)[number] & { name: TabName } => TAB_ORDER.includes(route.name as TabName)),
@@ -205,6 +207,9 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       mass: 0.9,
     }).start();
   }, [mountReady, translateY]);
+  const isHomePath = pathname === '/' || pathname === '/index';
+
+  if (!isHomePath) return null;
 
   if (hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) return null;
   if (!visibleRoutes.length) return null;
@@ -254,6 +259,13 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                   target: route.key,
                   canPreventDefault: true,
                 });
+
+                if (route.name === 'profile') {
+                  if (!event.defaultPrevented) {
+                    router.push('/settings');
+                  }
+                  return;
+                }
 
                 if (!focused && !event.defaultPrevented) {
                   navigation.navigate(route.name as never);

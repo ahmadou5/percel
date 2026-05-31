@@ -8,6 +8,7 @@ import { http } from '@/lib/api';
 import { useUserSocketLifecycle } from '@/lib/socket';
 import { useAuthStore } from '@/store/auth.store';
 import { usePreferencesStore } from '@/store/preferences.store';
+import { useWallet } from '@/hooks/useWallet';
 
 export function UserRuntime() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -15,7 +16,11 @@ export function UserRuntime() {
   const lastRegisteredToken = useRef<string | null>(null);
   const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
   const hydratePreferences = usePreferencesStore((state) => state.hydrate);
+  const appLockEnabled = usePreferencesStore((state) => state.appLockEnabled);
   const isUnlocked = useAuthStore((state) => state.isUnlocked);
+  const walletQuery = useWallet();
+  const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
+  const walletReady = !walletQuery.isLoading && !walletQuery.isFetching;
 
   useUserSocketLifecycle();
 
@@ -56,27 +61,27 @@ export function UserRuntime() {
   }, [isAuthenticated, token, notificationsEnabled]);
 
   useEffect(() => {
-    if (isAuthenticated && !isUnlocked) {
+    if (isAuthenticated && appLockEnabled && walletReady && walletPinSet && !isUnlocked) {
       router.replace('/auth-lock');
     }
-  }, [isAuthenticated, isUnlocked]);
+  }, [appLockEnabled, isAuthenticated, isUnlocked, walletPinSet, walletReady]);
 
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       const auth = useAuthStore.getState();
       if (nextState !== 'active') {
-        if (auth.isAuthenticated) auth.lock();
+        if (auth.isAuthenticated && appLockEnabled && walletPinSet) auth.lock();
         return;
       }
 
-      if (auth.isAuthenticated && !auth.isUnlocked) {
+      if (auth.isAuthenticated && appLockEnabled && walletPinSet && !auth.isUnlocked) {
         router.replace('/auth-lock');
       }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, []);
+  }, [appLockEnabled, walletPinSet]);
 
   return null;
 }

@@ -39,6 +39,43 @@ export class WalletController {
     return success(data);
   };
 
+  resolveBank = async (request: FastifyRequest) => {
+    const { bankCode, accountNumber } = request.body as { bankCode: string; accountNumber: string };
+    const data = await this.service.resolveBankAccount(bankCode, accountNumber);
+    return success(data, 'Bank account resolved');
+  };
+
+  providerServices = async (request: FastifyRequest) => {
+    const { identifier } = request.query as { identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill' };
+    const data = await this.service.getProviderServices(identifier);
+    return success(data, 'Provider services loaded');
+  };
+
+  providerVariations = async (request: FastifyRequest) => {
+    const { serviceID } = request.params as { serviceID: string };
+    const data = await this.service.getProviderVariations(serviceID);
+    return success(data, 'Provider plans loaded');
+  };
+
+  providerValidate = async (request: FastifyRequest) => {
+    const { serviceID, billersCode, type } = request.body as { serviceID: string; billersCode: string; type?: 'prepaid' | 'postpaid' };
+    const data = await this.service.validateProviderAccount(serviceID, billersCode, type);
+    return success(data, 'Provider validated');
+  };
+
+  bankTransfer = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { bankCode, accountNumber, amount, description, pin } = request.body as {
+      bankCode: string;
+      accountNumber: string;
+      amount: number;
+      description?: string;
+      pin: string;
+    };
+    const data = await this.service.transferToBank(userId, { bankCode, accountNumber, amount, description, pin });
+    return success(data, 'Bank transfer initiated');
+  };
+
   setTransferPin = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const { currentPin, newPin } = request.body as { currentPin?: string; newPin: string };
@@ -81,12 +118,26 @@ export class WalletController {
 
   electricity = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
-    const { meterNumber, amount, disco } = request.body as {
+    const { meterNumber, amount, disco, type } = request.body as {
       meterNumber: string;
       amount: number;
       disco: string;
+      type?: 'prepaid' | 'postpaid';
     };
-    const data = await this.service.buyElectricity(userId, meterNumber, amount, disco);
+    const data = await this.service.buyElectricity(userId, meterNumber, amount, disco, type);
+    return success(data);
+  };
+
+  tv = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { smartcardNumber, amount, provider, variationCode, phone } = request.body as {
+      smartcardNumber: string;
+      amount: number;
+      provider: string;
+      variationCode: string;
+      phone?: string;
+    };
+    const data = await this.service.buyTv(userId, smartcardNumber, amount, provider, variationCode, phone);
     return success(data);
   };
 

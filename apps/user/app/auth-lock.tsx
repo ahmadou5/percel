@@ -10,8 +10,9 @@ import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useLogout } from '@/hooks/useAuth';
-import { useVerifyTransferPin } from '@/hooks/useWallet';
+import { useVerifyTransferPin, useWallet } from '@/hooks/useWallet';
 import { useAuthStore } from '@/store/auth.store';
+import { usePreferencesStore } from '@/store/preferences.store';
 
 const PIN_LENGTH = 4;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'back'] as const;
@@ -25,6 +26,10 @@ export default function AuthLockScreen() {
   const unlock = useAuthStore((state) => state.unlock);
   const logout = useLogout();
   const verifyPin = useVerifyTransferPin();
+  const walletQuery = useWallet();
+  const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
+  const walletReady = !walletQuery.isLoading && !walletQuery.isFetching;
+  const appLockEnabled = usePreferencesStore((state) => state.appLockEnabled);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [biometricBusy, setBiometricBusy] = useState(false);
@@ -41,17 +46,24 @@ export default function AuthLockScreen() {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!appLockEnabled || !walletPinSet) {
+      unlock();
+      router.replace('/');
+      return;
+    }
+
     if (isUnlocked) {
       router.replace('/');
     }
-  }, [isUnlocked]);
+  }, [appLockEnabled, isUnlocked, unlock, walletPinSet]);
 
   useEffect(() => {
+    if (!appLockEnabled || !walletPinSet || !walletReady) return;
     const timer = setTimeout(() => {
       void triggerBiometric();
     }, 300);
     return () => clearTimeout(timer);
-  }, []);
+  }, [appLockEnabled, walletPinSet, walletReady]);
 
   useEffect(() => {
     if (pin.length === 0) setError(null);
@@ -94,12 +106,15 @@ export default function AuthLockScreen() {
   };
 
   const triggerBiometric = async () => {
-    if (biometricBusy || !isAuthenticated || isUnlocked) return;
+    if (!appLockEnabled || biometricBusy || !isAuthenticated || isUnlocked || !walletPinSet) return;
     setBiometricBusy(true);
     try {
       const hardware = await LocalAuthentication.hasHardwareAsync();
       const enrolled = hardware ? await LocalAuthentication.isEnrolledAsync() : false;
-      if (!hardware || !enrolled) return;
+      if (!hardware || !enrolled) {
+        setError('Biometrics are not set up on this device.');
+        return;
+      }
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Unlock Percel',
         cancelLabel: 'Use PIN',
@@ -107,7 +122,12 @@ export default function AuthLockScreen() {
       });
       if (result.success) {
         unlockAndContinue();
+        return;
       }
+
+      setError('Biometric unlock was cancelled.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Biometric unlock failed.');
     } finally {
       setBiometricBusy(false);
     }
@@ -129,7 +149,7 @@ export default function AuthLockScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}> 
       <AuthBackdrop />
       <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.18)' }]} />
 
@@ -137,18 +157,18 @@ export default function AuthLockScreen() {
         <Pressable onPress={() => void logout.mutateAsync().then(() => router.replace('/(auth)/welcome'))} style={styles.topAction}>
           <Text style={[styles.logOutText, { color: palette.error }]}>Log out</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/settings/support')} style={[styles.helpPill, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable onPress={() => router.push('/settings/support')} style={[styles.helpPill, { backgroundColor: palette.card, borderColor: palette.border }]}> 
           <Text style={[styles.helpText, { color: palette.text }]}>Help</Text>
         </Pressable>
       </View>
 
       <View style={styles.content}>
-        <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
+        <View style={[styles.avatar, { backgroundColor: palette.primary }]}> 
           <Text style={[styles.avatarText, { color: palette.card }]}>{avatarInitials}</Text>
         </View>
 
         <Text style={[styles.heading, { color: palette.text }]}>Welcome back, {firstName}</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Enter your PIN</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{appLockEnabled ? 'Enter your PIN or use biometrics.' : 'App lock is off right now.'}</Text>
 
         <Animated.View style={{ transform: [{ translateX: shake }] }}>
           <View style={styles.dotsRow}>
@@ -170,7 +190,7 @@ export default function AuthLockScreen() {
             })}
           </View>
         </Animated.View>
-        {error ? <Text style={[styles.error, { color: palette.error }]}>{error}</Text> : <Text style={[styles.helper, { color: palette.textSecondary }]}>Biometric is available when your device supports it.</Text>}
+        {error ? <Text style={[styles.error, { color: palette.error }]}>{error}</Text> : <Text style={[styles.helper, { color: palette.textSecondary }]}>{appLockEnabled ? 'Biometric unlock is available when your device supports it.' : 'You can turn app lock back on in security settings.'}</Text>}
 
         <View style={styles.keypad}>
           {KEYS.map((key) => {

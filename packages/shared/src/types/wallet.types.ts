@@ -20,8 +20,9 @@ export interface Wallet {
   balance: number;
   ledgerBalance: number;
   currency: 'NGN';
-  nuban: string;
-  bankName: string;
+  nuban: string | null;
+  bankName: string | null;
+  bankCode?: string | null;
 }
 
 export interface WalletTransaction {

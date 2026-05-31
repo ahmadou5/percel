@@ -11,6 +11,7 @@ export type AuthUser = {
   avatarUrl?: string | null;
   dateOfBirth?: string | null;
   address?: string | null;
+  status?: string | null;
 };
 
 type AuthTokens = {
@@ -59,16 +60,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   hydrate: async () => {
     set({ isLoading: true });
-    const [rawTokens, rawUser] = await Promise.all([
-      SecureStore.getItemAsync(TOKEN_KEY),
-      SecureStore.getItemAsync(USER_KEY),
-    ]);
+    try {
+      const [rawTokens, rawUser] = await Promise.all([
+        SecureStore.getItemAsync(TOKEN_KEY),
+        SecureStore.getItemAsync(USER_KEY),
+      ]);
 
-    const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
-    const user = rawUser ? (JSON.parse(rawUser) as AuthUser) : null;
+      const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
+      const user = rawUser ? (JSON.parse(rawUser) as AuthUser) : null;
 
-    set({ user, tokens, isAuthenticated: Boolean(user && tokens), isLoading: false, isUnlocked: false });
-    Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+      set({ user, tokens, isAuthenticated: Boolean(user && tokens), isLoading: false, isUnlocked: false });
+      Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+    } catch (error) {
+      Sentry.captureException(error);
+      await Promise.all([
+        SecureStore.deleteItemAsync(TOKEN_KEY),
+        SecureStore.deleteItemAsync(USER_KEY),
+      ]);
+      set({ user: null, tokens: null, isAuthenticated: false, isLoading: false, isUnlocked: false });
+      Sentry.setUser(null);
+    }
   },
   unlock: () => set({ isUnlocked: true }),
   lock: () => set({ isUnlocked: false }),

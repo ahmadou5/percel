@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Camera, ChevronRight, Gift, ShieldCheck, Settings2 } from 'lucide-react-native';
+import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
@@ -65,11 +65,13 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <View style={styles.headerSpacer} />
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Profile</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+       <View style={styles.headerRow}>
+              <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+               <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+              </Pressable>
+              <Text style={[styles.headerTitle, { color: palette.text }]}>Profile</Text>
+              <View style={styles.headerSpacer} />
+            </View>
 
       <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Pressable onPress={() => void changeAvatar()} style={({ pressed }) => [styles.avatarWrap, pressed ? { transform: [{ scale: 0.98 }] } : null]}>
@@ -122,10 +124,11 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 2 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
-  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center', flex: 1 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
+ backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   profileCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
   avatarWrap: { alignSelf: 'center' },
   avatar: { width: 80, height: 80, borderRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -142,7 +145,7 @@ const styles = StyleSheet.create({
   referralCopy: { flex: 1, gap: 2 },
   referralTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   referralSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md },
+  settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md, width: '100%' },
   settingsIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   settingsCopy: { flex: 1, gap: 2 },
   settingsTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },

@@ -1,19 +1,21 @@
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs } from 'expo-router';
 
-import { FloatingTabBar } from "@/components/navigation/FloatingTabBar";
-import { useAuthStore } from "@/store/auth.store";
+import { FloatingTabBar } from '@/components/navigation/FloatingTabBar';
+import { useAuthStore } from '@/store/auth.store';
+import { usePreferencesStore } from '@/store/preferences.store';
 
-export { ErrorBoundary } from "@/components/AppErrorBoundary";
+export { ErrorBoundary } from '@/components/AppErrorBoundary';
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading, isUnlocked } = useAuthStore();
+  const appLockEnabled = usePreferencesStore((state) => state.appLockEnabled);
   if (isLoading) return null;
-  if (!isAuthenticated) return <Redirect href="/(auth)/welcome" />;
-  if (!isUnlocked) return <Redirect href="/auth-lock" />;
+  if (!isAuthenticated) return <Redirect href='/(auth)/welcome' />;
+  if (appLockEnabled && !isUnlocked) return <Redirect href='/auth-lock' />;
 
   return (
     <Tabs
-      initialRouteName="index"
+      initialRouteName='index'
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -21,31 +23,31 @@ export default function TabsLayout() {
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
       <Tabs.Screen
-        name="index"
+        name='index'
         options={{
-          title: "Home",
+          title: 'Home',
         }}
       />
       <Tabs.Screen
-        name="send"
+        name='send'
         options={{
-          title: "Create",
+          title: 'Create',
         }}
       />
       <Tabs.Screen
-        name="orders"
+        name='orders'
         options={{
-          title: "Orders",
+          title: 'Orders',
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name='profile'
         options={{
-          title: "Settings",
+          title: 'Settings',
         }}
       />
-      <Tabs.Screen name="wallet" options={{ href: null }} />
-     
+      <Tabs.Screen name='notifications' options={{ href: null }} />
+      <Tabs.Screen name='wallet' options={{ href: null }} />
     </Tabs>
   );
 }

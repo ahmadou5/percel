@@ -19,8 +19,9 @@ export type Wallet = {
   balance: number;
   ledgerBalance: number;
   currency: 'NGN';
-  nuban: string;
-  bankName: string;
+  nuban: string | null;
+  bankName: string | null;
+  bankCode?: string | null;
 };
 
 export type WalletTransaction = {
@@ -64,6 +65,35 @@ export type WalletTransactionsQuery = {
   category?: string;
   page?: number;
   limit?: number;
+};
+
+export type ProviderService = {
+  serviceID: string;
+  name: string;
+  minimium_amount?: string;
+  maximum_amount?: string;
+  product_type?: string;
+  image?: string;
+};
+
+export type ProviderVariation = {
+  variation_code: string;
+  name: string;
+  variation_amount: string;
+  fixedPrice?: string;
+};
+
+export type ProviderValidation = {
+  Customer_Name?: string;
+  Address?: string;
+  Meter_Number?: string;
+  MeterNumber?: string;
+  Account_Number?: string;
+  Can_Vend?: string;
+  Meter_Type?: string;
+  WrongBillersCode?: boolean;
+  Min_Purchase_Amount?: number | string;
+  Customer_Account_Type?: string;
 };
 
 export const walletCategories = [

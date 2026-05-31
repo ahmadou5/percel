@@ -7,6 +7,35 @@ type InitializeResponse = {
   reference: string;
 };
 
+type CustomerResponse = {
+  customer_code: string;
+};
+
+type DedicatedNubanResponse = {
+  account_number: string;
+  account_name?: string;
+  bank?: {
+    name?: string;
+    slug?: string;
+  };
+  currency?: string;
+};
+
+type BankResolveResponse = {
+  account_number: string;
+  account_name: string;
+};
+
+type TransferRecipientResponse = {
+  recipient_code: string;
+  details?: {
+    account_name?: string | null;
+    account_number?: string | null;
+    bank_code?: string | null;
+    bank_name?: string | null;
+  };
+};
+
 const paystack = axios.create({
   baseURL: 'https://api.paystack.co',
   headers: {
@@ -54,13 +83,94 @@ export async function verifyTransaction(reference: string) {
   }
 }
 
+export async function createCustomer(data: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}) {
+  try {
+    const { data: response } = await paystack.post('/customer', {
+      email: data.email,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      phone: data.phone,
+    });
+
+    return response.data as CustomerResponse;
+  } catch (error) {
+    wrapPaystackError(error);
+  }
+}
+
 export async function createDedicatedNUBAN(customerId: string, preferredBank?: string) {
   try {
     const { data } = await paystack.post('/dedicated_account', {
       customer: customerId,
       preferred_bank: preferredBank,
     });
-    return data.data;
+    return data.data as DedicatedNubanResponse;
+  } catch (error) {
+    wrapPaystackError(error);
+  }
+}
+
+export async function resolveAccountNumber(accountNumber: string, bankCode: string) {
+  try {
+    const { data } = await paystack.get('/bank/resolve', {
+      params: { account_number: accountNumber, bank_code: bankCode },
+    });
+
+    return data.data as BankResolveResponse;
+  } catch (error) {
+    wrapPaystackError(error);
+  }
+}
+
+export async function createTransferRecipient(data: {
+  name: string;
+  accountNumber: string;
+  bankCode: string;
+  currency?: 'NGN';
+}) {
+  try {
+    const { data: response } = await paystack.post('/transferrecipient', {
+      type: 'nuban',
+      name: data.name,
+      account_number: data.accountNumber,
+      bank_code: data.bankCode,
+      currency: data.currency ?? 'NGN',
+    });
+
+    return response.data as TransferRecipientResponse;
+  } catch (error) {
+    wrapPaystackError(error);
+  }
+}
+
+export async function initiateTransfer(data: {
+  recipient: string;
+  amount: number;
+  reference: string;
+  reason?: string;
+  currency?: 'NGN';
+}) {
+  try {
+    const { data: response } = await paystack.post('/transfer', {
+      source: 'balance',
+      recipient: data.recipient,
+      amount: Math.round(data.amount * 100),
+      reference: data.reference,
+      reason: data.reason,
+      currency: data.currency ?? 'NGN',
+    });
+
+    return response.data as {
+      status?: string;
+      transfer_code?: string;
+      reference?: string;
+      recipient?: unknown;
+    };
   } catch (error) {
     wrapPaystackError(error);
   }

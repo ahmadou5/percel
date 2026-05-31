@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useColorScheme } from '@/components/useColorScheme';
 
 type Props = {
   driver?: {
@@ -19,51 +20,54 @@ type Props = {
 };
 
 function DriverCardBase({ driver, onCall }: Props) {
+  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
+  const palette = Colors[scheme];
+
   if (!driver) {
     return (
-      <View style={styles.card}>
-        <Text style={styles.emptyTitle}>Driver not assigned yet</Text>
-        <Text style={styles.emptyBody}>We’ll show driver details here once the order is accepted.</Text>
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+        <Text style={[styles.emptyTitle, { color: palette.text }]}>Driver not assigned yet</Text>
+        <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>We’ll show driver details here once the order is accepted.</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
       <View style={styles.row}>
-        <View style={styles.avatar}>
-          <FontAwesome name="user" color={Colors.light.primary} size={18} />
+        <View style={[styles.avatar, { backgroundColor: 'rgba(10,132,255,0.10)' }]}>
+          <FontAwesome name='user' color={palette.primary} size={18} />
         </View>
         <View style={styles.meta}>
-          <Text style={styles.name}>{driver.fullName}</Text>
-          <Text style={styles.detail}>{driver.vehicleType} • {driver.vehicleModel}</Text>
-          <Text style={styles.detail}>Plate {driver.vehiclePlate}</Text>
+          <Text style={[styles.name, { color: palette.text }]}>{driver.fullName}</Text>
+          <Text style={[styles.detail, { color: palette.textSecondary }]}>{driver.vehicleType} • {driver.vehicleModel}</Text>
+          <Text style={[styles.detail, { color: palette.textSecondary }]}>Plate {driver.vehiclePlate}</Text>
         </View>
         <View style={styles.rating}>
-          <FontAwesome name="star" color={Colors.light.warning} size={14} />
-          <Text style={styles.ratingText}>{driver.rating.toFixed(1)}</Text>
+          <FontAwesome name='star' color={palette.warning} size={14} />
+          <Text style={[styles.ratingText, { color: palette.text }]}>{driver.rating.toFixed(1)}</Text>
         </View>
       </View>
-      <Pressable onPress={onCall} style={styles.callButton}>
-        <Text style={styles.callText}>Call driver</Text>
+      <Pressable onPress={onCall} style={[styles.callButton, { backgroundColor: palette.primary }]}> 
+        <Text style={[styles.callText, { color: palette.card }]}>Call driver</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: Colors.light.card, borderRadius: 20, borderWidth: 1, borderColor: Colors.light.border, padding: Spacing.lg, gap: Spacing.md },
+  card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
   row: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
-  avatar: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(10,132,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   meta: { flex: 1, gap: 2 },
-  name: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.bold },
-  detail: { color: Colors.light.textSecondary, fontSize: Typography.sm },
+  name: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  detail: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
   rating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingText: { color: Colors.light.text, fontSize: Typography.sm, fontWeight: Typography.bold },
-  callButton: { backgroundColor: Colors.light.primary, borderRadius: 14, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
-  callText: { color: '#fff', fontSize: Typography.md, fontWeight: Typography.bold },
-  emptyTitle: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.bold },
-  emptyBody: { color: Colors.light.textSecondary, fontSize: Typography.sm },
+  ratingText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  callButton: { borderRadius: 14, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
+  callText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  emptyTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  emptyBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
 });
 
 export const DriverCard = memo(DriverCardBase);

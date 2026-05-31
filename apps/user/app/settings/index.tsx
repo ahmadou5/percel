@@ -1,7 +1,7 @@
 import { useState, type ComponentType } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronRight, CreditCard, History, LogOut, Shield, User, Bell, Users, BadgeCheck, CircleHelp } from 'lucide-react-native';
+import { ChevronRight, CreditCard, History, LogOut, Shield, User, Bell, Users, BadgeCheck, CircleHelp, ChevronLeft } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
@@ -50,8 +50,8 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <ChevronRight size={18} color={palette.text} style={{ transform: [{ rotate: '180deg' }] }} />
+        <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+         <ChevronLeft size={20} color={palette.text} fill={"none"}  />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>Settings</Text>
         <View style={styles.headerSpacer} />
@@ -99,7 +99,7 @@ function SectionGroup({ label, items, palette, onPress }: { label: string; items
         {items.map((item) => (
           <Pressable key={item.title} onPress={() => void onPress(item.href)} style={({ pressed }) => [styles.menuRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
             <View style={[styles.iconBox, { backgroundColor: palette.text }]}>
-              <item.Icon size={18} color={palette.card} />
+              <item.Icon size={18} color={palette.primary} />
             </View>
             <View style={styles.menuCopy}>
               <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
@@ -115,7 +115,7 @@ function SectionGroup({ label, items, palette, onPress }: { label: string; items
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },

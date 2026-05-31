@@ -1,10 +1,10 @@
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { type PrismaClient, UserStatus } from '@prisma/client';
+import { NotificationType, type PrismaClient, UserStatus } from '@prisma/client';
 
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
-import type { ChangePasswordBody, UpdateProfileBody, UserProfileResponse } from './user.types.js';
+import type { ChangePasswordBody, NotificationsFeedResponse, NotificationResponse, UpdateProfileBody, UserProfileResponse } from './user.types.js';
 
 function toIso(value: Date | null | undefined) {
   return value ? value.toISOString() : null;
@@ -23,6 +23,28 @@ function normalizeText(value: string | null | undefined) {
   if (value == null) return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function toNotificationResponse(notification: {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data: unknown;
+  read: boolean;
+  createdAt: Date;
+}): NotificationResponse {
+  return {
+    id: notification.id,
+    userId: notification.userId,
+    type: notification.type,
+    title: notification.title,
+    body: notification.body,
+    data: (notification.data ?? {}) as Record<string, unknown>,
+    read: notification.read,
+    createdAt: notification.createdAt.toISOString(),
+  };
 }
 
 export class UserService {
@@ -65,6 +87,46 @@ export class UserService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  async listNotifications(userId: string, query: { limit?: number; unreadOnly?: boolean }): Promise<NotificationsFeedResponse> {
+    const limit = query.limit ?? 20;
+    const where = {
+      userId,
+      ...(query.unreadOnly ? { read: false } : {}),
+    };
+
+    const [unreadCount, data] = await this.prisma.$transaction([
+      this.prisma.notification.count({ where: { userId, read: false } }),
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      }),
+    ]);
+
+    return {
+      unreadCount,
+      data: data.map(toNotificationResponse),
+    };
+  }
+
+  async markNotificationRead(userId: string, notificationId: string) {
+    const result = await this.prisma.notification.updateMany({
+      where: { id: notificationId, userId },
+      data: { read: true },
+    });
+
+    return { updated: result.count > 0 };
+  }
+
+  async markAllNotificationsRead(userId: string) {
+    const result = await this.prisma.notification.updateMany({
+      where: { userId, read: false },
+      data: { read: true },
+    });
+
+    return { updated: result.count };
   }
 
   async updateProfile(userId: string, data: UpdateProfileBody): Promise<UserProfileResponse> {

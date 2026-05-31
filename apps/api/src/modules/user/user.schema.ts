@@ -10,6 +10,15 @@ export const PushTokenBody = Type.Object({
   token: Type.String({ minLength: 1 }),
 });
 
+export const NotificationQuery = Type.Object({
+  limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
+  unreadOnly: Type.Optional(Type.Boolean()),
+});
+
+export const NotificationIdParams = Type.Object({
+  notificationId: Type.String({ minLength: 1 }),
+});
+
 export const ChangePasswordBody = Type.Object({
   currentPassword: Type.String({ minLength: 1 }),
   newPassword: Type.String({ minLength: 8 }),

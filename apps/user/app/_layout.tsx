@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import { UserRuntime } from '@/components/UserRuntime';
@@ -46,7 +47,13 @@ function RootLayout() {
     }
   }, [loaded, isLoading]);
 
-  if (!loaded || isLoading) return null;
+  if (!loaded || isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#ffffff" }}>
+        <FontAwesome name="spinner" size={20} color="#0EA5E9" />
+      </View>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

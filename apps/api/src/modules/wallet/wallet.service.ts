@@ -2,16 +2,22 @@ import crypto from 'node:crypto';
 
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { NotificationType as PrismaNotificationType, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 
 import { env } from '../../config/env.js';
 import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { cleanText } from '../../utils/sanitize.js';
 import { addNotificationJob } from '../../queues/index.js';
 import {
+  createCustomer,
+  createDedicatedNUBAN,
+  createTransferRecipient,
+  getBank,
   initializeTransaction,
-  initiateBillsCharge,
+  initiateTransfer,
+  resolveAccountNumber,
 } from '../../lib/paystack.js';
+import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
 import { NotFoundError, PaymentError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
 
 const PLATFORM_WALLET_ID = '00000000-0000-0000-0000-000000000001';
@@ -26,6 +32,16 @@ function assertPinFormat(pin: string) {
   }
 }
 
+
+function splitFullName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  const [firstName = 'Percel', ...rest] = parts;
+  return {
+    firstName,
+    lastName: rest.join(' ') || 'User',
+  };
+}
+
 export class WalletService {
   constructor(
     private readonly prisma: PrismaClient,
@@ -37,8 +53,69 @@ export class WalletService {
     return client ?? this.prisma;
   }
 
+  private async createNotification(
+    userId: string,
+    type: PrismaNotificationType,
+    title: string,
+    body: string,
+    data: Record<string, unknown> = {},
+  ) {
+    await this.prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        body,
+        data: data as Prisma.InputJsonValue,
+        read: false,
+      },
+    });
+  }
+
+  private async ensureDepositAccount(
+    wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
+    user: { email: string; fullName: string; phone: string },
+  ) {
+    if (wallet.nuban && wallet.bankName) {
+      return wallet;
+    }
+
+    try {
+      const { firstName, lastName } = splitFullName(user.fullName);
+      const customer = await createCustomer({
+        email: user.email,
+        firstName,
+        lastName,
+        phone: user.phone,
+      });
+      const preferredBank = 'wema-bank';
+      const account = await createDedicatedNUBAN(customer.customer_code, preferredBank);
+      const bankName = account.bank?.name ?? 'Percel Wallet';
+      const bankCode = account.bank?.slug ?? preferredBank;
+
+      await this.prisma.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          nuban: account.account_number,
+          bankName,
+          bankCode,
+        },
+      });
+
+      return {
+        id: wallet.id,
+        nuban: account.account_number,
+        bankName,
+        bankCode,
+      };
+    } catch (error) {
+      this.logger.warn({ walletId: wallet.id, error }, 'wallet.deposit_account.ensure_failed');
+      return wallet;
+    }
+  }
+
   async getWallet(userId: string) {
-    const [wallet, user] = await Promise.all([
+    const [wallet, user, profile] = await Promise.all([
       this.prisma.wallet.findUnique({
         where: { userId },
         include: {
@@ -49,11 +126,14 @@ export class WalletService {
         },
       }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Wallet not found');
+    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '' });
     return {
       ...wallet,
+      ...depositAccount,
       walletPinSet: Boolean(user?.walletPinHash),
     };
   }
@@ -262,6 +342,13 @@ export class WalletService {
           amount: Number(tx.amount),
           reference,
         });
+        await this.createNotification(
+          walletUserId,
+          PrismaNotificationType.PAYMENT,
+          'Wallet funded',
+          `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(tx.amount))} added to your wallet.`,
+          { amount: Number(tx.amount), reference, kind: 'wallet_topup' },
+        );
       }
     }
 
@@ -281,7 +368,7 @@ export class WalletService {
 
     const [fromWallet, recipient, sender] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId: fromUserId } }),
-      this.prisma.user.findUnique({ where: { phone: toPhone }, include: { wallet: true } }),
+      this.prisma.user.findUnique({ where: { phone: toPhone }, select: { id: true, fullName: true, wallet: true } }),
       this.prisma.user.findUnique({ where: { id: fromUserId }, select: { walletPinHash: true, fullName: true } }),
     ]);
 
@@ -352,10 +439,352 @@ export class WalletService {
       reference,
       senderName: sender?.fullName ?? 'another user',
     });
+    await this.createNotification(
+      recipient.id,
+      PrismaNotificationType.PAYMENT,
+      'Money received',
+      `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount)} received from ${sender?.fullName ?? 'another user'}.`,
+      { amount, reference, senderName: sender?.fullName ?? 'another user', kind: 'wallet_transfer_in' },
+    );
+    await this.createNotification(
+      fromUserId,
+      PrismaNotificationType.PAYMENT,
+      'Transfer sent',
+      `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount)} sent to ${recipient.fullName}.`,
+      { amount, reference, recipientName: recipient.fullName, kind: 'wallet_transfer_out' },
+    );
 
     await deleteCache(this.app.redis, [`cache:wallet:balance:${fromWallet.id}`, `cache:wallet:balance:${recipient.wallet!.id}`]);
     this.logger.info({ userId: fromUserId, amount, reference, category: 'TRANSFER_OUT', result: 'completed' }, 'wallet.transfer');
     return { reference, amount, toPhone };
+  }
+
+
+  async resolveBankAccount(bankCode: string, accountNumber: string) {
+    const [bank, account] = await Promise.all([getBank(bankCode), resolveAccountNumber(accountNumber, bankCode)]);
+    return {
+      bankCode,
+      bankName: bank?.name ?? bank?.slug ?? bankCode,
+      accountNumber: account.account_number,
+      accountName: account.account_name,
+    };
+  }
+
+  async getProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
+    return listServices(identifier);
+  }
+
+  async getProviderVariations(serviceID: string) {
+    return listVariations(serviceID);
+  }
+
+  async validateProviderAccount(
+    serviceID: string,
+    billersCode: string,
+    type?: 'prepaid' | 'postpaid',
+  ) {
+    return validateBillersCode(serviceID, billersCode, type);
+  }
+
+  async transferToBank(
+    userId: string,
+    payload: { bankCode: string; accountNumber: string; amount: number; description?: string; pin: string },
+  ) {
+    const normalizedPin = normalizePin(payload.pin);
+    assertPinFormat(normalizedPin);
+
+    const [wallet, sender] = await Promise.all([
+      this.prisma.wallet.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
+    ]);
+
+    if (!wallet) throw new NotFoundError('Sender wallet not found');
+    if (!sender?.walletPinHash) throw new ValidationError('Set a transfer PIN before sending money');
+
+    const pinMatches = await bcrypt.compare(normalizedPin, sender.walletPinHash);
+    if (!pinMatches) throw new UnauthorizedError('Invalid transfer PIN');
+
+    const bal = await this.getBalance(wallet.id);
+    if (bal.realBalance < payload.amount) throw new PaymentError('Insufficient balance');
+
+    const resolved = await this.resolveBankAccount(payload.bankCode, payload.accountNumber);
+    const reference = `BNK_${Date.now()}_${userId.slice(0, 6)}`;
+    const safeDescription = cleanText(payload.description) ?? `Transfer to ${resolved.accountName}`;
+    const recipient = await createTransferRecipient({
+      name: resolved.accountName,
+      accountNumber: resolved.accountNumber,
+      bankCode: payload.bankCode,
+    });
+
+    try {
+      await this.prisma.$transaction(async (trx) => {
+        const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
+        const after = before - payload.amount;
+
+        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+        await trx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: payload.amount,
+            type: WalletTransactionType.DEBIT,
+            category: WalletTransactionCategory.TRANSFER_OUT,
+            status: WalletTransactionStatus.PENDING,
+            reference,
+            description: safeDescription,
+            metadata: {
+              bankCode: payload.bankCode,
+              bankName: resolved.bankName,
+              accountNumber: resolved.accountNumber,
+              accountName: resolved.accountName,
+              recipientCode: recipient.recipient_code,
+            } as Prisma.JsonObject,
+            balanceBefore: before,
+            balanceAfter: after,
+          },
+        });
+      });
+
+      const transfer = await initiateTransfer({
+        recipient: recipient.recipient_code,
+        amount: payload.amount,
+        reference,
+        reason: safeDescription,
+      });
+      const status = String(transfer.status ?? '').toLowerCase() === 'success'
+        ? WalletTransactionStatus.COMPLETED
+        : WalletTransactionStatus.PENDING;
+
+      await this.prisma.walletTransaction.update({
+        where: { reference },
+        data: {
+          status,
+          paystackReference: transfer.transfer_code ?? transfer.reference ?? reference,
+        },
+      });
+
+      await this.createNotification(
+        userId,
+        PrismaNotificationType.PAYMENT,
+        'Bank transfer sent',
+        `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(payload.amount)} sent to ${resolved.accountName}.`,
+        {
+          amount: payload.amount,
+          reference,
+          accountName: resolved.accountName,
+          bankName: resolved.bankName,
+          status,
+          kind: 'bank_transfer',
+        },
+      );
+
+      await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+      return {
+        reference,
+        amount: payload.amount,
+        bankName: resolved.bankName,
+        accountName: resolved.accountName,
+        accountNumber: resolved.accountNumber,
+        recipientCode: recipient.recipient_code,
+        status,
+      };
+    } catch (error) {
+      await this.prisma.$transaction(async (trx) => {
+        const tx = await trx.walletTransaction.findUnique({ where: { reference } });
+        const current = await trx.wallet.findUnique({ where: { id: wallet.id } });
+        if (!tx || !current) return;
+
+        const afterReverse = Number(current.balance) + payload.amount;
+        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: afterReverse, ledgerBalance: afterReverse } });
+        await trx.walletTransaction.update({ where: { id: tx.id }, data: { status: WalletTransactionStatus.FAILED } });
+      });
+
+      await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+      throw error;
+    }
+  }
+
+  async buyAirtime(userId: string, phone: string, amount: number, network: string) {
+    return this.buyUtilityFlow(userId, WalletTransactionCategory.AIRTIME, amount, {
+      serviceID: this.resolveAirtimeServiceId(network),
+      billersCode: phone,
+      phone,
+      providerLabel: `Airtime • ${network}`,
+      successTitle: 'Airtime bought',
+      successBody: `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount)} airtime sent to ${phone}.`,
+      metadata: { phone, network },
+    });
+  }
+
+  async buyData(userId: string, phone: string, plan: string, network: string, amount: number, variationCode?: string, serviceID?: string) {
+    const resolvedServiceID = serviceID ?? this.resolveDataServiceId(network);
+    if (!variationCode) throw new ValidationError('Select a live data plan before payment');
+    return this.buyUtilityFlow(userId, WalletTransactionCategory.DATA, amount, {
+      serviceID: resolvedServiceID,
+      billersCode: phone,
+      phone,
+      variation_code: variationCode,
+      providerLabel: `Data • ${network}`,
+      successTitle: 'Data purchased',
+      successBody: `${plan} bought for ${phone}.`,
+      metadata: { phone, plan, network, serviceID: resolvedServiceID, variationCode },
+    });
+  }
+
+  async buyElectricity(userId: string, meterNumber: string, amount: number, disco: string, type: 'prepaid' | 'postpaid' = 'prepaid') {
+    return this.buyUtilityFlow(userId, WalletTransactionCategory.ELECTRICITY, amount, {
+      serviceID: this.resolveElectricityServiceId(disco),
+      billersCode: meterNumber,
+      phone: meterNumber,
+      type,
+      providerLabel: `Electricity • ${disco}`,
+      successTitle: 'Electricity paid',
+      successBody: `Electricity payment of ${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount)} sent for ${meterNumber}.`,
+      metadata: { meterNumber, disco, type },
+    });
+  }
+
+  async buyTv(
+    userId: string,
+    smartcardNumber: string,
+    amount: number,
+    provider: string,
+    variationCode: string,
+    phone?: string,
+  ) {
+    return this.buyUtilityFlow(userId, WalletTransactionCategory.ORDER_PAYMENT, amount, {
+      serviceID: this.resolveTvServiceId(provider),
+      billersCode: smartcardNumber,
+      phone: phone ?? '',
+      variation_code: variationCode,
+      providerLabel: `TV • ${provider}`,
+      successTitle: 'TV subscription paid',
+      successBody: `${provider} subscription renewed successfully.`,
+      metadata: { smartcardNumber, provider, variationCode },
+    });
+  }
+
+  private resolveAirtimeServiceId(network: string) {
+    const normalized = network.toLowerCase();
+    if (normalized.includes('mtn')) return 'mtn';
+    if (normalized.includes('airtel')) return 'airtel';
+    if (normalized.includes('glo')) return 'glo';
+    return 'etisalat';
+  }
+
+  private resolveDataServiceId(network: string) {
+    const normalized = network.toLowerCase();
+    if (normalized.includes('mtn')) return 'mtn-data';
+    if (normalized.includes('airtel')) return 'airtel-data';
+    if (normalized.includes('glo')) return 'glo-data';
+    return 'etisalat-data';
+  }
+
+  private resolveElectricityServiceId(disco: string) {
+    const normalized = disco.toLowerCase();
+    if (normalized.includes('ikeja') || normalized.includes('ikedc')) return 'ikeja-electric';
+    if (normalized.includes('eko') || normalized.includes('ekedc')) return 'eko-electric';
+    if (normalized.includes('abuja') || normalized.includes('aedc')) return 'abuja-electric';
+    if (normalized.includes('phed') || normalized.includes('port harcourt')) return 'phed';
+    if (normalized.includes('jos') || normalized.includes('jed')) return 'jos-electric';
+    if (normalized.includes('kano') || normalized.includes('kedco')) return 'kano-electric';
+    if (normalized.includes('kaduna') || normalized.includes('kaedco')) return 'kaedco-electric';
+    return 'ikeja-electric';
+  }
+
+  private resolveTvServiceId(provider: string) {
+    const normalized = provider.toLowerCase();
+    if (normalized.includes('dstv')) return 'dstv';
+    if (normalized.includes('gotv')) return 'gotv';
+    return 'startimes';
+  }
+
+  private async buyUtilityFlow(
+    userId: string,
+    category: WalletTransactionCategory,
+    amount: number,
+    payload: {
+      serviceID: string;
+      billersCode: string;
+      phone: string;
+      variation_code?: string;
+      type?: 'prepaid' | 'postpaid';
+      providerLabel: string;
+      successTitle: string;
+      successBody: string;
+      metadata: Record<string, unknown>;
+    },
+  ) {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundError('Wallet not found');
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User not found');
+
+    const bal = await this.getBalance(wallet.id);
+    if (bal.realBalance < amount) throw new PaymentError('Insufficient balance');
+
+    const reference = `BILL_${category}_${Date.now()}`;
+
+    try {
+      await this.prisma.$transaction(async (trx) => {
+        const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
+        const after = before - amount;
+
+        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+        await trx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            amount,
+            type: WalletTransactionType.DEBIT,
+            category,
+            status: WalletTransactionStatus.PENDING,
+            reference,
+            description: `Bill payment: ${payload.providerLabel}`,
+            metadata: payload.metadata as Prisma.JsonObject,
+            balanceBefore: before,
+            balanceAfter: after,
+          },
+        });
+      });
+
+      const result = await payUtility({
+        serviceID: payload.serviceID,
+        billersCode: payload.billersCode,
+        variation_code: payload.variation_code,
+        amount,
+        phone: payload.phone || user.phone,
+        type: payload.type,
+      });
+
+      const providerStatus = String(result.code ?? result.response_description ?? '').trim();
+      if (providerStatus && providerStatus !== '000') {
+        throw new PaymentError(String(result.response_description ?? result.code ?? 'Utility payment failed'));
+      }
+
+      await this.prisma.walletTransaction.update({ where: { reference }, data: { status: WalletTransactionStatus.COMPLETED } });
+      await this.createNotification(
+        userId,
+        PrismaNotificationType.PAYMENT,
+        payload.successTitle,
+        payload.successBody,
+        { amount, reference, category, provider: payload.providerLabel, kind: 'bill_payment' },
+      );
+      await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+      return { reference, status: 'COMPLETED' };
+    } catch (error) {
+      await this.prisma.$transaction(async (trx) => {
+        const tx = await trx.walletTransaction.findUnique({ where: { reference } });
+        const current = await trx.wallet.findUnique({ where: { id: wallet.id } });
+        if (!tx || !current) return;
+
+        const afterReverse = Number(current.balance) + amount;
+        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: afterReverse, ledgerBalance: afterReverse } });
+        await trx.walletTransaction.update({ where: { id: tx.id }, data: { status: WalletTransactionStatus.REVERSED } });
+      });
+
+      await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+      throw error;
+    }
   }
 
   async deductForOrder(
@@ -531,78 +960,5 @@ export class WalletService {
     await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
     this.logger.info({ userId, amount, reference, category: 'BILL_PAYMENT', result: 'completed' }, 'wallet.bill_payment');
     return { reference };
-  }
-
-  async buyAirtime(userId: string, phone: string, amount: number, network: string) {
-    return this.buyBillFlow(userId, amount, WalletTransactionCategory.AIRTIME, { phone, network }, 'airtime');
-  }
-
-  async buyData(userId: string, phone: string, plan: string, network: string, amount: number) {
-    return this.buyBillFlow(userId, amount, WalletTransactionCategory.DATA, { phone, plan, network }, 'data');
-  }
-
-  async buyElectricity(userId: string, meterNumber: string, amount: number, disco: string) {
-    return this.buyBillFlow(userId, amount, WalletTransactionCategory.ELECTRICITY, { meterNumber, disco }, 'electricity');
-  }
-
-  private async buyBillFlow(
-    userId: string,
-    amount: number,
-    category: WalletTransactionCategory,
-    metadata: Record<string, unknown>,
-    paystackType: 'airtime' | 'data' | 'electricity',
-  ) {
-    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-    if (!wallet) throw new NotFoundError('Wallet not found');
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundError('User not found');
-
-    const bal = await this.getBalance(wallet.id);
-    if (bal.realBalance < amount) throw new PaymentError('Insufficient balance');
-
-    const reference = `BILL_${category}_${Date.now()}`;
-
-    try {
-      await this.prisma.$transaction(async (trx) => {
-        const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
-        const after = before - amount;
-
-        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
-        await trx.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            amount,
-            type: WalletTransactionType.DEBIT,
-            category,
-            status: WalletTransactionStatus.PENDING,
-            reference,
-            description: `Bill payment: ${category}`,
-            metadata: metadata as Prisma.JsonObject,
-            balanceBefore: before,
-            balanceAfter: after,
-          },
-        });
-      });
-
-      await initiateBillsCharge(paystackType, user.email, Math.round(amount * 100), 'N/A');
-
-      await this.prisma.walletTransaction.update({ where: { reference }, data: { status: WalletTransactionStatus.COMPLETED } });
-      await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
-      return { reference, status: 'COMPLETED' };
-    } catch (error) {
-      await this.prisma.$transaction(async (trx) => {
-        const tx = await trx.walletTransaction.findUnique({ where: { reference } });
-        const current = await trx.wallet.findUnique({ where: { id: wallet.id } });
-        if (!tx || !current) return;
-
-        const afterReverse = Number(current.balance) + amount;
-        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: afterReverse, ledgerBalance: afterReverse } });
-        await trx.walletTransaction.update({ where: { id: tx.id }, data: { status: WalletTransactionStatus.REVERSED } });
-      });
-
-      await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
-      throw error;
-    }
   }
 }

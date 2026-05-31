@@ -1,50 +1,49 @@
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Tv2, Radio } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowLeft, CheckCircle2, Radio, Tv2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
+import { Input } from '@/components/ui/Input';
+import { StateCard } from '@/components/ui/StateCard';
+import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useColorScheme } from '@/components/useColorScheme';
-import { StateCard } from '@/components/ui/StateCard';
-import { Input } from '@/components/ui/Input';
-import { useRouter } from 'expo-router';
-
-const services = [
-  { key: 'dstv', label: 'DSTV' },
-  { key: 'gotv', label: 'GOtv' },
-  { key: 'showmax', label: 'Showmax' },
-] as const;
-
-const plans = {
-  dstv: [
-    { name: 'Compact', price: 15000 },
-    { name: 'Compact Plus', price: 24000 },
-    { name: 'Premium', price: 44000 },
-  ],
-  gotv: [
-    { name: 'Jinja', price: 3300 },
-    { name: 'Jolli', price: 5600 },
-    { name: 'Max', price: 8500 },
-  ],
-  showmax: [
-    { name: 'Mobile', price: 2500 },
-    { name: 'Standard', price: 4500 },
-  ],
-} as const;
+import { formatNaira } from '@/lib/wallet';
+import { useBuyTv, useProviderServices, useProviderVariations, useValidateProviderAccount } from '@/hooks/useWallet';
 
 export default function TvScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
-  const [service, setService] = useState<(typeof services)[number]['key']>('dstv');
-  const [cardNumber, setCardNumber] = useState('');
-  const [selectedPlan, setSelectedPlan] = useState<string>('Compact');
+  const buyMutation = useBuyTv();
+  const validateMutation = useValidateProviderAccount();
+  const servicesQuery = useProviderServices('tv-subscription');
+  const [selectedServiceID, setSelectedServiceID] = useState('');
+  const [smartcardNumber, setSmartcardNumber] = useState('');
+  const [selectedVariationCode, setSelectedVariationCode] = useState('');
   const [recentSubscriptions, setRecentSubscriptions] = useState<Array<{ id: string; title: string; meta: string; amount: string }>>([]);
+  const [validation, setValidation] = useState<{ name: string; address?: string } | null>(null);
 
-  const servicePlans = plans[service];
-  const currentPlan = servicePlans.find((plan) => plan.name === selectedPlan) ?? servicePlans[0];
-  const ready = cardNumber.trim().length >= 10 && Boolean(currentPlan);
+  const services = servicesQuery.data ?? [];
+  const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
+  const variationsQuery = useProviderVariations(selectedService?.serviceID);
+  const variations = variationsQuery.data ?? [];
+  const selectedVariation = variations.find((variation) => variation.variation_code === selectedVariationCode) ?? variations[0];
+  const selectedPrice = Number(selectedVariation?.variation_amount ?? 0);
+  const canPay = smartcardNumber.trim().length >= 8 && Boolean(selectedService) && Boolean(selectedVariation) && !buyMutation.isPending;
+
+  useEffect(() => {
+    if (!selectedServiceID && services.length) {
+      setSelectedServiceID(services[0].serviceID);
+    }
+  }, [selectedServiceID, services]);
+
+  useEffect(() => {
+    if (!selectedVariationCode && variations.length) {
+      setSelectedVariationCode(variations[0].variation_code);
+    }
+  }, [selectedVariationCode, variations]);
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -52,55 +51,131 @@ export default function TvScreen() {
         <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
           <ArrowLeft size={18} color={palette.text} />
         </Pressable>
-        <View style={[styles.serviceIcon, { backgroundColor: 'rgba(255, 149, 0, 0.14)' }]}>
-          <Tv2 color={palette.primary} size={22} />
-        </View>
-        <View style={styles.headerTextWrap}>
-          <Text style={[styles.eyebrow, { color: palette.primary }]}>TV Subscription</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Pick a provider and pay in a clean, guided flow.</Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: palette.text }]}>TV Subscription</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.serviceRow}>
-        {services.map((item) => {
-          const active = item.key === service;
-          return (
-            <Pressable key={item.key} onPress={() => { setService(item.key); setSelectedPlan(plans[item.key][0].name); }} style={[styles.serviceChip, { backgroundColor: palette.card, borderColor: active ? palette.primary : palette.border, opacity: active ? 1 : 0.78 }]}>
-              <Text style={[styles.serviceChipText, { color: palette.text }]}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+        <View style={styles.heroTop}>
+          <Text style={styles.heroLabel}>Live TV pricing</Text>
+          <View style={styles.heroIcon}><Tv2 color="#fff" size={20} /></View>
+        </View>
+        <Text style={styles.heroValue}>{selectedService?.name ?? 'Choose a provider'}</Text>
+        <Text style={styles.heroBody}>Pick a provider, validate the smartcard, then choose one of the live bouquets returned by VTpass.</Text>
+      </View>
+
+      <View>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Choose provider</Text>
+        <View style={styles.providerRow}>
+          {servicesQuery.isLoading ? (
+            <ActivityIndicator color={palette.primary} />
+          ) : services.length ? (
+            services.map((service) => {
+              const active = service.serviceID === selectedServiceID;
+              return (
+                <Pressable key={service.serviceID} onPress={() => { setSelectedServiceID(service.serviceID); setSelectedVariationCode(''); setValidation(null); }} style={[styles.providerChip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}>
+                  <Text style={[styles.providerText, { color: active ? palette.card : palette.text }]}>{service.name}</Text>
+                </Pressable>
+              );
+            })
+          ) : (
+            <StateCard title="No TV providers" description="VTpass did not return any TV subscription providers for this account." icon={<Radio size={24} color={palette.textSecondary} />} />
+          )}
+        </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Input
           label="Smartcard number"
-          value={cardNumber}
-          onChangeText={setCardNumber}
+          value={smartcardNumber}
+          onChangeText={setSmartcardNumber}
           keyboardType="number-pad"
-          placeholder="10-digit smartcard number"
-          rightElement={<Pressable style={[styles.inlineButton, { backgroundColor: palette.primary }]} onPress={() => Alert.alert('Verify', 'Smartcard verification is not connected yet.') }><Text style={styles.inlineButtonText}>Verify</Text></Pressable>}
-          helperText="Enter the smartcard number exactly as shown on your decoder."
+          placeholder="Enter smartcard number"
+          helperText="Validate the smartcard before paying so you can confirm the account details first."
         />
+        <Pressable
+          onPress={async () => {
+            if (!selectedService || !smartcardNumber.trim()) return;
+            try {
+              const result = await validateMutation.mutateAsync({ serviceID: selectedService.serviceID, billersCode: smartcardNumber.trim() });
+              setValidation({
+                name: String(result.Customer_Name ?? result.Account_Number ?? 'Verified customer'),
+                address: result.Address ? String(result.Address) : undefined,
+              });
+            } catch (error) {
+              Alert.alert('Could not validate smartcard', error instanceof Error ? error.message : 'Please check the provider and smartcard number.');
+            }
+          }}
+          disabled={validateMutation.isPending || smartcardNumber.trim().length < 6 || !selectedService}
+          style={[styles.inlineAction, { backgroundColor: palette.text }]}
+        >
+          <CheckCircle2 size={16} color={palette.card} />
+          <Text style={[styles.inlineActionText, { color: palette.card }]}>{validateMutation.isPending ? 'Validating…' : 'Validate smartcard'}</Text>
+        </Pressable>
+        {validation ? (
+          <View style={[styles.successPill, { backgroundColor: 'rgba(48,209,88,0.12)' }]}>
+            <CheckCircle2 size={16} color={palette.success} />
+            <Text style={[styles.successText, { color: palette.success }]}>{validation.name}{validation.address ? ` • ${validation.address}` : ''}</Text>
+          </View>
+        ) : null}
       </View>
 
-      <View style={[styles.planCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionTitle, { color: palette.text }]}>Available plans</Text>
-        <View style={styles.planList}>
-          {servicePlans.map((plan) => {
-            const active = plan.name === selectedPlan;
-            return (
-              <Pressable key={plan.name} onPress={() => setSelectedPlan(plan.name)} style={[styles.planRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : 'transparent' }]}>
-                <View>
-                  <Text style={[styles.planName, { color: palette.text }]}>{plan.name}</Text>
-                  <Text style={[styles.planMeta, { color: palette.textSecondary }]}>{service.toUpperCase()} • monthly access</Text>
-                </View>
-                <Text style={[styles.planPrice, { color: palette.text }]}>{`₦${plan.price.toLocaleString('en-NG')}`}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <View>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Live bouquets</Text>
+        {variationsQuery.isLoading ? (
+          <StateCard loading title="Loading live bouquets" description="Fetching the current bouquet list from VTpass." icon={<Tv2 size={24} color={palette.textSecondary} />} />
+        ) : variations.length ? (
+          <View style={styles.planList}>
+            {variations.map((variation) => {
+              const active = variation.variation_code === selectedVariationCode;
+              return (
+                <Pressable key={variation.variation_code} onPress={() => setSelectedVariationCode(variation.variation_code)} style={[styles.planRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : 'transparent' }]}>
+                  <View>
+                    <Text style={[styles.planName, { color: palette.text }]}>{variation.name}</Text>
+                    <Text style={[styles.planMeta, { color: palette.textSecondary }]}>{variation.fixedPrice === 'Yes' ? 'Fixed price' : 'Variable price'}</Text>
+                  </View>
+                  <Text style={[styles.planPrice, { color: palette.text }]}>{formatNaira(Number(variation.variation_amount))}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <StateCard title="No bouquets available" description="VTpass did not return any TV variations for the selected provider." icon={<Radio size={24} color={palette.textSecondary} />} />
+        )}
       </View>
+
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Summary</Text>
+        <Text style={[styles.summaryTitle, { color: palette.text }]}>{selectedVariation?.name ?? 'Select a bouquet'}</Text>
+        <Text style={[styles.summaryMeta, { color: palette.textSecondary }]}>{selectedService?.name ?? 'No provider selected'}</Text>
+        <Text style={[styles.summaryAmount, { color: palette.text }]}>{selectedPrice ? formatNaira(selectedPrice) : '₦0'}</Text>
+      </View>
+
+      <Pressable
+        disabled={!canPay}
+        onPress={async () => {
+          if (!selectedService || !selectedVariation) return;
+          try {
+            const payloadAmount = selectedPrice;
+            await buyMutation.mutateAsync({
+              smartcardNumber: smartcardNumber.trim(),
+              amount: payloadAmount,
+              provider: selectedService.name,
+              variationCode: selectedVariation.variation_code,
+            });
+            setRecentSubscriptions((items) => [
+              { id: `${Date.now()}`, title: `${selectedService.name} ${selectedVariation.name}`, meta: 'TV subscription', amount: formatNaira(payloadAmount) },
+              ...items,
+            ].slice(0, 5));
+            Alert.alert('TV subscription paid', `You renewed ${selectedVariation.name} for ${formatNaira(payloadAmount)}.`);
+          } catch (error) {
+            Alert.alert('Subscription failed', error instanceof Error ? error.message : 'Unable to renew the TV subscription.');
+          }
+        }}
+        style={[styles.cta, { backgroundColor: canPay ? palette.primary : palette.border }]}
+      >
+        {buyMutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.ctaText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : 'Select a bouquet'}</Text>}
+      </Pressable>
 
       <View style={[styles.recentCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.sectionTitle, { color: palette.text }]}>Recent subscriptions</Text>
@@ -117,59 +192,49 @@ export default function TvScreen() {
             ))}
           </View>
         ) : (
-          <StateCard
-            title="No recent subscriptions"
-            description="Your TV renewals will appear here once you make a payment."
-            icon={<Radio size={24} color={palette.textSecondary} />}
-          />
+          <StateCard title="No recent subscriptions" description="Your TV renewals will appear here after a successful payment." icon={<Radio size={24} color={palette.textSecondary} />} />
         )}
       </View>
-
-      <Pressable
-        disabled={!ready}
-        onPress={() => {
-          setRecentSubscriptions((items) => [
-            { id: `${Date.now()}`, title: `${service.toUpperCase()} ${currentPlan.name}`, meta: 'TV subscription', amount: `₦${currentPlan.price.toLocaleString('en-NG')}` },
-            ...items,
-          ].slice(0, 5));
-          Alert.alert('TV subscription', `Renew ${currentPlan.name} for ₦${currentPlan.price.toLocaleString('en-NG')}.`);
-        }}
-        style={[styles.cta, { backgroundColor: ready ? palette.primary : palette.border }]}
-      >
-        <Text style={styles.ctaText}>{ready ? `Renew ${currentPlan.name} for ₦${currentPlan.price.toLocaleString('en-NG')}` : 'Enter details to continue'}</Text>
-      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.huge },
-  headerRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  serviceIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  headerTextWrap: { flex: 1, gap: 4 },
-  eyebrow: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 1 },
-  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
-  serviceRow: { flexDirection: 'row', gap: 10 },
-  serviceChip: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 16, borderWidth: 1 },
-  serviceChipText: { fontFamily: Typography.family.semibold },
-  card: { borderRadius: 22, borderWidth: 1, padding: Spacing.lg },
-  sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, marginBottom: Spacing.md },
-  inlineButton: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  inlineButtonText: { color: '#fff', fontFamily: Typography.family.bold },
-  planCard: { borderRadius: 22, borderWidth: 1, padding: Spacing.lg },
+  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  headerSpacer: { width: 42 },
+  hero: { borderRadius: 28, padding: Spacing.lg, gap: 8 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
+  heroIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
+  heroValue: { color: '#fff', fontSize: 24, fontFamily: Typography.family.bold },
+  heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
+  sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, marginBottom: 10 },
+  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  providerChip: { minHeight: 44, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  providerText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
+  inlineAction: { minHeight: 48, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  inlineActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  successPill: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 999 },
+  successText: { fontSize: Typography.sm, fontFamily: Typography.family.semibold },
   planList: { gap: 10 },
-  planRow: { borderWidth: 1, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  planRow: { borderWidth: 1, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   planName: { fontFamily: Typography.family.bold, fontSize: Typography.md },
   planMeta: { marginTop: 2, fontSize: Typography.xs },
   planPrice: { fontFamily: Typography.family.bold, fontSize: Typography.md },
-  recentCard: { borderRadius: 22, borderWidth: 1, padding: Spacing.lg, gap: 12 },
+  summaryTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  summaryMeta: { fontSize: Typography.xs },
+  summaryAmount: { fontSize: 28, fontFamily: Typography.family.bold, marginTop: 2 },
+  recentCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 12 },
   recentList: { gap: 14 },
   recentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)' },
   recentTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   recentMeta: { marginTop: 2, fontSize: Typography.xs },
   recentAmount: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  cta: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  cta: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   ctaText: { color: '#fff', fontFamily: Typography.family.bold, fontSize: Typography.md, textAlign: 'center', paddingHorizontal: 16 },
 });

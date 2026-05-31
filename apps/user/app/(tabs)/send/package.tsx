@@ -23,6 +23,10 @@ export default function PackageDetailsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
+        <Text style={{ color: Colors.light.text, fontSize: 14, fontWeight: Typography.bold }}>Back</Text>
+      </Pressable>
+
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>Package</Text>
         <Text style={styles.title}>Choose the package size and add the item list.</Text>
