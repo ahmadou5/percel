@@ -26,6 +26,16 @@ type BankResolveResponse = {
   account_name: string;
 };
 
+type BankListItem = {
+  name?: string;
+  slug?: string;
+  code?: string;
+  longcode?: string;
+  country?: string;
+  currency?: string;
+  type?: string;
+};
+
 type TransferRecipientResponse = {
   recipient_code: string;
   details?: {
@@ -204,6 +214,21 @@ export async function getBank(bankCode: string) {
   try {
     const { data } = await paystack.get('/bank', { params: { code: bankCode } });
     return data.data;
+  } catch (error) {
+    wrapPaystackError(error);
+  }
+}
+
+export async function listBanks(country = 'nigeria') {
+  try {
+    const { data } = await paystack.get('/bank', {
+      params: {
+        country,
+        pay_with_bank_transfer: true,
+      },
+    });
+
+    return data.data as BankListItem[];
   } catch (error) {
     wrapPaystackError(error);
   }

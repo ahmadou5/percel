@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Bell, CheckCheck, CircleAlert, Clock3, CreditCard, FileClock, Package, Wallet } from 'lucide-react-native';
+import { Bell, CheckCheck, ChevronLeft, CircleAlert, Clock3, CreditCard, FileClock, Package, Wallet } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { StateCard } from '@/components/ui/StateCard';
@@ -45,9 +45,10 @@ export default function NotificationsScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
-        </Pressable>
+        
+         <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+                 <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+                </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Notifications</Text>
           <Text style={[styles.title, { color: palette.text }]}>Track payments, orders, and account updates in one place.</Text>
@@ -127,10 +128,11 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
-  headerRow: { gap: Spacing.lg },
-  backButton: { width: 72, minHeight: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSpacer: { width: 42 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { gap: 8 },
   eyebrow: { fontSize: Typography.xs, fontFamily: Typography.family.bold, letterSpacing: 1.2, textTransform: 'uppercase' },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },

@@ -45,6 +45,11 @@ export class WalletController {
     return success(data, 'Bank account resolved');
   };
 
+  bankList = async () => {
+    const data = await this.service.listBanks();
+    return success(data, 'Supported banks loaded');
+  };
+
   providerServices = async (request: FastifyRequest) => {
     const { identifier } = request.query as { identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill' };
     const data = await this.service.getProviderServices(identifier);

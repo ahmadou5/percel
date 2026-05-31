@@ -27,7 +27,7 @@ export default function ProfileScreen() {
     return next.toUpperCase();
   }, [displayName]);
   const username = `@${(profile?.phone ?? authUser?.phone ?? '00000000').replace(/\D/g, '').slice(-8)}`;
-  const verified = profile?.status === 'ACTIVE';
+  const verified = Boolean(profile?.kycComplete);
 
   const changeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -92,8 +92,14 @@ export default function ProfileScreen() {
           <Text style={[styles.username, { color: palette.textSecondary }]}>{username}</Text>
           <View style={[styles.badge, { backgroundColor: verified ? 'rgba(48, 209, 88, 0.16)' : 'rgba(255, 214, 10, 0.16)' }]}>
             <ShieldCheck size={12} color={verified ? palette.success : palette.warning} />
-            <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'Verified' : 'Pending verification'}</Text>
+            <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'KYC complete' : 'KYC required'}</Text>
           </View>
+          {!verified ? (
+            <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: scheme === 'dark' ? 'rgba(255,214,10,0.12)' : 'rgba(255,214,10,0.10)', borderColor: palette.border }]}>
+              <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC to unlock your NUBAN</Text>
+              <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Add your address, date of birth, NIN, and BVN in Settings.</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: scheme === 'dark' ? 'rgba(10, 132, 255, 0.14)' : 'rgba(10, 132, 255, 0.08)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
@@ -140,6 +146,9 @@ const styles = StyleSheet.create({
   username: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   badgeText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  kycCallout: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4, alignItems: 'center' },
+  kycTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'center' },
+  kycSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textAlign: 'center' },
   referralCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, padding: Spacing.md, borderWidth: 1 },
   referralIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   referralCopy: { flex: 1, gap: 2 },

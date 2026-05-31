@@ -21,6 +21,7 @@ const iconMap: Record<string, string> = {
   AIRTIME: 'mobile-phone',
   DATA: 'signal',
   ELECTRICITY: 'bolt',
+  TV: 'tv',
   COMMISSION: 'percent',
   REFUND: 'undo',
 };

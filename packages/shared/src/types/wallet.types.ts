@@ -11,6 +11,7 @@ export type WalletTransactionCategory =
   | 'AIRTIME'
   | 'DATA'
   | 'ELECTRICITY'
+  | 'TV'
   | 'COMMISSION'
   | 'REFUND';
 
@@ -23,6 +24,7 @@ export interface Wallet {
   nuban: string | null;
   bankName: string | null;
   bankCode?: string | null;
+  kycComplete?: boolean;
 }
 
 export interface WalletTransaction {

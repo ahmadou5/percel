@@ -8,8 +8,13 @@ export type UserProfileResponse = {
   avatarUrl: string | null;
   dateOfBirth: string | null;
   address: string | null;
+  ninNumber: string | null;
+  ninVerified: boolean;
+  bvnNumber: string | null;
+  bvnVerified: boolean;
   status: UserStatus;
   walletPinSet: boolean;
+  kycComplete: boolean;
   createdAt: string;
   updatedAt: string;
 };

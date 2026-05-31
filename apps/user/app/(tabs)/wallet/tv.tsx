@@ -51,9 +51,12 @@ export default function TvScreen() {
         <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
           <ArrowLeft size={18} color={palette.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>TV Subscription</Text>
         <View style={styles.headerSpacer} />
       </View>
+       <View style={styles.headerCopy}>
+                <Text style={[styles.eyebrow, { color: palette.primary }]}>TV SUBSCRIPTION</Text>
+                <Text style={[styles.title, { color: palette.text }]}>Pay for TV with real provider validation.</Text>
+              </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
         <View style={styles.heroTop}>
@@ -231,6 +234,9 @@ const styles = StyleSheet.create({
   summaryAmount: { fontSize: 28, fontFamily: Typography.family.bold, marginTop: 2 },
   recentCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 12 },
   recentList: { gap: 14 },
+  headerCopy: { gap: 8 },
+  eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { color: Colors.light.text, fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
   recentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(0,0,0,0.08)' },
   recentTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   recentMeta: { marginTop: 2, fontSize: Typography.xs },

@@ -88,6 +88,7 @@ enum WalletTransactionCategory {
   AIRTIME
   DATA
   ELECTRICITY
+  TV
   COMMISSION
   REFUND
 }
@@ -114,6 +115,10 @@ model User {
   avatarUrl     String?
   dateOfBirth   DateTime?
   address       String?
+  ninNumber     String?
+  ninVerified   Boolean    @default(false)
+  bvnNumber     String?
+  bvnVerified   Boolean    @default(false)
   deletedAt     DateTime?
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)

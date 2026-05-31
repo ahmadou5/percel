@@ -9,6 +9,9 @@ import type {
   UpdateProfilePayload,
   UpdateProfileResult,
   UserProfile,
+  VerifyBvnPayload,
+  VerifyKycResult,
+  VerifyNinPayload,
 } from '@/lib/profile';
 import { persistUser, useAuthStore } from '@/store/auth.store';
 
@@ -64,6 +67,78 @@ export function useUpdateProfile() {
           avatarUrl: data.avatarUrl ?? auth.user.avatarUrl ?? null,
           dateOfBirth: data.dateOfBirth ?? auth.user.dateOfBirth ?? null,
           address: data.address ?? auth.user.address ?? null,
+          ninNumber: data.ninNumber ?? auth.user.ninNumber ?? null,
+          ninVerified: data.ninVerified,
+          bvnNumber: data.bvnNumber ?? auth.user.bvnNumber ?? null,
+          bvnVerified: data.bvnVerified,
+          kycComplete: data.kycComplete,
+          status: data.status,
+        };
+        auth.setUser(nextUser);
+        await persistUser(nextUser);
+      }
+    },
+  });
+}
+
+export function useVerifyNin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: VerifyNinPayload) => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'user.kyc_nin_requested', level: 'info' });
+      const response = await http.post<ApiResponse<VerifyKycResult>>('/api/v1/user/kyc/nin', payload);
+      return response.data.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.setQueryData(profileKey, data);
+      const auth = useAuthStore.getState();
+      if (auth.user) {
+        const nextUser = {
+          ...auth.user,
+          fullName: data.fullName,
+          avatarUrl: data.avatarUrl ?? auth.user.avatarUrl ?? null,
+          dateOfBirth: data.dateOfBirth ?? auth.user.dateOfBirth ?? null,
+          address: data.address ?? auth.user.address ?? null,
+          ninNumber: data.ninNumber ?? auth.user.ninNumber ?? null,
+          ninVerified: data.ninVerified,
+          bvnNumber: data.bvnNumber ?? auth.user.bvnNumber ?? null,
+          bvnVerified: data.bvnVerified,
+          kycComplete: data.kycComplete,
+          status: data.status,
+        };
+        auth.setUser(nextUser);
+        await persistUser(nextUser);
+      }
+    },
+  });
+}
+
+export function useVerifyBvn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: VerifyBvnPayload) => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'user.kyc_bvn_requested', level: 'info' });
+      const response = await http.post<ApiResponse<VerifyKycResult>>('/api/v1/user/kyc/bvn', payload);
+      return response.data.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.setQueryData(profileKey, data);
+      const auth = useAuthStore.getState();
+      if (auth.user) {
+        const nextUser = {
+          ...auth.user,
+          fullName: data.fullName,
+          avatarUrl: data.avatarUrl ?? auth.user.avatarUrl ?? null,
+          dateOfBirth: data.dateOfBirth ?? auth.user.dateOfBirth ?? null,
+          address: data.address ?? auth.user.address ?? null,
+          ninNumber: data.ninNumber ?? auth.user.ninNumber ?? null,
+          ninVerified: data.ninVerified,
+          bvnNumber: data.bvnNumber ?? auth.user.bvnNumber ?? null,
+          bvnVerified: data.bvnVerified,
+          kycComplete: data.kycComplete,
+          status: data.status,
         };
         auth.setUser(nextUser);
         await persistUser(nextUser);

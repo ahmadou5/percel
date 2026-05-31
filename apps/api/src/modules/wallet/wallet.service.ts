@@ -15,6 +15,7 @@ import {
   getBank,
   initializeTransaction,
   initiateTransfer,
+  listBanks,
   resolveAccountNumber,
 } from '../../lib/paystack.js';
 import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
@@ -40,6 +41,15 @@ function splitFullName(fullName: string) {
     firstName,
     lastName: rest.join(' ') || 'User',
   };
+}
+
+function isKycComplete(user: {
+  dateOfBirth: Date | null;
+  address: string | null;
+  ninVerified: boolean;
+  bvnVerified: boolean;
+}) {
+  return Boolean(user.dateOfBirth && user.address && user.ninVerified && user.bvnVerified);
 }
 
 export class WalletService {
@@ -74,10 +84,15 @@ export class WalletService {
 
   private async ensureDepositAccount(
     wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
-    user: { email: string; fullName: string; phone: string },
+    user: { email: string; fullName: string; phone: string; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean },
   ) {
     if (wallet.nuban && wallet.bankName) {
-      return wallet;
+      return { ...wallet, kycComplete: true };
+    }
+
+    const kycComplete = isKycComplete(user);
+    if (!kycComplete) {
+      return { ...wallet, kycComplete: false };
     }
 
     try {
@@ -107,10 +122,11 @@ export class WalletService {
         nuban: account.account_number,
         bankName,
         bankCode,
+        kycComplete: true,
       };
     } catch (error) {
       this.logger.warn({ walletId: wallet.id, error }, 'wallet.deposit_account.ensure_failed');
-      return wallet;
+      return { ...wallet, kycComplete: kycComplete };
     }
   }
 
@@ -126,11 +142,11 @@ export class WalletService {
         },
       }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Wallet not found');
-    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '' });
+    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '', dateOfBirth: null, address: null, ninVerified: false, bvnVerified: false });
     return {
       ...wallet,
       ...depositAccount,
@@ -470,6 +486,20 @@ export class WalletService {
     };
   }
 
+  async listBanks() {
+    const banks = await listBanks('nigeria');
+    return banks
+      .filter((bank) => Boolean(bank?.name && bank?.code))
+      .map((bank) => ({
+        name: String(bank.name),
+        code: String(bank.code),
+        slug: bank.slug ?? null,
+        longcode: bank.longcode ?? null,
+        currency: bank.currency ?? null,
+        type: bank.type ?? null,
+      }));
+  }
+
   async getProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
     return listServices(identifier);
   }
@@ -493,13 +523,15 @@ export class WalletService {
     const normalizedPin = normalizePin(payload.pin);
     assertPinFormat(normalizedPin);
 
-    const [wallet, sender] = await Promise.all([
+    const [wallet, sender, profile] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Sender wallet not found');
     if (!sender?.walletPinHash) throw new ValidationError('Set a transfer PIN before sending money');
+    if (!profile || !isKycComplete(profile)) throw new ValidationError('Complete KYC before sending money to a bank account');
 
     const pinMatches = await bcrypt.compare(normalizedPin, sender.walletPinHash);
     if (!pinMatches) throw new UnauthorizedError('Invalid transfer PIN');
@@ -651,7 +683,7 @@ export class WalletService {
     variationCode: string,
     phone?: string,
   ) {
-    return this.buyUtilityFlow(userId, WalletTransactionCategory.ORDER_PAYMENT, amount, {
+    return this.buyUtilityFlow(userId, WalletTransactionCategory.TV, amount, {
       serviceID: this.resolveTvServiceId(provider),
       billersCode: smartcardNumber,
       phone: phone ?? '',
@@ -811,7 +843,7 @@ export class WalletService {
           walletId: wallet.id,
           amount,
           type: WalletTransactionType.DEBIT,
-          category: WalletTransactionCategory.ORDER_PAYMENT,
+          category: WalletTransactionCategory.TV,
           status: WalletTransactionStatus.COMPLETED,
           reference,
           description: 'Order payment deduction',

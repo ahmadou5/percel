@@ -9,6 +9,7 @@ import {
   type ProviderValidation,
   type ProviderVariation,
   type WalletApiResponse,
+  type BankDirectoryItem,
   type WalletDetails,
   type WalletTransactionsQuery,
   type WalletTransactionsResponse,
@@ -285,6 +286,17 @@ export function useBuyElectricity(
   });
 }
 
+
+export function useBanks() {
+  return useQuery({
+    queryKey: ["banks"],
+    queryFn: async () => {
+      const response = await http.get<WalletApiResponse<BankDirectoryItem[]>>("/api/v1/wallet/banks");
+      return response.data.data;
+    },
+    staleTime: 15 * 60_000,
+  });
+}
 
 export function useProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
   return useQuery({

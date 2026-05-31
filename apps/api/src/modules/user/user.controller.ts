@@ -22,6 +22,18 @@ export class UserController {
     return success(await this.service.updatePushToken(userId, token), 'Push token registered');
   };
 
+  verifyNin = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { nin } = request.body as { nin: string };
+    return success(await this.service.verifyUserNin(userId, nin), 'NIN verified');
+  };
+
+  verifyBvn = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { bvn } = request.body as { bvn: string };
+    return success(await this.service.verifyUserBvn(userId, bvn), 'BVN verified');
+  };
+
   listNotifications = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const query = request.query as { limit?: number; unreadOnly?: boolean };

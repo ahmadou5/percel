@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as ScreenCapture from 'expo-screen-capture';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowUpRight, Banknote, CreditCard, SearchCheck } from 'lucide-react-native';
+import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ArrowUpRight, Banknote, ChevronLeft, CreditCard, Search, SearchCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { AmountInput } from '@/components/wallet/AmountInput';
@@ -13,23 +13,12 @@ import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { buildSearchPreview, formatNaira } from '@/lib/wallet';
-import { useBankTransfer, useResolveBankAccount, useTransfer } from '@/hooks/useWallet';
+import { useBankTransfer, useBanks, useResolveBankAccount, useTransfer, useWallet } from '@/hooks/useWallet';
 
 const recentContacts = [
   { name: 'Ayo Martins', phone: '08031234567' },
   { name: 'Blessing Udo', phone: '08123456789' },
   { name: 'Musa Bello', phone: '07012345678' },
-] as const;
-
-const banks = [
-  { name: 'Access Bank', code: '044' },
-  { name: 'GTBank', code: '058' },
-  { name: 'First Bank', code: '011' },
-  { name: 'Zenith Bank', code: '057' },
-  { name: 'UBA', code: '033' },
-  { name: 'Wema Bank', code: '035' },
-  { name: 'FCMB', code: '214' },
-  { name: 'Stanbic IBTC', code: '232' },
 ] as const;
 
 const modes = [
@@ -39,11 +28,20 @@ const modes = [
 
 type Mode = (typeof modes)[number]['key'];
 
+type BankItem = {
+  name: string;
+  code: string;
+  slug?: string | null;
+  longcode?: string | null;
+};
+
 export default function TransferScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const walletQuery = useWallet();
   const phoneMutation = useTransfer();
+  const banksQuery = useBanks();
   const bankResolve = useResolveBankAccount();
   const bankMutation = useBankTransfer();
   const [mode, setMode] = useState<Mode>('BANK');
@@ -56,6 +54,8 @@ export default function TransferScreen() {
   const [note, setNote] = useState('Waybill support');
   const [pin, setPin] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [bankSearch, setBankSearch] = useState('');
 
   useEffect(() => {
     void ScreenCapture.preventScreenCaptureAsync();
@@ -65,10 +65,25 @@ export default function TransferScreen() {
   }, []);
 
   const amountValue = Number(amount.replace(/,/g, ''));
+  const wallet = walletQuery.data;
+  const kycReady = Boolean(wallet?.kycComplete);
   const recipient = recentContacts.find((item) => item.phone === phone);
-  const selectedBank = banks.find((item) => item.code === bankCode) ?? banks[0];
+  const banks = (banksQuery.data ?? []) as BankItem[];
+  const selectedBank = banks.find((item) => item.code === bankCode) ?? { name: 'Select bank', code: bankCode, slug: null, longcode: null };
+  const filteredBanks = useMemo(() => {
+    const term = bankSearch.trim().toLowerCase();
+    if (!term) return banks;
+    return banks.filter((bank) => `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term));
+  }, [bankSearch, banks]);
+
   const canSubmitPhone = phone.trim().length >= 10 && amountValue > 0 && /^\d{4,6}$/.test(pin.trim());
-  const canSubmitBank = bankCode.trim().length >= 3 && accountNumber.trim().length >= 8 && amountValue > 0 && /^\d{4,6}$/.test(pin.trim()) && Boolean(resolvedName);
+  const canSubmitBank =
+    kycReady &&
+    bankCode.trim().length >= 3 &&
+    accountNumber.trim().length >= 8 &&
+    amountValue > 0 &&
+    /^\d{4,6}$/.test(pin.trim()) &&
+    Boolean(resolvedName);
 
   const rows = useMemo(() => {
     if (mode === 'BANK') {
@@ -87,7 +102,7 @@ export default function TransferScreen() {
       { label: 'Amount', value: formatNaira(amountValue) },
       { label: 'Note', value: note || 'None' },
     ];
-  }, [amountValue, bankCode, mode, note, accountNumber, phone, recipient?.name, resolvedBank, resolvedName, selectedBank.name]);
+  }, [amountValue, accountNumber, bankCode, mode, note, phone, recipient?.name, resolvedBank, resolvedName, selectedBank.name]);
 
   const validateBank = async () => {
     if (accountNumber.trim().length < 8) return;
@@ -130,7 +145,7 @@ export default function TransferScreen() {
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-          <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
+          <ChevronLeft size={20} color={palette.text} />
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Send money</Text>
@@ -148,14 +163,14 @@ export default function TransferScreen() {
             <ArrowUpRight size={20} color="#fff" />
           </View>
         </View>
-        <Text style={styles.heroBody}>{mode === 'BANK' ? 'Validate the account name before you send. The app will debit your wallet and initiate the payout.' : 'Send to another wallet number with the same confirmation flow.'}</Text>
+        <Text style={styles.heroBody}>{mode === 'BANK' ? 'Pick a bank from the searchable list, validate the account name, then send.' : 'Send to another wallet number with the same confirmation flow.'}</Text>
       </View>
 
       <View style={styles.modeRow}>
         {modes.map((item) => {
           const active = item.key === mode;
           return (
-            <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.modeCard, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }] }>
+            <Pressable key={item.key} onPress={() => setMode(item.key)} style={[styles.modeCard, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}>
               <Text style={[styles.modeLabel, { color: active ? palette.card : palette.text }]}>{item.label}</Text>
               <Text style={[styles.modeMeta, { color: active ? 'rgba(255,255,255,0.76)' : palette.textSecondary }]}>{item.description}</Text>
             </Pressable>
@@ -165,19 +180,31 @@ export default function TransferScreen() {
 
       {mode === 'BANK' ? (
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Bank details</Text>
-          <View style={styles.bankRow}>
-            {banks.map((bank) => {
-              const active = bank.code === bankCode;
-              return (
-                <Pressable key={bank.code} onPress={() => { setBankCode(bank.code); setResolvedName(''); setResolvedBank(''); }} style={[styles.bankChip, { backgroundColor: active ? palette.primary : palette.bg, borderColor: active ? palette.primary : palette.border }]}>
-                  <Text style={[styles.bankChipText, { color: active ? palette.card : palette.text }]}>{bank.name}</Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>Bank details</Text>
+            <Pressable onPress={() => setBankPickerOpen(true)} style={[styles.sectionButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Search size={14} color={palette.textSecondary} />
+              <Text style={[styles.sectionButtonText, { color: palette.text }]}>{selectedBank.name}</Text>
+            </Pressable>
           </View>
+
+          {!kycReady ? (
+            <StateCard
+              title="KYC required for bank payouts"
+              description="Complete KYC in Settings before you can send to a bank account. Phone transfers still work."
+              icon={<CreditCard size={24} color={palette.textSecondary} />}
+              actionLabel="Complete KYC"
+              onActionPress={() => router.push('/settings/kyc')}
+            />
+          ) : null}
+
+          <View style={styles.bankSummary}>
+            <Text style={[styles.bankSummaryTitle, { color: palette.text }]}>{selectedBank.name}</Text>
+            <Text style={[styles.bankSummaryMeta, { color: palette.textSecondary }]}>{selectedBank.code}{selectedBank.slug ? ` • ${selectedBank.slug}` : ''}</Text>
+          </View>
+
           <Input label="Account number" value={accountNumber} onChangeText={setAccountNumber} keyboardType="number-pad" placeholder="0123456789" />
-          <Pressable onPress={() => void validateBank()} disabled={bankResolve.isPending || accountNumber.trim().length < 8} style={[styles.inlineAction, { backgroundColor: palette.text }] }>
+          <Pressable onPress={() => void validateBank()} disabled={bankResolve.isPending || accountNumber.trim().length < 8 || !kycReady} style={[styles.inlineAction, { backgroundColor: palette.text, opacity: kycReady ? 1 : 0.45 }]}>
             <SearchCheck size={16} color={palette.card} />
             <Text style={[styles.inlineActionText, { color: palette.card }]}>{bankResolve.isPending ? 'Validating…' : 'Validate account'}</Text>
           </Pressable>
@@ -238,6 +265,68 @@ export default function TransferScreen() {
         onConfirm={submit}
         onCancel={() => setPreviewOpen(false)}
       />
+
+      <Modal visible={bankPickerOpen} transparent animationType="fade" onRequestClose={() => setBankPickerOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setBankPickerOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a bank</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Search the bank list to switch the transfer recipient bank.</Text>
+              </View>
+              <Pressable onPress={() => setBankPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}> 
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            <View style={[styles.searchWrap, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Search size={16} color={palette.textSecondary} />
+              <TextInput
+                value={bankSearch}
+                onChangeText={setBankSearch}
+                placeholder="Search bank"
+                placeholderTextColor={palette.textSecondary}
+                style={[styles.searchInput, { color: palette.text }]}
+              />
+            </View>
+
+            <FlatList
+              data={filteredBanks}
+              keyExtractor={(item) => item.code}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                banksQuery.isLoading ? (
+                  <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Loading banks…</Text>
+                ) : (
+                  <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No banks matched your search.</Text>
+                )
+              }
+              renderItem={({ item }) => {
+                const active = item.code === bankCode;
+                return (
+                  <Pressable
+                    onPress={() => {
+                      setBankCode(item.code);
+                      setResolvedName('');
+                      setResolvedBank('');
+                      setBankPickerOpen(false);
+                    }}
+                    style={[styles.bankRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}
+                  >
+                    <View style={styles.bankRowCopy}>
+                      <Text style={[styles.bankRowName, { color: palette.text }]}>{item.name}</Text>
+                      <Text style={[styles.bankRowMeta, { color: palette.textSecondary }]}>{item.code}{item.slug ? ` • ${item.slug}` : ''}</Text>
+                    </View>
+                    {active ? <Text style={[styles.bankRowSelected, { color: palette.primary }]}>Selected</Text> : null}
+                  </Pressable>
+                );
+              }}
+              style={styles.bankList}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -247,10 +336,9 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   headerRow: { gap: Spacing.lg },
   backButton: { alignSelf: 'flex-start', minHeight: 40, minWidth: 72, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   headerCopy: { gap: 8 },
-  eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  title: { color: Colors.light.text, fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
   heroCard: { borderRadius: 28, padding: Spacing.lg, gap: 12 },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   heroLabel: { color: 'rgba(255,255,255,0.68)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
@@ -258,27 +346,46 @@ const styles = StyleSheet.create({
   heroIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
   modeRow: { flexDirection: 'row', gap: 10 },
-  modeCard: { flex: 1, borderRadius: 20, borderWidth: 1, padding: Spacing.md, gap: 4 },
+  modeCard: { flex: 1, borderRadius: 22, borderWidth: 1, padding: Spacing.md, gap: 4 },
   modeLabel: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  modeMeta: { fontSize: Typography.xs, fontFamily: Typography.family.regular, lineHeight: 16 },
-  card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
-  sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  bankRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  bankChip: { minHeight: 40, borderRadius: 999, paddingHorizontal: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  bankChipText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  inlineAction: { minHeight: 48, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  inlineActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  resolvedCard: { borderRadius: 20, padding: Spacing.md, flexDirection: 'row', gap: 10, alignItems: 'center' },
+  modeMeta: { fontSize: Typography.xs, lineHeight: 16 },
+  card: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  sectionButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  sectionButtonText: { fontSize: Typography.xs, fontFamily: Typography.family.semibold },
+  bankSummary: { borderRadius: 20, padding: Spacing.md, gap: 4, backgroundColor: 'rgba(10,132,255,0.08)' },
+  bankSummaryTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  bankSummaryMeta: { fontSize: Typography.sm },
+  inlineAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, borderRadius: 16 },
+  inlineActionText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  resolvedCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, padding: Spacing.md },
   resolvedCopy: { flex: 1, gap: 2 },
-  resolvedTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  resolvedMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-  contactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  contactChip: { width: '48%', borderRadius: 18, padding: Spacing.md, borderWidth: 1, gap: 4 },
+  resolvedTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  resolvedMeta: { fontSize: Typography.xs },
+  contactRow: { flexDirection: 'row', gap: 10 },
+  contactChip: { flex: 1, borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 2 },
   contactName: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  contactPhone: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
-  previewCard: { backgroundColor: Colors.light.bg, borderRadius: 18, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.light.border, gap: 4 },
-  previewLabel: { color: Colors.light.textSecondary, fontSize: Typography.xs, textTransform: 'uppercase' },
-  previewValue: { color: Colors.light.text, fontSize: Typography.md, fontFamily: Typography.family.bold },
+  contactPhone: { fontSize: Typography.xs },
+  previewCard: { borderRadius: 18, padding: Spacing.md, backgroundColor: 'rgba(10,132,255,0.08)', gap: 4 },
+  previewLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
+  previewValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   primary: { borderRadius: 18, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '82%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalSubtitle: { fontSize: Typography.sm, lineHeight: 20, marginTop: 2, maxWidth: 280 },
+  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 18, paddingHorizontal: Spacing.md, minHeight: 52 },
+  searchInput: { flex: 1, fontSize: Typography.md, fontFamily: Typography.family.regular },
+  bankList: { flexGrow: 0 },
+  bankRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
+  bankRowCopy: { flex: 1, gap: 2 },
+  bankRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  bankRowMeta: { fontSize: Typography.xs },
+  bankRowSelected: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  emptyText: { paddingVertical: Spacing.lg, textAlign: 'center', fontSize: Typography.sm },
 });

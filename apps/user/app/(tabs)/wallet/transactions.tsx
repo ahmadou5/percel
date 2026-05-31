@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Clock3, CreditCard, FileClock, Filter, Search, TriangleAlert } from 'lucide-react-native';
+import { ChevronLeft, Clock3, CreditCard, FileClock, Filter, Search, TriangleAlert } from 'lucide-react-native';
 
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -10,8 +10,10 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNaira, formatTxnDate, titleize, walletCategories } from '@/lib/wallet';
 import { useTransactions } from '@/hooks/useWallet';
+import { useRouter } from 'expo-router';
 
 export default function TransactionsScreen() {
+    const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const [category, setCategory] = useState<'ALL' | string>('ALL');
@@ -44,6 +46,13 @@ export default function TransactionsScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.headerContent}>
+        <View style={styles.headerRow}>
+                <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+                 <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+                </Pressable>
+                <Text style={[styles.headerTitle, { color: palette.text }]}>Transactions History</Text>
+                <View style={styles.headerSpacer} />
+              </View>
         <View style={styles.headerTop}>
           <View style={styles.headerCopy}>
             <Text style={[styles.eyebrow, { color: palette.primary }]}>Ledger</Text>
@@ -215,5 +224,9 @@ const styles = StyleSheet.create({
   modalMeta: { fontSize: Typography.sm },
   modalButton: { marginTop: Spacing.sm, minHeight: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalButtonText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSpacer: { width: 42 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
 });

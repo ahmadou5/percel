@@ -6,8 +6,13 @@ export type UserProfile = {
   avatarUrl: string | null;
   dateOfBirth: string | null;
   address: string | null;
+  ninNumber: string | null;
+  ninVerified: boolean;
+  bvnNumber: string | null;
+  bvnVerified: boolean;
   status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
   walletPinSet: boolean;
+  kycComplete: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -17,6 +22,16 @@ export type UpdateProfilePayload = {
   dateOfBirth?: string | null;
   address?: string | null;
 };
+
+export type VerifyNinPayload = {
+  nin: string;
+};
+
+export type VerifyBvnPayload = {
+  bvn: string;
+};
+
+export type VerifyKycResult = UserProfile;
 
 export type ChangePasswordPayload = {
   currentPassword: string;

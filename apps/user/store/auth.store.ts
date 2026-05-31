@@ -11,7 +11,12 @@ export type AuthUser = {
   avatarUrl?: string | null;
   dateOfBirth?: string | null;
   address?: string | null;
+  ninNumber?: string | null;
+  ninVerified?: boolean;
+  bvnNumber?: string | null;
+  bvnVerified?: boolean;
   status?: string | null;
+  kycComplete?: boolean;
 };
 
 type AuthTokens = {

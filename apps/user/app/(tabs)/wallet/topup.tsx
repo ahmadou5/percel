@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -18,6 +17,14 @@ import { useAuthStore } from '@/store/auth.store';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const Clipboard = (() => {
+  try {
+    return require('expo-clipboard') as typeof import('expo-clipboard');
+  } catch {
+    return null;
+  }
+})();
+
 const quickAmounts = [1000, 2500, 5000, 10000] as const;
 
 export default function TopUpScreen() {
@@ -31,8 +38,9 @@ export default function TopUpScreen() {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const wallet = walletQuery.data;
+  const kycReady = Boolean(wallet?.kycComplete);
   const amountValue = Number(amount.replace(/,/g, ''));
-  const canSubmit = amountValue >= 100;
+  const canSubmit = amountValue >= 100 && kycReady;
 
   const rows = useMemo(
     () => [
@@ -44,8 +52,17 @@ export default function TopUpScreen() {
   );
 
   const copyText = async (value: string, label: string) => {
-    await Clipboard.setStringAsync(value);
-    Alert.alert(`${label} copied`, 'You can paste it into your bank app now.');
+    try {
+      if (Clipboard?.setStringAsync) {
+        await Clipboard.setStringAsync(value);
+        Alert.alert(`${label} copied`, 'You can paste it into your bank app now.');
+        return;
+      }
+    } catch {
+      // fall through to manual fallback
+    }
+
+    Alert.alert(label, value || 'Nothing to copy yet.');
   };
 
   const submit = async () => {
@@ -67,6 +84,16 @@ export default function TopUpScreen() {
         <Text style={[styles.title, { color: palette.text }]}>Deposit from your bank app or open a Paystack checkout.</Text>
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Use the NUBAN details below for direct bank transfers. Paystack is available as a second option when you want a card or instant checkout.</Text>
       </View>
+
+      {!kycReady ? (
+        <StateCard
+          title="Complete KYC first"
+          description="We need your address, date of birth, NIN, and BVN before we create your NUBAN and unlock bank deposits."
+          icon={<Landmark size={24} color={palette.textSecondary} />}
+          actionLabel="Open KYC"
+          onActionPress={() => router.push('/settings/kyc')}
+        />
+      ) : null}
 
       <View style={[styles.depositHero, { backgroundColor: palette.primaryDark }]}>
         <View style={styles.heroTop}>
@@ -91,7 +118,7 @@ export default function TopUpScreen() {
           actionLabel="Retry"
           onActionPress={() => void walletQuery.refetch()}
         />
-      ) : (
+      ) : kycReady ? (
         <View style={[styles.accountCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.accountRow}>
             <View style={[styles.accountIcon, { backgroundColor: palette.primary }]}>
@@ -132,6 +159,14 @@ export default function TopUpScreen() {
             <Copy size={14} color={palette.textSecondary} />
           </Pressable>
         </View>
+      ) : (
+        <StateCard
+          title="Deposit account pending"
+          description="Finish KYC to generate your dedicated account details."
+          icon={<Banknote size={24} color={palette.textSecondary} />}
+          actionLabel="Complete KYC"
+          onActionPress={() => router.push('/settings/kyc')}
+        />
       )}
 
       <View style={styles.quickSection}>
@@ -167,7 +202,7 @@ export default function TopUpScreen() {
         </View>
 
         <Pressable onPress={() => setPreviewOpen(true)} disabled={!canSubmit} style={[styles.primary, { backgroundColor: canSubmit ? palette.primary : palette.border }]}>
-          <Text style={styles.primaryText}>{mutation.isPending ? 'Preparing checkout…' : 'Continue to Paystack'}</Text>
+          <Text style={styles.primaryText}>{kycReady ? (mutation.isPending ? 'Preparing checkout…' : 'Continue to Paystack') : 'Complete KYC to continue'}</Text>
         </Pressable>
       </View>
 

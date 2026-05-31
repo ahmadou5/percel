@@ -7,6 +7,7 @@ export type WalletTransactionCategory =
   | 'AIRTIME'
   | 'DATA'
   | 'ELECTRICITY'
+  | 'TV'
   | 'COMMISSION'
   | 'REFUND';
 
@@ -22,6 +23,7 @@ export type Wallet = {
   nuban: string | null;
   bankName: string | null;
   bankCode?: string | null;
+  kycComplete?: boolean;
 };
 
 export type WalletTransaction = {
@@ -96,6 +98,16 @@ export type ProviderValidation = {
   Customer_Account_Type?: string;
 };
 
+export type BankDirectoryItem = {
+  name: string;
+  code: string;
+  slug?: string | null;
+  longcode?: string | null;
+  country?: string | null;
+  currency?: string | null;
+  type?: string | null;
+};
+
 export const walletCategories = [
   { key: 'ALL', label: 'All', tone: 'muted' as const },
   { key: 'TOP_UP', label: 'Top up', tone: 'success' as const },
@@ -106,6 +118,7 @@ export const walletCategories = [
   { key: 'AIRTIME', label: 'Airtime', tone: 'warning' as const },
   { key: 'DATA', label: 'Data', tone: 'warning' as const },
   { key: 'ELECTRICITY', label: 'Electricity', tone: 'warning' as const },
+  { key: 'TV', label: 'TV', tone: 'warning' as const },
   { key: 'REFUND', label: 'Refunds', tone: 'success' as const },
   { key: 'COMMISSION', label: 'Commission', tone: 'primary' as const },
 ] as const;
@@ -141,6 +154,7 @@ export function formatTxnDate(value: string) {
 }
 
 export function titleize(value: string) {
+  if (value === 'TV') return 'TV';
   return value
     .toLowerCase()
     .split('_')

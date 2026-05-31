@@ -4,7 +4,7 @@ import * as ScreenCapture from 'expo-screen-capture';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { Camera, CircleAlert, ShieldCheck, Sparkles, UserPen } from 'lucide-react-native';
+import { Camera, ChevronLeft, CircleAlert, ShieldCheck, Sparkles, UserPen } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
@@ -140,6 +140,13 @@ export default function EditProfileScreen() {
   return (
     <KeyboardView>
       <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+              <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+               <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+              </Pressable>
+              
+              <View style={styles.headerSpacer} />
+            </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Profile</Text>
           <Text style={[styles.title, { color: palette.text }]}>Keep your account details current and secure.</Text>
@@ -223,7 +230,7 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerCopy: { gap: 8 },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
@@ -242,5 +249,9 @@ const styles = StyleSheet.create({
   formCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    headerSpacer: { width: 42 },
+    headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
+    backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
 });

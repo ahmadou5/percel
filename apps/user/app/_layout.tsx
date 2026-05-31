@@ -11,7 +11,7 @@ import 'react-native-reanimated';
 
 import { UserRuntime } from '@/components/UserRuntime';
 import { useColorScheme } from '@/components/useColorScheme';
-import { Sentry, initSentry } from '@/lib/sentry';
+import { initSentry } from '@/lib/sentry';
 import { useAuthStore } from '@/store/auth.store';
 
 export { ErrorBoundary } from '@/components/AppErrorBoundary';
@@ -63,7 +63,10 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default function RootLayoutWithSentry() {
+  initSentry();
+  return <RootLayout />;
+}
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { CheckCircle2, Smartphone, Zap } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, Smartphone, Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { Input } from '@/components/ui/Input';
@@ -55,14 +55,18 @@ export default function ElectricityScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
-        </Pressable>
+              <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+                <ArrowLeft size={18} color={palette.text} />
+              </Pressable>
+              <View style={styles.headerSpacer} />
+            </View>
+      
+      
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Electricity</Text>
           <Text style={[styles.title, { color: palette.text }]}>Pay live meter bills with real provider validation.</Text>
         </View>
-      </View>
+      
 
       <View style={[styles.heroCard, { backgroundColor: palette.primaryDark }]}>
         <View style={styles.heroTop}>
@@ -205,9 +209,11 @@ export default function ElectricityScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.huge },
-  headerRow: { gap: Spacing.lg },
-  backButton: { alignSelf: 'flex-start', minHeight: 40, minWidth: 72, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
+ headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  headerSpacer: { width: 42 },
   backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   headerCopy: { gap: 8 },
   eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },

@@ -10,6 +10,14 @@ export const PushTokenBody = Type.Object({
   token: Type.String({ minLength: 1 }),
 });
 
+export const VerifyNinBody = Type.Object({
+  nin: Type.String({ minLength: 11, maxLength: 11 }),
+});
+
+export const VerifyBvnBody = Type.Object({
+  bvn: Type.String({ minLength: 11, maxLength: 11 }),
+});
+
 export const NotificationQuery = Type.Object({
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
   unreadOnly: Type.Optional(Type.Boolean()),

@@ -3,6 +3,8 @@ import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { NotificationType, type PrismaClient, UserStatus } from '@prisma/client';
 
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
+import { verifyBVN, verifyNIN } from '../../lib/smileIdentity.js';
+import { env } from '../../config/env.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
 import type { ChangePasswordBody, NotificationsFeedResponse, NotificationResponse, UpdateProfileBody, UserProfileResponse } from './user.types.js';
 
@@ -23,6 +25,24 @@ function normalizeText(value: string | null | undefined) {
   if (value == null) return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+function splitFullName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  const [firstName = 'Percel', ...rest] = parts;
+  return {
+    firstName,
+    lastName: rest.join(' ') || 'User',
+  };
+}
+
+function isKycComplete(user: {
+  dateOfBirth: Date | null;
+  address: string | null;
+  ninVerified: boolean;
+  bvnVerified: boolean;
+}) {
+  return Boolean(user.dateOfBirth && user.address && user.ninVerified && user.bvnVerified);
 }
 
 function toNotificationResponse(notification: {
@@ -65,6 +85,10 @@ export class UserService {
         avatarUrl: true,
         dateOfBirth: true,
         address: true,
+        ninNumber: true,
+        ninVerified: true,
+        bvnNumber: true,
+        bvnVerified: true,
         status: true,
         walletPinHash: true,
         createdAt: true,
@@ -82,8 +106,13 @@ export class UserService {
       avatarUrl: user.avatarUrl,
       dateOfBirth: toIso(user.dateOfBirth),
       address: user.address,
+      ninNumber: user.ninNumber,
+      ninVerified: user.ninVerified,
+      bvnNumber: user.bvnNumber,
+      bvnVerified: user.bvnVerified,
       status: user.status,
       walletPinSet: Boolean(user.walletPinHash),
+      kycComplete: isKycComplete(user),
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
@@ -158,6 +187,10 @@ export class UserService {
         avatarUrl: true,
         dateOfBirth: true,
         address: true,
+        ninNumber: true,
+        ninVerified: true,
+        bvnNumber: true,
+        bvnVerified: true,
         status: true,
         walletPinHash: true,
         createdAt: true,
@@ -174,8 +207,131 @@ export class UserService {
       avatarUrl: updated.avatarUrl,
       dateOfBirth: toIso(updated.dateOfBirth),
       address: updated.address,
+      ninNumber: updated.ninNumber,
+      ninVerified: updated.ninVerified,
+      bvnNumber: updated.bvnNumber,
+      bvnVerified: updated.bvnVerified,
       status: updated.status,
       walletPinSet: Boolean(updated.walletPinHash),
+      kycComplete: isKycComplete(updated),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    };
+  }
+
+  async verifyUserNin(userId: string, nin: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, dateOfBirth: true, ninVerified: true, address: true },
+    });
+
+    if (!user) throw new NotFoundError('User not found');
+    if (!user.dateOfBirth) throw new ValidationError('Add your date of birth before verifying NIN');
+
+    const { firstName, lastName } = splitFullName(user.fullName);
+    const result = await verifyNIN(env.SMILE_IDENTITY_PARTNER_ID, nin.trim(), firstName, lastName, user.dateOfBirth.toISOString().slice(0, 10));
+    if (!result.verified) throw new ValidationError('NIN verification failed');
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ninNumber: nin.trim(),
+        ninVerified: true,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        dateOfBirth: true,
+        address: true,
+        ninNumber: true,
+        ninVerified: true,
+        bvnNumber: true,
+        bvnVerified: true,
+        status: true,
+        walletPinHash: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.info({ userId }, 'user.kyc.nin_verified');
+    return {
+      id: updated.id,
+      fullName: updated.fullName,
+      email: updated.email,
+      phone: updated.phone,
+      avatarUrl: updated.avatarUrl,
+      dateOfBirth: toIso(updated.dateOfBirth),
+      address: updated.address,
+      ninNumber: updated.ninNumber,
+      ninVerified: updated.ninVerified,
+      bvnNumber: updated.bvnNumber,
+      bvnVerified: updated.bvnVerified,
+      status: updated.status,
+      walletPinSet: Boolean(updated.walletPinHash),
+      kycComplete: isKycComplete(updated),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    };
+  }
+
+  async verifyUserBvn(userId: string, bvn: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, dateOfBirth: true, bvnVerified: true, address: true },
+    });
+
+    if (!user) throw new NotFoundError('User not found');
+    if (!user.dateOfBirth) throw new ValidationError('Add your date of birth before verifying BVN');
+
+    const { firstName, lastName } = splitFullName(user.fullName);
+    const result = await verifyBVN(env.SMILE_IDENTITY_PARTNER_ID, bvn.trim(), firstName, lastName, user.dateOfBirth.toISOString().slice(0, 10));
+    if (!result.verified) throw new ValidationError('BVN verification failed');
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        bvnNumber: bvn.trim(),
+        bvnVerified: true,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        dateOfBirth: true,
+        address: true,
+        ninNumber: true,
+        ninVerified: true,
+        bvnNumber: true,
+        bvnVerified: true,
+        status: true,
+        walletPinHash: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.info({ userId }, 'user.kyc.bvn_verified');
+    return {
+      id: updated.id,
+      fullName: updated.fullName,
+      email: updated.email,
+      phone: updated.phone,
+      avatarUrl: updated.avatarUrl,
+      dateOfBirth: toIso(updated.dateOfBirth),
+      address: updated.address,
+      ninNumber: updated.ninNumber,
+      ninVerified: updated.ninVerified,
+      bvnNumber: updated.bvnNumber,
+      bvnVerified: updated.bvnVerified,
+      status: updated.status,
+      walletPinSet: Boolean(updated.walletPinHash),
+      kycComplete: isKycComplete(updated),
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
