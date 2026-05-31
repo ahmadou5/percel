@@ -26,6 +26,7 @@ const walletRoutes: FastifyPluginAsync = async (app) => {
   app.post('/wallet/bills/electricity', { preHandler: [app.authenticate], schema: { body: ElectricityBody } }, controller.electricity);
   app.post('/wallet/bills/tv', { preHandler: [app.authenticate], schema: { body: TvBody } }, controller.tv);
   app.post('/webhooks/paystack', { config: { rateLimit: false } }, controller.webhook);
+  app.post('/wallet/webhooks/paystack', { config: { rateLimit: false } }, controller.webhook);
 };
 
 export default walletRoutes;
