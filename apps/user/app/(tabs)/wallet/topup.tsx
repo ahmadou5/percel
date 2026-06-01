@@ -77,8 +77,8 @@ export default function TopUpScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Add funds</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Deposit from your bank app or open a Paystack checkout.</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Use the NUBAN details below for direct bank transfers. Paystack is available as a second option when you want a card or instant checkout.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Instant deposits.</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Use the NUBAN details below for direct bank transfers or open a Paystack checkout.</Text>
       </View>
 
       {!kycReady ? (

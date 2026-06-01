@@ -312,7 +312,7 @@ export default function TransferScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Send money</Text>
-        <Text style={[styles.title, { color: palette.text }]}>A linear transfer flow: validate the recipient, validate the amount, verify the PIN, then send.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Instant transfers to any Nigerian bank.</Text>
       </View>
 
       <View style={[styles.heroCard, { backgroundColor: palette.primaryDark }]}>
@@ -325,7 +325,7 @@ export default function TransferScreen() {
             <ArrowUpRight size={20} color="#fff" />
           </View>
         </View>
-        <Text style={styles.heroBody}>{mode === 'BANK' ? 'Enter the account number, let the app resolve the bank account, then continue step by step.' : 'Enter a Percel phone number, resolve the recipient from the database, then continue step by step.'}</Text>
+        <Text style={styles.heroBody}>{mode === 'BANK' ? 'Enter the account number, let the app resolve the bank account, then continue step by step.' : 'Enter a Percel phone number, resolve the recipient, then continue step by step.'}</Text>
       </View>
 
       <View style={styles.modeRow}>
