@@ -95,16 +95,20 @@ export default function ProfileSecurityScreen() {
     <KeyboardView>
       <View style={[styles.screen, { backgroundColor: palette.bg }]}>
         <View style={styles.content}>
-       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-         <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+      <View style={styles.headerRow}>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+          <ChevronLeft size={18} color={palette.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Security</Text>
         <View style={styles.headerSpacer} />
       </View>
+
+      <View style={styles.headerCopy}>
+        <Text style={[styles.eyebrowLabel, { color: palette.primary }]}>Security</Text>
+        <Text style={[styles.pageTitle, { color: palette.text }]}>Manage your transfer PIN and app lock settings.</Text>
+      </View>
+
           <View style={[styles.heroCard, { backgroundColor: palette.primaryDark, borderColor: 'rgba(255,255,255,0.12)' }]}> 
-            <Text style={styles.eyebrow}>Security</Text>
-            <Text style={styles.title}>{user?.fullName ?? 'Account'} protection</Text>
+            <Text style={styles.eyebrow}>{user?.fullName ?? 'Account'} protection</Text>
             <Text style={styles.subtitle}>Set a transfer PIN, then decide whether the app should lock when you come back.</Text>
 
             <View style={styles.statsRow}>
@@ -187,9 +191,14 @@ export default function ProfileSecurityScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSpacer: { width: 42 },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { gap: 8 },
+  eyebrowLabel: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  pageTitle: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
   heroCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14, overflow: 'hidden' },
-  eyebrow: { color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  title: { color: '#fff', fontSize: 30, lineHeight: 36, fontFamily: Typography.family.bold, letterSpacing: -0.9 },
+  eyebrow: { color: 'rgba(255,255,255,0.72)', fontSize: Typography.md, fontFamily: Typography.family.bold },
   subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
   statsRow: { flexDirection: 'row', gap: 12 },
   statChip: { flex: 1, borderRadius: 20, padding: Spacing.md, backgroundColor: 'rgba(255,255,255,0.10)', gap: 4 },
@@ -206,9 +215,5 @@ const styles = StyleSheet.create({
   helperHint: { fontSize: Typography.sm, fontFamily: Typography.family.semibold },
   logoutButton: { minHeight: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   logoutText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    headerSpacer: { width: 42 },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
-   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
 });

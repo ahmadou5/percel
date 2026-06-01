@@ -86,12 +86,15 @@ function InfoRow({ Icon, title, subtitle, palette }: { Icon: ComponentType<{ col
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   backArrow: { fontSize: 28, lineHeight: 28, marginTop: -2 },
+  headerCopy: { gap: 8 },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.8 },
+  subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
   hero: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 12, alignItems: 'center' },
   heroIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   heroTitle: { fontSize: 24, fontFamily: Typography.family.bold, textAlign: 'center', lineHeight: 28 },

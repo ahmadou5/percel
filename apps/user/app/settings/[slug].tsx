@@ -57,8 +57,6 @@ export default function SettingsDetailScreen() {
         <View style={[styles.icon, { backgroundColor: palette.text }]}> 
           <page.Icon size={24} color={palette.card} />
         </View>
-        <Text style={[styles.title, { color: palette.text }]}>{page.title}</Text>
-        <Text style={[styles.description, { color: palette.textSecondary }]}>{page.description}</Text>
         <View style={[styles.note, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(10,132,255,0.06)', borderColor: palette.border }]}>
           <Text style={[styles.noteText, { color: palette.textSecondary }]}>This screen is wired into the new settings flow and can be expanded with the full product feature later.</Text>
         </View>
@@ -71,15 +69,16 @@ export default function SettingsDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { gap: 8 },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.8 },
+  subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
   card: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14, alignItems: 'center' },
   icon: { width: 60, height: 60, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 26, fontFamily: Typography.family.bold, textAlign: 'center' },
-  description: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular, textAlign: 'center' },
   note: { width: '100%', borderRadius: 20, borderWidth: 1, padding: Spacing.md },
   noteText: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular, textAlign: 'center' },
 });

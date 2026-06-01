@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, CheckCircle2, Radio, Tv2 } from 'lucide-react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Radio, Tv2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { Input } from '@/components/ui/Input';
@@ -11,6 +11,55 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNaira } from '@/lib/wallet';
 import { useBuyTv, useProviderServices, useProviderVariations, useValidateProviderAccount } from '@/hooks/useWallet';
+
+function ProviderIcon({ serviceID, name, size = 32 }: { serviceID: string; name: string; size?: number }) {
+  const id = serviceID.toLowerCase();
+  let backgroundColor = '#475569';
+  let label = '';
+  let labelColor = '#ffffff';
+
+  if (id.includes('dstv')) {
+    backgroundColor = '#009FE3';
+    label = 'DStv';
+    labelColor = '#ffffff';
+  } else if (id.includes('gotv')) {
+    backgroundColor = '#E31B23';
+    label = 'GOtv';
+    labelColor = '#ffffff';
+  } else if (id.includes('startimes')) {
+    backgroundColor = '#FF6600';
+    label = 'StarTimes';
+    labelColor = '#ffffff';
+  } else if (id.includes('showmax')) {
+    backgroundColor = '#111111';
+    label = 'Showmax';
+    labelColor = '#E50914';
+  } else {
+    label = name.split(' ').map(p => p[0]).join('').slice(0, 3).toUpperCase();
+  }
+
+  return (
+    <View style={{
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      backgroundColor,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)'
+    }}>
+      <Text style={{
+        fontSize: size * 0.28,
+        fontFamily: Typography.family.bold,
+        color: labelColor,
+        textAlign: 'center'
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 export default function TvScreen() {
   const router = useRouter();
@@ -24,6 +73,7 @@ export default function TvScreen() {
   const [selectedVariationCode, setSelectedVariationCode] = useState('');
   const [recentSubscriptions, setRecentSubscriptions] = useState<Array<{ id: string; title: string; meta: string; amount: string }>>([]);
   const [validation, setValidation] = useState<{ name: string; address?: string } | null>(null);
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
 
   const services = servicesQuery.data ?? [];
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
@@ -67,31 +117,29 @@ export default function TvScreen() {
         <Text style={styles.heroBody}>Pick a provider, validate the smartcard, then choose one of the live bouquets returned by VTpass.</Text>
       </View>
 
-      <View>
-        <Text style={[styles.sectionTitle, { color: palette.text }]}>Choose provider</Text>
-        <View style={styles.providerRow}>
-          {servicesQuery.isLoading ? (
-            <ActivityIndicator color={palette.primary} />
-          ) : services.length ? (
-            services.map((service) => {
-              const active = service.serviceID === selectedServiceID;
-              return (
-                <Pressable key={service.serviceID} onPress={() => { setSelectedServiceID(service.serviceID); setSelectedVariationCode(''); setValidation(null); }} style={[styles.providerChip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}>
-                  <Text style={[styles.providerText, { color: active ? palette.card : palette.text }]}>{service.name}</Text>
-                </Pressable>
-              );
-            })
-          ) : (
-            <StateCard title="No TV providers" description="VTpass did not return any TV subscription providers for this account." icon={<Radio size={24} color={palette.textSecondary} />} />
-          )}
-        </View>
-      </View>
-
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>TV Biller</Text>
+        <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.dropdownSelect, { backgroundColor: palette.bg, borderColor: palette.border, marginBottom: 14 }]}>
+          <View style={styles.dropdownSelectCopy}>
+            {selectedService ? (
+              <View style={styles.dropdownValueRow}>
+                <ProviderIcon serviceID={selectedService.serviceID} name={selectedService.name} size={28} />
+                <View style={{ gap: 2 }}>
+                  <Text style={[styles.dropdownValueName, { color: palette.text }]}>{selectedService.name}</Text>
+                  <Text style={[styles.dropdownValueMeta, { color: palette.textSecondary }]}>Renew or switch bouquets</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={[styles.dropdownPlaceholder, { color: palette.textSecondary }]}>Choose TV provider</Text>
+            )}
+          </View>
+          <ChevronDown size={18} color={palette.textSecondary} />
+        </Pressable>
+
         <Input
           label="Smartcard number"
           value={smartcardNumber}
-          onChangeText={setSmartcardNumber}
+          onChangeText={(value) => { setSmartcardNumber(value); setValidation(null); }}
           keyboardType="number-pad"
           placeholder="Enter smartcard number"
           helperText="Validate the smartcard before paying so you can confirm the account details first."
@@ -198,16 +246,63 @@ export default function TvScreen() {
           <StateCard title="No recent subscriptions" description="Your TV renewals will appear here after a successful payment." icon={<Radio size={24} color={palette.textSecondary} />} />
         )}
       </View>
+
+      <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your TV provider below.</Text>
+              </View>
+              <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            {servicesQuery.isLoading ? (
+              <ActivityIndicator color={palette.primary} style={{ marginVertical: 20 }} />
+            ) : services.length ? (
+              <FlatList
+                data={services}
+                keyExtractor={(item) => item.serviceID}
+                renderItem={({ item }) => {
+                  const active = item.serviceID === selectedServiceID;
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        setSelectedServiceID(item.serviceID);
+                        setSelectedVariationCode('');
+                        setValidation(null);
+                        setProviderPickerOpen(false);
+                      }}
+                      style={[styles.providerRowItem, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}
+                    >
+                      <View style={styles.providerRowLeft}>
+                        <ProviderIcon serviceID={item.serviceID} name={item.name} size={36} />
+                        <Text style={[styles.providerRowName, { color: palette.text }]}>{item.name}</Text>
+                      </View>
+                      <ChevronRight size={16} color={palette.textSecondary} />
+                    </Pressable>
+                  );
+                }}
+              />
+            ) : (
+              <StateCard title="No TV providers" description="VTpass did not return any TV providers." icon={<Radio size={24} color={palette.textSecondary} />} />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   headerSpacer: { width: 42 },
   hero: { borderRadius: 28, padding: Spacing.lg, gap: 8 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -216,10 +311,14 @@ const styles = StyleSheet.create({
   heroValue: { color: '#fff', fontSize: 24, fontFamily: Typography.family.bold },
   heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
   sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, marginBottom: 10 },
-  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  providerChip: { minHeight: 44, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  providerText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
+  inputLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  dropdownSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
+  dropdownSelectCopy: { flex: 1 },
+  dropdownValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dropdownValueName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  dropdownValueMeta: { fontSize: Typography.xs },
+  dropdownPlaceholder: { fontSize: Typography.md, fontFamily: Typography.family.medium },
   inlineAction: { minHeight: 48, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   inlineActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   successPill: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 999 },
@@ -243,4 +342,14 @@ const styles = StyleSheet.create({
   recentAmount: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   cta: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   ctaText: { color: '#fff', fontFamily: Typography.family.bold, fontSize: Typography.md, textAlign: 'center', paddingHorizontal: 16 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalSubtitle: { fontSize: Typography.sm, color: '#64748b', marginTop: 2 },
+  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  providerRowItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
+  providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  providerRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

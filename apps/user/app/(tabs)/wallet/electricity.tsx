@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, CheckCircle2, Smartphone, Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Smartphone, Zap } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
@@ -9,8 +9,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { formatNaira } from '@/lib/wallet';
 import { useBuyElectricity, useProviderServices, useValidateProviderAccount } from '@/hooks/useWallet';
+import { formatNaira } from '@/lib/wallet';
 
 const amountPresets = [500, 1000, 2000, 5000] as const;
 
@@ -23,6 +23,67 @@ function serviceLabel(serviceID: string, name: string) {
   if (serviceID.includes('kano')) return 'Kano';
   if (serviceID.includes('kaduna')) return 'Kaduna';
   return name.replace(/\s+electric/i, '');
+}
+
+function ProviderIcon({ serviceID, name, size = 32 }: { serviceID: string; name: string; size?: number }) {
+  const id = serviceID.toLowerCase();
+  let backgroundColor = '#475569';
+  let label = '';
+  let labelColor = '#ffffff';
+
+  if (id.includes('ikeja')) {
+    backgroundColor = '#E31C24';
+    label = 'IKEDC';
+    labelColor = '#ffffff';
+  } else if (id.includes('eko')) {
+    backgroundColor = '#0066B2';
+    label = 'EKEDP';
+    labelColor = '#ffffff';
+  } else if (id.includes('abuja') || id.includes('aedc')) {
+    backgroundColor = '#009639';
+    label = 'AEDC';
+    labelColor = '#ffffff';
+  } else if (id.includes('phed')) {
+    backgroundColor = '#FF8C00';
+    label = 'PHED';
+    labelColor = '#ffffff';
+  } else if (id.includes('jos')) {
+    backgroundColor = '#008080';
+    label = 'JEDC';
+    labelColor = '#ffffff';
+  } else if (id.includes('kano')) {
+    backgroundColor = '#D21F3C';
+    label = 'KEDCO';
+    labelColor = '#ffffff';
+  } else if (id.includes('kaduna')) {
+    backgroundColor = '#004F9F';
+    label = 'KAEDCO';
+    labelColor = '#ffffff';
+  } else {
+    label = name.split(' ').map(p => p[0]).join('').slice(0, 3).toUpperCase();
+  }
+
+  return (
+    <View style={{
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      backgroundColor,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)'
+    }}>
+      <Text style={{
+        fontSize: size * 0.28,
+        fontFamily: Typography.family.bold,
+        color: labelColor,
+        textAlign: 'center'
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
 }
 
 export default function ElectricityScreen() {
@@ -39,6 +100,7 @@ export default function ElectricityScreen() {
   const [customAmount, setCustomAmount] = useState('');
   const [validation, setValidation] = useState<{ name: string; address?: string } | null>(null);
   const [recentPayments, setRecentPayments] = useState<Array<{ id: string; title: string; meta: string; amount: string }>>([]);
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
 
   const services = servicesQuery.data ?? [];
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
@@ -81,24 +143,24 @@ export default function ElectricityScreen() {
         <Text style={styles.heroBody}>Pick a disco, validate the meter, and pay a live amount from the wallet. Meter validation comes directly from VTpass.</Text>
       </View>
 
-      <View style={styles.providerRow}>
-        {servicesQuery.isLoading ? (
-          <ActivityIndicator color={palette.primary} />
-        ) : services.length ? (
-          services.map((service) => {
-            const active = service.serviceID === selectedServiceID;
-            return (
-              <Pressable key={service.serviceID} onPress={() => { setSelectedServiceID(service.serviceID); setValidation(null); }} style={[styles.providerChip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}>
-                <Text style={[styles.providerText, { color: active ? palette.card : palette.text }]}>{serviceLabel(service.serviceID, service.name)}</Text>
-              </Pressable>
-            );
-          })
-        ) : (
-          <StateCard title="No electricity providers" description="VTpass did not return any electricity providers for this account." icon={<Zap size={24} color={palette.textSecondary} />} />
-        )}
-      </View>
-
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Electricity Biller</Text>
+        <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.dropdownSelect, { backgroundColor: palette.bg, borderColor: palette.border, marginBottom: 14 }]}>
+          <View style={styles.dropdownSelectCopy}>
+            {selectedService ? (
+              <View style={styles.dropdownValueRow}>
+                <ProviderIcon serviceID={selectedService.serviceID} name={selectedService.name} size={28} />
+                <View style={{ gap: 2 }}>
+                  <Text style={[styles.dropdownValueName, { color: palette.text }]}>{serviceLabel(selectedService.serviceID, selectedService.name)}</Text>
+                  <Text style={[styles.dropdownValueMeta, { color: palette.textSecondary }]}>{selectedService.name}</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={[styles.dropdownPlaceholder, { color: palette.textSecondary }]}>Choose electricity provider</Text>
+            )}
+          </View>
+          <ChevronDown size={18} color={palette.textSecondary} />
+        </Pressable>
         <View style={styles.typeToggle}>
           {(['prepaid', 'postpaid'] as const).map((type) => {
             const active = type === meterType;
@@ -179,9 +241,7 @@ export default function ElectricityScreen() {
               </View>
             ))}
           </View>
-        ) : (
-          <StateCard title="No recent payments" description="Pay electricity once to see the receipt history here." icon={<Zap size={24} color={palette.textSecondary} />} />
-        )}
+        ) : null}
       </View>
 
       <Pressable
@@ -203,6 +263,53 @@ export default function ElectricityScreen() {
       >
         {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={[styles.ctaText, { color: palette.card }]}>{`Pay ${formatNaira(amountValue)}`}</Text>}
       </Pressable>
+
+      <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your electricity disco below.</Text>
+              </View>
+              <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            {servicesQuery.isLoading ? (
+              <ActivityIndicator color={palette.primary} style={{ marginVertical: 20 }} />
+            ) : services.length ? (
+              <FlatList
+                data={services}
+                keyExtractor={(item) => item.serviceID}
+                renderItem={({ item }) => {
+                  const active = item.serviceID === selectedServiceID;
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        setSelectedServiceID(item.serviceID);
+                        setValidation(null);
+                        setProviderPickerOpen(false);
+                      }}
+                      style={[styles.providerRowItem, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}
+                    >
+                      <View style={styles.providerRowLeft}>
+                        <ProviderIcon serviceID={item.serviceID} name={item.name} size={36} />
+                        <Text style={[styles.providerRowName, { color: palette.text }]}>{serviceLabel(item.serviceID, item.name)}</Text>
+                      </View>
+                      <ChevronRight size={16} color={palette.textSecondary} />
+                    </Pressable>
+                  );
+                }}
+              />
+            ) : (
+              <StateCard title="No electricity providers" description="VTpass did not return any electricity providers." icon={<Zap size={24} color={palette.textSecondary} />} />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -210,11 +317,9 @@ export default function ElectricityScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
- headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   headerSpacer: { width: 42 },
-  backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   headerCopy: { gap: 8 },
   eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { color: Colors.light.text, fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
@@ -224,10 +329,14 @@ const styles = StyleSheet.create({
   heroValue: { color: '#fff', fontSize: Typography.lg, fontFamily: Typography.family.bold, marginTop: 2 },
   heroIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
-  providerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  providerChip: { minHeight: 40, borderRadius: 999, paddingHorizontal: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  providerText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
+  inputLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  dropdownSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
+  dropdownSelectCopy: { flex: 1 },
+  dropdownValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dropdownValueName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  dropdownValueMeta: { fontSize: Typography.xs },
+  dropdownPlaceholder: { fontSize: Typography.md, fontFamily: Typography.family.medium },
   typeToggle: { flexDirection: 'row', gap: 10 },
   typePill: { flex: 1, minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   typeText: { fontFamily: Typography.family.bold },
@@ -248,4 +357,14 @@ const styles = StyleSheet.create({
   recentAmount: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   cta: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalSubtitle: { fontSize: Typography.sm, color: '#64748b', marginTop: 2 },
+  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  providerRowItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
+  providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  providerRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

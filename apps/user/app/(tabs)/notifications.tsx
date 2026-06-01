@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Bell, CheckCheck, ChevronLeft, CircleAlert, Clock3, CreditCard, FileClock, Package, Wallet } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -27,6 +28,7 @@ function iconFor(notification: AppNotification) {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const [filter, setFilter] = useState<(typeof filters)[number]['key']>('ALL');
@@ -43,16 +45,20 @@ export default function NotificationsScreen() {
   const unreadCount = query.data?.unreadCount ?? 0;
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: palette.bg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}
+      showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        
-         <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-                 <ChevronLeft size={20} color={palette.text} fill={"none"}  />
-                </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: palette.primary }]}>Notifications</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Track payments, orders, and account updates in one place.</Text>
-        </View>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+          <ChevronLeft size={18} color={palette.text} />
+        </Pressable>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <View style={styles.headerCopy}>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Notifications</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Track payments, orders, and account updates in one place.</Text>
       </View>
 
       <View style={[styles.summaryCard, { backgroundColor: palette.primaryDark }] }>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Globe, Smartphone } from 'lucide-react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowLeft, ChevronDown, ChevronRight, Globe, Smartphone } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { Input } from '@/components/ui/Input';
@@ -19,6 +19,55 @@ function serviceLabel(serviceID: string, name: string) {
   return '9mobile';
 }
 
+function ProviderIcon({ serviceID, name, size = 32 }: { serviceID: string; name: string; size?: number }) {
+  const id = serviceID.toLowerCase();
+  let backgroundColor = '#475569';
+  let label = '';
+  let labelColor = '#ffffff';
+
+  if (id.includes('mtn')) {
+    backgroundColor = '#FFD200';
+    label = 'MTN';
+    labelColor = '#000000';
+  } else if (id.includes('airtel')) {
+    backgroundColor = '#E10000';
+    label = 'Airtel';
+    labelColor = '#ffffff';
+  } else if (id.includes('glo')) {
+    backgroundColor = '#2E7D32';
+    label = 'Glo';
+    labelColor = '#ffffff';
+  } else if (id.includes('9mobile') || id.includes('etisalat')) {
+    backgroundColor = '#005A36';
+    label = '9mobile';
+    labelColor = '#ffffff';
+  } else {
+    label = name.split(' ').map(p => p[0]).join('').slice(0, 3).toUpperCase();
+  }
+
+  return (
+    <View style={{
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      backgroundColor,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)'
+    }}>
+      <Text style={{
+        fontSize: size * 0.32,
+        fontFamily: Typography.family.bold,
+        color: labelColor,
+        textAlign: 'center'
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function DataScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
@@ -29,6 +78,7 @@ export default function DataScreen() {
   const [selectedServiceID, setSelectedServiceID] = useState('');
   const [selectedVariationCode, setSelectedVariationCode] = useState('');
   const [recentPurchases, setRecentPurchases] = useState<Array<{ id: string; title: string; meta: string; amount: string }>>([]);
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
 
   const services = servicesQuery.data ?? [];
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
@@ -81,39 +131,16 @@ export default function DataScreen() {
           onChangeText={setPhone}
           keyboardType="phone-pad"
           placeholder="08012345678"
-          leftElement={<Smartphone size={16} color={palette.textSecondary} />}
+          leftElement={
+            <Pressable onPress={() => setProviderPickerOpen(true)} style={styles.networkPill}>
+              {selectedService ? (
+                <ProviderIcon serviceID={selectedService.serviceID} name={selectedService.name} size={22} />
+              ) : null}
+              <Text style={[styles.networkText, { color: palette.text }]}>{displayNetwork}</Text>
+              <ChevronDown size={14} color={palette.textSecondary} />
+            </Pressable>
+          }
         />
-      </View>
-
-      <View>
-        <Text style={[styles.sectionTitle, { color: palette.text }]}>Choose network</Text>
-        <View style={styles.chipRow}>
-          {servicesQuery.isLoading ? (
-            <ActivityIndicator color={palette.primary} />
-          ) : services.length ? (
-            services.map((service) => {
-              const active = service.serviceID === selectedServiceID;
-              return (
-                <Pressable
-                  key={service.serviceID}
-                  onPress={() => {
-                    setSelectedServiceID(service.serviceID);
-                    setSelectedVariationCode('');
-                  }}
-                  style={[styles.chip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}
-                >
-                  <Text style={[styles.chipText, { color: active ? palette.card : palette.text }]}>{serviceLabel(service.serviceID, service.name)}</Text>
-                </Pressable>
-              );
-            })
-          ) : (
-            <StateCard
-              title="No data services"
-              description="VTpass did not return any data bundles for this account."
-              icon={<Globe size={24} color={palette.textSecondary} />}
-            />
-          )}
-        </View>
       </View>
 
       <View>
@@ -208,6 +235,53 @@ export default function DataScreen() {
           <StateCard title="No data purchases yet" description="Buy a plan to see your recent data purchases here." icon={<Globe size={22} color={palette.textSecondary} />} />
         )}
       </View>
+
+      <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your mobile network operator below.</Text>
+              </View>
+              <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            {servicesQuery.isLoading ? (
+              <ActivityIndicator color={palette.primary} style={{ marginVertical: 20 }} />
+            ) : services.length ? (
+              <FlatList
+                data={services}
+                keyExtractor={(item) => item.serviceID}
+                renderItem={({ item }) => {
+                  const active = item.serviceID === selectedServiceID;
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        setSelectedServiceID(item.serviceID);
+                        setSelectedVariationCode('');
+                        setProviderPickerOpen(false);
+                      }}
+                      style={[styles.providerRowItem, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}
+                    >
+                      <View style={styles.providerRowLeft}>
+                        <ProviderIcon serviceID={item.serviceID} name={item.name} size={36} />
+                        <Text style={[styles.providerRowName, { color: palette.text }]}>{serviceLabel(item.serviceID, item.name)}</Text>
+                      </View>
+                      <ChevronRight size={16} color={palette.textSecondary} />
+                    </Pressable>
+                  );
+                }}
+              />
+            ) : (
+              <StateCard title="No data providers" description="VTpass did not return any data providers." icon={<Globe size={24} color={palette.textSecondary} />} />
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -229,9 +303,8 @@ const styles = StyleSheet.create({
   heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
   sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, marginBottom: 10 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: { minHeight: 44, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  chipText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  networkText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   planGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   planCard: { width: '48%', minHeight: 128, borderRadius: 18, borderWidth: 1, padding: 14, justifyContent: 'space-between', gap: 6 },
   planSize: { fontSize: Typography.sm, fontFamily: Typography.family.bold, lineHeight: 20 },
@@ -249,4 +322,14 @@ const styles = StyleSheet.create({
   recentTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   recentMeta: { marginTop: 2, fontSize: Typography.xs },
   recentAmount: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalSubtitle: { fontSize: Typography.sm, color: '#64748b', marginTop: 2 },
+  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  providerRowItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
+  providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  providerRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

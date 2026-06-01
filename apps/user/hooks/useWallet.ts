@@ -33,6 +33,12 @@ type ResolveBankResult = {
   accountName: string;
 };
 
+type ResolveTransferRecipientResult = {
+  phone: string;
+  fullName: string;
+  walletId: string;
+};
+
 type BankTransferResult = {
   reference: string;
   amount: number;
@@ -64,6 +70,7 @@ type WalletResponse = WalletApiResponse<WalletDetails>;
 type TopUpResponse = WalletApiResponse<TopUpResult>;
 type TransferResponse = WalletApiResponse<TransferResult>;
 type ResolveBankResponse = WalletApiResponse<ResolveBankResult>;
+type ResolveTransferRecipientResponse = WalletApiResponse<ResolveTransferRecipientResult>;
 type BankTransferResponse = WalletApiResponse<BankTransferResult>;
 type BillResponse = WalletApiResponse<BillResult>;
 
@@ -158,6 +165,17 @@ export function useResolveBankAccount(options?: MutationOptions<ResolveBankRespo
     mutationFn: async (payload) => {
       Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.bank_resolve_requested', level: 'info', data: payload });
       const response = await http.post<ResolveBankResponse>('/api/v1/wallet/bank/resolve', payload);
+      return response.data;
+    },
+  });
+}
+
+export function useResolveTransferRecipient(options?: MutationOptions<ResolveTransferRecipientResponse, { phone: string }>) {
+  return useMutation({
+    ...options,
+    mutationFn: async (payload) => {
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.transfer_recipient_resolve_requested', level: 'info', data: payload });
+      const response = await http.post<ResolveTransferRecipientResponse>('/api/v1/wallet/transfer/resolve', payload);
       return response.data;
     },
   });

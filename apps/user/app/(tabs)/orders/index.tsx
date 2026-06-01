@@ -84,18 +84,23 @@ export default function OrdersScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={refresh} tintColor={palette.primary} />}
       showsVerticalScrollIndicator={false}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-         <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+      <View style={styles.headerRow}>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+          <ChevronLeft size={18} color={palette.text} />
         </Pressable>
-        <Text style={{ color: palette.text, fontSize: Typography.lg, fontFamily: Typography.family.bold }}>Orders</Text>
-        <View style={{ width: 52 }} />
+        <View style={styles.headerSpacer} />
       </View>
+
+      <View style={styles.headerCopy}>
+        <Text style={[styles.eyebrowTitle, { color: palette.primary }]}>Orders</Text>
+        <Text style={[styles.titleText, { color: palette.text }]}>Track your deliveries with real-time status updates.</Text>
+      </View>
+
       <View style={[styles.heroCard, { backgroundColor: palette.primaryDark, borderColor: 'rgba(255,255,255,0.10)' }]}> 
         <View style={styles.heroTop}>
           <View>
-            <Text style={styles.eyebrow}>Orders</Text>
-            <Text style={styles.title}>Track your deliveries with the same clean feel as Home.</Text>
+            <Text style={styles.heroLabel}>Live Delivery Status</Text>
+            <Text style={styles.heroValue}>Your active and past packages</Text>
           </View>
           <View style={styles.heroBadge}>
             <Package size={18} color={palette.card} />
@@ -157,11 +162,16 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSpacer: { width: 42 },
+  headerCopy: { gap: 8 },
+  eyebrowTitle: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  titleText: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
   heroCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14, overflow: 'hidden' },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  eyebrow: { color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  title: { color: '#fff', fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.8, maxWidth: 260 },
+  heroLabel: { color: 'rgba(255,255,255,0.68)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1, fontFamily: Typography.family.bold },
+  heroValue: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold, marginTop: 2 },
   heroBadge: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
   summaryRow: { flexDirection: 'row', gap: 12 },
   summaryChip: { flex: 1, borderRadius: 20, padding: Spacing.md, backgroundColor: 'rgba(255,255,255,0.10)', gap: 2 },
@@ -187,6 +197,6 @@ const styles = StyleSheet.create({
   stateBody: { fontSize: Typography.sm, lineHeight: 20, textAlign: 'center', maxWidth: 270, fontFamily: Typography.family.regular },
   retryButton: { minHeight: 48, borderRadius: 16, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   retryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
 });

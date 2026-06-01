@@ -1,14 +1,11 @@
 import crypto from 'node:crypto';
 
+import { NotificationType as PrismaNotificationType, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { NotificationType as PrismaNotificationType, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 
 import { env } from '../../config/env.js';
 import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
-import { cleanText } from '../../utils/sanitize.js';
-import { addNotificationJob } from '../../queues/index.js';
-import { emitToUser } from '../../lib/realtime.js';
 import {
   createCustomer,
   createDedicatedNUBAN,
@@ -19,8 +16,11 @@ import {
   listBanks,
   resolveAccountNumber,
 } from '../../lib/paystack.js';
+import { emitToUser } from '../../lib/realtime.js';
 import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
+import { addNotificationJob } from '../../queues/index.js';
 import { NotFoundError, PaymentError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
+import { cleanText } from '../../utils/sanitize.js';
 
 const PLATFORM_WALLET_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -34,6 +34,15 @@ function assertPinFormat(pin: string) {
   }
 }
 
+function normalizeNigerianPhone(phone: string) {
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (trimmed.startsWith('+234') && digits.length === 13) return `+${digits}`;
+  if (digits.startsWith('234') && digits.length === 13) return `+${digits}`;
+  if (digits.startsWith('0') && digits.length === 11) return `+234${digits.slice(1)}`;
+  if (digits.length === 10) return `+234${digits}`;
+  return trimmed;
+}
 
 function splitFullName(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -420,11 +429,12 @@ export class WalletService {
 
   async transfer(fromUserId: string, toPhone: string, amount: number, description: string | undefined, pin: string) {
     const normalizedPin = normalizePin(pin);
+    const normalizedPhone = normalizeNigerianPhone(toPhone);
     assertPinFormat(normalizedPin);
 
     const [fromWallet, recipient, sender] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId: fromUserId } }),
-      this.prisma.user.findUnique({ where: { phone: toPhone }, select: { id: true, fullName: true, wallet: true } }),
+      this.prisma.user.findUnique({ where: { phone: normalizedPhone }, select: { id: true, fullName: true, wallet: true } }),
       this.prisma.user.findUnique({ where: { id: fromUserId }, select: { walletPinHash: true, fullName: true } }),
     ]);
 
@@ -470,7 +480,7 @@ export class WalletService {
             status: WalletTransactionStatus.COMPLETED,
             reference: `${reference}_OUT`,
             description: safeDescription,
-            metadata: { toPhone },
+            metadata: { toPhone: normalizedPhone },
             balanceBefore: senderBefore,
             balanceAfter: senderAfter,
           },
@@ -512,9 +522,24 @@ export class WalletService {
 
     await deleteCache(this.app.redis, [`cache:wallet:balance:${fromWallet.id}`, `cache:wallet:balance:${recipient.wallet!.id}`]);
     this.logger.info({ userId: fromUserId, amount, reference, category: 'TRANSFER_OUT', result: 'completed' }, 'wallet.transfer');
-    return { reference, amount, toPhone };
+    return { reference, amount, toPhone: normalizedPhone };
   }
 
+  async resolveTransferRecipient(phone: string) {
+    const normalizedPhone = normalizeNigerianPhone(phone);
+    const recipient = await this.prisma.user.findUnique({
+      where: { phone: normalizedPhone },
+      select: { id: true, fullName: true, phone: true, wallet: { select: { id: true } } },
+    });
+
+    if (!recipient?.wallet) throw new NotFoundError('Recipient not found');
+
+    return {
+      phone: recipient.phone,
+      fullName: recipient.fullName,
+      walletId: recipient.wallet.id,
+    };
+  }
 
   async resolveBankAccount(bankCode: string, accountNumber: string) {
     const [bank, account] = await Promise.all([getBank(bankCode), resolveAccountNumber(accountNumber, bankCode)]);

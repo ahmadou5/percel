@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { success } from '../../utils/response.js';
 import type { WalletService } from './wallet.service.js';
+import { success } from '../../utils/response.js';
 
 export class WalletController {
   constructor(private readonly service: WalletService) {}
@@ -37,6 +37,12 @@ export class WalletController {
     };
     const data = await this.service.transfer(userId, toPhone, amount, description, pin);
     return success(data);
+  };
+
+  resolveTransferRecipient = async (request: FastifyRequest) => {
+    const { phone } = request.body as { phone: string };
+    const data = await this.service.resolveTransferRecipient(phone);
+    return success(data, 'Recipient found');
   };
 
   resolveBank = async (request: FastifyRequest) => {
