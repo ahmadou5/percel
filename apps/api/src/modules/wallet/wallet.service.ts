@@ -566,7 +566,7 @@ export class WalletService {
     const [wallet, sender, profile] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId } }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Sender wallet not found');

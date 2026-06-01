@@ -97,7 +97,7 @@ export default function ProfileScreen() {
           {!verified ? (
             <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: scheme === 'dark' ? 'rgba(255,214,10,0.12)' : 'rgba(255,214,10,0.10)', borderColor: palette.border }]}>
               <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC to unlock your NUBAN</Text>
-              <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Add your address, date of birth, NIN, and BVN in Settings.</Text>
+              <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Choose BVN or NIN and finish KYC in Settings.</Text>
             </Pressable>
           ) : null}
         </View>

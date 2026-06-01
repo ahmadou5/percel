@@ -17,14 +17,6 @@ import { useAuthStore } from '@/store/auth.store';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const Clipboard = (() => {
-  try {
-    return require('expo-clipboard') as typeof import('expo-clipboard');
-  } catch {
-    return null;
-  }
-})();
-
 const quickAmounts = [1000, 2500, 5000, 10000] as const;
 
 export default function TopUpScreen() {
@@ -53,16 +45,13 @@ export default function TopUpScreen() {
 
   const copyText = async (value: string, label: string) => {
     try {
-      if (Clipboard?.setStringAsync) {
-        await Clipboard.setStringAsync(value);
-        Alert.alert(`${label} copied`, 'You can paste it into your bank app now.');
-        return;
-      }
+      const Clipboard = await import('expo-clipboard');
+      await Clipboard.setStringAsync(value);
+      Alert.alert(`${label} copied`, 'You can paste it into your bank app now.');
+      return;
     } catch {
-      // fall through to manual fallback
+      Alert.alert(label, value || 'Nothing to show yet.');
     }
-
-    Alert.alert(label, value || 'Nothing to copy yet.');
   };
 
   const submit = async () => {
@@ -88,7 +77,7 @@ export default function TopUpScreen() {
       {!kycReady ? (
         <StateCard
           title="Complete KYC first"
-          description="We need your address, date of birth, NIN, and BVN before we create your NUBAN and unlock bank deposits."
+          description="We need your address, date of birth, and a completed KYC method before we create your NUBAN and unlock bank deposits."
           icon={<Landmark size={24} color={palette.textSecondary} />}
           actionLabel="Open KYC"
           onActionPress={() => router.push('/settings/kyc')}
