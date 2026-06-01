@@ -2,7 +2,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Banknote, Copy, CreditCard, ExternalLink, Landmark, PlusCircle } from 'lucide-react-native';
+import { ArrowLeft, Banknote, Copy, CreditCard, ExternalLink, Landmark, PlusCircle } from 'lucide-react-native';
 
 import { AmountInput } from '@/components/wallet/AmountInput';
 import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
@@ -68,6 +68,13 @@ export default function TopUpScreen() {
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerRow}>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+          <ArrowLeft size={18} color={palette.text} />
+        </Pressable>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Add funds</Text>
         <Text style={[styles.title, { color: palette.text }]}>Deposit from your bank app or open a Paystack checkout.</Text>
@@ -215,7 +222,10 @@ export default function TopUpScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerSpacer: { width: 42 },
   headerCopy: { gap: 8 },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },

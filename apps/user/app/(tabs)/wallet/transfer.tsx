@@ -144,13 +144,15 @@ export default function TransferScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <ChevronLeft size={20} color={palette.text} />
         </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: palette.primary }]}>Send money</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Move money to a wallet or a bank account with a checked preview first.</Text>
-        </View>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <View style={styles.headerCopy}>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Send money</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Move money to a wallet or a bank account with a checked preview first.</Text>
       </View>
 
       <View style={[styles.heroCard, { backgroundColor: palette.primaryDark }]}>
@@ -334,8 +336,9 @@ export default function TransferScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
-  headerRow: { gap: Spacing.lg },
-  backButton: { alignSelf: 'flex-start', minHeight: 40, minWidth: 72, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerSpacer: { width: 42 },
   headerCopy: { gap: 8 },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },

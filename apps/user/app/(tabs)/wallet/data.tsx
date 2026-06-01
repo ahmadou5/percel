@@ -57,8 +57,12 @@ export default function DataScreen() {
         <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
           <ArrowLeft size={18} color={palette.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Buy Data</Text>
         <View style={styles.headerSpacer} />
+      </View>
+
+      <View style={styles.headerCopy}>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Data</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Buy live data bundles with real pricing from the provider.</Text>
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
@@ -210,11 +214,13 @@ export default function DataScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   headerSpacer: { width: 42 },
+  headerCopy: { gap: 8 },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
   hero: { borderRadius: 28, padding: Spacing.lg, gap: 8 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },

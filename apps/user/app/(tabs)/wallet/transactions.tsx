@@ -47,20 +47,14 @@ export default function TransactionsScreen() {
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.headerContent}>
         <View style={styles.headerRow}>
-                <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-                 <ChevronLeft size={20} color={palette.text} fill={"none"}  />
-                </Pressable>
-                <Text style={[styles.headerTitle, { color: palette.text }]}>Transactions History</Text>
-                <View style={styles.headerSpacer} />
-              </View>
-        <View style={styles.headerTop}>
-          <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, { color: palette.primary }]}>Ledger</Text>
-            <Text style={[styles.title, { color: palette.text }]}>Every wallet movement in one searchable list.</Text>
-          </View>
-          <View style={[styles.headerIcon, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <FileClock size={18} color={palette.primary} />
-          </View>
+          <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <ChevronLeft size={20} color={palette.text} />
+          </Pressable>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Ledger</Text>
+          <Text style={[styles.title, { color: palette.text }]}>Every wallet movement in one searchable list.</Text>
         </View>
 
         <View style={[styles.summaryCard, { backgroundColor: palette.primaryDark }]}>
@@ -189,12 +183,13 @@ function Row({ label, value, palette }: { label: string; value: string; palette:
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  headerContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.lg },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  headerCopy: { flex: 1, gap: 8 },
+  headerContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerSpacer: { width: 42 },
+  headerCopy: { gap: 8 },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
-  headerIcon: { width: 44, height: 44, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   summaryCard: { borderRadius: 28, padding: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: 14 },
   summaryItem: { flex: 1, gap: 4 },
   summaryLabel: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
@@ -224,9 +219,5 @@ const styles = StyleSheet.create({
   modalMeta: { fontSize: Typography.sm },
   modalButton: { marginTop: Spacing.sm, minHeight: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalButtonText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
-   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerSpacer: { width: 42 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
 });
