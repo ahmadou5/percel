@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { WalletController } from './wallet.controller.js';
-import { AirtimeBody, BankResolveBody, BankTransferBody, DataBody, ElectricityBody, ProviderServicesQuery, ProviderValidateBody, ProviderVariationsParams, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TransferRecipientResolveBody, TvBody, TxQuery, VerifyTransferPinBody } from './wallet.schema.js';
+import { AirtimeBody, AirtimeResolveBody, BankResolveBody, BankTransferBody, DataBody, ElectricityBody, ProviderServicesQuery, ProviderValidateBody, ProviderVariationsParams, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TransferRecipientResolveBody, TvBody, TxQuery, VerifyTransferPinBody } from './wallet.schema.js';
 import { WalletService } from './wallet.service.js';
 
 const walletRoutes: FastifyPluginAsync = async (app) => {
@@ -15,6 +15,8 @@ const walletRoutes: FastifyPluginAsync = async (app) => {
   app.post('/wallet/transfer/resolve', { preHandler: [app.authenticate], schema: { body: TransferRecipientResolveBody } }, controller.resolveTransferRecipient);
   app.get('/wallet/banks', { preHandler: [app.authenticate] }, controller.bankList);
   app.post('/wallet/bank/resolve', { preHandler: [app.authenticate], schema: { body: BankResolveBody } }, controller.resolveBank);
+  app.post('/wallet/bank/lookup', { preHandler: [app.authenticate], schema: { body: BankResolveBody } }, controller.resolveBank);
+  app.post('/wallet/airtime/resolve', { preHandler: [app.authenticate], schema: { body: AirtimeResolveBody } }, controller.resolveAirtimeProvider);
   app.post('/wallet/bank-transfer', { preHandler: [app.authenticate], schema: { body: BankTransferBody } }, controller.bankTransfer);
   app.get('/wallet/providers', { preHandler: [app.authenticate], schema: { querystring: ProviderServicesQuery } }, controller.providerServices);
   app.get('/wallet/providers/:serviceID/variations', { preHandler: [app.authenticate], schema: { params: ProviderVariationsParams } }, controller.providerVariations);

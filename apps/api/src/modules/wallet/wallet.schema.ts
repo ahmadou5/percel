@@ -16,6 +16,10 @@ export const TransferRecipientResolveBody = Type.Object({
   phone: Type.String(),
 });
 
+export const AirtimeResolveBody = Type.Object({
+  phone: Type.String(),
+});
+
 export const BankResolveBody = Type.Object({
   bankCode: Type.String({ minLength: 3 }),
   accountNumber: Type.String({ minLength: 8, maxLength: 12 }),

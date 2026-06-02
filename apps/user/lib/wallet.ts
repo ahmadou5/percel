@@ -76,6 +76,7 @@ export type ProviderService = {
   maximum_amount?: string;
   product_type?: string;
   image?: string;
+  logo?: string | null;
 };
 
 export type ProviderVariation = {
