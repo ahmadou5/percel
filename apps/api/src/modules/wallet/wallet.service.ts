@@ -335,11 +335,6 @@ export class WalletService {
   async verifyTransferPin(userId: string, pin: string) {
     const normalizedPin = normalizePin(pin);
     assertPinFormat(normalizedPin);
-    const [wallet, sender, profile] = await Promise.all([
-      this.prisma.wallet.findUnique({ where: { userId } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
-    ]);
 
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } });
     if (!user) throw new NotFoundError('User not found');
@@ -575,7 +570,11 @@ export class WalletService {
   }
 
   async getProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
-    return listServices(identifier);
+    const services = await listServices(identifier);
+    return services.map((service) => ({
+      ...service,
+      logoUrl: service.logoUrl ?? service.image ?? null,
+    }));
   }
 
   async getProviderVariations(serviceID: string) {

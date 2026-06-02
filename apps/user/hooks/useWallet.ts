@@ -1,9 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type UseMutationOptions } from '@tanstack/react-query';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useState } from 'react';
 
-import { http } from "@/lib/api";
-import { Sentry } from "@/lib/sentry";
+import { http } from '@/lib/api';
+import { Sentry } from '@/lib/sentry';
 import {
   type BankDirectoryItem,
   type ProviderService,
@@ -13,13 +14,13 @@ import {
   type WalletDetails,
   type WalletTransactionsQuery,
   type WalletTransactionsResponse,
-} from "@/lib/wallet";
+} from '@/lib/wallet';
 
 type TopUpResult = { authorizationUrl: string; reference: string };
 type TransferResult = { reference: string; amount: number; toPhone: string };
 type ResolveBankResult = { bankCode: string; bankName: string; accountNumber: string; accountName: string };
 type ResolveTransferRecipientResult = { phone: string; fullName: string; walletId: string };
-type ResolveAirtimeProviderResult = { phone: string; serviceID: string; providerName: string; confidence: "high" | "low" };
+type ResolveAirtimeProviderResult = { phone: string; serviceID: string; providerName: string; confidence: 'high' | 'low' };
 type BankTransferResult = { reference: string; amount: number; bankName: string; accountName: string; accountNumber: string; recipientCode: string; status: string };
 type SetTransferPinResult = { updated: boolean };
 type VerifyTransferPinResult = { verified: boolean };
@@ -41,17 +42,24 @@ type MutationOptions<TData, TVariables> = UseMutationOptions<TData, Error, TVari
 
 export function useWallet() {
   return useQuery({
-    queryKey: ["wallet"],
-    queryFn: async () => (await http.get<WalletResponse>("/api/v1/wallet")).data.data,
+    queryKey: ['wallet'],
+    queryFn: async () => (await http.get<WalletResponse>('/api/v1/wallet')).data.data,
     staleTime: 15_000,
   });
 }
 
 export function useTransactions(filters: WalletTransactionsQuery = {}) {
   return useInfiniteQuery<WalletTransactionsResponse>({
-    queryKey: ["wallet-transactions", filters],
+    queryKey: ['wallet-transactions', filters],
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => (await http.get<{ data: WalletTransactionsResponse }>("/api/v1/wallet/transactions", { params: { page: pageParam, limit: filters.limit ?? 20, category: filters.category && filters.category !== "ALL" ? filters.category : undefined } })).data.data,
+    queryFn: async ({ pageParam }) =>
+      (await http.get<{ data: WalletTransactionsResponse }>('/api/v1/wallet/transactions', {
+        params: {
+          page: pageParam,
+          limit: filters.limit ?? 20,
+          category: filters.category && filters.category !== 'ALL' ? filters.category : undefined,
+        },
+      })).data.data,
     getNextPageParam: (lastPage) => {
       const pagination = lastPage.pagination;
       if (!pagination) return undefined;
@@ -62,7 +70,10 @@ export function useTransactions(filters: WalletTransactionsQuery = {}) {
 }
 
 function invalidateWallet(queryClient: ReturnType<typeof useQueryClient>) {
-  return Promise.all([queryClient.invalidateQueries({ queryKey: ["wallet"] }), queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] })]);
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['wallet'] }),
+    queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] }),
+  ]);
 }
 
 export function useTopUp(options?: MutationOptions<TopUpResponse, { amount: number; callbackUrl?: string }>) {
@@ -70,10 +81,10 @@ export function useTopUp(options?: MutationOptions<TopUpResponse, { amount: numb
   return useMutation({
     ...options,
     mutationFn: async ({ amount, callbackUrl }) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.topup_requested", level: "info", data: { amount } });
-      const response = await http.post<TopUpResponse>("/api/v1/wallet/topup", { amount, callbackUrl: callbackUrl ?? Linking.createURL("/wallet") });
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.topup_requested', level: 'info', data: { amount } });
+      const response = await http.post<TopUpResponse>('/api/v1/wallet/topup', { amount, callbackUrl: callbackUrl ?? Linking.createURL('/wallet') });
       const authorizationUrl = response.data.data.authorizationUrl;
-      if (authorizationUrl) await WebBrowser.openAuthSessionAsync(authorizationUrl, callbackUrl ?? Linking.createURL("/wallet"));
+      if (authorizationUrl) await WebBrowser.openAuthSessionAsync(authorizationUrl, callbackUrl ?? Linking.createURL('/wallet'));
       return response.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
@@ -88,8 +99,8 @@ export function useTransfer(options?: MutationOptions<TransferResponse, { toPhon
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.transfer_requested", level: "info", data: { amount: payload.amount, toPhone: payload.toPhone } });
-      return (await http.post<TransferResponse>("/api/v1/wallet/transfer", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.transfer_requested', level: 'info', data: { amount: payload.amount, toPhone: payload.toPhone } });
+      return (await http.post<TransferResponse>('/api/v1/wallet/transfer', payload)).data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);
@@ -102,8 +113,8 @@ export function useLookupBankAccount(options?: MutationOptions<ResolveBankRespon
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.bank_lookup_requested", level: "info", data: payload });
-      return (await http.post<ResolveBankResponse>("/api/v1/wallet/bank/lookup", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.bank_lookup_requested', level: 'info', data: payload });
+      return (await http.post<ResolveBankResponse>('/api/v1/wallet/bank/lookup', payload)).data;
     },
   });
 }
@@ -112,10 +123,35 @@ export function useResolveBankAccount(options?: MutationOptions<ResolveBankRespo
   return useLookupBankAccount(options);
 }
 
+export function useAccountLookup(accountNumber: string, bankCode: string) {
+  const [debounced, setDebounced] = useState({ accountNumber: '', bankCode: '' });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebounced({
+        accountNumber: accountNumber.trim().replace(/\s/g, ''),
+        bankCode: bankCode.trim(),
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [accountNumber, bankCode]);
+
+  return useQuery({
+    queryKey: ['bank-account-lookup', debounced.bankCode, debounced.accountNumber],
+    enabled: debounced.bankCode.length >= 3 && debounced.accountNumber.length >= 10,
+    retry: false,
+    queryFn: async () => {
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.bank_lookup_requested', level: 'info', data: debounced });
+      return (await http.post<ResolveBankResponse>('/api/v1/wallet/bank/lookup', debounced)).data.data;
+    },
+  });
+}
+
 export function useResolveTransferRecipient(options?: MutationOptions<ResolveTransferRecipientResponse, { phone: string }>) {
   return useMutation({
     ...options,
-    mutationFn: async (payload) => (await http.post<ResolveTransferRecipientResponse>("/api/v1/wallet/transfer/resolve", payload)).data,
+    mutationFn: async (payload) => (await http.post<ResolveTransferRecipientResponse>('/api/v1/wallet/transfer/resolve', payload)).data,
   });
 }
 
@@ -123,8 +159,8 @@ export function useResolveAirtimeProvider(options?: MutationOptions<ResolveAirti
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.airtime_provider_resolve_requested", level: "info", data: payload });
-      return (await http.post<ResolveAirtimeProviderResponse>("/api/v1/wallet/airtime/resolve", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.airtime_provider_resolve_requested', level: 'info', data: payload });
+      return (await http.post<ResolveAirtimeProviderResponse>('/api/v1/wallet/airtime/resolve', payload)).data;
     },
   });
 }
@@ -134,8 +170,8 @@ export function useBankTransfer(options?: MutationOptions<BankTransferResponse, 
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.bank_transfer_requested", level: "info", data: { amount: payload.amount, bankCode: payload.bankCode } });
-      return (await http.post<BankTransferResponse>("/api/v1/wallet/bank-transfer", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.bank_transfer_requested', level: 'info', data: { amount: payload.amount, bankCode: payload.bankCode } });
+      return (await http.post<BankTransferResponse>('/api/v1/wallet/bank-transfer', payload)).data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);
@@ -148,9 +184,9 @@ export function useSetTransferPin(options?: MutationOptions<WalletApiResponse<Se
   const queryClient = useQueryClient();
   return useMutation({
     ...options,
-    mutationFn: async (payload) => (await http.put<WalletApiResponse<SetTransferPinResult>>("/api/v1/wallet/pin", payload)).data,
+    mutationFn: async (payload) => (await http.put<WalletApiResponse<SetTransferPinResult>>('/api/v1/wallet/pin', payload)).data,
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
       await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
@@ -160,9 +196,9 @@ export function useResetTransferPin(options?: MutationOptions<WalletApiResponse<
   const queryClient = useQueryClient();
   return useMutation({
     ...options,
-    mutationFn: async (payload) => (await http.post<WalletApiResponse<SetTransferPinResult>>("/api/v1/wallet/pin/reset", payload)).data,
+    mutationFn: async (payload) => (await http.post<WalletApiResponse<SetTransferPinResult>>('/api/v1/wallet/pin/reset', payload)).data,
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
       await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
@@ -171,7 +207,7 @@ export function useResetTransferPin(options?: MutationOptions<WalletApiResponse<
 export function useVerifyTransferPin(options?: MutationOptions<WalletApiResponse<VerifyTransferPinResult>, { pin: string }>) {
   return useMutation({
     ...options,
-    mutationFn: async (payload) => (await http.post<WalletApiResponse<VerifyTransferPinResult>>("/api/v1/wallet/pin/verify", payload)).data,
+    mutationFn: async (payload) => (await http.post<WalletApiResponse<VerifyTransferPinResult>>('/api/v1/wallet/pin/verify', payload)).data,
   });
 }
 
@@ -180,8 +216,8 @@ export function useBuyAirtime(options?: MutationOptions<BillResponse, { phone: s
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.airtime_purchase_requested", level: "info", data: { amount: payload.amount, network: payload.network } });
-      return (await http.post<BillResponse>("/api/v1/wallet/bills/airtime", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.airtime_purchase_requested', level: 'info', data: { amount: payload.amount, network: payload.network } });
+      return (await http.post<BillResponse>('/api/v1/wallet/bills/airtime', payload)).data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);
@@ -195,8 +231,8 @@ export function useBuyData(options?: MutationOptions<BillResponse, { phone: stri
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.data_purchase_requested", level: "info", data: { amount: payload.amount, network: payload.network } });
-      return (await http.post<BillResponse>("/api/v1/wallet/bills/data", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.data_purchase_requested', level: 'info', data: { amount: payload.amount, network: payload.network } });
+      return (await http.post<BillResponse>('/api/v1/wallet/bills/data', payload)).data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);
@@ -205,13 +241,13 @@ export function useBuyData(options?: MutationOptions<BillResponse, { phone: stri
   });
 }
 
-export function useBuyElectricity(options?: MutationOptions<BillResponse, { meterNumber: string; amount: number; disco: string; type?: "prepaid" | "postpaid" }>) {
+export function useBuyElectricity(options?: MutationOptions<BillResponse, { meterNumber: string; amount: number; disco: string; type?: 'prepaid' | 'postpaid' }>) {
   const queryClient = useQueryClient();
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.electricity_payment_requested", level: "info", data: { amount: payload.amount, disco: payload.disco } });
-      return (await http.post<BillResponse>("/api/v1/wallet/bills/electricity", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.electricity_payment_requested', level: 'info', data: { amount: payload.amount, disco: payload.disco } });
+      return (await http.post<BillResponse>('/api/v1/wallet/bills/electricity', payload)).data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);
@@ -222,23 +258,23 @@ export function useBuyElectricity(options?: MutationOptions<BillResponse, { mete
 
 export function useBanks() {
   return useQuery({
-    queryKey: ["banks"],
-    queryFn: async () => (await http.get<WalletApiResponse<BankDirectoryItem[]>>("/api/v1/wallet/banks")).data.data,
+    queryKey: ['banks'],
+    queryFn: async () => (await http.get<WalletApiResponse<BankDirectoryItem[]>>('/api/v1/wallet/banks')).data.data,
     staleTime: 15 * 60_000,
   });
 }
 
-export function useProviderServices(identifier: "airtime" | "data" | "tv-subscription" | "electricity-bill") {
+export function useProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
   return useQuery({
-    queryKey: ["provider-services", identifier],
-    queryFn: async () => (await http.get<ProviderServicesResponse>("/api/v1/wallet/providers", { params: { identifier } })).data.data,
+    queryKey: ['provider-services', identifier],
+    queryFn: async () => (await http.get<ProviderServicesResponse>('/api/v1/wallet/providers', { params: { identifier } })).data.data,
     staleTime: 5 * 60_000,
   });
 }
 
 export function useProviderVariations(serviceID?: string) {
   return useQuery({
-    queryKey: ["provider-variations", serviceID],
+    queryKey: ['provider-variations', serviceID],
     enabled: Boolean(serviceID),
     queryFn: async () => (await http.get<ProviderVariationsResponse>(`/api/v1/wallet/providers/${serviceID}/variations`)).data.data,
     staleTime: 5 * 60_000,
@@ -247,7 +283,8 @@ export function useProviderVariations(serviceID?: string) {
 
 export function useValidateProviderAccount() {
   return useMutation({
-    mutationFn: async (payload: { serviceID: string; billersCode: string; type?: "prepaid" | "postpaid" }) => (await http.post<ProviderValidationResponse>("/api/v1/wallet/providers/validate", payload)).data.data,
+    mutationFn: async (payload: { serviceID: string; billersCode: string; type?: 'prepaid' | 'postpaid' }) =>
+      (await http.post<ProviderValidationResponse>('/api/v1/wallet/providers/validate', payload)).data.data,
   });
 }
 
@@ -256,8 +293,8 @@ export function useBuyTv(options?: MutationOptions<BillResponse, { smartcardNumb
   return useMutation({
     ...options,
     mutationFn: async (payload) => {
-      Sentry.addBreadcrumb({ category: "wallet", message: "wallet.tv_purchase_requested", level: "info", data: { amount: payload.amount, provider: payload.provider } });
-      return (await http.post<BillResponse>("/api/v1/wallet/bills/tv", payload)).data;
+      Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.tv_purchase_requested', level: 'info', data: { amount: payload.amount, provider: payload.provider } });
+      return (await http.post<BillResponse>('/api/v1/wallet/bills/tv', payload)).data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);

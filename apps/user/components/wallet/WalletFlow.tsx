@@ -5,7 +5,6 @@ import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 
-type WalletPalette = (typeof Colors)[keyof typeof Colors];
 
 type StepItem = {
   key: number;
@@ -21,6 +20,7 @@ type WalletStepperProps = {
 type ProviderBadgeProps = {
   serviceID: string;
   name: string;
+  logoUrl?: string | null;
   logo?: string | null;
   size?: number;
 };
@@ -142,7 +142,7 @@ export function WalletStepper({ currentStep, steps }: WalletStepperProps) {
   );
 }
 
-export function ProviderBadge({ serviceID, name, logo, size = 32 }: ProviderBadgeProps) {
+export function ProviderBadge({ serviceID, logoUrl, logo, size = 32 }: ProviderBadgeProps) {
   const tone = providerTone(serviceID);
 
   return (
@@ -157,8 +157,8 @@ export function ProviderBadge({ serviceID, name, logo, size = 32 }: ProviderBadg
         },
       ]}
     >
-      {logo ? (
-        <Image source={{ uri: logo }} style={{ width: size * 0.72, height: size * 0.72 }} resizeMode="contain" />
+      {logoUrl || logo ? (
+        <Image source={{ uri: logoUrl ?? logo ?? "" }} style={{ width: size * 0.72, height: size * 0.72 }} resizeMode="contain" />
       ) : (
         <Text style={[styles.badgeText, { color: tone.textColor, fontSize: Math.max(10, size * 0.28) }]}>{tone.label}</Text>
       )}

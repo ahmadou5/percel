@@ -29,6 +29,7 @@ type VtpassService = {
   maximum_amount?: string;
   product_type?: string;
   image?: string;
+  logoUrl?: string;
 };
 
 type VtpassVariation = {

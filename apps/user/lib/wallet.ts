@@ -77,6 +77,7 @@ export type ProviderService = {
   product_type?: string;
   image?: string;
   logo?: string | null;
+  logoUrl?: string | null;
 };
 
 export type ProviderVariation = {

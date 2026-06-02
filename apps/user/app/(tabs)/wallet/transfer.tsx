@@ -1,20 +1,22 @@
 import { useRouter } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
-import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, Smartphone, ShieldCheck } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AmountInput } from '@/components/wallet/AmountInput';
+import { normalizeNigerianPhone } from '@/components/wallet/WalletFlow';
+import { FlowProgressDots, useSlideStepTransition } from '@/components/wallet/WalletFlowProgress';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import {
+  useAccountLookup,
   useBankTransfer,
   useBanks,
-  useLookupBankAccount,
   useResolveTransferRecipient,
   useTransfer,
   useVerifyTransferPin,
@@ -40,6 +42,7 @@ type BankValidation = {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  bankCode: string;
 };
 
 type RecipientValidation = {
@@ -48,27 +51,13 @@ type RecipientValidation = {
   walletId: string;
 };
 
-function normalizeNigerianPhone(value: string) {
-  const trimmed = value.trim();
-  const digits = trimmed.replace(/\D/g, '');
-  if (!digits) return '';
-  if (trimmed.startsWith('+234') && digits.length === 13) return `+${digits}`;
-  if (digits.startsWith('234') && digits.length === 13) return `+${digits}`;
-  if (digits.startsWith('0') && digits.length === 11) return `+234${digits.slice(1)}`;
-  if (digits.length === 10) return `+234${digits}`;
-  return trimmed;
+function modeLabel(mode: Mode) {
+  return mode === 'BANK' ? 'Bank transfer' : 'Inter-app transfer';
 }
 
-function formatPhoneLabel(value: string) {
+function compactPhone(value: string) {
   const normalized = normalizeNigerianPhone(value);
-  if (!normalized) return 'Recipient will appear here';
-  return normalized;
-}
-
-function sectionTone(active: boolean, complete: boolean, palette: (typeof Colors)[keyof typeof Colors]) {
-  if (complete) return { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success, textColor: palette.success };
-  if (active) return { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary, textColor: palette.primary };
-  return { backgroundColor: palette.bg, borderColor: palette.border, textColor: palette.textSecondary };
+  return normalized || 'Recipient will appear here';
 }
 
 export default function TransferScreen() {
@@ -76,34 +65,54 @@ export default function TransferScreen() {
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const walletQuery = useWallet();
-  const phoneMutation = useTransfer();
+  const wallet = walletQuery.data;
   const banksQuery = useBanks();
-  const bankResolve = useLookupBankAccount();
-  const phoneResolve = useResolveTransferRecipient();
-  const bankMutation = useBankTransfer();
+  const bankTransfer = useBankTransfer();
+  const interAppTransfer = useTransfer();
+  const resolveRecipient = useResolveTransferRecipient();
   const pinVerify = useVerifyTransferPin();
   const [mode, setMode] = useState<Mode>('BANK');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [phone, setPhone] = useState('');
   const [bankCode, setBankCode] = useState('044');
   const [accountNumber, setAccountNumber] = useState('');
-  const [bankValidation, setBankValidation] = useState<BankValidation | null>(null);
-  const [bankValidationStatus, setBankValidationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [bankValidationError, setBankValidationError] = useState('');
-  const [recipientValidation, setRecipientValidation] = useState<RecipientValidation | null>(null);
-  const [recipientValidationStatus, setRecipientValidationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [recipientValidationError, setRecipientValidationError] = useState('');
   const [amount, setAmount] = useState('');
   const [pin, setPin] = useState('');
-  const [pinValidationStatus, setPinValidationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [pinValidationError, setPinValidationError] = useState('');
+  const [recipientValidation, setRecipientValidation] = useState<RecipientValidation | null>(null);
+  const [recipientStatus, setRecipientStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [recipientError, setRecipientError] = useState('');
+  const [pinStatus, setPinStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [pinError, setPinError] = useState('');
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
-  const [transferStep, setTransferStep] = useState<1 | 2 | 3>(1);
-  const bankValidationSeq = useRef(0);
-  const recipientValidationSeq = useRef(0);
-  const pinValidationSeq = useRef(0);
-  const bankValidationKeyRef = useRef('');
-  const recipientValidationKeyRef = useRef('');
+  const accountDigits = accountNumber.replace(/\D/g, '');
+  const bankLookup = useAccountLookup(accountDigits, bankCode);
+  const { opacity, translateX } = useSlideStepTransition(step);
+
+  const amountValue = Number(amount.replace(/,/g, ''));
+  const normalizedPhone = normalizeNigerianPhone(phone);
+  const banks = (banksQuery.data ?? []) as BankItem[];
+  const selectedBank = banks.find((item) => item.code === bankCode) ?? { name: 'Select bank', code: bankCode };
+  const filteredBanks = useMemo(() => {
+    const term = bankSearch.trim().toLowerCase();
+    if (!term) return banks;
+    return banks.filter((bank) => `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term));
+  }, [bankSearch, banks]);
+
+  const bankValidation: BankValidation | null =
+    bankLookup.data && bankLookup.data.bankCode === bankCode && bankLookup.data.accountNumber === accountDigits
+      ? bankLookup.data
+      : null;
+  const recipientReady = mode === 'BANK' ? Boolean(bankValidation) : Boolean(recipientValidation);
+  const amountValid = amountValue > 0 && (!wallet || amountValue <= wallet.balance);
+  const pinReady = /^\d{4,6}$/.test(pin.trim()) && pinStatus === 'success';
+  const canContinueToReview = recipientReady && amountValid;
+  const canSend =
+    recipientReady &&
+    amountValid &&
+    pinReady &&
+    !bankTransfer.isPending &&
+    !interAppTransfer.isPending;
 
   useEffect(() => {
     void ScreenCapture.preventScreenCaptureAsync();
@@ -112,222 +121,130 @@ export default function TransferScreen() {
     };
   }, []);
 
-  const wallet = walletQuery.data;
-  const amountValue = Number(amount.replace(/,/g, ''));
-  const accountDigits = accountNumber.replace(/\D/g, '');
-  const kycReady = Boolean(wallet?.kycComplete);
-  const banks = (banksQuery.data ?? []) as BankItem[];
-  const selectedBank = banks.find((item) => item.code === bankCode) ?? { name: 'Select bank', code: bankCode, slug: null, longcode: null };
-  const filteredBanks = useMemo(() => {
-    const term = bankSearch.trim().toLowerCase();
-    if (!term) return banks;
-    return banks.filter((bank) => `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term));
-  }, [bankSearch, banks]);
-
-  const recipientReady = mode === "BANK" ? Boolean(bankValidation) : Boolean(recipientValidation);
-  const recipientReference = mode === "BANK" ? (bankValidation?.bankName ?? selectedBank.name) + " • " + (bankValidation?.accountNumber ?? (accountDigits || "pending")) : formatPhoneLabel(recipientValidation?.phone ?? phone);
-  const amountValid = amountValue > 0 && (!wallet || amountValue <= wallet.balance);
-  const pinReady = amountValid && recipientReady && pinValidationStatus === "success";
-  const canSend = pinReady && !bankMutation.isPending && !phoneMutation.isPending;
-
-  const resetBankValidation = useCallback(() => {
-    bankValidationSeq.current += 1;
-    setBankValidation(null);
-    setBankValidationStatus('idle');
-    setBankValidationError('');
-    setPinValidationStatus('idle');
-    setPinValidationError('');
-    setTransferStep(1);
-  }, []);
-
-  const resetRecipientValidation = useCallback(() => {
-    recipientValidationSeq.current += 1;
+  useEffect(() => {
+    setStep(1);
+    setAmount('');
+    setPin('');
+    setPinStatus('idle');
+    setPinError('');
     setRecipientValidation(null);
-    setRecipientValidationStatus('idle');
-    setRecipientValidationError('');
-    setPinValidationStatus('idle');
-    setPinValidationError('');
-    setTransferStep(1);
-  }, []);
+    setRecipientStatus('idle');
+    setRecipientError('');
+  }, [mode]);
 
-  const resetPinValidation = useCallback(() => {
-    pinValidationSeq.current += 1;
-    setPinValidationStatus('idle');
-    setPinValidationError('');
-  }, []);
+  useEffect(() => {
+    if (mode !== 'BANK' || step !== 1 || !bankValidation) return;
+    setStep(2);
+  }, [bankValidation, mode, step]);
 
-  const validateBankAccount = useCallback(async (targetBankCode: string, targetAccountNumber: string) => {
-    if (!kycReady || targetAccountNumber.length < 10 || !targetBankCode) return;
-    const requestId = ++bankValidationSeq.current;
-    setBankValidationStatus('loading');
-    setBankValidationError('');
-    setPinValidationStatus('idle');
-    setPinValidationError('');
+  useEffect(() => {
+    if (mode !== 'PHONE' || step !== 1 || !recipientValidation) return;
+    setStep(2);
+  }, [mode, recipientValidation, step]);
 
-    try {
-      const response = await bankResolve.mutateAsync({ bankCode: targetBankCode, accountNumber: targetAccountNumber });
-      if (bankValidationSeq.current !== requestId) return;
-      setBankValidation({
-        bankName: response.data.bankName,
-        accountName: response.data.accountName,
-        accountNumber: response.data.accountNumber,
-      });
-      bankValidationKeyRef.current = `${targetBankCode}:${targetAccountNumber}`;
-      setBankValidationStatus('success');
-      setTransferStep((current) => Math.max(current, 2));
-    } catch (error) {
-      if (bankValidationSeq.current !== requestId) return;
-      setBankValidation(null);
-      bankValidationKeyRef.current = '';
-      setBankValidationStatus('error');
-      setBankValidationError(error instanceof Error ? error.message : 'Please check the bank and account number.');
-    }
-  }, [bankResolve, kycReady]);
+  useEffect(() => {
+    setPinStatus('idle');
+    setPinError('');
+  }, [amount, mode, recipientValidation, bankValidation]);
 
-  const validateRecipientPhone = useCallback(async (targetPhone: string) => {
-    const normalizedPhone = normalizeNigerianPhone(targetPhone);
-    if (normalizedPhone.length < 10) return;
-    const requestId = ++recipientValidationSeq.current;
-    setRecipientValidationStatus('loading');
-    setRecipientValidationError('');
-    setPinValidationStatus('idle');
-    setPinValidationError('');
-
-    try {
-      const response = await phoneResolve.mutateAsync({ phone: normalizedPhone });
-      if (recipientValidationSeq.current !== requestId) return;
-      setRecipientValidation({
-        phone: response.data.phone,
-        fullName: response.data.fullName,
-        walletId: response.data.walletId,
-      });
-      recipientValidationKeyRef.current = normalizedPhone;
-      setRecipientValidationStatus('success');
-      setTransferStep((current) => Math.max(current, 2));
-    } catch (error) {
-      if (recipientValidationSeq.current !== requestId) return;
+  useEffect(() => {
+    if (mode !== 'PHONE') return;
+    const digits = normalizedPhone.replace(/\D/g, '');
+    if (digits.length < 10) {
       setRecipientValidation(null);
-      recipientValidationKeyRef.current = '';
-      setRecipientValidationStatus('error');
-      setRecipientValidationError(error instanceof Error ? error.message : 'We could not find that recipient on Percel.');
-    }
-  }, [phoneResolve]);
-
-  const validateTransferPin = useCallback(async () => {
-    const trimmed = pin.trim();
-    if (!/^\d{4,6}$/.test(trimmed)) {
-      setPinValidationStatus('error');
-      setPinValidationError('Use a 4 to 6 digit transfer PIN.');
+      setRecipientStatus('idle');
+      setRecipientError('');
       return;
     }
 
-    const requestId = ++pinValidationSeq.current;
-    setPinValidationStatus('loading');
-    setPinValidationError('');
+    const timer = setTimeout(() => {
+      setRecipientStatus('loading');
+      void resolveRecipient.mutateAsync({ phone: normalizedPhone }).then((response) => {
+        const result = response.data;
+        setRecipientValidation({ phone: result.phone, fullName: result.fullName, walletId: result.walletId });
+        setRecipientStatus('success');
+        setRecipientError('');
+      }).catch((error) => {
+        setRecipientValidation(null);
+        setRecipientStatus('error');
+        setRecipientError(error instanceof Error ? error.message : 'We could not find that recipient on Percel.');
+      });
+    }, 300);
 
+    return () => clearTimeout(timer);
+  }, [mode, normalizedPhone, resolveRecipient]);
+
+  const headerBack = () => {
+    if (step > 1) {
+      setStep((current) => (current - 1) as 1 | 2 | 3);
+      return;
+    }
+    router.back();
+  };
+
+  const handleVerifyPin = async () => {
+    const trimmed = pin.trim();
+    if (!/^\d{4,6}$/.test(trimmed)) {
+      setPinStatus('error');
+      setPinError('Use a 4 to 6 digit transfer PIN.');
+      return;
+    }
+
+    setPinStatus('loading');
+    setPinError('');
     try {
-      const response = await pinVerify.mutateAsync({ pin: trimmed });
-      if (pinValidationSeq.current !== requestId) return;
-      if (!response.data.verified) {
-        setPinValidationStatus('error');
-        setPinValidationError('That PIN is not valid.');
+      const result = await pinVerify.mutateAsync({ pin: trimmed });
+      if (!result.data.verified) {
+        setPinStatus('error');
+        setPinError('That PIN is not valid.');
         return;
       }
-      setPinValidationStatus('success');
+      setPinStatus('success');
     } catch (error) {
-      if (pinValidationSeq.current !== requestId) return;
-      setPinValidationStatus('error');
-      setPinValidationError(error instanceof Error ? error.message : 'Unable to verify the PIN.');
+      setPinStatus('error');
+      setPinError(error instanceof Error ? error.message : 'Unable to verify the PIN.');
     }
-  }, [pin, pinVerify]);
+  };
 
-  const submit = useCallback(async () => {
+  const handleSend = async () => {
     if (!canSend) return;
 
     try {
-      const amountNumber = amountValue;
-      const description = undefined;
-      const transferPin = pin.trim();
-
       if (mode === 'BANK') {
         if (!bankValidation) return;
-        await bankMutation.mutateAsync({
+        await bankTransfer.mutateAsync({
           bankCode,
           accountNumber: bankValidation.accountNumber,
-          amount: amountNumber,
-          description,
-          pin: transferPin,
+          amount: amountValue,
+          pin: pin.trim(),
         });
-        Alert.alert('Transfer sent', `${formatNaira(amountNumber)} sent to ${bankValidation.accountName}.`);
+        Alert.alert('Transfer sent', `${formatNaira(amountValue)} sent to ${bankValidation.accountName}.`);
       } else {
         if (!recipientValidation) return;
-        await phoneMutation.mutateAsync({
+        await interAppTransfer.mutateAsync({
           toPhone: recipientValidation.phone,
-          amount: amountNumber,
-          description,
-          pin: transferPin,
+          amount: amountValue,
+          pin: pin.trim(),
         });
-        Alert.alert('Transfer sent', `${formatNaira(amountNumber)} sent to ${recipientValidation.fullName}.`);
+        Alert.alert('Transfer sent', `${formatNaira(amountValue)} sent to ${recipientValidation.fullName}.`);
       }
 
       router.back();
     } catch (error) {
       Alert.alert('Transfer failed', error instanceof Error ? error.message : 'Unable to complete transfer.');
     }
-  }, [amountValue, bankCode, bankMutation, bankValidation, canSend, mode, pin, phoneMutation, recipientValidation, router]);
+  };
 
-  useEffect(() => {
-    if (mode !== 'BANK') return;
-    const key = `${bankCode}:${accountDigits}`;
-    if (!kycReady || accountDigits.length < 10 || !selectedBank.code) {
-      resetBankValidation();
-      bankValidationKeyRef.current = '';
-      return;
-    }
-    if (bankValidationKeyRef.current === key) return;
-
-    const timer = setTimeout(() => {
-      void validateBankAccount(bankCode, accountDigits);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [accountDigits, bankCode, kycReady, mode, resetBankValidation, selectedBank.code, validateBankAccount]);
-
-  useEffect(() => {
-    if (mode !== 'PHONE') return;
-    const normalizedPhone = normalizeNigerianPhone(phone);
-    if (normalizedPhone.replace(/\D/g, '').length < 10) {
-      resetRecipientValidation();
-      recipientValidationKeyRef.current = '';
-      return;
-    }
-    if (recipientValidationKeyRef.current === normalizedPhone) return;
-
-    const timer = setTimeout(() => {
-      void validateRecipientPhone(normalizedPhone);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [mode, phone, resetRecipientValidation, validateRecipientPhone]);
-
-  useEffect(() => {
-    resetPinValidation();
-  }, [amount, mode, resetPinValidation]);
-
-  useEffect(() => {
-    if (transferStep !== 2) return;
-    if (amountValid) {
-      setTransferStep(3);
-    }
-  }, [amountValid, transferStep]);
-
-  const bankStatusTone = sectionTone(true, bankValidationStatus === 'success', palette);
-  const phoneStatusTone = sectionTone(true, recipientValidationStatus === 'success', palette);
+  const currentRecipient = mode === 'BANK'
+    ? bankValidation
+      ? `${bankValidation.accountName} • ${bankValidation.bankName}`
+      : selectedBank.name
+    : recipientValidation?.fullName ?? compactPhone(phone);
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable onPress={headerBack} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <ArrowLeft size={20} color={palette.text} />
         </Pressable>
         <View style={styles.headerSpacer} />
@@ -335,33 +252,32 @@ export default function TransferScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Send money</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Instant transfers to any Nigerian bank.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Move money in three steps without keeping old forms on screen.</Text>
       </View>
 
       <View style={[styles.heroCard, { backgroundColor: palette.primaryDark }]}>
         <View style={styles.heroTop}>
           <View>
-            <Text style={styles.heroLabel}>Current mode</Text>
-            <Text style={styles.heroValue}>{mode === 'BANK' ? 'Bank transfer' : 'Inter-app transfer'}</Text>
+            <Text style={styles.heroLabel}>Active flow</Text>
+            <Text style={styles.heroValue}>{modeLabel(mode)}</Text>
           </View>
-          <View style={[styles.heroIcon, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
+          <View style={styles.heroIcon}>
             <ArrowUpRight size={20} color="#fff" />
           </View>
         </View>
-        <Text style={styles.heroBody}>{mode === 'BANK' ? 'Enter the account number, let the app resolve the bank account, then continue step by step.' : 'Enter a Percel phone number, resolve the recipient, then continue step by step.'}</Text>
+        <Text style={styles.heroBody}>{mode === 'BANK' ? 'Resolve the bank account first, then enter the amount, then review and confirm.' : 'Resolve the recipient first, then enter the amount, then review and confirm.'}</Text>
+        <FlowProgressDots currentStep={step} totalSteps={3} />
       </View>
 
       <View style={styles.modeRow}>
         {modes.map((item) => {
           const active = item.key === mode;
           return (
-            <Pressable key={item.key} onPress={() => {
-              setMode(item.key);
-              resetBankValidation();
-              resetRecipientValidation();
-              resetPinValidation();
-              setAmount('');
-            }} style={[styles.modeCard, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}>
+            <Pressable
+              key={item.key}
+              onPress={() => setMode(item.key)}
+              style={[styles.modeCard, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}
+            >
               <Text style={[styles.modeLabel, { color: active ? palette.card : palette.text }]}>{item.label}</Text>
               <Text style={[styles.modeMeta, { color: active ? 'rgba(255,255,255,0.76)' : palette.textSecondary }]}>{item.description}</Text>
             </Pressable>
@@ -369,273 +285,243 @@ export default function TransferScreen() {
         })}
       </View>
 
-      {transferStep === 1 ? (mode === 'BANK' ? (
-        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.stepBadge, { backgroundColor: bankStatusTone.backgroundColor, borderColor: bankStatusTone.borderColor }]}>
-              <Text style={[styles.stepBadgeText, { color: bankStatusTone.textColor }]}>1</Text>
-            </View>
-            <View style={styles.sectionHeaderCopy}>
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>Recipient details</Text>
-              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select a bank, enter the account number, then let the app resolve it automatically.</Text>
-            </View>
-            {bankValidationStatus === 'success' ? <CheckCircle2 size={18} color={palette.success} /> : null}
-          </View>
+      <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+        {step === 1 ? (
+          mode === 'BANK' ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <CreditCard size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionTitle, { color: palette.text }]}>Bank lookup</Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a bank and enter the account number. The lookup runs automatically after a short pause.</Text>
+                </View>
+              </View>
 
-          {!kycReady ? (
-            <StateCard
-              title="KYC required for bank payouts"
-              description="Complete KYC in Settings before you can send to a bank account. Inter-app transfers still work."
-              icon={<CreditCard size={24} color={palette.textSecondary} />}
-              actionLabel="Complete KYC"
-              onActionPress={() => router.push('/settings/kyc')}
-            />
-          ) : null}
+              {!wallet?.kycComplete ? (
+                <StateCard
+                  title="KYC required for bank payouts"
+                  description="Complete KYC in Settings before you can send to a bank account. Inter-app transfers still work."
+                  icon={<ShieldCheck size={24} color={palette.textSecondary} />}
+                  actionLabel="Complete KYC"
+                  onActionPress={() => router.push('/settings/kyc')}
+                />
+              ) : null}
 
-          <Input
-            label="Account number"
-            value={accountNumber}
-            onChangeText={(text) => {
-              setAccountNumber(text.replace(/\s/g, ''));
-              resetBankValidation();
-            }}
-            keyboardType="number-pad"
-            placeholder="0123456789"
-            leftElement={<CreditCard size={16} color={palette.textSecondary} />}
-            rightElement={
               <Pressable
-                onPress={() => void validateBankAccount(bankCode, accountDigits)}
-                disabled={bankResolve.isPending || accountDigits.length < 10 || !kycReady}
-                style={[styles.iconAction, { backgroundColor: palette.text, opacity: kycReady ? 1 : 0.45 }]}
-              >
-                {bankValidationStatus === 'loading' ? <ActivityIndicator size="small" color={palette.card} /> : bankValidationStatus === 'success' ? <CheckCircle2 size={16} color={palette.card} /> : <SearchCheck size={16} color={palette.card} />}
-              </Pressable>
-            }
-            helperText="The account will be validated automatically once the number looks complete."
-          />
-
-          {accountDigits.length ? (
-            <>
-              <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>Bank name</Text>
-              <Pressable
-                disabled={!kycReady}
+                disabled={!wallet?.kycComplete}
                 onPress={() => setBankPickerOpen(true)}
-                style={[styles.dropdownSelect, { backgroundColor: palette.bg, borderColor: palette.border, marginBottom: 14, opacity: kycReady ? 1 : 0.45 }]}
+                style={[styles.selectRow, { backgroundColor: palette.bg, borderColor: palette.border, opacity: wallet?.kycComplete ? 1 : 0.5 }]}
               >
-                <View style={styles.dropdownSelectCopy}>
-                  {selectedBank.name !== 'Select bank' ? (
-                    <View style={styles.dropdownValueRow}>
-                      <View style={[styles.bankLogoPlaceholder, { backgroundColor: palette.primary }]}> 
-                        <Text style={[styles.bankLogoText, { color: palette.card }]}>{selectedBank.name.slice(0, 2).toUpperCase()}</Text>
-                      </View>
-                      <View style={{ gap: 2 }}>
-                        <Text style={[styles.dropdownValueName, { color: palette.text }]}>{selectedBank.name}</Text>
-                        <Text style={[styles.dropdownValueMeta, { color: palette.textSecondary }]}>{selectedBank.code}</Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <Text style={[styles.dropdownPlaceholder, { color: palette.textSecondary }]}>Choose beneficiary bank</Text>
-                  )}
+                <View style={styles.selectCopy}>
+                  <Text style={[styles.selectLabel, { color: palette.textSecondary }]}>Bank</Text>
+                  <View style={styles.selectValueRow}>
+                    <Text style={[styles.selectValue, { color: palette.text }]}>{selectedBank.name}</Text>
+                    <Text style={[styles.selectMeta, { color: palette.textSecondary }]}>{selectedBank.code}</Text>
+                  </View>
                 </View>
                 <ChevronDown size={18} color={palette.textSecondary} />
               </Pressable>
-            </>
-          ) : null}
 
-          {bankValidationStatus === 'loading' ? (
-            <View style={[styles.statusCard, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-              <ActivityIndicator color={palette.primary} />
-              <View style={styles.statusCopy}>
-                <Text style={[styles.statusTitle, { color: palette.text }]}>Resolving account</Text>
-                <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>Checking the bank and beneficiary name now.</Text>
-              </View>
-            </View>
-          ) : bankValidationStatus === 'success' && bankValidation ? (
-            <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-              <CheckCircle2 size={18} color={palette.success} />
-              <View style={styles.statusCopy}>
-                <Text style={[styles.statusTitle, { color: palette.success }]}>{bankValidation.accountNumber}</Text>
-                <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.accountName}</Text>
-                <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.bankName}</Text>
-              </View>
-            </View>
-          ) : bankValidationStatus === 'error' ? (
-            <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
-              <ShieldCheck size={18} color={palette.error} />
-              <View style={styles.statusCopy}>
-                <Text style={[styles.statusTitle, { color: palette.error }]}>Account lookup failed</Text>
-                <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidationError || 'Choose the correct bank, then validate again.'}</Text>
-              </View>
-              <Pressable onPress={() => setBankPickerOpen(true)} style={[styles.inlineAction, { backgroundColor: palette.primary }]}>
-                <Text style={[styles.inlineActionText, { color: palette.card }]}>Pick bank</Text>
-              </Pressable>
+              <Input
+                label="Account number"
+                value={accountNumber}
+                onChangeText={(text) => {
+                  setAccountNumber(text.replace(/\s/g, ''));
+                  setPinStatus('idle');
+                  setPinError('');
+                }}
+                keyboardType="number-pad"
+                placeholder="0123456789"
+                leftElement={<CreditCard size={16} color={palette.textSecondary} />}
+                helperText="The next step unlocks when the account resolves successfully."
+              />
+
+              {!wallet?.kycComplete ? null : bankLookup.isFetching ? (
+                <StateCard loading title="Resolving account" description="Checking the bank and beneficiary name now." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : bankLookup.isError ? (
+                <StateCard
+                  title="Account lookup failed"
+                  description="Choose the correct bank, then enter the account number again."
+                  icon={<ShieldCheck size={24} color={palette.textSecondary} />}
+                />
+              ) : bankValidation ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                  <CheckCircle2 size={18} color={palette.success} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.success }]}>{bankValidation.accountName}</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.bankName}</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.accountNumber}</Text>
+                  </View>
+                </View>
+              ) : (
+                <StateCard
+                  title="Enter a complete account number"
+                  description="The lookup needs a valid bank and a 10-digit account number."
+                  icon={<SearchCheck size={24} color={palette.textSecondary} />}
+                />
+              )}
             </View>
           ) : (
-            <StateCard
-              title="Validate the account"
-              description="The next step stays locked until we resolve the beneficiary name."
-              icon={<CreditCard size={24} color={palette.textSecondary} />}
-            />
-          )}
-        </View>
-      ) : (
-        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.stepBadge, { backgroundColor: phoneStatusTone.backgroundColor, borderColor: phoneStatusTone.borderColor }]}>
-              <Text style={[styles.stepBadgeText, { color: phoneStatusTone.textColor }]}>1</Text>
-            </View>
-            <View style={styles.sectionHeaderCopy}>
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>Recipient details</Text>
-              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number, then resolve the recipient from Percel&apos;s database.</Text>
-            </View>
-            {recipientValidationStatus === 'success' ? <CheckCircle2 size={18} color={palette.success} /> : null}
-          </View>
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Smartphone size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionTitle, { color: palette.text }]}>Recipient lookup</Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the Percel phone number and we will resolve the recipient automatically.</Text>
+                </View>
+              </View>
 
-          <Input
-            label="Recipient phone"
-            value={phone}
-            onChangeText={(text) => {
-              setPhone(text);
-              resetRecipientValidation();
-            }}
-            keyboardType="phone-pad"
-            placeholder="+2348012345678"
-            leftElement={<Smartphone size={16} color={palette.textSecondary} />}
-            rightElement={
-              <Pressable
-                onPress={() => void validateRecipientPhone(phone)}
-                disabled={phoneResolve.isPending || normalizeNigerianPhone(phone).replace(/\D/g, '').length < 10}
-                style={[styles.iconAction, { backgroundColor: palette.text, opacity: 1 }]}
-              >
-                {recipientValidationStatus === 'loading' ? <ActivityIndicator size="small" color={palette.card} /> : recipientValidationStatus === 'success' ? <CheckCircle2 size={16} color={palette.card} /> : <SearchCheck size={16} color={palette.card} />}
-              </Pressable>
-            }
-            helperText="We verify this number against the Percel database before the amount step appears."
-          />
+              <Input
+                label="Recipient phone"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="+2348012345678"
+                leftElement={<Smartphone size={16} color={palette.textSecondary} />}
+                helperText="The next step unlocks when the recipient is found."
+              />
 
-          {recipientValidationStatus !== 'idle' ? (
-            <View style={[styles.compactStatusCard, { backgroundColor: recipientValidationStatus === 'success' ? 'rgba(48,209,88,0.12)' : recipientValidationStatus === 'error' ? 'rgba(255,69,58,0.08)' : 'rgba(10,132,255,0.08)', borderColor: recipientValidationStatus === 'success' ? palette.success : recipientValidationStatus === 'error' ? palette.error : palette.primary }]}>
-              {recipientValidationStatus === 'loading' ? (
-                <ActivityIndicator color={palette.primary} />
-              ) : recipientValidationStatus === 'success' && recipientValidation ? (
-                <CheckCircle2 size={18} color={palette.success} />
-              ) : (
-                <ShieldCheck size={18} color={recipientValidationStatus === 'error' ? palette.error : palette.primary} />
-              )}
-              <View style={styles.statusCopy}>
-                {recipientValidationStatus === 'loading' ? (
-                  <>
-                    <Text style={[styles.statusTitle, { color: palette.text }]}>Looking up recipient</Text>
-                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>Checking the phone number in Percel&apos;s database.</Text>
-                  </>
-                ) : recipientValidationStatus === 'success' && recipientValidation ? (
-                  <>
+              {recipientStatus === 'loading' ? (
+                <StateCard loading title="Looking up recipient" description="Checking the phone number in Percel's database." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : recipientStatus === 'success' && recipientValidation ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                  <CheckCircle2 size={18} color={palette.success} />
+                  <View style={styles.statusCopy}>
                     <Text style={[styles.statusTitle, { color: palette.success }]}>{recipientValidation.fullName}</Text>
                     <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{recipientValidation.phone}</Text>
-                  </>
-                ) : recipientValidationStatus === 'error' ? (
-                  <>
+                  </View>
+                </View>
+              ) : recipientStatus === 'error' ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
+                  <ShieldCheck size={18} color={palette.error} />
+                  <View style={styles.statusCopy}>
                     <Text style={[styles.statusTitle, { color: palette.error }]}>Recipient not found</Text>
-                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{recipientValidationError || 'Enter a different Percel phone number.'}</Text>
-                  </>
-                ) : null}
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{recipientError || 'Enter a different Percel phone number.'}</Text>
+                  </View>
+                </View>
+              ) : (
+                <StateCard
+                  title="Enter a Percel phone number"
+                  description="We verify the phone number before the amount step appears."
+                  icon={<SearchCheck size={24} color={palette.textSecondary} />}
+                />
+              )}
+            </View>
+          )
+        ) : null}
+
+        {step === 2 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <Banknote size={16} color={palette.primary} />
+              </View>
+              <View style={styles.sectionCopy}>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Amount</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Add the transfer amount. Completed lookup details remain collapsed out of view.</Text>
               </View>
             </View>
-          ) : null}
-        </View>
-      )) : null}
 
-      {transferStep === 2 ? (
-        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.stepBadge, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-              <Text style={[styles.stepBadgeText, { color: palette.primary }]}>2</Text>
+            <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
+              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{currentRecipient}</Text>
+              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? accountDigits || 'Account pending' : compactPhone(phone)}</Text>
             </View>
-            <View style={styles.sectionHeaderCopy}>
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>Amount</Text>
-              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter a valid amount to unlock the PIN step.</Text>
-            </View>
-            {amountValid ? <CheckCircle2 size={18} color={palette.success} /> : null}
+
+            <AmountInput
+              label="Transfer amount"
+              value={amount}
+              onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+              helperText={wallet ? `Available balance: ${formatNaira(wallet.balance)}` : 'Load wallet balance to compare your amount.'}
+            />
+
+            {!amountValid && amountValue > 0 ? (
+              <View style={[styles.statusCard, { backgroundColor: 'rgba(255,149,0,0.08)', borderColor: palette.warning }]}>
+                <Banknote size={18} color={palette.warning} />
+                <View style={styles.statusCopy}>
+                  <Text style={[styles.statusTitle, { color: palette.warning }]}>Amount not ready</Text>
+                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{wallet && amountValue > wallet.balance ? 'This amount is higher than your wallet balance.' : 'Enter a positive numeric amount.'}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            <Pressable
+              onPress={() => setStep(3)}
+              disabled={!canContinueToReview}
+              style={[styles.primaryAction, { backgroundColor: canContinueToReview ? palette.primary : palette.border }]}
+            >
+              <Text style={styles.primaryActionText}>Review transfer</Text>
+            </Pressable>
           </View>
+        ) : null}
 
-          <AmountInput
-            label="Transfer amount"
-            value={amount}
-            onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
-            helperText={wallet ? `Available balance: ${formatNaira(wallet.balance)}` : 'Load wallet balance to compare your amount.'}
-          />
-
-          {!amountValid && amountValue > 0 ? (
-            <View style={[styles.statusCard, { backgroundColor: 'rgba(255,149,0,0.08)', borderColor: palette.warning }]}> 
-              <Banknote size={18} color={palette.warning} />
-              <View style={styles.statusCopy}>
-                <Text style={[styles.statusTitle, { color: palette.warning }]}>Amount not ready</Text>
-                <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{wallet && amountValue > wallet.balance ? 'This amount is higher than your wallet balance.' : 'Enter a positive numeric amount.'}</Text>
+        {step === 3 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: pinStatus === 'success' ? 'rgba(48,209,88,0.12)' : 'rgba(10,132,255,0.08)', borderColor: pinStatus === 'success' ? palette.success : palette.primary }]}>
+                <CheckCircle2 size={16} color={pinStatus === 'success' ? palette.success : palette.primary} />
+              </View>
+              <View style={styles.sectionCopy}>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the recipient, verify your PIN, then send.</Text>
               </View>
             </View>
-          ) : null}
-        </View>
-      ) : null}
 
-      {transferStep === 3 ? (
-        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.stepBadge, { backgroundColor: pinValidationStatus === 'success' ? 'rgba(48,209,88,0.12)' : 'rgba(10,132,255,0.08)', borderColor: pinValidationStatus === 'success' ? palette.success : palette.primary }]}>
-              <Text style={[styles.stepBadgeText, { color: pinValidationStatus === 'success' ? palette.success : palette.primary }]}>3</Text>
+            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Recipient</Text>
+              <Text style={[styles.reviewTitle, { color: palette.text }]}>{currentRecipient}</Text>
+              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? bankValidation?.accountNumber ?? accountDigits : recipientValidation?.phone ?? compactPhone(phone)}</Text>
+              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{formatNaira(amountValue)}</Text>
             </View>
-            <View style={styles.sectionHeaderCopy}>
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>Transfer PIN</Text>
-              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Validate your PIN before the send button activates.</Text>
-            </View>
-            {pinValidationStatus === 'success' ? <CheckCircle2 size={18} color={palette.success} /> : null}
+
+            <Input
+              label="Transfer PIN"
+              value={pin}
+              onChangeText={(text) => {
+                setPin(text.replace(/\s/g, ''));
+                setPinStatus('idle');
+                setPinError('');
+              }}
+              placeholder="1234"
+              keyboardType="number-pad"
+              secureTextEntry
+              secureToggle
+              helperText="Use the PIN you set in Profile."
+            />
+
+            <Pressable
+              onPress={() => void handleVerifyPin()}
+              disabled={pinVerify.isPending || !/^\d{4,6}$/.test(pin.trim())}
+              style={[styles.secondaryAction, { backgroundColor: palette.primary, opacity: /^\d{4,6}$/.test(pin.trim()) ? 1 : 0.45 }]}
+            >
+              {pinStatus === 'loading' ? <ActivityIndicator color={palette.card} /> : <SearchCheck size={18} color={palette.card} />}
+              <Text style={styles.secondaryActionText}>{pinStatus === 'success' ? 'PIN verified' : 'Verify PIN'}</Text>
+            </Pressable>
+            {pinError ? <Text style={[styles.errorText, { color: palette.error }]}>{pinError}</Text> : null}
+            {pinStatus === 'success' ? (
+              <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                <CheckCircle2 size={18} color={palette.success} />
+                <View style={styles.statusCopy}>
+                  <Text style={[styles.statusTitle, { color: palette.success }]}>PIN verified</Text>
+                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>You can now send the transfer.</Text>
+                </View>
+              </View>
+            ) : null}
+
+            <Pressable
+              onPress={() => void handleSend()}
+              disabled={!canSend}
+              style={[styles.primaryAction, { backgroundColor: canSend ? palette.primary : palette.border }]}
+            >
+              <Text style={styles.primaryActionText}>{bankTransfer.isPending || interAppTransfer.isPending ? 'Sending…' : 'Send money'}</Text>
+            </Pressable>
           </View>
-
-          <Input
-            label="Transfer PIN"
-            value={pin}
-            onChangeText={(text) => {
-              setPin(text.replace(/\s/g, ''));
-              resetPinValidation();
-            }}
-            placeholder="1234"
-            keyboardType="number-pad"
-            secureTextEntry
-            secureToggle
-            helperText="Use the PIN you set in Profile."
-          />
-
-          <Pressable onPress={() => void validateTransferPin()} disabled={pinVerify.isPending || !/^\d{4,6}$/.test(pin.trim())} style={[styles.pinButton, { backgroundColor: palette.primary, opacity: /^\d{4,6}$/.test(pin.trim()) ? 1 : 0.45 }]}>
-            {pinValidationStatus === 'loading' ? <ActivityIndicator color={palette.card} /> : pinValidationStatus === 'success' ? <CheckCircle2 size={18} color={palette.card} /> : <SearchCheck size={18} color={palette.card} />}
-          </Pressable>
-
-          {pinValidationStatus === 'error' ? <Text style={[styles.pinError, { color: palette.error }]}>{pinValidationError}</Text> : null}
-          {pinValidationStatus === 'success' ? (
-            <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-              <CheckCircle2 size={18} color={palette.success} />
-              <View style={styles.statusCopy}>
-                <Text style={[styles.statusTitle, { color: palette.success }]}>PIN verified</Text>
-                <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>You can now send the transfer.</Text>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-
-      {transferStep === 3 && pinReady ? (
-        <View style={[styles.summaryCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>Ready to send</Text>
-          <Text style={[styles.summaryAmount, { color: palette.text }]}>{formatNaira(amountValue)}</Text>
-          <Text style={[styles.summaryMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? bankValidation?.accountNumber : recipientValidation?.phone}</Text>
-          <Text style={[styles.summaryMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? bankValidation?.bankName : recipientValidation?.fullName}</Text>
-          <Text style={[styles.summaryMeta, { color: palette.textSecondary }]}>{recipientReference}</Text>
-        </View>
-      ) : null}
-
-      {transferStep === 3 ? (
-        <Pressable onPress={() => void submit()} disabled={!canSend} style={[styles.primary, { backgroundColor: canSend ? palette.primary : palette.border }]}>
-          <Text style={styles.primaryText}>{mode === 'BANK' ? 'Send to bank' : 'Send money'}</Text>
-        </Pressable>
-      ) : null}
+        ) : null}
+      </Animated.View>
 
       <Modal visible={bankPickerOpen} transparent animationType="fade" onRequestClose={() => setBankPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
@@ -646,7 +532,7 @@ export default function TransferScreen() {
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a bank</Text>
                 <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Search the bank list to switch the recipient bank.</Text>
               </View>
-              <Pressable onPress={() => setBankPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}> 
+              <Pressable onPress={() => setBankPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
               </Pressable>
             </View>
@@ -679,8 +565,10 @@ export default function TransferScreen() {
                   <Pressable
                     onPress={() => {
                       setBankCode(item.code);
+                      setAccountNumber('');
+                      setPinStatus('idle');
+                      setPinError('');
                       setBankPickerOpen(false);
-                      resetBankValidation();
                     }}
                     style={[styles.bankRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}
                   >
@@ -703,7 +591,7 @@ export default function TransferScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { width: 42 },
@@ -714,7 +602,7 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   heroLabel: { color: 'rgba(255,255,255,0.68)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
   heroValue: { color: '#fff', fontSize: Typography.lg, fontFamily: Typography.family.bold, marginTop: 2 },
-  heroIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  heroIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
   heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
   modeRow: { flexDirection: 'row', gap: 10 },
   modeCard: { flex: 1, borderWidth: 1, borderRadius: 18, padding: Spacing.md, gap: 4 },
@@ -722,35 +610,33 @@ const styles = StyleSheet.create({
   modeMeta: { fontSize: Typography.xs, lineHeight: 16 },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  sectionHeaderCopy: { flex: 1, gap: 3 },
-  stepBadge: { width: 34, height: 34, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  stepBadgeText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  stepPill: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17 },
-  inputLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  dropdownSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
-  dropdownSelectCopy: { flex: 1 },
-  dropdownValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dropdownValueName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  dropdownValueMeta: { fontSize: Typography.xs },
-  dropdownPlaceholder: { fontSize: Typography.md, fontFamily: Typography.family.medium },
-  bankLogoPlaceholder: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  bankLogoText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  selectRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
+  selectCopy: { flex: 1, gap: 4 },
+  selectLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
+  selectValueRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  selectValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  selectMeta: { fontSize: Typography.xs },
   statusCard: { borderWidth: 1, borderRadius: 18, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },
   statusCopy: { flex: 1, gap: 2 },
   statusTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   statusMeta: { fontSize: Typography.xs, lineHeight: 16 },
-  inlineAction: { minHeight: 38, paddingHorizontal: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  iconAction: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  inlineActionText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  pinButton: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  pinError: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
-  summaryCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 4 },
-  summaryLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1, fontFamily: Typography.family.bold },
-  summaryAmount: { fontSize: 26, fontFamily: Typography.family.bold },
-  summaryMeta: { fontSize: Typography.sm, lineHeight: 18 },
-  primary: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold, color: '#fff' },
+  summaryMini: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
+  summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
+  summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  summaryMiniMeta: { fontSize: Typography.xs },
+  reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
+  reviewLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
+  reviewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  reviewMeta: { fontSize: Typography.xs },
+  primaryAction: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  secondaryAction: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  secondaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  errorText: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
@@ -759,11 +645,11 @@ const styles = StyleSheet.create({
   modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
   modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, minHeight: 54 },
-  searchInput: { flex: 1, fontSize: Typography.md, fontFamily: Typography.family.regular },
-  emptyText: { fontSize: Typography.sm, textAlign: 'center', paddingVertical: 18 },
-  bankList: { maxHeight: 340 },
+  searchInput: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  bankList: { marginTop: 4 },
   bankRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
-  bankRowCopy: { flex: 1, gap: 2 },
+  bankRowCopy: { flex: 1 },
   bankRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   bankRowMeta: { fontSize: Typography.xs },
+  emptyText: { fontSize: Typography.sm, textAlign: 'center', paddingVertical: 18 },
 });
