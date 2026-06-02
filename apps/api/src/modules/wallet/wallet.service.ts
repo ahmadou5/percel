@@ -436,11 +436,6 @@ export class WalletService {
     const normalizedPin = normalizePin(pin);
     const normalizedPhone = normalizeNigerianPhone(toPhone);
     assertPinFormat(normalizedPin);
-    const [wallet, sender, profile] = await Promise.all([
-      this.prisma.wallet.findUnique({ where: { userId } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
-    ]);
 
     const [fromWallet, recipient, sender] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId: fromUserId } }),
@@ -551,3 +546,308 @@ export class WalletService {
     };
   }
 
+  async resolveBankAccount(bankCode: string, accountNumber: string) {
+    const [account, bank] = await Promise.all([resolveAccountNumber(accountNumber, bankCode), getBank(bankCode)]);
+    return {
+      accountName: account.account_name,
+      accountNumber: account.account_number,
+      bankCode,
+      bankName: bank?.name ?? bankCode,
+    };
+  }
+
+  async resolveAirtimeProvider(phone: string) {
+    const normalizedPhone = normalizeNigerianPhone(phone);
+    const digits = normalizedPhone.replace(/\D/g, '');
+    const services = await listServices('airtime');
+    const providerName = digits.startsWith('2348') || digits.startsWith('080') ? 'MTN' : digits.startsWith('2347') || digits.startsWith('070') ? 'Airtel' : digits.startsWith('2349') || digits.startsWith('090') ? '9mobile' : digits.startsWith('2345') || digits.startsWith('050') ? 'Glo' : services[0]?.name ?? 'Network';
+    const service = services.find((item) => item.name.toLowerCase().includes(providerName.toLowerCase())) ?? services[0];
+    return {
+      phone: normalizedPhone,
+      serviceID: service?.serviceID ?? 'airtime',
+      providerName,
+      confidence: service ? 'high' : 'low',
+    };
+  }
+
+  async listBanks() {
+    return listBanks();
+  }
+
+  async getProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
+    return listServices(identifier);
+  }
+
+  async getProviderVariations(serviceID: string) {
+    return listVariations(serviceID);
+  }
+
+  async validateProviderAccount(serviceID: string, billersCode: string, type?: 'prepaid' | 'postpaid') {
+    return validateBillersCode(serviceID, billersCode, type);
+  }
+
+  async transferToBank(
+    userId: string,
+    data: {
+      bankCode: string;
+      accountNumber: string;
+      amount: number;
+      description?: string;
+      pin: string;
+    },
+  ) {
+    const normalizedPin = normalizePin(data.pin);
+    assertPinFormat(normalizedPin);
+
+    const [wallet, sender] = await Promise.all([
+      this.prisma.wallet.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true, fullName: true } }),
+    ]);
+
+    if (!wallet) throw new NotFoundError('Wallet not found');
+    if (!sender?.walletPinHash) throw new ValidationError('Set a transfer PIN before sending money');
+
+    const pinMatches = await bcrypt.compare(normalizedPin, sender.walletPinHash);
+    if (!pinMatches) throw new UnauthorizedError('Invalid transfer PIN');
+
+    const balance = await this.getBalance(wallet.id);
+    if (balance.realBalance < data.amount) throw new PaymentError('Insufficient balance');
+
+    const recipient = await this.resolveBankAccount(data.bankCode, data.accountNumber);
+    const transferRecipient = await createTransferRecipient({
+      name: recipient.accountName,
+      accountNumber: recipient.accountNumber,
+      bankCode: data.bankCode,
+    });
+
+    const reference = `BANK_${Date.now()}_${userId.slice(0, 6)}`;
+    const reason = cleanText(data.description) ?? 'Bank transfer';
+    await initiateTransfer({
+      recipient: transferRecipient.recipient_code,
+      amount: data.amount,
+      reference,
+      reason,
+    });
+
+    await this.prisma.$transaction(async (trx) => {
+      const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
+      const after = before - data.amount;
+
+      await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+      await trx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: data.amount,
+          type: WalletTransactionType.DEBIT,
+          category: WalletTransactionCategory.TRANSFER_OUT,
+          status: WalletTransactionStatus.COMPLETED,
+          reference,
+          description: reason,
+          metadata: {
+            bankCode: data.bankCode,
+            accountNumber: data.accountNumber,
+            accountName: recipient.accountName,
+            transferRecipientCode: transferRecipient.recipient_code,
+          },
+          balanceBefore: before,
+          balanceAfter: after,
+        },
+      });
+    });
+
+    await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+    return { reference, amount: data.amount, bankName: recipient.bankName, accountName: recipient.accountName, accountNumber: recipient.accountNumber };
+  }
+
+  async buyAirtime(userId: string, phone: string, amount: number, network: string) {
+    return this.buyUtility(userId, {
+      serviceID: 'airtime',
+      billersCode: normalizeNigerianPhone(phone),
+      amount,
+      phone,
+      description: `${network} airtime`,
+      category: WalletTransactionCategory.AIRTIME,
+    });
+  }
+
+  async buyData(userId: string, phone: string, plan: string, network: string, amount: number) {
+    return this.buyUtility(userId, {
+      serviceID: 'data',
+      billersCode: normalizeNigerianPhone(phone),
+      amount,
+      phone,
+      description: `${network} data plan: ${plan}`,
+      category: WalletTransactionCategory.DATA,
+    });
+  }
+
+  async buyElectricity(userId: string, meterNumber: string, amount: number, disco: string, type?: 'prepaid' | 'postpaid') {
+    return this.buyUtility(userId, {
+      serviceID: 'electricity-bill',
+      billersCode: meterNumber,
+      amount,
+      phone: meterNumber,
+      type,
+      description: `${disco} electricity`,
+      category: WalletTransactionCategory.ELECTRICITY,
+    });
+  }
+
+  async buyTv(userId: string, smartcardNumber: string, amount: number, provider: string, variationCode: string, phone?: string) {
+    return this.buyUtility(userId, {
+      serviceID: 'tv-subscription',
+      billersCode: smartcardNumber,
+      amount,
+      phone: phone ?? smartcardNumber,
+      description: `${provider} ${variationCode}`,
+      category: WalletTransactionCategory.TV,
+    });
+  }
+
+  private async buyUtility(
+    userId: string,
+    input: {
+      serviceID: string;
+      billersCode: string;
+      amount: number;
+      phone: string;
+      description: string;
+      category: WalletTransactionCategory;
+      type?: 'prepaid' | 'postpaid';
+    },
+  ) {
+    const [wallet, sender] = await Promise.all([
+      this.prisma.wallet.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } }),
+    ]);
+
+    if (!wallet) throw new NotFoundError('Wallet not found');
+    const balance = await this.getBalance(wallet.id);
+    if (balance.realBalance < input.amount) throw new PaymentError('Insufficient balance');
+
+    await payUtility({
+      serviceID: input.serviceID,
+      billersCode: input.billersCode,
+      amount: input.amount,
+      phone: normalizeNigerianPhone(input.phone),
+      type: input.type,
+    });
+
+    const reference = `${input.category}_${Date.now()}_${userId.slice(0, 6)}`;
+    await this.prisma.$transaction(async (trx) => {
+      const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
+      const after = before - input.amount;
+      await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+      await trx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: input.amount,
+          type: WalletTransactionType.DEBIT,
+          category: input.category,
+          status: WalletTransactionStatus.COMPLETED,
+          reference,
+          description: input.description,
+          metadata: { billersCode: input.billersCode, serviceID: input.serviceID, customerName: sender?.fullName ?? null },
+          balanceBefore: before,
+          balanceAfter: after,
+        },
+      });
+    });
+
+    await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+    return { reference, amount: input.amount };
+  }
+
+  async deductForOrder(userId: string, orderId: string, amount: number, tx: Prisma.TransactionClient | PrismaClient) {
+    const client = this.getClient(tx);
+    const wallet = await client.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundError('Wallet not found');
+
+    const before = Number(wallet.balance ?? 0);
+    if (before < amount) throw new PaymentError('Insufficient balance');
+    const after = before - amount;
+
+    await client.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+    await client.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount,
+        type: WalletTransactionType.DEBIT,
+        category: WalletTransactionCategory.ORDER_PAYMENT,
+        status: WalletTransactionStatus.COMPLETED,
+        reference: `ORDER_${orderId}`,
+        description: 'Order payment',
+        metadata: { orderId },
+        balanceBefore: before,
+        balanceAfter: after,
+      },
+    });
+    await client.ledgerEntry.create({
+      data: {
+        debitWalletId: wallet.id,
+        creditWalletId: PLATFORM_WALLET_ID,
+        amount,
+        reference: `LEDGER_ORDER_${orderId}`,
+        description: 'Order payment',
+      },
+    });
+    await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+    return { updated: true };
+  }
+
+  async refundOrderPayment(userId: string, orderId: string, amount: number, reason: string, tx: Prisma.TransactionClient | PrismaClient) {
+    const client = this.getClient(tx);
+    const wallet = await client.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundError('Wallet not found');
+
+    const before = Number(wallet.balance ?? 0);
+    const after = before + amount;
+
+    await client.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+    await client.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount,
+        type: WalletTransactionType.CREDIT,
+        category: WalletTransactionCategory.REFUND,
+        status: WalletTransactionStatus.COMPLETED,
+        reference: `REFUND_ORDER_${orderId}`,
+        description: cleanText(reason) ?? 'Order refund',
+        metadata: { orderId, reason },
+        balanceBefore: before,
+        balanceAfter: after,
+      },
+    });
+    await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+    return { updated: true };
+  }
+
+  async creditDriverEarning(driverId: string, orderId: string, amount: number, tx: Prisma.TransactionClient | PrismaClient) {
+    const client = this.getClient(tx);
+    const driver = await client.driver.findUnique({ where: { id: driverId }, select: { userId: true } });
+    if (!driver) throw new NotFoundError('Driver not found');
+    const wallet = await client.wallet.findUnique({ where: { userId: driver.userId } });
+    if (!wallet) throw new NotFoundError('Driver wallet not found');
+
+    const before = Number(wallet.balance ?? 0);
+    const after = before + amount;
+
+    await client.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+    await client.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount,
+        type: WalletTransactionType.CREDIT,
+        category: WalletTransactionCategory.ORDER_EARNING,
+        status: WalletTransactionStatus.COMPLETED,
+        reference: `EARNING_ORDER_${orderId}`,
+        description: 'Driver order earning',
+        metadata: { orderId, driverId },
+        balanceBefore: before,
+        balanceAfter: after,
+      },
+    });
+    await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
+    return { updated: true };
+  }
+}
