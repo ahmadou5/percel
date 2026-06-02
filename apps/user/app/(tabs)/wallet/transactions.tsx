@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { FlashList } from '@shopify/flash-list';
-import { ChevronLeft, Clock3, CreditCard, FileClock, Filter, Search, TriangleAlert } from 'lucide-react-native';
-
+import { captureRef } from 'react-native-view-shot';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { formatNaira, formatTxnDate, titleize, walletCategories } from '@/lib/wallet';
+import { formatNaira, formatTxnDate, titleize, walletCategories, type WalletTransaction } from '@/lib/wallet';
 import { useTransactions } from '@/hooks/useWallet';
 import { useRouter } from 'expo-router';
 
@@ -22,19 +23,34 @@ export default function TransactionsScreen() {
   const query = useTransactions({ category, limit: 20 });
 
   const transactions = useMemo(() => query.data?.pages.flatMap((page) => page.data) ?? [], [query.data]);
-  const filtered = transactions.filter((item) => {
-    const haystack = `${item.description} ${item.reference} ${item.category}`.toLowerCase();
-    return haystack.includes(search.trim().toLowerCase());
-  });
-  const selected = filtered.find((item) => item.id === selectedId) ?? null;
-
+  const visibleTransactions = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return transactions;
+    return transactions.filter((item) => {
+      const haystack = `${item.description} ${item.reference} ${item.category}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [search, transactions]);
+  const selected = useMemo(() => transactions.find((item) => item.id === selectedId) ?? null, [selectedId, transactions]);
   const summary = useMemo(() => {
-    const credits = filtered.filter((item) => item.type === 'CREDIT').reduce((sum, item) => sum + item.amount, 0);
-    const debits = filtered.filter((item) => item.type === 'DEBIT').reduce((sum, item) => sum + item.amount, 0);
-    return { credits, debits };
-  }, [filtered]);
+    return transactions.reduce((acc, item) => {
+      if (item.type === 'CREDIT') {
+        acc.credits += item.amount;
+      } else {
+        acc.debits += item.amount;
+      }
+      return acc;
+    }, { credits: 0, debits: 0 });
+  }, [transactions]);
 
   const renderFooter = () => {
+    if (!query.isFetchingNextPage) return null;
+    return (
+      <View style={styles.footer}>
+        <ActivityIndicator color={palette.primary} />
+      </View>
+    );
+  };
     if (!query.isFetchingNextPage) return null;
     return (
       <View style={styles.footer}>
