@@ -77,7 +77,7 @@ export class UserService {
 
   private async createNotification(
     userId: string,
-    type: PrismaNotificationType,
+    type: NotificationType,
     title: string,
     body: string,
     data: Record<string, unknown> = {},

@@ -311,8 +311,9 @@ export class WalletService {
       select: { id: true, fullName: true, wallet: { select: { id: true, nuban: true, bankName: true, bankCode: true } } },
     });
 
-    if (!customer?.wallet) return;
-    if (customer.wallet.nuban && customer.wallet.bankName) {
+    const wallet = customer?.wallet;
+    if (!wallet) return;
+    if (wallet.nuban && wallet.bankName) {
       await this.prisma.user.update({ where: { id: customer.id }, data: { status: 'ACTIVE', bvnVerified: true } });
       return;
     }
@@ -323,7 +324,7 @@ export class WalletService {
 
     await this.prisma.$transaction(async (trx) => {
       await trx.wallet.update({
-        where: { id: customer.wallet.id },
+        where: { id: wallet.id },
         data: {
           nuban: account.account_number,
           bankName,
@@ -337,10 +338,10 @@ export class WalletService {
       });
     });
 
-    await deleteCache(this.app.redis, 'cache:wallet:balance:' + customer.wallet.id);
+    await deleteCache(this.app.redis, 'cache:wallet:balance:' + wallet.id);
 
     try {
-      emitToUser(this.app, customer.id, 'wallet_updated', { walletId: customer.wallet.id });
+      emitToUser(this.app, customer.id, 'wallet_updated', { walletId: wallet.id });
     } catch (err) {
       this.logger.warn({ err, userId: customer.id }, 'Failed to emit wallet_updated socket event');
     }
