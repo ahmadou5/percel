@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Radio, Search, ShieldCheck, Tv2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,13 +5,15 @@ import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollV
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { ProviderBadge, providerLabelFromService } from '@/components/wallet/WalletFlow';
-import { FlowProgressDots, useSlideStepTransition } from '@/components/wallet/WalletFlowProgress';
+import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useBuyTv, useProviderServices, useProviderVariations, useValidateProviderAccount } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { TransactionResultModal } from '@/components/TransactionResultModal';
 
 type ValidationResult = {
   name: string;
@@ -20,7 +21,6 @@ type ValidationResult = {
 };
 
 export default function TvScreen() {
-  const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const mutation = useBuyTv();
@@ -34,7 +34,10 @@ export default function TvScreen() {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [validationStatus, setValidationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [validationError, setValidationError] = useState('');
+  const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
   const { opacity, translateX } = useSlideStepTransition(step);
+  const back = useSafeBack("/wallet");
+  useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
   const variationsQuery = useProviderVariations(selectedService?.serviceID);
@@ -92,7 +95,13 @@ export default function TvScreen() {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    router.back();
+    back();
+  };
+
+  const handleCloseResult = () => {
+    const shouldReturn = resultModal?.returnAfterClose;
+    setResultModal(null);
+    if (shouldReturn) back();
   };
 
   const displayService = selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Choose a provider';
@@ -122,7 +131,7 @@ export default function TvScreen() {
           </View>
         </View>
         <Text style={styles.heroBody}>Validation keeps the subscriber details visible before payment while the old step labels stay out of the form body.</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} />
+        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
       <Animated.View style={{ opacity, transform: [{ translateX }] }}>
@@ -264,11 +273,25 @@ export default function TvScreen() {
               onPress={async () => {
                 if (!selectedService || !selectedVariation) return;
                 try {
-                  await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.name, variationCode: selectedVariation.variation_code });
-                  Alert.alert('TV subscription paid', `You renewed ${selectedVariation.name} for ${formatNaira(selectedPrice)}.`);
-                  router.back();
+                  const response = await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.name, variationCode: selectedVariation.variation_code });
+                  setResultModal({
+                    visible: true,
+                    type: 'success',
+                    title: 'TV subscription paid',
+                    message: 'Your TV subscription renewal completed successfully.',
+                    amount: formatNaira(selectedPrice),
+                    reference: response.data.reference,
+                    returnAfterClose: true,
+                  });
                 } catch (error) {
-                  Alert.alert('Subscription failed', error instanceof Error ? error.message : 'Unable to renew the TV subscription.');
+                  setResultModal({
+                    visible: true,
+                    type: 'failed',
+                    title: 'Subscription failed',
+                    message: error instanceof Error ? error.message : 'Unable to renew the TV subscription.',
+                    amount: formatNaira(selectedPrice),
+                    returnAfterClose: false,
+                  });
                 }
               }}
               style={[styles.primaryAction, { backgroundColor: selectedService && selectedVariation ? palette.primary : palette.border }]}
@@ -278,6 +301,16 @@ export default function TvScreen() {
           </View>
         ) : null}
       </Animated.View>
+
+      <TransactionResultModal
+        visible={Boolean(resultModal?.visible)}
+        type={resultModal?.type ?? 'pending'}
+        title={resultModal?.title ?? ''}
+        message={resultModal?.message ?? ''}
+        amount={resultModal?.amount}
+        reference={resultModal?.reference}
+        onClose={handleCloseResult}
+      />
 
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>

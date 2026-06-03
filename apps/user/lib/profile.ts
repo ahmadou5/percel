@@ -31,6 +31,10 @@ export type VerifyNinPayload = {
 
 export type VerifyBvnPayload = {
   bvn: string;
+  accountNumber: string;
+  bankCode: string;
+  firstName: string;
+  lastName: string;
 };
 
 export type VerifyKycResult = UserProfile;

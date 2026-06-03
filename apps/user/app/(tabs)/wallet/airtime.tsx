@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,13 +5,15 @@ import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollV
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { normalizeNigerianPhone, providerLabelFromService, ProviderBadge } from '@/components/wallet/WalletFlow';
-import { FlowProgressDots, useSlideStepTransition } from '@/components/wallet/WalletFlowProgress';
+import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useBuyAirtime, useProviderServices, useResolveAirtimeProvider, useWallet } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { TransactionResultModal } from '@/components/TransactionResultModal';
 
 const presetAmounts = [100, 500, 1000, 2000, 5000, 10000] as const;
 
@@ -24,7 +25,6 @@ type ProviderSelection = {
 };
 
 export default function AirtimeScreen() {
-  const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const walletQuery = useWallet();
@@ -41,7 +41,10 @@ export default function AirtimeScreen() {
   const [providerValidation, setProviderValidation] = useState<ProviderSelection | null>(null);
   const [providerStatus, setProviderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [providerError, setProviderError] = useState('');
+  const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
   const { opacity, translateX } = useSlideStepTransition(step);
+  const back = useSafeBack("/wallet");
+  useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
   const normalizedPhone = normalizeNigerianPhone(phone);
@@ -99,7 +102,13 @@ export default function AirtimeScreen() {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    router.back();
+    back();
+  };
+
+  const handleCloseResult = () => {
+    const shouldReturn = resultModal?.returnAfterClose;
+    setResultModal(null);
+    if (shouldReturn) back();
   };
 
   const title = providerValidation?.providerName ?? (selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Airtime');
@@ -129,7 +138,7 @@ export default function AirtimeScreen() {
           </View>
         </View>
         <Text style={styles.heroBody}>The provider is resolved from the phone number first, keeping the flow progressive and compact.</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} />
+        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
       <Animated.View style={{ opacity, transform: [{ translateX }] }}>
@@ -273,11 +282,25 @@ export default function AirtimeScreen() {
               disabled={!amountValid || mutation.isPending}
               onPress={async () => {
                 try {
-                  await mutation.mutateAsync({ phone, network: displayNetwork, amount: selectedAmount });
-                  Alert.alert('Airtime bought', `You paid ${formatNaira(selectedAmount)} for ${normalizedPhone}.`);
-                  router.back();
+                  const response = await mutation.mutateAsync({ phone, network: displayNetwork, amount: selectedAmount });
+                  setResultModal({
+                    visible: true,
+                    type: 'success',
+                    title: 'Airtime bought',
+                    message: 'Your airtime purchase completed successfully.',
+                    amount: formatNaira(selectedAmount),
+                    reference: response.data.reference,
+                    returnAfterClose: true,
+                  });
                 } catch (error) {
-                  Alert.alert('Purchase failed', error instanceof Error ? error.message : 'Unable to buy airtime.');
+                  setResultModal({
+                    visible: true,
+                    type: 'failed',
+                    title: 'Purchase failed',
+                    message: error instanceof Error ? error.message : 'Unable to buy airtime.',
+                    amount: formatNaira(selectedAmount),
+                    returnAfterClose: false,
+                  });
                 }
               }}
               style={[styles.primaryAction, { backgroundColor: amountValid ? palette.primary : palette.border }]}
@@ -287,6 +310,16 @@ export default function AirtimeScreen() {
           </View>
         ) : null}
       </Animated.View>
+
+      <TransactionResultModal
+        visible={Boolean(resultModal?.visible)}
+        type={resultModal?.type ?? 'pending'}
+        title={resultModal?.title ?? ''}
+        message={resultModal?.message ?? ''}
+        amount={resultModal?.amount}
+        reference={resultModal?.reference}
+        onClose={handleCloseResult}
+      />
 
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>

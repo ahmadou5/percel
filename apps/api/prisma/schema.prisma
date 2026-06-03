@@ -125,6 +125,7 @@ model User {
   bvnNumber     String?
   bvnVerified   Boolean    @default(false)
   kycMethod     KycMethod?
+  paystackCustomerCode String? @unique
   deletedAt     DateTime?
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)

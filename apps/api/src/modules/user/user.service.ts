@@ -1,10 +1,9 @@
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { NotificationType, type PrismaClient, UserStatus } from '@prisma/client';
+import { NotificationType, Prisma, type PrismaClient, UserStatus } from '@prisma/client';
 
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
-import { verifyBVN, verifyNIN } from '../../lib/smileIdentity.js';
-import { env } from '../../config/env.js';
+import { createCustomer, validateCustomerIdentity } from '../../lib/paystack.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
 import type { ChangePasswordBody, NotificationsFeedResponse, NotificationResponse, UpdateProfileBody, UserProfileResponse } from './user.types.js';
 
@@ -75,6 +74,50 @@ export class UserService {
     private readonly logger: FastifyBaseLogger,
     private readonly app: FastifyInstance,
   ) {}
+
+  private async createNotification(
+    userId: string,
+    type: PrismaNotificationType,
+    title: string,
+    body: string,
+    data: Record<string, unknown> = {},
+  ) {
+    await this.prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        body,
+        data: data as Prisma.InputJsonValue,
+        read: false,
+      },
+    });
+  }
+
+  private async ensurePaystackCustomerCode(userId: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, fullName: true, phone: true, paystackCustomerCode: true },
+    });
+
+    if (!existing) throw new NotFoundError('User not found');
+    if (existing.paystackCustomerCode) return existing.paystackCustomerCode;
+
+    const { firstName, lastName } = splitFullName(existing.fullName);
+    const customer = await createCustomer({
+      email: existing.email,
+      firstName,
+      lastName,
+      phone: existing.phone,
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { paystackCustomerCode: customer.customer_code },
+    });
+
+    return customer.customer_code;
+  }
 
   async getProfile(userId: string): Promise<UserProfileResponse> {
     const user = await this.prisma.user.findUnique({
@@ -227,86 +270,57 @@ export class UserService {
   }
 
   async verifyUserNin(userId: string, nin: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { fullName: true, dateOfBirth: true, ninVerified: true, bvnVerified: true, address: true, kycMethod: true },
-    });
-
-    if (!user) throw new NotFoundError('User not found');
-    if (!user.dateOfBirth) throw new ValidationError('Add your date of birth before verifying NIN');
-
-    const { firstName, lastName } = splitFullName(user.fullName);
-    const result = await verifyNIN(env.SMILE_IDENTITY_PARTNER_ID, nin.trim(), firstName, lastName, user.dateOfBirth.toISOString().slice(0, 10));
-    if (!result.verified) throw new ValidationError('NIN verification failed');
-
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ninNumber: nin.trim(),
-        ninVerified: true,
-        kycMethod: 'NIN',
-      },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        avatarUrl: true,
-        dateOfBirth: true,
-        address: true,
-        ninNumber: true,
-        ninVerified: true,
-        bvnNumber: true,
-        bvnVerified: true,
-        kycMethod: true,
-        status: true,
-        walletPinHash: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    this.logger.info({ userId }, 'user.kyc.nin_verified');
-    return {
-      id: updated.id,
-      fullName: updated.fullName,
-      email: updated.email,
-      phone: updated.phone,
-      avatarUrl: updated.avatarUrl,
-      dateOfBirth: toIso(updated.dateOfBirth),
-      address: updated.address,
-      ninNumber: updated.ninNumber,
-      ninVerified: updated.ninVerified,
-      bvnNumber: updated.bvnNumber,
-      bvnVerified: updated.bvnVerified,
-      kycMethod: updated.kycMethod,
-      status: updated.status,
-      walletPinSet: Boolean(updated.walletPinHash),
-      kycComplete: isKycComplete(updated),
-      createdAt: updated.createdAt.toISOString(),
-      updatedAt: updated.updatedAt.toISOString(),
-    };
+    throw new ValidationError('NIN verification is not available in the customer app');
   }
 
-  async verifyUserBvn(userId: string, bvn: string) {
+  async verifyUserBvn(
+    userId: string,
+    input: {
+      bvn: string;
+      accountNumber: string;
+      bankCode: string;
+      firstName: string;
+      lastName: string;
+    },
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { fullName: true, dateOfBirth: true, ninVerified: true, bvnVerified: true, address: true, kycMethod: true },
+      select: { dateOfBirth: true, paystackCustomerCode: true },
     });
 
     if (!user) throw new NotFoundError('User not found');
     if (!user.dateOfBirth) throw new ValidationError('Add your date of birth before verifying BVN');
 
-    const { firstName, lastName } = splitFullName(user.fullName);
-    const result = await verifyBVN(env.SMILE_IDENTITY_PARTNER_ID, bvn.trim(), firstName, lastName, user.dateOfBirth.toISOString().slice(0, 10));
-    if (!result.verified) throw new ValidationError('BVN verification failed');
+    const customerCode = user.paystackCustomerCode ?? (await this.ensurePaystackCustomerCode(userId));
+    const firstName = input.firstName.trim();
+    const lastName = input.lastName.trim();
+    const bvn = input.bvn.trim();
+    const accountNumber = input.accountNumber.trim();
+    const bankCode = input.bankCode.trim();
+
+    const result = await validateCustomerIdentity(customerCode, {
+      country: 'NG',
+      type: 'bank_account',
+      account_number: accountNumber,
+      bvn,
+      bank_code: bankCode,
+      first_name: firstName,
+      last_name: lastName,
+    });
+
+    if (!result.status) {
+      throw new ValidationError(result.message || 'Verification could not be started');
+    }
 
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
-        bvnNumber: bvn.trim(),
-        bvnVerified: true,
+        fullName: firstName + ' ' + lastName,
+        bvnNumber: bvn,
+        bvnVerified: false,
         kycMethod: 'BVN',
+        status: UserStatus.PENDING_VERIFICATION,
+        paystackCustomerCode: customerCode,
       },
       select: {
         id: true,
@@ -328,7 +342,7 @@ export class UserService {
       },
     });
 
-    this.logger.info({ userId }, 'user.kyc.bvn_verified');
+    this.logger.info({ userId, customerCode }, 'user.kyc.bvn_pending');
     return {
       id: updated.id,
       fullName: updated.fullName,

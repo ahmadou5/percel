@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -15,6 +16,7 @@ const sampleAddresses = [
 
 export default function SendOrderEntryScreen() {
   const router = useRouter();
+  const back = useSafeBack("/");
   const [pickup, setPickup] = useState(sampleAddresses[0]);
   const [delivery, setDelivery] = useState(sampleAddresses[1]);
 
@@ -25,7 +27,7 @@ export default function SendOrderEntryScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
+      <Pressable onPress={() => back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
         <Text style={{ color: Colors.light.text, fontSize: 14, fontWeight: Typography.bold }}>Back</Text>
       </Pressable>
 

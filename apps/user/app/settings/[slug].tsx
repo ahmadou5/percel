@@ -5,6 +5,7 @@ import { BadgeCheck, Bell, CreditCard, HandCoins, Shield, Users, ChevronRight } 
 import { Button } from '@/components/ui/Button';
 import { Linking } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -25,6 +26,7 @@ export default function SettingsDetailScreen() {
   const params = useLocalSearchParams<{ slug?: string }>();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const back = useSafeBack("/settings");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isUnlocked = useAuthStore((state) => state.isUnlocked);
 
@@ -46,7 +48,7 @@ export default function SettingsDetailScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <ChevronRight size={18} color={palette.text} style={{ transform: [{ rotate: '180deg' }] }} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>{page.title}</Text>
@@ -61,7 +63,7 @@ export default function SettingsDetailScreen() {
           <Text style={[styles.noteText, { color: palette.textSecondary }]}>This screen is wired into the new settings flow and can be expanded with the full product feature later.</Text>
         </View>
         {slug === 'support' || slug === 'reset-pin' ? <Button title="Email support" variant="secondary" onPress={() => void Linking.openURL('mailto:support@percel.app?subject=Percel%20Support')} /> : null}
-        <Button title="Back to Settings" variant="secondary" onPress={() => router.back()} />
+        <Button title="Back to Settings" variant="secondary" onPress={() => back()} />
       </View>
     </ScrollView>
   );
@@ -73,8 +75,6 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerCopy: { gap: 8 },
-  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.8 },
   subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
   card: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14, alignItems: 'center' },

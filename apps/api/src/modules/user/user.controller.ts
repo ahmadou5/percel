@@ -30,8 +30,8 @@ export class UserController {
 
   verifyBvn = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
-    const { bvn } = request.body as { bvn: string };
-    return success(await this.service.verifyUserBvn(userId, bvn), 'BVN verified');
+    const { bvn, accountNumber, bankCode, firstName, lastName } = request.body as { bvn: string; accountNumber: string; bankCode: string; firstName: string; lastName: string };
+    return success(await this.service.verifyUserBvn(userId, { bvn, accountNumber, bankCode, firstName, lastName }), 'Verification pending');
   };
 
   listNotifications = async (request: FastifyRequest) => {

@@ -1,44 +1,46 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Bell, CheckCheck, ChevronLeft, CircleAlert, Clock3, CreditCard, FileClock, Package, Wallet } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Bell, CheckCheck, ChevronLeft, CircleAlert, Clock3, CreditCard, FileClock, Package, Wallet } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
-import { formatNotificationDate, type AppNotification } from '@/lib/notifications';
-import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '@/hooks/useNotifications';
+import { NotificationDetailModal } from "@/components/NotificationDetailModal";
+import { StateCard } from "@/components/ui/StateCard";
+import { useColorScheme } from "@/components/useColorScheme";
+import { Colors } from "@/constants/palette";
+import { Spacing } from "@/constants/spacing";
+import { Typography } from "@/constants/typography";
+import { formatNotificationDate, type AppNotification } from "@/lib/notifications";
+import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from "@/hooks/useNotifications";
+import { useSafeBack } from "@/components/navigation/useSafeBack";
 
 const filters = [
-  { key: 'ALL', label: 'All' },
-  { key: 'UNREAD', label: 'Unread' },
+  { key: "ALL", label: "All" },
+  { key: "UNREAD", label: "Unread" },
 ] as const;
 
 function iconFor(notification: AppNotification) {
-  const kind = String(notification.data?.kind ?? '').toLowerCase();
-  if (kind.includes('transfer')) return CreditCard;
-  if (kind.includes('wallet') || kind.includes('topup') || kind.includes('bill')) return Wallet;
-  if (kind.includes('order')) return Package;
-  if (kind.includes('system')) return CircleAlert;
+  const kind = String(notification.data?.kind ?? "").toLowerCase();
+  if (kind.includes("transfer")) return CreditCard;
+  if (kind.includes("wallet") || kind.includes("topup") || kind.includes("bill")) return Wallet;
+  if (kind.includes("order")) return Package;
+  if (kind.includes("system")) return CircleAlert;
   return Bell;
 }
 
 export default function NotificationsScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
+  const scheme = (useColorScheme() ?? "light") as keyof typeof Colors;
   const palette = Colors[scheme];
-  const [filter, setFilter] = useState<(typeof filters)[number]['key']>('ALL');
+  const back = useSafeBack("/");
+  const [filter, setFilter] = useState<(typeof filters)[number]["key"]>("ALL");
+  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
   const query = useNotifications(30);
   const markOne = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
 
   const notifications = useMemo(() => {
     const items = query.data?.data ?? [];
-    if (filter === 'UNREAD') return items.filter((item) => !item.read);
+    if (filter === "UNREAD") return items.filter((item) => !item.read);
     return items;
   }, [filter, query.data?.data]);
 
@@ -48,9 +50,10 @@ export default function NotificationsScreen() {
     <ScrollView
       style={[styles.screen, { backgroundColor: palette.bg }]}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}
-      showsVerticalScrollIndicator={false}>
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={back}>
           <ChevronLeft size={18} color={palette.text} />
         </Pressable>
         <View style={styles.headerSpacer} />
@@ -61,12 +64,12 @@ export default function NotificationsScreen() {
         <Text style={[styles.title, { color: palette.text }]}>Track payments, orders, and account updates in one place.</Text>
       </View>
 
-      <View style={[styles.summaryCard, { backgroundColor: palette.primaryDark }] }>
+      <View style={[styles.summaryCard, { backgroundColor: palette.primaryDark }]}>
         <View>
           <Text style={styles.summaryLabel}>Unread updates</Text>
           <Text style={styles.summaryValue}>{unreadCount}</Text>
         </View>
-        <Pressable onPress={() => void markAll.mutateAsync()} style={[styles.summaryAction, { backgroundColor: 'rgba(255,255,255,0.14)' }]}>
+        <Pressable onPress={() => void markAll.mutateAsync()} style={[styles.summaryAction, { backgroundColor: "rgba(255,255,255,0.14)" }]}>
           {markAll.isPending ? <ActivityIndicator color="#fff" /> : <CheckCheck size={18} color="#fff" />}
           <Text style={styles.summaryActionText}>Mark all read</Text>
         </Pressable>
@@ -76,7 +79,11 @@ export default function NotificationsScreen() {
         {filters.map((item) => {
           const active = item.key === filter;
           return (
-            <Pressable key={item.key} onPress={() => setFilter(item.key)} style={[styles.filterChip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }] }>
+            <Pressable
+              key={item.key}
+              onPress={() => setFilter(item.key)}
+              style={[styles.filterChip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}
+            >
               <Text style={[styles.filterText, { color: active ? palette.card : palette.text }]}>{item.label}</Text>
             </Pressable>
           );
@@ -100,10 +107,13 @@ export default function NotificationsScreen() {
             return (
               <Pressable
                 key={item.id}
-                onPress={() => void markOne.mutateAsync(item.id)}
+                onPress={() => {
+                  setSelectedNotification(item);
+                  if (!item.read) void markOne.mutateAsync(item.id);
+                }}
                 style={({ pressed }) => [styles.card, { backgroundColor: palette.card, borderColor: item.read ? palette.border : palette.primary }, pressed ? styles.pressed : null]}
               >
-                <View style={[styles.iconWrap, { backgroundColor: item.read ? palette.bg : 'rgba(10,132,255,0.12)' }]}>
+                <View style={[styles.iconWrap, { backgroundColor: item.read ? palette.bg : "rgba(10,132,255,0.12)" }]}>
                   <Icon size={18} color={palette.primary} />
                 </View>
                 <View style={styles.body}>
@@ -128,6 +138,12 @@ export default function NotificationsScreen() {
           icon={<Bell size={24} color={palette.textSecondary} />}
         />
       )}
+
+      <NotificationDetailModal
+        visible={Boolean(selectedNotification)}
+        notification={selectedNotification}
+        onClose={() => setSelectedNotification(null)}
+      />
     </ScrollView>
   );
 }
@@ -135,29 +151,28 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 42 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   headerCopy: { gap: 8 },
-  eyebrow: { fontSize: Typography.xs, fontFamily: Typography.family.bold, letterSpacing: 1.2, textTransform: 'uppercase' },
+  eyebrow: { fontSize: Typography.xs, fontFamily: Typography.family.bold, letterSpacing: 1.2, textTransform: "uppercase" },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
-  summaryCard: { borderRadius: 28, padding: Spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
-  summaryLabel: { color: 'rgba(255,255,255,0.72)', fontSize: Typography.sm },
-  summaryValue: { color: '#fff', fontSize: 34, lineHeight: 38, fontFamily: Typography.family.bold },
-  summaryAction: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 999, paddingHorizontal: 14 },
-  summaryActionText: { color: '#fff', fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  filterRow: { flexDirection: 'row', gap: 10 },
-  filterChip: { minHeight: 42, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  summaryCard: { borderRadius: 28, padding: Spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: Spacing.md },
+  summaryLabel: { color: "rgba(255,255,255,0.72)", fontSize: Typography.sm },
+  summaryValue: { color: "#fff", fontSize: 34, lineHeight: 38, fontFamily: Typography.family.bold },
+  summaryAction: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44, borderRadius: 999, paddingHorizontal: 14 },
+  summaryActionText: { color: "#fff", fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  filterRow: { flexDirection: "row", gap: 10 },
+  filterChip: { minHeight: 42, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   filterText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   list: { gap: 12 },
-  card: { borderRadius: 22, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', gap: 12 },
-  iconWrap: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: 22, borderWidth: 1, padding: Spacing.md, flexDirection: "row", gap: 12 },
+  iconWrap: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   body: { flex: 1, gap: 6 },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   cardTitle: { flex: 1, fontSize: Typography.md, fontFamily: Typography.family.bold },
   cardBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   metaText: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   dot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
   pressed: { opacity: 0.92 },

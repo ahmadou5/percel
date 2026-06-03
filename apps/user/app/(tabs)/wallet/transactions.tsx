@@ -1,27 +1,28 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { FlashList } from '@shopify/flash-list';
-import { captureRef } from 'react-native-view-shot';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ChevronLeft, Clock3, CreditCard, Search, TriangleAlert } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import { StateCard } from '@/components/ui/StateCard';
+import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { formatNaira, formatTxnDate, titleize, walletCategories, type WalletTransaction } from '@/lib/wallet';
 import { useTransactions } from '@/hooks/useWallet';
-import { useRouter } from 'expo-router';
-import { ChevronLeft, Clock3, CreditCard, Search, TriangleAlert } from 'lucide-react-native';
+import { formatNaira, formatTxnDate, titleize, walletCategories } from '@/lib/wallet';
 
 export default function TransactionsScreen() {
-  const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const back = useSafeBack("/wallet");
   const [category, setCategory] = useState<'ALL' | string>('ALL');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [receiptResult, setReceiptResult] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string }>(null);
   const query = useTransactions({ category, limit: 20 });
+  const receiptRef = useRef<View>(null);
 
   const transactions = useMemo(() => query.data?.pages.flatMap((page) => page.data) ?? [], [query.data]);
 
@@ -38,19 +39,22 @@ export default function TransactionsScreen() {
   const selected = useMemo(() => transactions.find((item) => item.id === selectedId) ?? null, [selectedId, transactions]);
 
   // Summary is derived from the full loaded set, not the filtered subset
-  const summary = useMemo(() => {
-    return transactions.reduce(
-      (acc, item) => {
-        if (item.type === 'CREDIT') {
-          acc.credits += item.amount;
-        } else {
-          acc.debits += item.amount;
-        }
-        return acc;
-      },
-      { credits: 0, debits: 0 },
-    );
-  }, [transactions]);
+ const summary = useMemo(() => {
+  return transactions.reduce(
+    (acc, item) => {
+      // Using Number() ensures "5000" becomes 5000 before adding
+      const amount = Number(item.amount) || 0; 
+
+      if (item.type === 'CREDIT') {
+        acc.credits += amount;
+      } else {
+        acc.debits += amount;
+      }
+      return acc;
+    },
+    { credits: 0, debits: 0 },
+  );
+}, [transactions]);
 
   const renderFooter = () => {
     if (!query.isFetchingNextPage) return null;
@@ -62,50 +66,75 @@ export default function TransactionsScreen() {
   };
 
   const handleShareImage = async () => {
-    // Receipt image sharing — requires a ref attached to the modal card
-    Alert.alert('Share Receipt', 'Image export coming soon.');
+    if (!selected) return;
+    if (!receiptRef.current) {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt unavailable', message: 'Open the transaction again and try exporting the image.', amount: formatNaira(selected.amount), reference: selected.reference });
+      return;
+    }
+
+    try {
+      const sharing = await import("expo-sharing");
+      const { captureRef } = await import("react-native-view-shot");
+
+      if (!(await sharing.isAvailableAsync())) {
+        setReceiptResult({ visible: true, type: 'failed', title: 'Sharing unavailable', message: 'Your device cannot share receipt images right now.', amount: formatNaira(selected.amount), reference: selected.reference });
+        return;
+      }
+
+      const uri = await captureRef(receiptRef, { format: "png", quality: 1 });
+      await sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Share receipt image" });
+      setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The receipt image is ready to share.', amount: formatNaira(selected.amount), reference: selected.reference });
+    } catch {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt export failed', message: 'Unable to create the receipt image on this device.', amount: formatNaira(selected.amount), reference: selected.reference });
+    }
   };
 
   const handleSharePdf = async () => {
     if (!selected) return;
-    const html = `
-      <html><body style="font-family:sans-serif;padding:32px;color:#111;">
-        <h2 style="margin-bottom:4px;">${selected.description}</h2>
-        <p style="color:#666;margin-top:0;">${titleize(selected.category)} &bull; ${formatTxnDate(selected.createdAt)}</p>
-        <hr/>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:8px 0;color:#666;">Reference</td><td style="text-align:right;">${selected.reference}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;">Status</td><td style="text-align:right;">${selected.status}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;">Amount</td><td style="text-align:right;font-weight:bold;">${selected.type === 'CREDIT' ? '+' : '-'}${formatNaira(selected.amount)}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;">Type</td><td style="text-align:right;">${selected.type}</td></tr>
-        </table>
-        <hr/>
-        <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px;">Generated by Percel</p>
-      </body></html>
-    `;
     try {
+      const Print = await import("expo-print");
+      const Sharing = await import("expo-sharing");
+      const html = `
+        <html><body style="font-family:sans-serif;padding:32px;color:#111;">
+          <h2 style="margin-bottom:4px;">${selected.description}</h2>
+          <p style="color:#666;margin-top:0;">${titleize(selected.category)} &bull; ${formatTxnDate(selected.createdAt)}</p>
+          <hr/>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px 0;color:#666;">Reference</td><td style="text-align:right;">${selected.reference}</td></tr>
+            <tr><td style="padding:8px 0;color:#666;">Status</td><td style="text-align:right;">${selected.status}</td></tr>
+            <tr><td style="padding:8px 0;color:#666;">Amount</td><td style="text-align:right;font-weight:bold;">${selected.type === "CREDIT" ? "+" : "-"}${formatNaira(selected.amount)}</td></tr>
+            <tr><td style="padding:8px 0;color:#666;">Type</td><td style="text-align:right;">${selected.type}</td></tr>
+          </table>
+          <hr/>
+          <p style="font-size:12px;color:#aaa;text-align:center;margin-top:24px;">Generated by Percel</p>
+        </body></html>
+      `;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: '.pdf' });
+        await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: ".pdf" });
+        setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The PDF receipt is ready to share.', amount: formatNaira(selected.amount), reference: selected.reference });
       } else {
-        Alert.alert('Sharing unavailable', 'PDF was saved to: ' + uri);
+        setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The PDF receipt was saved to your device.', amount: formatNaira(selected.amount), reference: selected.reference });
       }
-    } catch (e) {
-      Alert.alert('Export failed', 'Could not generate PDF receipt.');
+    } catch {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt export failed', message: 'Unable to create the receipt PDF on this device.', amount: formatNaira(selected.amount), reference: selected.reference });
     }
   };
 
-  return (
-    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+ return (
+  <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+    
+    {/* 🌟 FIX 1: Wrap header in a non-flexible container so it doesn't crush the list */}
+    <View style={{ flexGrow: 0, flexShrink: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.headerContent}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <ChevronLeft size={20} color={palette.text} />
           </Pressable>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: palette.primary }]}>Ledger</Text>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Ledger history</Text>
           <Text style={[styles.title, { color: palette.text }]}>Every wallet movement in one searchable list.</Text>
         </View>
 
@@ -147,51 +176,55 @@ export default function TransactionsScreen() {
           })}
         </ScrollView>
       </ScrollView>
+    </View>
 
-      {/* List card fills remaining space via flex: 1 */}
-      <View style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        {query.isLoading ? (
-          <StateCard loading title="Loading transactions" description="We're fetching your latest activity and payment history." icon={<Clock3 size={24} color={palette.textSecondary} />} />
-        ) : query.isError ? (
-          <StateCard
-            title="Could not load transactions"
-            description="Check your connection and try again."
-            icon={<TriangleAlert size={24} color={palette.textSecondary} />}
-            actionLabel="Retry"
-            onActionPress={() => void query.refetch()}
-          />
-        ) : visibleTransactions.length ? (
-          <FlashList
-            data={visibleTransactions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <TransactionRow item={item} palette={palette} onPress={() => setSelectedId(item.id)} />}
+    {/* 🌟 FIX 2: List card takes up all remaining space cleanly */}
+    <View style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border, flex: 1 }]}>
+      {query.isLoading ? (
+        <StateCard loading title="Loading transactions" description="We're fetching your latest activity and payment history." icon={<Clock3 size={24} color={palette.textSecondary} />} />
+      ) : query.isError ? (
+        <StateCard
+          title="Could not load transactions"
+          description="Check your connection and try again."
+          icon={<TriangleAlert size={24} color={palette.textSecondary} />}
+          actionLabel="Retry"
+          onActionPress={() => void query.refetch()}
+        />
+      ) : visibleTransactions.length ? (
+        <FlashList
+          data={visibleTransactions}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <TransactionRow item={item} palette={palette} onPress={() => setSelectedId(item.id)} />}
+          
+          // 🌟 FIX 3: FlashList still needs this prop to size rows correctly!
+          //estimatedItemSize={76}
 
-            onEndReachedThreshold={0.4}
-            onEndReached={() => {
-              if (query.hasNextPage && !query.isFetchingNextPage) {
-                void query.fetchNextPage();
-              }
-            }}
-            refreshing={query.isRefetching}
-            onRefresh={() => query.refetch()}
-            ListFooterComponent={renderFooter}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <StateCard
-            title={search ? 'No matches' : 'No transactions yet'}
-            description={search ? 'Try a different filter or search term.' : 'Your deposits, transfers, and bill payments will appear here.'}
-            icon={<CreditCard size={24} color={palette.textSecondary} />}
-            actionLabel="Refresh"
-            onActionPress={() => void query.refetch()}
-          />
-        )}
-      </View>
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (query.hasNextPage && !query.isFetchingNextPage) {
+              void query.fetchNextPage();
+            }
+          }}
+          refreshing={query.isRefetching}
+          onRefresh={() => query.refetch()}
+          ListFooterComponent={renderFooter}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <StateCard
+          title={search ? 'No matches' : 'No transactions yet'}
+          description={search ? 'Try a different filter or search term.' : 'Your deposits, transfers, and bill payments will appear here.'}
+          icon={<CreditCard size={24} color={palette.textSecondary} />}
+          actionLabel="Refresh"
+          onActionPress={() => void query.refetch()}
+        />
+      )}
+    </View>
 
       <Modal visible={Boolean(selected)} transparent animationType="fade" onRequestClose={() => setSelectedId(null)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedId(null)} />
-          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View ref={receiptRef} collapsable={false} style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
             {selected ? (
               <>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>{selected.description}</Text>
@@ -218,6 +251,16 @@ export default function TransactionsScreen() {
           </View>
         </View>
       </Modal>
+
+      <TransactionResultModal
+        visible={Boolean(receiptResult?.visible)}
+        type={receiptResult?.type ?? 'pending'}
+        title={receiptResult?.title ?? ''}
+        message={receiptResult?.message ?? ''}
+        amount={receiptResult?.amount}
+        reference={receiptResult?.reference}
+        onClose={() => setReceiptResult(null)}
+      />
     </View>
   );
 }
@@ -279,7 +322,7 @@ const styles = StyleSheet.create({
   filters: { gap: 10, paddingVertical: 2 },
   filterChip: { paddingHorizontal: 16, minHeight: 42, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   filterText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  listCard: { flex: 1, marginHorizontal: Spacing.lg, marginBottom: Spacing.lg, borderRadius: 28, borderWidth: 1, overflow: 'hidden' },
+  listCard: { flex: 1, marginHorizontal: Spacing.lg, marginBottom: Spacing.lg, borderRadius: 28, borderWidth: 1, overflow: 'hidden'},
   footer: { paddingVertical: Spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
   rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

@@ -2,27 +2,26 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { useRouter } from 'expo-router';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Input } from '@/components/ui/Input';
 import { KeyboardView } from '@/components/ui/KeyboardView';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useLogout } from '@/hooks/useAuth';
 import { useResetTransferPin, useSetTransferPin, useWallet } from '@/hooks/useWallet';
 import { useAuthStore } from '@/store/auth.store';
 import { useColorScheme } from '@/components/useColorScheme';
+
 import { usePreferencesStore } from '@/store/preferences.store';
 import { ChevronLeft } from 'lucide-react-native';
 
 const pinPattern = /^\d{4,6}$/;
 
 export default function ProfileSecurityScreen() {
-  const router = useRouter();
+  const back = useSafeBack("/profile");
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const user = useAuthStore((state) => state.user);
-  const logout = useLogout();
   const mutation = useSetTransferPin();
   const resetMutation = useResetTransferPin();
   const walletQuery = useWallet();
@@ -96,7 +95,7 @@ export default function ProfileSecurityScreen() {
       <View style={[styles.screen, { backgroundColor: palette.bg }]}>
         <View style={styles.content}>
       <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => back()}>
           <ChevronLeft size={18} color={palette.text} />
         </Pressable>
         <View style={styles.headerSpacer} />
@@ -214,6 +213,4 @@ const styles = StyleSheet.create({
   toggleCopy: { flex: 1, gap: 6 },
   helperHint: { fontSize: Typography.sm, fontFamily: Typography.family.semibold },
   logoutButton: { minHeight: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  logoutText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  pressed: { opacity: 0.92 },
 });

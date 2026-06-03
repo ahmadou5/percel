@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, CreditCard, History, LogOut, Shield, User, Bell, Users, BadgeCheck, CircleHelp, ChevronLeft } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const back = useSafeBack("/profile");
   const logout = useLogout();
   const [logoutVisible, setLogoutVisible] = useState(false);
 
@@ -50,7 +52,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+        <Pressable onPress={() => back()} style={[styles.backButton, {  borderColor: palette.border }]}>
          <ChevronLeft size={20} color={palette.text} fill={"none"}  />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>Settings</Text>

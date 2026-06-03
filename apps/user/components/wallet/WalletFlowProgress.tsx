@@ -1,16 +1,19 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef } from "react";
+import { Animated, BackHandler, Pressable, StyleSheet, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
+import { useColorScheme } from "@/components/useColorScheme";
+import { Colors } from "@/constants/palette";
+
 
 type FlowProgressDotsProps = {
   currentStep: number;
   totalSteps: number;
+  onStepPress?: (step: number) => void;
 };
 
-export function FlowProgressDots({ currentStep, totalSteps }: FlowProgressDotsProps) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
+export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowProgressDotsProps) {
+  const scheme = (useColorScheme() ?? "light") as keyof typeof Colors;
   const palette = Colors[scheme];
 
   return (
@@ -31,10 +34,15 @@ export function FlowProgressDots({ currentStep, totalSteps }: FlowProgressDotsPr
           const step = index + 1;
           const active = step === currentStep;
           const complete = step < currentStep;
+          const interactive = Boolean(onStepPress) && (active || complete);
 
           return (
-            <View
+            <Pressable
               key={step}
+              disabled={!interactive}
+              accessibilityRole={interactive ? "button" : "text"}
+              accessibilityLabel={`Step ${step}${complete ? ", completed" : active ? ", current" : ""}`}
+              onPress={() => onStepPress?.(step)}
               style={[
                 styles.dot,
                 {
@@ -49,6 +57,20 @@ export function FlowProgressDots({ currentStep, totalSteps }: FlowProgressDotsPr
         })}
       </View>
     </View>
+  );
+}
+
+export function useStepBackHandler(step: number, onPreviousStep: () => void) {
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (step <= 1) return false;
+        onPreviousStep();
+        return true;
+      });
+
+      return () => subscription.remove();
+    }, [onPreviousStep, step]),
   );
 }
 
@@ -84,15 +106,15 @@ const styles = StyleSheet.create({
   track: {
     height: 4,
     borderRadius: 999,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   fill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 999,
   },
   dots: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: 8,
   },
   dot: {

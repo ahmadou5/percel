@@ -17,9 +17,10 @@ import {
 } from '@/lib/wallet';
 
 type TopUpResult = { authorizationUrl: string; reference: string };
+type TopUpFlowResult = TopUpResult & { authResult: { type: string; url?: string } };
 type TransferResult = { reference: string; amount: number; toPhone: string };
 type ResolveBankResult = { bankCode: string; bankName: string; accountNumber: string; accountName: string };
-type ResolveTransferRecipientResult = { phone: string; fullName: string; walletId: string };
+type ResolveTransferRecipientResult = { phone: string; fullName: string; walletId: string; avatarUrl?: string | null };
 type ResolveAirtimeProviderResult = { phone: string; serviceID: string; providerName: string; confidence: 'high' | 'low' };
 type BankTransferResult = { reference: string; amount: number; bankName: string; accountName: string; accountNumber: string; recipientCode: string; status: string };
 type SetTransferPinResult = { updated: boolean };
@@ -76,7 +77,7 @@ function invalidateWallet(queryClient: ReturnType<typeof useQueryClient>) {
   ]);
 }
 
-export function useTopUp(options?: MutationOptions<TopUpResponse, { amount: number; callbackUrl?: string }>) {
+export function useTopUp(options?: MutationOptions<TopUpFlowResult, { amount: number; callbackUrl?: string }>) {
   const queryClient = useQueryClient();
   return useMutation({
     ...options,
@@ -84,8 +85,19 @@ export function useTopUp(options?: MutationOptions<TopUpResponse, { amount: numb
       Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.topup_requested', level: 'info', data: { amount } });
       const response = await http.post<TopUpResponse>('/api/v1/wallet/topup', { amount, callbackUrl: callbackUrl ?? Linking.createURL('/wallet') });
       const authorizationUrl = response.data.data.authorizationUrl;
-      if (authorizationUrl) await WebBrowser.openAuthSessionAsync(authorizationUrl, callbackUrl ?? Linking.createURL('/wallet'));
-      return response.data;
+      if (!authorizationUrl) {
+        throw new Error('Paystack checkout URL was not returned.');
+      }
+
+      const authResult = await WebBrowser.openAuthSessionAsync(authorizationUrl, callbackUrl ?? Linking.createURL('/wallet'));
+      return {
+        authorizationUrl,
+        reference: response.data.data.reference,
+        authResult: {
+          type: authResult.type,
+          url: 'url' in authResult ? authResult.url : undefined,
+        },
+      };
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);

@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrderDetail } from '@/hooks/useOrder';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 function titleize(value: string) {
   return value.toLowerCase().split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
@@ -19,6 +20,7 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const back = useSafeBack("/orders");
   const query = useOrderDetail(id);
   const order = query.data;
 
@@ -36,7 +38,7 @@ export default function OrderDetailScreen() {
       <View style={[styles.center, { backgroundColor: palette.bg }]}> 
         <Text style={[styles.loading, { color: palette.text }]}>Order not found</Text>
         <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>We couldn’t load that delivery right now.</Text>
-        <Pressable onPress={() => router.back()} style={[styles.retryButton, { backgroundColor: palette.primary }]}> 
+        <Pressable onPress={() => back()} style={[styles.retryButton, { backgroundColor: palette.primary }]}> 
           <Text style={[styles.retryText, { color: palette.card }]}>Go back</Text>
         </Pressable>
       </View>
@@ -49,7 +51,7 @@ export default function OrderDetailScreen() {
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={[styles.heroCard, { backgroundColor: palette.primaryDark, borderColor: 'rgba(255,255,255,0.10)' }]}> 
         <View style={styles.heroTop}>
-          <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.10)' }]}>
+          <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.10)' }]}>
             <ChevronRight size={18} color={palette.card} style={{ transform: [{ rotate: '180deg' }] }} />
           </Pressable>
           <View style={styles.heroBadge}>

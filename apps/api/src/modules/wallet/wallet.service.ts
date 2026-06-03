@@ -7,7 +7,6 @@ import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { env } from '../../config/env.js';
 import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
 import {
-  createCustomer,
   createDedicatedNUBAN,
   createTransferRecipient,
   getBank,
@@ -128,50 +127,10 @@ export class WalletService {
     wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
     user: { email: string; fullName: string; phone: string; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
   ) {
-    if (wallet.nuban && wallet.bankName) {
-      return { ...wallet, kycComplete: true };
-    }
-
     const kycComplete = isKycComplete(user);
-    if (!kycComplete) {
-      return { ...wallet, kycComplete: false };
-    }
+    return { ...wallet, kycComplete };
 
-    try {
-      const { firstName, lastName } = splitFullName(user.fullName);
-      const customer = await createCustomer({
-        email: user.email,
-        firstName,
-        lastName,
-        phone: user.phone,
-      });
-      const preferredBank = 'wema-bank';
-      const account = await createDedicatedNUBAN(customer.customer_code, preferredBank);
-      const bankName = account.bank?.name ?? 'Percel Wallet';
-      const bankCode = account.bank?.slug ?? preferredBank;
-
-      await this.prisma.wallet.update({
-        where: { id: wallet.id },
-        data: {
-          nuban: account.account_number,
-          bankName,
-          bankCode,
-        },
-      });
-
-      return {
-        id: wallet.id,
-        nuban: account.account_number,
-        bankName,
-        bankCode,
-        kycComplete: true,
-      };
-    } catch (error) {
-      this.logger.warn({ walletId: wallet.id, error }, 'wallet.deposit_account.ensure_failed');
-      return { ...wallet, kycComplete: kycComplete };
-    }
   }
-
   async getWallet(userId: string) {
     const [wallet, user, profile] = await Promise.all([
       this.prisma.wallet.findUnique({
@@ -346,6 +305,78 @@ export class WalletService {
     return { verified: true };
   }
 
+  private async createDedicatedVirtualAccount(customerCode: string) {
+    const customer = await this.prisma.user.findUnique({
+      where: { paystackCustomerCode: customerCode },
+      select: { id: true, fullName: true, wallet: { select: { id: true, nuban: true, bankName: true, bankCode: true } } },
+    });
+
+    if (!customer?.wallet) return;
+    if (customer.wallet.nuban && customer.wallet.bankName) {
+      await this.prisma.user.update({ where: { id: customer.id }, data: { status: 'ACTIVE', bvnVerified: true } });
+      return;
+    }
+
+    const account = await createDedicatedNUBAN(customerCode);
+    const bankName = account.bank?.name ?? 'Percel Wallet';
+    const bankCode = account.bank?.slug ?? null;
+
+    await this.prisma.$transaction(async (trx) => {
+      await trx.wallet.update({
+        where: { id: customer.wallet.id },
+        data: {
+          nuban: account.account_number,
+          bankName,
+          bankCode,
+        },
+      });
+
+      await trx.user.update({
+        where: { id: customer.id },
+        data: { status: 'ACTIVE', bvnVerified: true },
+      });
+    });
+
+    await deleteCache(this.app.redis, 'cache:wallet:balance:' + customer.wallet.id);
+
+    try {
+      emitToUser(this.app, customer.id, 'wallet_updated', { walletId: customer.wallet.id });
+    } catch (err) {
+      this.logger.warn({ err, userId: customer.id }, 'Failed to emit wallet_updated socket event');
+    }
+
+    await this.createNotification(
+      customer.id,
+      PrismaNotificationType.SYSTEM,
+      'Verification approved',
+      'Your bank verification is complete. Your dedicated account is ready.',
+      { customerCode },
+    );
+  }
+
+  private async notifyCustomerVerificationFailed(customerCode: string, reason: string) {
+    const customer = await this.prisma.user.findUnique({
+      where: { paystackCustomerCode: customerCode },
+      select: { id: true },
+    });
+
+    if (!customer) return;
+
+    await this.prisma.user.update({
+      where: { id: customer.id },
+      data: { status: 'PENDING_VERIFICATION', bvnVerified: false },
+    });
+
+    await this.createNotification(
+      customer.id,
+      PrismaNotificationType.SYSTEM,
+      'Verification failed',
+      reason,
+      { customerCode, reason },
+    );
+  }
+
+
   async handlePaystackWebhook(payload: Record<string, unknown>, signature?: string) {
     const secret = env.PAYSTACK_SECRET_KEY;
     const computed = crypto.createHmac('sha512', secret).update(JSON.stringify(payload)).digest('hex');
@@ -356,6 +387,23 @@ export class WalletService {
     const event = String(payload.event ?? '');
     const data = (payload.data ?? {}) as Record<string, unknown>;
     const reference = String(data.reference ?? '');
+
+    if (event === 'customeridentification.success') {
+      const customerCode = String(data.customer_code ?? '');
+      if (customerCode) {
+        await this.createDedicatedVirtualAccount(customerCode);
+      }
+      return { acknowledged: true };
+    }
+
+    if (event === 'customeridentification.failed') {
+      const customerCode = String(data.customer_code ?? '');
+      const reason = String(data.reason ?? 'Account could not be resolved. Please try again.');
+      if (customerCode) {
+        await this.notifyCustomerVerificationFailed(customerCode, reason);
+      }
+      return { acknowledged: true };
+    }
 
     if (!reference) return { acknowledged: true };
 
@@ -529,7 +577,7 @@ export class WalletService {
     const normalizedPhone = normalizeNigerianPhone(phone);
     const recipient = await this.prisma.user.findUnique({
       where: { phone: normalizedPhone },
-      select: { id: true, fullName: true, phone: true, wallet: { select: { id: true } } },
+      select: { id: true, fullName: true, phone: true, avatarUrl: true, wallet: { select: { id: true } } },
     });
 
     if (!recipient?.wallet) throw new NotFoundError('Recipient not found');
@@ -538,6 +586,7 @@ export class WalletService {
       phone: recipient.phone,
       fullName: recipient.fullName,
       walletId: recipient.wallet.id,
+      avatarUrl: recipient.avatarUrl,
     };
   }
 

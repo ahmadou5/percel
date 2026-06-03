@@ -13,6 +13,7 @@ import { subscribeToDriverLocation, subscribeToOrderUpdates } from '@/lib/socket
 
 export default function TrackingScreen() {
   const router = useRouter();
+  const back = useSafeBack("/orders");
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderQuery = useOrderDetail(id);
@@ -59,7 +60,7 @@ export default function TrackingScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
+      <Pressable onPress={() => back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
         <Text style={{ color: Colors.light.text, fontSize: 14, fontWeight: Typography.bold }}>Back</Text>
       </Pressable>
 

@@ -1,15 +1,16 @@
 import { useRouter } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { AmountInput } from '@/components/wallet/AmountInput';
 import { normalizeNigerianPhone } from '@/components/wallet/WalletFlow';
-import { FlowProgressDots, useSlideStepTransition } from '@/components/wallet/WalletFlowProgress';
+import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -23,6 +24,7 @@ import {
   useWallet,
 } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { TransactionResultModal } from '@/components/TransactionResultModal';
 
 const modes = [
   { key: 'BANK', label: 'Bank transfer', description: 'Send to a bank account' },
@@ -49,6 +51,7 @@ type RecipientValidation = {
   phone: string;
   fullName: string;
   walletId: string;
+  avatarUrl?: string | null;
 };
 
 function modeLabel(mode: Mode) {
@@ -60,6 +63,33 @@ function compactPhone(value: string) {
   return normalized || 'Recipient will appear here';
 }
 
+function formatNigerianPhoneDisplay(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '—';
+
+  const localDigits = digits.startsWith('234') && digits.length >= 13
+    ? digits.slice(3)
+    : digits.startsWith('0') && digits.length >= 11
+      ? digits.slice(1)
+      : digits.length === 10
+        ? digits
+        : digits.slice(-10);
+
+  if (localDigits.length < 10) return localDigits;
+  return `${localDigits.slice(0, 3)} ${localDigits.slice(3, 6)} ${localDigits.slice(6, 10)}`;
+}
+
+function initialsFromName(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export default function TransferScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
@@ -69,7 +99,7 @@ export default function TransferScreen() {
   const banksQuery = useBanks();
   const bankTransfer = useBankTransfer();
   const interAppTransfer = useTransfer();
-  const resolveRecipient = useResolveTransferRecipient();
+  const { mutateAsync: resolveRecipientAsync } = useResolveTransferRecipient();
   const pinVerify = useVerifyTransferPin();
   const [mode, setMode] = useState<Mode>('BANK');
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -81,13 +111,34 @@ export default function TransferScreen() {
   const [recipientValidation, setRecipientValidation] = useState<RecipientValidation | null>(null);
   const [recipientStatus, setRecipientStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [recipientError, setRecipientError] = useState('');
-  const [pinStatus, setPinStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [pinStatus, setPinStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [pinError, setPinError] = useState('');
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [failureModalOpen, setFailureModalOpen] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transferReceipt, setTransferReceipt] = useState<{
+    reference: string;
+    amount: number;
+    mode: Mode;
+    recipientName: string;
+    recipientAvatarUrl?: string | null;
+    recipientPhone?: string;
+    bankName?: string;
+    accountName?: string;
+    accountNumber?: string;
+  } | null>(null);
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptResult, setReceiptResult] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string }>(null);
+  const lookupAttemptRef = useRef(0);
+  const submissionAttemptRef = useRef(false);
   const accountDigits = accountNumber.replace(/\D/g, '');
   const bankLookup = useAccountLookup(accountDigits, bankCode);
   const { opacity, translateX } = useSlideStepTransition(step);
+  const back = useSafeBack("/wallet");
+  useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
   const amountValue = Number(amount.replace(/,/g, ''));
   const normalizedPhone = normalizeNigerianPhone(phone);
@@ -105,14 +156,8 @@ export default function TransferScreen() {
       : null;
   const recipientReady = mode === 'BANK' ? Boolean(bankValidation) : Boolean(recipientValidation);
   const amountValid = amountValue > 0 && (!wallet || amountValue <= wallet.balance);
-  const pinReady = /^\d{4,6}$/.test(pin.trim()) && pinStatus === 'success';
   const canContinueToReview = recipientReady && amountValid;
-  const canSend =
-    recipientReady &&
-    amountValid &&
-    pinReady &&
-    !bankTransfer.isPending &&
-    !interAppTransfer.isPending;
+  const transferPending = pinStatus === 'loading' || bankTransfer.isPending || interAppTransfer.isPending || receiptBusy;
 
   useEffect(() => {
     void ScreenCapture.preventScreenCaptureAsync();
@@ -127,6 +172,11 @@ export default function TransferScreen() {
     setPin('');
     setPinStatus('idle');
     setPinError('');
+    setPinModalOpen(false);
+    setSuccessModalOpen(false);
+    setFailureModalOpen(false);
+    setTransferReceipt(null);
+    setTransferError('');
     setRecipientValidation(null);
     setRecipientStatus('idle');
     setRecipientError('');
@@ -149,40 +199,58 @@ export default function TransferScreen() {
 
   useEffect(() => {
     if (mode !== 'PHONE') return;
+
     const digits = normalizedPhone.replace(/\D/g, '');
     if (digits.length < 10) {
+      lookupAttemptRef.current += 1;
       setRecipientValidation(null);
       setRecipientStatus('idle');
       setRecipientError('');
       return;
     }
 
+    const requestId = ++lookupAttemptRef.current;
     const timer = setTimeout(() => {
       setRecipientStatus('loading');
-      void resolveRecipient.mutateAsync({ phone: normalizedPhone }).then((response) => {
-        const result = response.data;
-        setRecipientValidation({ phone: result.phone, fullName: result.fullName, walletId: result.walletId });
-        setRecipientStatus('success');
-        setRecipientError('');
-      }).catch((error) => {
-        setRecipientValidation(null);
-        setRecipientStatus('error');
-        setRecipientError(error instanceof Error ? error.message : 'We could not find that recipient on Percel.');
-      });
+      setRecipientError('');
+      void resolveRecipientAsync({ phone: normalizedPhone })
+        .then((response) => {
+          if (requestId !== lookupAttemptRef.current) return;
+          const result = response.data;
+          setRecipientValidation({ phone: result.phone, fullName: result.fullName, walletId: result.walletId, avatarUrl: result.avatarUrl ?? null });
+          setRecipientStatus('success');
+          setRecipientError('');
+        })
+        .catch((error) => {
+          if (requestId !== lookupAttemptRef.current) return;
+          setRecipientValidation(null);
+          setRecipientStatus('error');
+          setRecipientError(error instanceof Error ? error.message : 'We could not find that recipient on Percel.');
+        });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [mode, normalizedPhone, resolveRecipient]);
+  }, [mode, normalizedPhone, resolveRecipientAsync]);
 
   const headerBack = () => {
     if (step > 1) {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    router.back();
+    back();
   };
 
-  const handleVerifyPin = async () => {
+  const handleOpenPinModal = () => {
+    if (!canContinueToReview || transferPending) return;
+    setPin('');
+    setPinStatus('idle');
+    setPinError('');
+    setPinModalOpen(true);
+  };
+
+  const handleSubmitTransfer = async () => {
+    if (submissionAttemptRef.current || transferPending) return;
+
     const trimmed = pin.trim();
     if (!/^\d{4,6}$/.test(trimmed)) {
       setPinStatus('error');
@@ -190,48 +258,125 @@ export default function TransferScreen() {
       return;
     }
 
+    submissionAttemptRef.current = true;
     setPinStatus('loading');
     setPinError('');
     try {
-      const result = await pinVerify.mutateAsync({ pin: trimmed });
-      if (!result.data.verified) {
-        setPinStatus('error');
-        setPinError('That PIN is not valid.');
-        return;
+      const verification = await pinVerify.mutateAsync({ pin: trimmed });
+      if (!verification.data.verified) {
+        throw new Error('That PIN is not valid.');
       }
-      setPinStatus('success');
-    } catch (error) {
-      setPinStatus('error');
-      setPinError(error instanceof Error ? error.message : 'Unable to verify the PIN.');
-    }
-  };
 
-  const handleSend = async () => {
-    if (!canSend) return;
-
-    try {
       if (mode === 'BANK') {
-        if (!bankValidation) return;
-        await bankTransfer.mutateAsync({
+        if (!bankValidation) throw new Error('Bank details are unavailable.');
+        const response = await bankTransfer.mutateAsync({
           bankCode,
           accountNumber: bankValidation.accountNumber,
           amount: amountValue,
-          pin: pin.trim(),
+          pin: trimmed,
         });
-        Alert.alert('Transfer sent', `${formatNaira(amountValue)} sent to ${bankValidation.accountName}.`);
+        const result = response.data;
+        setTransferReceipt({
+          reference: result.reference,
+          amount: result.amount,
+          mode,
+          recipientName: result.accountName,
+          bankName: result.bankName,
+          accountName: result.accountName,
+          accountNumber: result.accountNumber,
+        });
       } else {
-        if (!recipientValidation) return;
-        await interAppTransfer.mutateAsync({
+        if (!recipientValidation) throw new Error('Recipient details are unavailable.');
+        const response = await interAppTransfer.mutateAsync({
           toPhone: recipientValidation.phone,
           amount: amountValue,
-          pin: pin.trim(),
+          pin: trimmed,
         });
-        Alert.alert('Transfer sent', `${formatNaira(amountValue)} sent to ${recipientValidation.fullName}.`);
+        const result = response.data;
+        setTransferReceipt({
+          reference: result.reference,
+          amount: result.amount,
+          mode,
+          recipientName: recipientValidation.fullName,
+          recipientAvatarUrl: recipientValidation.avatarUrl ?? null,
+          recipientPhone: result.toPhone,
+        });
       }
 
-      router.back();
+      setPinModalOpen(false);
+      setFailureModalOpen(false);
+      setTransferError('');
+      setSuccessModalOpen(true);
+      setPin('');
+      setPinStatus('idle');
     } catch (error) {
-      Alert.alert('Transfer failed', error instanceof Error ? error.message : 'Unable to complete transfer.');
+      const reason = error instanceof Error ? error.message : 'Unable to complete transfer.';
+      setTransferError(reason);
+      setPinError(reason);
+      setPinStatus('error');
+      setPinModalOpen(false);
+      setSuccessModalOpen(false);
+      setFailureModalOpen(true);
+    } finally {
+      submissionAttemptRef.current = false;
+    }
+  };
+
+  const handleRetryTransfer = () => {
+    setFailureModalOpen(false);
+    setTransferError('');
+    setPin('');
+    setPinStatus('idle');
+    setPinError('');
+    setPinModalOpen(true);
+  };
+
+  const handleDismissFailure = () => {
+    setFailureModalOpen(false);
+    setTransferError('');
+  };
+
+  const handleDismissSuccess = () => {
+    setSuccessModalOpen(false);
+    setTransferReceipt(null);
+    back();
+  };
+
+  const handleGenerateReceipt = async () => {
+    if (!transferReceipt) return;
+    setReceiptBusy(true);
+    try {
+      const Print = await import('expo-print');
+      const Sharing = await import('expo-sharing');
+      const recipientPhone = transferReceipt.recipientPhone ? formatNigerianPhoneDisplay(transferReceipt.recipientPhone) : '—';
+      const html = `
+        <html>
+          <body style="font-family:sans-serif;padding:32px;color:#111827;">
+            <h2 style="margin:0 0 8px 0;">Percel transfer receipt</h2>
+            <p style="margin:0 0 24px 0;color:#6b7280;">${transferReceipt.mode === 'BANK' ? 'Bank transfer' : 'Inter-app transfer'}</p>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:8px 0;color:#6b7280;">Recipient</td><td style="text-align:right;">${transferReceipt.recipientName}</td></tr>
+              <tr><td style="padding:8px 0;color:#6b7280;">Phone</td><td style="text-align:right;">${recipientPhone}</td></tr>
+              ${transferReceipt.accountNumber ? `<tr><td style="padding:8px 0;color:#6b7280;">Account number</td><td style="text-align:right;">${transferReceipt.accountNumber}</td></tr>` : ''}
+              ${transferReceipt.bankName ? `<tr><td style="padding:8px 0;color:#6b7280;">Bank</td><td style="text-align:right;">${transferReceipt.bankName}</td></tr>` : ''}
+              <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="text-align:right;font-weight:bold;">${formatNaira(transferReceipt.amount)}</td></tr>
+              <tr><td style="padding:8px 0;color:#6b7280;">Reference</td><td style="text-align:right;">${transferReceipt.reference}</td></tr>
+            </table>
+            <p style="margin-top:24px;color:#9ca3af;font-size:12px;">Generated by Percel</p>
+          </body>
+        </html>
+      `;
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: '.pdf' });
+        setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The transfer receipt is ready to share.', amount: formatNaira(transferReceipt.amount), reference: transferReceipt.reference });
+      } else {
+        setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The transfer receipt was saved to your device.', amount: formatNaira(transferReceipt.amount), reference: transferReceipt.reference });
+      }
+    } catch (error) {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt export failed', message: error instanceof Error ? error.message : 'Unable to create the receipt PDF on this device.', amount: formatNaira(transferReceipt.amount), reference: transferReceipt.reference });
+    } finally {
+      setReceiptBusy(false);
     }
   };
 
@@ -240,6 +385,11 @@ export default function TransferScreen() {
       ? `${bankValidation.accountName} • ${bankValidation.bankName}`
       : selectedBank.name
     : recipientValidation?.fullName ?? compactPhone(phone);
+
+  const reviewRecipientAvatarUrl = mode === 'PHONE' ? recipientValidation?.avatarUrl ?? null : null;
+  const reviewRecipientPhone = mode === 'PHONE'
+    ? formatNigerianPhoneDisplay(recipientValidation?.phone ?? normalizedPhone)
+    : accountDigits || 'Account pending';
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -266,7 +416,7 @@ export default function TransferScreen() {
           </View>
         </View>
         <Text style={styles.heroBody}>{mode === 'BANK' ? 'Resolve the bank account first, then enter the amount, then review and confirm.' : 'Resolve the recipient first, then enter the amount, then review and confirm.'}</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} />
+        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
       <View style={styles.modeRow}>
@@ -429,7 +579,7 @@ export default function TransferScreen() {
             <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
               <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
               <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{currentRecipient}</Text>
-              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? accountDigits || 'Account pending' : compactPhone(phone)}</Text>
+              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? accountDigits || 'Account pending' : formatNigerianPhoneDisplay(normalizedPhone)}</Text>
             </View>
 
             <AmountInput
@@ -460,64 +610,45 @@ export default function TransferScreen() {
         ) : null}
 
         {step === 3 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
             <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: pinStatus === 'success' ? 'rgba(48,209,88,0.12)' : 'rgba(10,132,255,0.08)', borderColor: pinStatus === 'success' ? palette.success : palette.primary }]}>
-                <CheckCircle2 size={16} color={pinStatus === 'success' ? palette.success : palette.primary} />
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}> 
+                <CheckCircle2 size={16} color={palette.success} />
               </View>
               <View style={styles.sectionCopy}>
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the recipient, verify your PIN, then send.</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the transfer details, then enter your PIN in the modal.</Text>
               </View>
             </View>
 
-            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Recipient</Text>
-              <Text style={[styles.reviewTitle, { color: palette.text }]}>{currentRecipient}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? bankValidation?.accountNumber ?? accountDigits : recipientValidation?.phone ?? compactPhone(phone)}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{formatNaira(amountValue)}</Text>
-            </View>
-
-            <Input
-              label="Transfer PIN"
-              value={pin}
-              onChangeText={(text) => {
-                setPin(text.replace(/\s/g, ''));
-                setPinStatus('idle');
-                setPinError('');
-              }}
-              placeholder="1234"
-              keyboardType="number-pad"
-              secureTextEntry
-              secureToggle
-              helperText="Use the PIN you set in Profile."
-            />
-
-            <Pressable
-              onPress={() => void handleVerifyPin()}
-              disabled={pinVerify.isPending || !/^\d{4,6}$/.test(pin.trim())}
-              style={[styles.secondaryAction, { backgroundColor: palette.primary, opacity: /^\d{4,6}$/.test(pin.trim()) ? 1 : 0.45 }]}
-            >
-              {pinStatus === 'loading' ? <ActivityIndicator color={palette.card} /> : <SearchCheck size={18} color={palette.card} />}
-              <Text style={styles.secondaryActionText}>{pinStatus === 'success' ? 'PIN verified' : 'Verify PIN'}</Text>
-            </Pressable>
-            {pinError ? <Text style={[styles.errorText, { color: palette.error }]}>{pinError}</Text> : null}
-            {pinStatus === 'success' ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                <CheckCircle2 size={18} color={palette.success} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.success }]}>PIN verified</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>You can now send the transfer.</Text>
+            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
+              <View style={styles.reviewRecipientRow}>
+                <View style={[styles.reviewAvatar, { backgroundColor: mode === 'PHONE' ? palette.primary : palette.primaryDark }]}> 
+                  {mode === 'PHONE' && reviewRecipientAvatarUrl ? (
+                    <Image source={{ uri: reviewRecipientAvatarUrl }} style={styles.reviewAvatarImage} />
+                  ) : (
+                    <Text style={styles.reviewAvatarText}>{mode === 'PHONE' ? initialsFromName(currentRecipient) : '₦'}</Text>
+                  )}
+                </View>
+                <View style={styles.reviewRecipientCopy}>
+                  <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Recipient</Text>
+                  <Text style={[styles.reviewTitle, { color: palette.text }]}>{currentRecipient}</Text>
+                  <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? `${bankValidation?.bankName ?? selectedBank.name} • ${reviewRecipientPhone}` : reviewRecipientPhone}</Text>
                 </View>
               </View>
-            ) : null}
+
+              <View style={[styles.reviewAmountBox, { borderColor: palette.border }]}> 
+                <Text style={[styles.reviewAmountLabel, { color: palette.textSecondary }]}>Amount to receive</Text>
+                <Text style={[styles.reviewAmountValue, { color: palette.text }]}>{formatNaira(amountValue)}</Text>
+              </View>
+            </View>
 
             <Pressable
-              onPress={() => void handleSend()}
-              disabled={!canSend}
-              style={[styles.primaryAction, { backgroundColor: canSend ? palette.primary : palette.border }]}
+              onPress={handleOpenPinModal}
+              disabled={!canContinueToReview || transferPending}
+              style={[styles.primaryAction, { backgroundColor: canContinueToReview && !transferPending ? palette.primary : palette.border }]}
             >
-              <Text style={styles.primaryActionText}>{bankTransfer.isPending || interAppTransfer.isPending ? 'Sending…' : 'Send money'}</Text>
+              <Text style={styles.primaryActionText}>{transferPending ? 'Preparing…' : 'Send money'}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -585,6 +716,142 @@ export default function TransferScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={pinModalOpen} transparent animationType="fade" onRequestClose={() => {
+        if (transferPending) return;
+        setPinModalOpen(false);
+        setPinStatus('idle');
+        setPinError('');
+      }}>
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              if (transferPending) return;
+              setPinModalOpen(false);
+              setPinStatus('idle');
+              setPinError('');
+            }}
+          />
+          <View style={[styles.pinModalCard, { backgroundColor: palette.card, borderColor: palette.border }] }>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Enter transfer PIN</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>You are about to send {formatNaira(amountValue)}.</Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  if (transferPending) return;
+                  setPinModalOpen(false);
+                  setPinStatus('idle');
+                  setPinError('');
+                }}
+                style={[styles.modalClose, { backgroundColor: palette.bg }]}
+              >
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
+              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Recipient</Text>
+              <Text style={[styles.reviewTitle, { color: palette.text }]}>{currentRecipient}</Text>
+              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{mode === 'BANK' ? `${bankValidation?.bankName ?? selectedBank.name} • ${reviewRecipientPhone}` : reviewRecipientPhone}</Text>
+              <View style={[styles.reviewAmountBox, { borderColor: palette.border }]}> 
+                <Text style={[styles.reviewAmountLabel, { color: palette.textSecondary }]}>Amount to send</Text>
+                <Text style={[styles.reviewAmountValue, { color: palette.text }]}>{formatNaira(amountValue)}</Text>
+              </View>
+            </View>
+
+            <Input
+              label="Transfer PIN"
+              value={pin}
+              onChangeText={(text) => {
+                setPin(text.replace(/\s/g, ''));
+                if (pinStatus !== 'idle') setPinStatus('idle');
+                if (pinError) setPinError('');
+              }}
+              placeholder="1234"
+              keyboardType="number-pad"
+              secureTextEntry
+              secureToggle
+              helperText="Use the PIN you set in Profile."
+            />
+
+            {pinError ? <Text style={[styles.errorText, { color: palette.error }]}>{pinError}</Text> : null}
+
+            <Pressable
+              onPress={() => void handleSubmitTransfer()}
+              disabled={transferPending || !/^\d{4,6}$/.test(pin.trim())}
+              style={[styles.secondaryAction, { backgroundColor: palette.primary, opacity: transferPending || !/^\d{4,6}$/.test(pin.trim()) ? 0.45 : 1 }]}
+            >
+              {pinStatus === 'loading' ? <ActivityIndicator color={palette.card} /> : <SearchCheck size={18} color={palette.card} />}
+              <Text style={styles.secondaryActionText}>{pinStatus === 'loading' ? 'Sending…' : 'Verify and send'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={successModalOpen && Boolean(transferReceipt)} transparent animationType="fade" onRequestClose={handleDismissSuccess}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissSuccess} />
+          <View style={[styles.resultModalCard, { backgroundColor: palette.card, borderColor: palette.border }] }>
+            <View style={[styles.resultBadge, { backgroundColor: 'rgba(48,209,88,0.12)' }]}>
+              <CheckCircle2 size={22} color={palette.success} />
+            </View>
+            <Text style={[styles.modalTitle, { color: palette.text, textAlign: 'center' }]}>Transfer complete</Text>
+            <Text style={[styles.modalSubtitle, { color: palette.textSecondary, textAlign: 'center' }]}>
+              {transferReceipt ? `${formatNaira(transferReceipt.amount)} sent to ${transferReceipt.recipientName}.` : 'Your transfer was processed successfully.'}
+            </Text>
+
+            {transferReceipt ? (
+              <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
+                <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Reference</Text>
+                <Text style={[styles.reviewTitle, { color: palette.text }]}>{transferReceipt.reference}</Text>
+                <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{transferReceipt.mode === 'BANK' ? `${transferReceipt.bankName ?? 'Bank transfer'} • ${transferReceipt.accountNumber ?? ''}` : formatNigerianPhoneDisplay(transferReceipt.recipientPhone ?? '')}</Text>
+              </View>
+            ) : null}
+
+            <Pressable onPress={() => void handleGenerateReceipt()} disabled={receiptBusy || !transferReceipt} style={[styles.primaryAction, { backgroundColor: receiptBusy || !transferReceipt ? palette.border : palette.primary }]}>
+              <Text style={styles.primaryActionText}>{receiptBusy ? 'Preparing receipt…' : 'Get Receipt'}</Text>
+            </Pressable>
+
+            <Pressable onPress={handleDismissSuccess} style={[styles.secondaryModalAction, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
+              <Text style={[styles.secondaryModalActionText, { color: palette.text }]}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={failureModalOpen} transparent animationType="fade" onRequestClose={handleDismissFailure}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissFailure} />
+          <View style={[styles.resultModalCard, { backgroundColor: palette.card, borderColor: palette.border }] }>
+            <View style={[styles.resultBadge, { backgroundColor: 'rgba(255,69,58,0.12)' }]}>
+              <ShieldCheck size={22} color={palette.error} />
+            </View>
+            <Text style={[styles.modalTitle, { color: palette.text, textAlign: 'center' }]}>Transfer failed</Text>
+            <Text style={[styles.modalSubtitle, { color: palette.textSecondary, textAlign: 'center' }]}>{transferError || 'We could not complete the transfer.'}</Text>
+
+            <Pressable onPress={handleRetryTransfer} style={[styles.primaryAction, { backgroundColor: palette.primary }]}>
+              <Text style={styles.primaryActionText}>Retry transfer</Text>
+            </Pressable>
+
+            <Pressable onPress={handleDismissFailure} style={[styles.secondaryModalAction, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
+              <Text style={[styles.secondaryModalActionText, { color: palette.text }]}>Dismiss</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <TransactionResultModal
+        visible={Boolean(receiptResult?.visible)}
+        type={receiptResult?.type ?? 'pending'}
+        title={receiptResult?.title ?? ''}
+        message={receiptResult?.message ?? ''}
+        amount={receiptResult?.amount}
+        reference={receiptResult?.reference}
+        onClose={() => setReceiptResult(null)}
+      />
     </ScrollView>
   );
 }
@@ -628,17 +895,30 @@ const styles = StyleSheet.create({
   summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   summaryMiniMeta: { fontSize: Typography.xs },
-  reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
+  reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 12 },
+  reviewRecipientRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reviewAvatar: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  reviewAvatarImage: { width: '100%', height: '100%' },
+  reviewAvatarText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  reviewRecipientCopy: { flex: 1, gap: 2 },
   reviewLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   reviewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  reviewMeta: { fontSize: Typography.xs },
+  reviewMeta: { fontSize: Typography.xs, lineHeight: 16 },
+  reviewAmountBox: { marginTop: 2, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 4 },
+  reviewAmountLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
+  reviewAmountValue: { fontSize: 28, fontFamily: Typography.family.bold },
   primaryAction: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
   secondaryAction: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   secondaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  secondaryModalAction: { minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  secondaryModalActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   errorText: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
+  pinModalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '90%' },
+  resultModalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '90%' },
+  resultBadge: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
   modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   modalSubtitle: { fontSize: Typography.sm, marginTop: 2 },

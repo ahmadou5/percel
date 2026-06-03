@@ -8,6 +8,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrders } from '@/hooks/useOrder';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 const ACTIVE_STATUSES = ['CREATED', 'PENDING_MATCH', 'MATCHED', 'ACCEPTED', 'IN_TRANSIT', 'DELIVERED'] as const;
 const PAST_STATUSES = ['COMPLETED', 'CANCELLED', 'DISPUTED'] as const;
@@ -30,7 +31,17 @@ function formatMoney(value: number) {
   return `₦${Number(value).toLocaleString('en-NG')}`;
 }
 
-function OrderCard({ order, palette, onPress }: { order: any; palette: (typeof Colors)[keyof typeof Colors]; onPress: () => void }) {
+type OrderItem = {
+  id: string;
+  trackingCode: string;
+  price: string | number;
+  pickupFormattedAddress: string;
+  deliveryFormattedAddress: string;
+  createdAt: string;
+  status: string;
+};
+
+function OrderCard({ order, palette, onPress }: { order: OrderItem; palette: (typeof Colors)[keyof typeof Colors]; onPress: () => void }) {
   const isLive = isActiveStatus(order.status);
   const statusTone = isLive ? palette.primary : palette.textSecondary;
   const statusBg = isLive ? 'rgba(10,132,255,0.12)' : 'rgba(148,163,184,0.16)';
@@ -67,6 +78,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const back = useSafeBack("/");
   const query = useOrders();
   const [tab, setTab] = useState<Tab>('ACTIVE');
 
@@ -85,7 +97,7 @@ export default function OrdersScreen() {
       refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={refresh} tintColor={palette.primary} />}
       showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => router.back()}>
+        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => back()}>
           <ChevronLeft size={18} color={palette.text} />
         </Pressable>
         <View style={styles.headerSpacer} />

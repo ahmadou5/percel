@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Camera, ChevronLeft, CircleAlert, ShieldCheck, Sparkles, UserPen } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { KeyboardView } from '@/components/ui/KeyboardView';
 import { useColorScheme } from '@/components/useColorScheme';
+
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -22,7 +23,7 @@ function toFormDate(value?: string | null) {
 }
 
 export default function EditProfileScreen() {
-  const router = useRouter();
+  const back = useSafeBack("/profile");
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
   const profileQuery = useProfile();
@@ -76,7 +77,7 @@ export default function EditProfileScreen() {
         address: address.trim() ? address.trim() : null,
       });
       Alert.alert('Profile updated', 'Your changes were saved.');
-      router.back();
+      back();
     } catch (error) {
       Alert.alert('Could not update profile', error instanceof Error ? error.message : 'Please try again.');
     }
@@ -141,7 +142,7 @@ export default function EditProfileScreen() {
     <KeyboardView>
       <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-              <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+              <Pressable onPress={() => back()} style={[styles.backButton, {  borderColor: palette.border }]}>
                <ChevronLeft size={20} color={palette.text} fill={"none"}  />
               </Pressable>
               
@@ -251,7 +252,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     headerSpacer: { width: 42 },
-    headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
-    backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+      backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
 });

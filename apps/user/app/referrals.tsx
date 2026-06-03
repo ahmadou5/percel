@@ -1,6 +1,7 @@
 import { useMemo, type ComponentType } from 'react';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Gift, Share2, Users, Wallet } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -18,6 +19,7 @@ export default function ReferralsScreen() {
 
   const code = useMemo(() => (user?.phone ?? user?.id ?? 'PERCEL').replace(/\D/g, '').slice(-6) || 'PERCEL', [user?.id, user?.phone]);
   const shareMessage = `Join me on Percel and earn rewards. Use my referral code: ${code}`;
+  const back = useSafeBack('/');
 
   if (!isAuthenticated) {
     return <Redirect href='/(auth)/welcome' />;
@@ -38,7 +40,7 @@ export default function ReferralsScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <Text style={[styles.backArrow, { color: palette.text }]}>‹</Text>
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>Refer & Earn</Text>
@@ -91,10 +93,8 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 42 },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   backArrow: { fontSize: 28, lineHeight: 28, marginTop: -2 },
-  headerCopy: { gap: 8 },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.8 },
-  subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
   hero: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 12, alignItems: 'center' },
   heroIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   heroTitle: { fontSize: 24, fontFamily: Typography.family.bold, textAlign: 'center', lineHeight: 28 },

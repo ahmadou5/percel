@@ -17,6 +17,10 @@ export const VerifyNinBody = Type.Object({
 
 export const VerifyBvnBody = Type.Object({
   bvn: Type.String({ minLength: 11, maxLength: 11 }),
+  accountNumber: Type.String({ minLength: 10, maxLength: 10 }),
+  bankCode: Type.String({ minLength: 1 }),
+  firstName: Type.String({ minLength: 1 }),
+  lastName: Type.String({ minLength: 1 }),
 });
 
 export const NotificationQuery = Type.Object({

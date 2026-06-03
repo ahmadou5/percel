@@ -12,6 +12,7 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 
 export default function QuoteScreen() {
   const router = useRouter();
+  const back = useSafeBack("/send");
   const params = useLocalSearchParams<{ pickup?: string; delivery?: string; size?: 'SMALL' | 'MEDIUM' | 'LARGE'; fragile?: string; notes?: string }>();
   const walletQuery = useWallet();
   const quoteQuery = useGetQuote();
@@ -56,7 +57,7 @@ export default function QuoteScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
+      <Pressable onPress={() => back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
         <Text style={{ color: Colors.light.text, fontSize: 14, fontWeight: Typography.bold }}>Back</Text>
       </Pressable>
 

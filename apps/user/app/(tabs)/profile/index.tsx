@@ -5,6 +5,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft } from 'lucide-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -15,6 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const back = useSafeBack("/");
   const profileQuery = useProfile();
   const updateAvatar = useUpdateAvatar();
   const authUser = useAuthStore((state) => state.user);
@@ -66,7 +68,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
        <View style={styles.headerRow}>
-              <Pressable onPress={() => router.back()} style={[styles.backButton, {  borderColor: palette.border }]}>
+              <Pressable onPress={() => back()} style={[styles.backButton, {  borderColor: palette.border }]}>
                <ChevronLeft size={20} color={palette.text} fill={"none"}  />
               </Pressable>
               <Text style={[styles.headerTitle, { color: palette.text }]}>Profile</Text>

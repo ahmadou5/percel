@@ -11,6 +11,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1),
   JWT_REFRESH_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().default('1d'),
+  PAYSTACK_ENV: z.enum(['live', 'test']).default('live'),
   PAYSTACK_SECRET_KEY: z.string().min(1),
   VTPASS_USERNAME: z.string().min(1),
   VTPASS_PASSWORD: z.string().min(1),

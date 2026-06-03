@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
+import { env } from '../config/env.js';
 import { PaymentError } from '../utils/errors.js';
 
 type InitializeResponse = {
@@ -46,6 +47,31 @@ type TransferRecipientResponse = {
   };
 };
 
+export interface PaystackIdentificationPayload {
+  country: 'NG';
+  type: 'bank_account';
+  account_number: string;
+  bvn: string;
+  bank_code: string;
+  first_name: string;
+  last_name: string;
+}
+
+type PaystackIdentificationResponse = {
+  status: boolean;
+  message: string;
+};
+
+const TEST_IDENTIFICATION: PaystackIdentificationPayload = {
+  country: 'NG',
+  type: 'bank_account',
+  account_number: '0111111111',
+  bvn: '222222222221',
+  bank_code: '007',
+  first_name: 'Uchenna',
+  last_name: 'Okoro',
+};
+
 const paystack = axios.create({
   baseURL: 'https://api.paystack.co',
   headers: {
@@ -60,6 +86,10 @@ function wrapPaystackError(error: unknown): never {
     throw new PaymentError(error.response?.data?.message ?? 'Paystack request failed');
   }
   throw new PaymentError('Paystack request failed');
+}
+
+function normalizeIdentificationPayload(payload: PaystackIdentificationPayload) {
+  return env.PAYSTACK_ENV === 'test' ? TEST_IDENTIFICATION : payload;
 }
 
 export async function initializeTransaction(
@@ -120,6 +150,18 @@ export async function createDedicatedNUBAN(customerId: string, preferredBank?: s
       preferred_bank: preferredBank,
     });
     return data.data as DedicatedNubanResponse;
+  } catch (error) {
+    wrapPaystackError(error);
+  }
+}
+
+export async function validateCustomerIdentity(
+  customerCode: string,
+  payload: PaystackIdentificationPayload,
+): Promise<PaystackIdentificationResponse> {
+  try {
+    const { data } = await paystack.post(`/customer/${customerCode}/identification`, normalizeIdentificationPayload(payload));
+    return data.data as PaystackIdentificationResponse;
   } catch (error) {
     wrapPaystackError(error);
   }
