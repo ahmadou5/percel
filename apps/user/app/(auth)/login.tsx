@@ -1,8 +1,8 @@
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -14,25 +14,65 @@ import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
 import { useLogin } from '@/hooks/useAuth';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneRegex = /^\+234\d{10}$/;
+
 export default function LoginScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const theme = Colors[scheme];
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<1 | 2>(1);
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const login = useLogin({
     onSuccess: () => router.replace('/'),
-    onError: () => setError('Invalid phone number or password.'),
+    onError: () => setError('Invalid phone number/email or password.'),
   });
+
+  const isEmail = useMemo(() => identifier.includes('@') || /[a-zA-Z]/.test(identifier), [identifier]);
+  const cleanPhone = useMemo(() => identifier.replace(/\D/g, ''), [identifier]);
+  
+  const stepOneValid = useMemo(() => {
+    if (isEmail) {
+      return emailRegex.test(identifier);
+    }
+    return phoneRegex.test(`+234${cleanPhone}`);
+  }, [isEmail, identifier, cleanPhone]);
+
+  const handleNext = () => {
+    if (stepOneValid) setStep(2);
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(1);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!password) return;
+    const formattedIdentifier = isEmail ? identifier.trim() : `+234${cleanPhone}`;
+    login.mutate({ identifier: formattedIdentifier, password });
+  };
 
   return (
     <KeyboardView>
       <View style={[styles.screen, { backgroundColor: theme.bg }]}>
         <AuthBackdrop />
         <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)' }]} />
+        
         <View style={styles.topRow}>
-          <Text style={[styles.brand, { color: theme.text }]}>Percel</Text>
+          <Pressable onPress={handleBack} style={[styles.backButton, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <Ionicons name="arrow-back" size={18} color={theme.text} />
+          </Pressable>
+          
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${step === 1 ? 50 : 100}%`, backgroundColor: theme.primary }]} />
+          </View>
+
           <Link href="/(auth)/register" asChild>
             <Pressable style={[styles.topLink, { borderColor: theme.border, backgroundColor: theme.card }]}>
               <Text style={[styles.topLinkText, { color: theme.primary }]}>Sign Up</Text>
@@ -41,49 +81,76 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.cardWrap}>
-          <Animated.View entering={FadeInDown.duration(700)} style={[styles.card, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.86)', borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : theme.border }]}>
-          <Text style={[styles.heading, { color: theme.text }]}>WELCOME BACK!</Text>
-          <Text style={[styles.subheading, { color: theme.textSecondary }]}>Sign in with your phone number and password to keep your deliveries moving.</Text>
+          <Animated.View entering={FadeInDown.duration(600)} style={[styles.card, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.86)', borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : theme.border }]}>
+            
+            {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
-          {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
+            {step === 1 ? (
+              <Animated.View key="step-1" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>WELCOME BACK</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Enter your phone number or email address to start.</Text>
 
-          <Animated.View entering={FadeInDown.delay(120).duration(560)}>
-            <Input
-              label="Phone number"
-              placeholder="801 234 5678"
-              value={phone}
-              onChangeText={(value) => setPhone(value.replace(/\D/g, ''))}
-              keyboardType="phone-pad"
-              leftElement={(
-                <Pressable style={[styles.countryPill, { backgroundColor: scheme === 'dark' ? '#202025' : '#f0f5ff', borderColor: theme.border }]}>
-                  <Text style={[styles.countryFlag, { color: theme.text }]}>🇳🇬</Text>
-                  <Text style={[styles.countryCode, { color: theme.text }]}>+234</Text>
-                  <Feather name="chevron-down" size={14} color={theme.textSecondary} />
-                </Pressable>
-              )}
-            />
+                <Input
+                  label="Phone or Email"
+                  placeholder="801 234 5678 or name@email.com"
+                  value={identifier}
+                  onChangeText={setIdentifier}
+                  autoCapitalize="none"
+                  keyboardType={isEmail ? "email-address" : "phone-pad"}
+                  leftElement={
+                    !isEmail ? (
+                      <View style={[styles.countryPill, { backgroundColor: scheme === 'dark' ? '#202025' : '#f0f5ff', borderColor: theme.border }]}>
+                        <Text style={[styles.countryFlag, { color: theme.text }]}>🇳🇬</Text>
+                        <Text style={[styles.countryCode, { color: theme.text }]}>+234</Text>
+                      </View>
+                    ) : undefined
+                  }
+                />
+
+                <View style={styles.ctaWrap}>
+                  <Button title="Continue" disabled={!stepOneValid} onPress={handleNext} size="lg" style={styles.cta} />
+                </View>
+              </Animated.View>
+            ) : (
+              <Animated.View key="step-2" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>PASSWORD</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Enter the password associated with {identifier}.</Text>
+
+                <Input 
+                  label="Password" 
+                  placeholder="Your password" 
+                  value={password} 
+                  onChangeText={setPassword} 
+                  secureTextEntry 
+                  secureToggle 
+                  autoFocus
+                />
+
+                <View style={styles.actionsRow}>
+                  <Link href="/(auth)/forgot-password" asChild>
+                    <Pressable>
+                      <Text style={[styles.forgot, { color: theme.primary }]}>Forgot password?</Text>
+                    </Pressable>
+                  </Link>
+                  <Pressable style={styles.bioButton}>
+                    <Ionicons name="finger-print-outline" size={18} color={theme.primary} />
+                    <Text style={[styles.bioText, { color: theme.textSecondary }]}>Use Face / Touch ID</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.ctaWrap}>
+                  <Button 
+                    title={login.isPending ? 'Logging in…' : 'Log In'} 
+                    loading={login.isPending} 
+                    disabled={!password || login.isPending} 
+                    onPress={handleSubmit} 
+                    size="lg" 
+                    style={styles.cta} 
+                  />
+                </View>
+              </Animated.View>
+            )}
           </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(200).duration(560)}>
-            <Input label="Password" placeholder="Your password" value={password} onChangeText={setPassword} secureTextEntry secureToggle />
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(260).duration(520)} style={styles.actionsRow}>
-            <Link href="/(auth)/forgot-password" asChild>
-              <Pressable>
-                <Text style={[styles.forgot, { color: theme.primary }]}>Forgot password?</Text>
-              </Pressable>
-            </Link>
-            <Pressable style={styles.bioButton}>
-              <Ionicons name="finger-print-outline" size={18} color={theme.primary} />
-              <Text style={[styles.bioText, { color: theme.textSecondary }]}>Use Face / Touch ID</Text>
-            </Pressable>
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(340).duration(520)} style={styles.ctaWrap}>
-            <Button title={login.isPending ? 'Logging in…' : 'Log In'} loading={login.isPending} onPress={() => login.mutate({ identifier: `+234${phone.replace(/\D/g, '')}`, password })} size="lg" style={styles.cta} />
-          </Animated.View>
-        </Animated.View>
         </View>
       </View>
     </KeyboardView>
@@ -108,11 +175,26 @@ const styles = StyleSheet.create({
     top: 24,
     left: 20,
     right: 20,
+    gap: 12,
   },
-  brand: {
-    fontSize: 20,
-    fontFamily: Typography.family.bold,
-    letterSpacing: -0.4,
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
   },
   topLink: {
     paddingHorizontal: 14,
@@ -139,16 +221,16 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   heading: {
-    fontSize: 38,
-    lineHeight: 40,
+    fontSize: 26,
+    lineHeight: 30,
     fontFamily: Typography.family.bold,
-    letterSpacing: -1.2,
+    letterSpacing: -0.8,
     marginBottom: 4,
     textAlign: 'center',
   },
   subheading: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     marginBottom: 16,
     fontFamily: Typography.family.regular,
     textAlign: 'center',
@@ -156,14 +238,14 @@ const styles = StyleSheet.create({
   countryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
-  countryFlag: { fontSize: 16 },
-  countryCode: { fontSize: 13, fontWeight: '700' },
+  countryFlag: { fontSize: 14 },
+  countryCode: { fontSize: 12, fontWeight: '700' },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

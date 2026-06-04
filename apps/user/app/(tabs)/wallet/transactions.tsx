@@ -1,5 +1,5 @@
 import { FlashList } from '@shopify/flash-list';
-import { ChevronLeft, Clock3, CreditCard, Search, TriangleAlert } from 'lucide-react-native';
+import { ChevronLeft, Clock3, CreditCard, Search, TriangleAlert, Box, Share2, FileDown, ArrowUpRight, CheckCircle2, Smartphone } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
@@ -14,6 +14,46 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTransactions } from '@/hooks/useWallet';
 import { formatNaira, formatTxnDate, titleize, walletCategories } from '@/lib/wallet';
+
+function DashedDivider() {
+  return (
+    <View style={styles.dashedContainer}>
+      {Array.from({ length: 30 }).map((_, i) => (
+        <View key={i} style={styles.dash} />
+      ))}
+    </View>
+  );
+}
+
+function ReceiptRow({ label, value, isStatus, statusType }: { label: string; value: string; isStatus?: boolean; statusType?: string }) {
+  let statusColor = '#E5E7EB';
+  let statusBg = 'rgba(255,255,255,0.06)';
+  if (isStatus && statusType) {
+    if (statusType.toUpperCase() === 'COMPLETED' || statusType.toUpperCase() === 'SUCCESS') {
+      statusColor = '#30D158';
+      statusBg = 'rgba(48,209,88,0.12)';
+    } else if (statusType.toUpperCase() === 'FAILED') {
+      statusColor = '#FF453A';
+      statusBg = 'rgba(255,69,58,0.12)';
+    } else {
+      statusColor = '#FF9F0A';
+      statusBg = 'rgba(255,159,10,0.12)';
+    }
+  }
+
+  return (
+    <View style={styles.receiptRow}>
+      <Text style={styles.receiptLabel}>{label}</Text>
+      {isStatus ? (
+        <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+          <Text style={[styles.receiptValue, { color: statusColor, fontSize: 12 }]}>{value.toUpperCase()}</Text>
+        </View>
+      ) : (
+        <Text style={styles.receiptValue}>{value}</Text>
+      )}
+    </View>
+  );
+}
 
 export default function TransactionsScreen() {
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
@@ -226,28 +266,71 @@ export default function TransactionsScreen() {
       <Modal visible={Boolean(selected)} transparent animationType="fade" onRequestClose={() => setSelectedId(null)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedId(null)} />
-          <View ref={receiptRef} collapsable={false} style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View ref={receiptRef} collapsable={false} style={styles.receiptCard}>
             {selected ? (
               <>
-                <Text style={[styles.modalTitle, { color: palette.text }]}>{selected.description}</Text>
-                <Text style={[styles.modalMeta, { color: palette.textSecondary }]}>
-                  {titleize(selected.category)} • {formatTxnDate(selected.createdAt)}
-                </Text>
-                <Row label="Reference" value={selected.reference} palette={palette} />
-                <Row label="Status" value={selected.status} palette={palette} />
-                <Row label="Amount" value={`${selected.type === 'CREDIT' ? '+' : '-'}${formatNaira(selected.amount)}`} palette={palette} />
-                <Row label="Type" value={selected.type} palette={palette} />
-                <View style={styles.modalActions}>
-                  <Pressable onPress={handleShareImage} style={[styles.modalActionButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                    <Text style={[styles.modalActionText, { color: palette.text }]}>Save Image</Text>
+                <View style={styles.receiptHeader}>
+                  <View style={styles.receiptLogoBox}>
+                    <Box size={20} color="#0A84FF" />
+                    <Text style={styles.receiptLogoText}>Percel</Text>
+                  </View>
+                  <View style={styles.receiptBadgeWrap}>
+                    {selected.category === 'AIRTIME' || selected.category === 'DATA' ? (
+                      <Smartphone size={16} color="#94A3B8" />
+                    ) : selected.type === 'CREDIT' ? (
+                      <CheckCircle2 size={16} color="#30D158" />
+                    ) : (
+                      <ArrowUpRight size={16} color="#FF453A" />
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.receiptAmountSection}>
+                  <Text style={styles.receiptAmountText}>
+                    {selected.type === 'CREDIT' ? '+' : '-'}{formatNaira(selected.amount)}
+                  </Text>
+                  <Text style={styles.receiptTimestamp}>
+                    {formatTxnDate(selected.createdAt)}
+                  </Text>
+                </View>
+
+                <DashedDivider />
+
+                <View style={styles.receiptDetails}>
+                  <ReceiptRow label="Transaction Type" value={titleize(selected.category)} />
+                  <ReceiptRow label="Status" value={selected.status} isStatus statusType={selected.status} />
+                  <ReceiptRow label="Reference ID" value={selected.reference} />
+                  <ReceiptRow label="Payment Type" value={selected.type} />
+                  {selected.metadata?.phone || selected.metadata?.recipientPhone || selected.metadata?.accountNumber ? (
+                    <ReceiptRow 
+                      label="Recipient Account" 
+                      value={String(selected.metadata?.phone || selected.metadata?.recipientPhone || selected.metadata?.accountNumber)} 
+                    />
+                  ) : null}
+                </View>
+
+                <DashedDivider />
+
+                <View style={styles.receiptActions}>
+                  <Pressable onPress={handleShareImage} style={styles.receiptActionButton}>
+                    <Share2 size={16} color="#fff" />
+                    <Text style={styles.receiptActionText}>Share Image</Text>
                   </Pressable>
-                  <Pressable onPress={handleSharePdf} style={[styles.modalActionButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                    <Text style={[styles.modalActionText, { color: palette.text }]}>Export PDF</Text>
+                  <Pressable onPress={handleSharePdf} style={styles.receiptActionButton}>
+                    <FileDown size={16} color="#fff" />
+                    <Text style={styles.receiptActionText}>Share PDF</Text>
                   </Pressable>
                 </View>
-                <Pressable onPress={() => setSelectedId(null)} style={[styles.modalButton, { backgroundColor: palette.primary }]}>
-                  <Text style={styles.modalButtonText}>Close</Text>
+
+                <Pressable onPress={() => setSelectedId(null)} style={styles.receiptCloseButton}>
+                  <Text style={styles.receiptCloseButtonText}>Close</Text>
                 </Pressable>
+
+                <View style={styles.scallopedContainer}>
+                  {Array.from({ length: 18 }).map((_, i) => (
+                    <View key={i} style={styles.scallopCircle} />
+                  ))}
+                </View>
               </>
             ) : null}
           </View>
@@ -351,4 +434,141 @@ const styles = StyleSheet.create({
   modalButton: { marginTop: Spacing.sm, minHeight: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalButtonText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
   pressed: { opacity: 0.92 },
+  receiptCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 24,
+    gap: 16,
+    width: '100%',
+    maxWidth: 380,
+    alignSelf: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  dashedContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    marginVertical: 10,
+    height: 1.5,
+  },
+  dash: {
+    width: 6,
+    height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  receiptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  receiptLogoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  receiptLogoText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: Typography.family.bold,
+  },
+  receiptBadgeWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  receiptAmountSection: {
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 6,
+  },
+  receiptAmountText: {
+    color: '#fff',
+    fontSize: 32,
+    fontFamily: Typography.family.bold,
+  },
+  receiptTimestamp: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontFamily: Typography.family.regular,
+  },
+  receiptDetails: {
+    gap: 10,
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  receiptLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontFamily: Typography.family.regular,
+  },
+  receiptValue: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Typography.family.bold,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  receiptActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  receiptActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 46,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  receiptActionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Typography.family.bold,
+  },
+  receiptCloseButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    backgroundColor: '#0A84FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  receiptCloseButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: Typography.family.bold,
+  },
+  scallopedContainer: {
+    position: 'absolute',
+    bottom: -6,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    zIndex: 10,
+  },
+  scallopCircle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.45)', // blends into backdrop
+  },
 });

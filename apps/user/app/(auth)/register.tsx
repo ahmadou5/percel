@@ -2,23 +2,25 @@ import { Link, router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
+import { PinInput } from '@/components/ui/PinInput';
 import { KeyboardView } from '@/components/ui/KeyboardView';
 import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
 import { useRegister } from '@/hooks/useAuth';
+import { useSetTransferPin } from '@/hooks/useWallet';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-type Step = 1 | 2;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function RegisterScreen() {
   const scheme = useColorScheme() ?? 'dark';
@@ -28,32 +30,86 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const phoneValue = phone.replace(/\D/g, '');
-
-  const stepOneValid = useMemo(
-    () => fullName.trim().length >= 2 && emailRegex.test(email) && phoneRegex.test(`+234${phoneValue}`) && acceptedTerms,
-    [acceptedTerms, email, fullName, phoneValue],
-  );
-
-  const passwordValid = passRegex.test(password);
+  const setPinMutation = useSetTransferPin();
 
   const register = useRegister({
-    onSuccess: () => router.replace('/'),
-    onError: () => setError('Registration failed. Please try again.'),
+    onSuccess: async () => {
+      try {
+        await setPinMutation.mutateAsync({ newPin: pin });
+      } catch (err) {
+        console.warn('Failed to set PIN after registration', err);
+      }
+      router.replace('/');
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+    },
   });
+
+  const stepValid = useMemo(() => {
+    switch (step) {
+      case 1:
+        return fullName.trim().length >= 2 && acceptedTerms;
+      case 2:
+        return phoneRegex.test(`+234${phoneValue}`);
+      case 3:
+        return emailRegex.test(email);
+      case 4:
+        return passRegex.test(password);
+      case 5:
+        return pin.length === 4;
+      default:
+        return false;
+    }
+  }, [step, fullName, acceptedTerms, phoneValue, email, password, pin]);
+
+  const handleNext = () => {
+    if (stepValid && step < 5) {
+      setStep((current) => (current + 1) as Step);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep((current) => (current - 1) as Step);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!stepValid || register.isPending || setPinMutation.isPending) return;
+    setError(null);
+    register.mutate({
+      fullName,
+      email,
+      phone: `+234${phoneValue}`,
+      password,
+    });
+  };
+
+  const isSubmitting = register.isPending || setPinMutation.isPending;
 
   return (
     <KeyboardView>
       <View style={[styles.screen, { backgroundColor: theme.bg }]}>
         <AuthBackdrop />
         <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)' }]} />
+        
         <View style={styles.topRow}>
+          <Pressable onPress={handleBack} style={[styles.backButton, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <Ionicons name="arrow-back" size={18} color={theme.text} />
+          </Pressable>
+          
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${step === 1 ? 50 : 100}%`, backgroundColor: theme.primary }]} />
+            <View style={[styles.progressFill, { width: `${(step / 5) * 100}%`, backgroundColor: theme.primary }]} />
           </View>
+
           <Link href="/(auth)/login" asChild>
             <Pressable style={[styles.topLink, { borderColor: theme.border, backgroundColor: theme.card }]}>
               <Text style={[styles.topLinkText, { color: theme.primary }]}>Log In</Text>
@@ -62,23 +118,51 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.cardWrap}>
-          <Animated.View entering={FadeInDown.duration(700)} style={[styles.card, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.86)', borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : theme.border }]}>
-          <Text style={[styles.heading, { color: theme.text }]}>{step === 1 ? 'CREATE AN ACCOUNT' : 'SET YOUR PASSWORD'}</Text>
-          <Text style={[styles.subheading, { color: theme.textSecondary }]}>{step === 1 ? 'Start with your profile details and terms approval. We’ll keep the rest simple.' : 'Choose a strong password to lock in your new account.'}</Text>
+          <Animated.View entering={FadeInDown.duration(600)} style={[styles.card, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.86)', borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : theme.border }]}>
+            
+            {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
-          {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
+            {step === 1 && (
+              <Animated.View key="step-1" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>WHAT'S YOUR NAME?</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Let's start with your full name to personalize your deliveries.</Text>
 
-          {step === 1 ? (
-            <>
-              <Animated.View entering={FadeInDown.delay(120).duration(560)}>
-                <Input label="Full name" placeholder="Your full name" value={fullName} onChangeText={setFullName} error={fullName && fullName.trim().length < 2 ? 'Min 2 characters' : undefined} />
+                <Input 
+                  label="Full name" 
+                  placeholder="Your full name" 
+                  value={fullName} 
+                  onChangeText={setFullName} 
+                  error={fullName && fullName.trim().length < 2 ? 'Min 2 characters' : undefined} 
+                />
+
+                <View style={styles.termsRow}>
+                  <Pressable
+                    onPress={() => setAcceptedTerms((value) => !value)}
+                    style={[styles.checkbox, { borderColor: acceptedTerms ? theme.primary : theme.border, backgroundColor: acceptedTerms ? theme.primary : 'transparent' }]}
+                  >
+                    {acceptedTerms ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+                  </Pressable>
+                  <View style={styles.termsCopy}>
+                    <Text style={[styles.termsText, { color: theme.textSecondary }]}>I agree to the </Text>
+                    <Link href="https://percel.app/terms" asChild>
+                      <Pressable>
+                        <Text style={[styles.termsLink, { color: theme.primary }]}>Terms & Conditions</Text>
+                      </Pressable>
+                    </Link>
+                  </View>
+                </View>
+
+                <View style={styles.ctaWrap}>
+                  <Button title="Continue" disabled={!stepValid} onPress={handleNext} size="lg" style={styles.cta} />
+                </View>
               </Animated.View>
+            )}
 
-              <Animated.View entering={FadeInDown.delay(190).duration(560)}>
-                <Input label="Email" placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} error={email && !emailRegex.test(email) ? 'Enter a valid email' : undefined} />
-              </Animated.View>
+            {step === 2 && (
+              <Animated.View key="step-2" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>YOUR PHONE NUMBER</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Provide your phone number to receive delivery updates.</Text>
 
-              <Animated.View entering={FadeInDown.delay(260).duration(560)}>
                 <Input
                   label="Phone number"
                   placeholder="801 234 5678"
@@ -90,65 +174,87 @@ export default function RegisterScreen() {
                     <View style={[styles.countryPill, { backgroundColor: scheme === 'dark' ? '#202025' : '#f0f5ff', borderColor: theme.border }]}>
                       <Text style={[styles.countryFlag, { color: theme.text }]}>🇳🇬</Text>
                       <Text style={[styles.countryCode, { color: theme.text }]}>+234</Text>
-                      <Feather name="chevron-down" size={14} color={theme.textSecondary} />
                     </View>
                   )}
+                  autoFocus
                 />
-              </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(320).duration(520)} style={styles.termsRow}>
-                <Pressable
-                  onPress={() => setAcceptedTerms((value) => !value)}
-                  style={[styles.checkbox, { borderColor: acceptedTerms ? theme.primary : theme.border, backgroundColor: acceptedTerms ? theme.primary : 'transparent' }]}
-                >
-                  {acceptedTerms ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-                </Pressable>
-                <View style={styles.termsCopy}>
-                  <Text style={[styles.termsText, { color: theme.textSecondary }]}>I agree to the </Text>
-                  <Link href="https://percel.app/terms" asChild>
-                    <Pressable>
-                      <Text style={[styles.termsLink, { color: theme.primary }]}>Terms & Conditions</Text>
-                    </Pressable>
-                  </Link>
+                <View style={styles.ctaWrap}>
+                  <Button title="Continue" disabled={!stepValid} onPress={handleNext} size="lg" style={styles.cta} />
                 </View>
               </Animated.View>
+            )}
 
-              <Animated.View entering={FadeInDown.delay(380).duration(520)} style={styles.ctaWrap}>
-                <Button title="Next" disabled={!stepOneValid} onPress={() => setStep(2)} size="lg" style={styles.cta} />
-              </Animated.View>
-            </>
-          ) : (
-            <>
-              <Animated.View entering={FadeInDown.delay(120).duration(560)}>
-                <Input label="Password" placeholder="Create a password" value={password} onChangeText={setPassword} secureTextEntry secureToggle error={password && !passRegex.test(password) ? 'Min 8 chars, one uppercase, one number' : undefined} />
-              </Animated.View>
+            {step === 3 && (
+              <Animated.View key="step-3" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>WHAT'S YOUR EMAIL?</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Enter your email address to secure your account updates.</Text>
 
-              <Animated.View entering={FadeInDown.delay(180).duration(520)} style={styles.summaryBox}>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Account summary</Text>
-                <Text style={[styles.summaryText, { color: theme.text }]}>{fullName}</Text>
-                <Text style={[styles.summaryText, { color: theme.textSecondary }]}>{email}</Text>
-                <Text style={[styles.summaryText, { color: theme.textSecondary }]}>{`+234${phoneValue}`}</Text>
-              </Animated.View>
-
-              <Animated.View entering={FadeInDown.delay(250).duration(520)} style={styles.ctaWrap}>
-                <Button
-                  title={register.isPending ? 'Creating…' : 'Create account'}
-                  disabled={!passwordValid}
-                  loading={register.isPending}
-                  onPress={() => register.mutate({ fullName, email, phone: `+234${phoneValue}`, password })}
-                  size="lg"
-                  style={styles.cta}
+                <Input 
+                  label="Email" 
+                  placeholder="you@example.com" 
+                  autoCapitalize="none" 
+                  keyboardType="email-address" 
+                  value={email} 
+                  onChangeText={setEmail} 
+                  error={email && !emailRegex.test(email) ? 'Enter a valid email' : undefined}
+                  autoFocus
                 />
-              </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(310).duration(520)} style={styles.backRow}>
-                <Pressable onPress={() => setStep(1)}>
-                  <Text style={[styles.backText, { color: theme.primary }]}>Go back</Text>
-                </Pressable>
+                <View style={styles.ctaWrap}>
+                  <Button title="Continue" disabled={!stepValid} onPress={handleNext} size="lg" style={styles.cta} />
+                </View>
               </Animated.View>
-            </>
-          )}
-        </Animated.View>
+            )}
+
+            {step === 4 && (
+              <Animated.View key="step-4" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>CREATE PASSWORD</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Use a password containing at least 8 characters, an uppercase letter, and a number.</Text>
+
+                <Input 
+                  label="Password" 
+                  placeholder="Create a password" 
+                  value={password} 
+                  onChangeText={setPassword} 
+                  secureTextEntry 
+                  secureToggle 
+                  error={password && !passRegex.test(password) ? 'Min 8 chars, one uppercase, one number' : undefined}
+                  autoFocus
+                />
+
+                <View style={styles.ctaWrap}>
+                  <Button title="Continue" disabled={!stepValid} onPress={handleNext} size="lg" style={styles.cta} />
+                </View>
+              </Animated.View>
+            )}
+
+            {step === 5 && (
+              <Animated.View key="step-5" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>SET A SECURE PIN</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Create a 4-digit transfer PIN to secure your wallet transactions.</Text>
+
+                <PinInput
+                  value={pin}
+                  onChangeText={setPin}
+                  loading={isSubmitting}
+                  error={error || undefined}
+                />
+
+                <View style={styles.ctaWrap}>
+                  <Button 
+                    title={isSubmitting ? 'Creating account…' : 'Create Account'} 
+                    loading={isSubmitting} 
+                    disabled={!stepValid || isSubmitting} 
+                    onPress={handleSubmit} 
+                    size="lg" 
+                    style={styles.cta} 
+                  />
+                </View>
+              </Animated.View>
+            )}
+
+          </Animated.View>
         </View>
       </View>
     </KeyboardView>
@@ -167,12 +273,21 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
     zIndex: 2,
     position: 'absolute',
     top: 24,
     left: 20,
     right: 20,
+    gap: 12,
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressTrack: {
     flex: 1,
@@ -210,16 +325,16 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   heading: {
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 24,
+    lineHeight: 28,
     fontFamily: Typography.family.bold,
-    letterSpacing: -1.1,
+    letterSpacing: -0.8,
     marginBottom: 4,
     textAlign: 'center',
   },
   subheading: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     marginBottom: 14,
     fontFamily: Typography.family.regular,
     textAlign: 'center',
@@ -227,20 +342,20 @@ const styles = StyleSheet.create({
   countryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
-  countryFlag: { fontSize: 16 },
-  countryCode: { fontSize: 13, fontWeight: '700' },
+  countryFlag: { fontSize: 14 },
+  countryCode: { fontSize: 12, fontWeight: '700' },
   termsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 2,
-    marginBottom: 10,
+    marginTop: 6,
+    marginBottom: 12,
   },
   checkbox: {
     width: 24,
@@ -272,31 +387,5 @@ const styles = StyleSheet.create({
   },
   cta: {
     width: '100%',
-  },
-  summaryBox: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 16,
-    gap: 4,
-    marginTop: 2,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontFamily: Typography.family.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  summaryText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  backRow: {
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  backText: {
-    fontSize: 14,
-    fontFamily: Typography.family.semibold,
   },
 });

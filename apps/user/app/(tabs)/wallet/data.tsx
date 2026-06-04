@@ -1,5 +1,5 @@
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Globe, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
@@ -43,10 +43,69 @@ export default function DataScreen() {
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
+  const TABS = ['Popular', 'Daily', 'Weekly', 'Monthly', 'Broad'] as const;
+  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>('Popular');
+
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
   const variationsQuery = useProviderVariations(selectedService?.serviceID);
   const variations = variationsQuery.data ?? [];
-  const selectedVariation = variations.find((variation) => variation.variation_code === selectedVariationCode) ?? variations[0];
+
+  const parsedVariations = useMemo(() => {
+    return variations.map((v) => {
+      const name = v.name;
+      const sizeMatch = name.match(/(\d+(?:\.\d+)?\s*(?:GB|MB|KB|TB))/i);
+      const size = sizeMatch ? sizeMatch[0] : name;
+      
+      let duration = '30 Days';
+      const lower = name.toLowerCase();
+      
+      let category: 'popular' | 'daily' | 'weekly' | 'monthly' | 'broad' = 'popular';
+      
+      if (lower.includes('broadband') || lower.includes('router') || lower.includes('mifi') || lower.includes('fiber') || lower.includes('unlimited')) {
+        category = 'broad';
+        duration = 'Broadband';
+      } else if (lower.includes('daily') || lower.includes('1-day') || lower.includes('1 day') || lower.includes('24 hrs') || lower.includes('24hrs') || lower.includes('2-day') || lower.includes('2 day') || lower.includes('3-day') || lower.includes('3 day') || lower.includes('1d') || lower.includes('2d') || lower.includes('3d')) {
+        category = 'daily';
+        duration = 'Daily';
+      } else if (lower.includes('weekly') || lower.includes('7-day') || lower.includes('7 day') || lower.includes('14-day') || lower.includes('14 day') || lower.includes('7d') || lower.includes('14d')) {
+        category = 'weekly';
+        duration = 'Weekly';
+      } else if (lower.includes('monthly') || lower.includes('30-day') || lower.includes('30 day') || lower.includes('31-day') || lower.includes('30 days') || lower.includes('30d') || lower.includes('month') || lower.includes('mo')) {
+        category = 'monthly';
+        duration = 'Monthly';
+      } else {
+        category = 'popular';
+        duration = 'Monthly';
+      }
+      
+      const dayMatch = name.match(/(\d+\s*days?)/i);
+      if (dayMatch) {
+        duration = dayMatch[0];
+      } else if (category === 'daily') {
+        duration = '1 Day';
+      } else if (category === 'weekly') {
+        duration = '7 Days';
+      }
+      
+      return {
+        ...v,
+        size,
+        duration,
+        category,
+      };
+    });
+  }, [variations]);
+
+  const filteredVariations = useMemo(() => {
+    if (activeTab === 'Popular') {
+      const populars = parsedVariations.filter((v) => v.category === 'popular');
+      return populars.length > 0 ? populars : parsedVariations.slice(0, 10);
+    }
+    const cat = activeTab.toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'broad';
+    return parsedVariations.filter((v) => v.category === cat);
+  }, [parsedVariations, activeTab]);
+
+  const selectedVariation = parsedVariations.find((variation) => variation.variation_code === selectedVariationCode) ?? parsedVariations[0];
   const selectedPrice = Number(selectedVariation?.variation_amount ?? 0);
   const normalizedPhone = normalizeNigerianPhone(phone);
   const displayNetwork = providerValidation?.providerName ?? (selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Network');
@@ -102,10 +161,10 @@ export default function DataScreen() {
   }, [providerStatus, step]);
 
   useEffect(() => {
-    if (selectedService && variations.length && !variations.find((variation) => variation.variation_code === selectedVariationCode)) {
-      setSelectedVariationCode(variations[0].variation_code);
+    if (selectedService && parsedVariations.length && !parsedVariations.find((variation) => variation.variation_code === selectedVariationCode)) {
+      setSelectedVariationCode(parsedVariations[0].variation_code);
     }
-  }, [selectedService, selectedVariationCode, variations]);
+  }, [selectedService, selectedVariationCode, parsedVariations]);
 
   const headerBack = () => {
     if (step > 1) {
@@ -220,30 +279,66 @@ export default function DataScreen() {
               <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayNetwork}</Text>
             </View>
 
-            <Text style={[styles.sectionTitle, { color: palette.text }]}>Plans</Text>
+            <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 8 }]}>Plans</Text>
             {selectedService ? (
               variationsQuery.isLoading ? (
-                <StateCard loading title="Loading plans" description="Fetching live data bundles from VTpass." icon={<Globe size={24} color={palette.textSecondary} />} />
+                <StateCard loading title="Loading plans" description="Fetching live data bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
               ) : variations.length ? (
-                <View style={styles.planGrid}>
-                  {variations.map((variation) => {
-                    const active = variation.variation_code === selectedVariationCode;
-                    return (
-                      <Pressable
-                        key={variation.variation_code}
-                        onPress={() => setSelectedVariationCode(variation.variation_code)}
-                        style={[styles.planCard, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
-                      >
-                        <View style={styles.planTop}>
-                          <Text style={[styles.planName, { color: palette.text }]}>{variation.name}</Text>
-                          <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={30} />
-                        </View>
-                        <Text style={[styles.planAmount, { color: palette.text }]}>{formatNaira(Number(variation.variation_amount))}</Text>
-                        <Text style={[styles.planMeta, { color: palette.textSecondary }]}>{variation.fixedPrice === 'Yes' ? 'Fixed price' : 'Variable price'}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <>
+                  <View style={[styles.tabBarContainer, { borderBottomColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
+                      {TABS.map((tab) => {
+                        const isActive = activeTab === tab;
+                        return (
+                          <Pressable
+                            key={tab}
+                            onPress={() => setActiveTab(tab)}
+                            style={styles.tabButton}
+                          >
+                            <Text style={[styles.tabText, { color: isActive ? palette.primary : palette.textSecondary }]}>
+                              {tab}
+                            </Text>
+                            {isActive ? <View style={[styles.tabIndicator, { backgroundColor: palette.primary }]} /> : null}
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {filteredVariations.length ? (
+                    <View style={styles.planGrid}>
+                      {filteredVariations.map((variation) => {
+                        const active = variation.variation_code === selectedVariationCode;
+                        const cardBg = scheme === 'dark' ? (active ? 'rgba(10,132,255,0.12)' : '#1E293B') : (active ? 'rgba(10,132,255,0.06)' : '#FFFFFF');
+                        const cardText = scheme === 'dark' ? '#FFFFFF' : '#0F172A';
+                        const cardBorder = active ? palette.primary : (scheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)');
+                        
+                        return (
+                          <Pressable
+                            key={variation.variation_code}
+                            onPress={() => setSelectedVariationCode(variation.variation_code)}
+                            style={[styles.planCard, { backgroundColor: cardBg, borderColor: cardBorder }]}
+                          >
+                            <View style={styles.planTop}>
+                              <Text style={[styles.planSizeText, { color: cardText }]} numberOfLines={1}>
+                                {variation.size}
+                              </Text>
+                              <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={18} />
+                            </View>
+                            <Text style={[styles.planPriceText, { color: scheme === 'dark' ? '#CBD5E1' : '#475569' }]}>
+                              {formatNaira(Number(variation.variation_amount))}
+                            </Text>
+                            <Text style={[styles.planDurationText, { color: palette.primary }]}>
+                              {variation.duration}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <StateCard title="No plans" description="No plans available in this category." icon={<Globe size={24} color={palette.textSecondary} />} />
+                  )}
+                </>
               ) : (
                 <StateCard title="No bundles" description="VTpass did not return any data plans for this provider." icon={<Globe size={24} color={palette.textSecondary} />} />
               )
@@ -413,13 +508,72 @@ const styles = StyleSheet.create({
   summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   summaryMiniMeta: { fontSize: Typography.xs },
-  planGrid: { gap: 10 },
-  planCard: { borderRadius: 18, borderWidth: 1, padding: 14, gap: 8 },
-  planTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  planName: { fontSize: Typography.md, fontFamily: Typography.family.bold, flex: 1 },
-  planAmount: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  planMeta: { fontSize: Typography.xs },
-  amountHint: { fontSize: Typography.xs },
+  planGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'flex-start',
+    marginTop: 8,
+  },
+  planCard: {
+    width: '48%',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  planTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  planSizeText: {
+    fontSize: 18,
+    fontFamily: Typography.family.bold,
+    flex: 1,
+  },
+  planPriceText: {
+    fontSize: 14,
+    fontFamily: Typography.family.semibold,
+  },
+  planDurationText: {
+    fontSize: 12,
+    fontFamily: Typography.family.bold,
+  },
+  tabBarContainer: {
+    borderBottomWidth: 1,
+    marginBottom: 8,
+  },
+  tabScroll: {
+    flexDirection: 'row',
+    gap: 20,
+    paddingBottom: 8,
+  },
+  tabButton: {
+    alignItems: 'center',
+    position: 'relative',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  tabText: {
+    fontSize: 14,
+    fontFamily: Typography.family.bold,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: -9,
+    height: 3,
+    left: 0,
+    right: 0,
+    borderRadius: 999,
+  },
+  amountHint: { fontSize: Typography.xs, marginTop: 4 },
   reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
   reviewLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   reviewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },

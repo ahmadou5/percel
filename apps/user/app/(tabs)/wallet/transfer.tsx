@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
+import { PinInput } from '@/components/ui/PinInput';
 import { StateCard } from '@/components/ui/StateCard';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -248,10 +249,10 @@ export default function TransferScreen() {
     setPinModalOpen(true);
   };
 
-  const handleSubmitTransfer = async () => {
+  const handleSubmitTransfer = async (overridePin?: string) => {
     if (submissionAttemptRef.current || transferPending) return;
 
-    const trimmed = pin.trim();
+    const trimmed = (overridePin ?? pin).trim();
     if (!/^\d{4,6}$/.test(trimmed)) {
       setPinStatus('error');
       setPinError('Use a 4 to 6 digit transfer PIN.');
@@ -762,29 +763,27 @@ export default function TransferScreen() {
               </View>
             </View>
 
-            <Input
-              label="Transfer PIN"
+            <PinInput
               value={pin}
               onChangeText={(text) => {
-                setPin(text.replace(/\s/g, ''));
+                const cleaned = text.replace(/\s/g, '');
+                setPin(cleaned);
                 if (pinStatus !== 'idle') setPinStatus('idle');
                 if (pinError) setPinError('');
+                if (cleaned.length === 4) {
+                  void handleSubmitTransfer(cleaned);
+                }
               }}
-              placeholder="1234"
-              keyboardType="number-pad"
-              secureTextEntry
-              secureToggle
-              helperText="Use the PIN you set in Profile."
+              loading={pinStatus === 'loading'}
+              error={pinError || undefined}
             />
-
-            {pinError ? <Text style={[styles.errorText, { color: palette.error }]}>{pinError}</Text> : null}
 
             <Pressable
               onPress={() => void handleSubmitTransfer()}
-              disabled={transferPending || !/^\d{4,6}$/.test(pin.trim())}
-              style={[styles.secondaryAction, { backgroundColor: palette.primary, opacity: transferPending || !/^\d{4,6}$/.test(pin.trim()) ? 0.45 : 1 }]}
+              disabled={transferPending || pin.length < 4}
+              style={[styles.secondaryAction, { backgroundColor: palette.primary, opacity: transferPending || pin.length < 4 ? 0.45 : 1 }]}
             >
-              {pinStatus === 'loading' ? <ActivityIndicator color={palette.card} /> : <SearchCheck size={18} color={palette.card} />}
+              <SearchCheck size={18} color={palette.card} />
               <Text style={styles.secondaryActionText}>{pinStatus === 'loading' ? 'Sending…' : 'Verify and send'}</Text>
             </Pressable>
           </View>
