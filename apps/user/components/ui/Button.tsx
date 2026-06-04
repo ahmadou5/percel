@@ -1,8 +1,7 @@
 import { useRef } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Colors } from '@/constants/palette';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -21,7 +20,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-const variantStyles = (theme: (typeof Colors)[keyof typeof Colors]): Record<Variant, object> => ({
+const variantStyles = (theme: ReturnType<typeof useAppPalette>): Record<Variant, object> => ({
   primary: { backgroundColor: theme.primary },
   secondary: { backgroundColor: theme.primaryDark },
   ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.primary },
@@ -35,8 +34,7 @@ const sizeStyles: Record<Size, object> = {
 };
 
 export function Button({ title, onPress, disabled, loading, variant = 'primary', size = 'md', style }: Props) {
-  const scheme = useColorScheme() ?? 'dark';
-  const theme = Colors[scheme];
+  const theme = useAppPalette();
   const reduceMotion = useReduceMotion();
   const scale = useRef(new Animated.Value(1)).current;
 

@@ -1,20 +1,21 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { View } from 'react-native';
-import 'react-native-reanimated';
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "@react-navigation/native";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { View } from "react-native";
+import "react-native-reanimated";
 
-import { UserRuntime } from '@/components/UserRuntime';
-import { useColorScheme } from '@/components/useColorScheme';
-import { initSentry } from '@/lib/sentry';
-import { useAuthStore } from '@/store/auth.store';
+import { UserRuntime } from "@/components/UserRuntime";
+import { useAppPalette, buildNavigationTheme } from "@/lib/theme";
+import { initSentry } from "@/lib/sentry";
+import { useAuthStore } from "@/store/auth.store";
+import { usePreferencesStore } from "@/store/preferences.store";
 
-export { ErrorBoundary } from '@/components/AppErrorBoundary';
+export { ErrorBoundary } from "@/components/AppErrorBoundary";
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
@@ -22,7 +23,7 @@ const queryClient = new QueryClient();
 
 function RootLayout() {
   const [loaded, fontError] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
@@ -30,27 +31,34 @@ function RootLayout() {
     ...FontAwesome.font,
   });
 
-  const hydrate = useAuthStore((s) => s.hydrate);
-  const isLoading = useAuthStore((s) => s.isLoading);
+  const hydrateAuth = useAuthStore((s) => s.hydrate);
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
+  const hydratePreferences = usePreferencesStore((s) => s.hydrate);
+  const palette = useAppPalette();
+  const preferencesLoading = usePreferencesStore((s) => s.isLoading);
 
   useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
 
   useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+    void hydrateAuth();
+  }, [hydrateAuth]);
 
   useEffect(() => {
-    if (loaded && !isLoading) {
+    void hydratePreferences();
+  }, [hydratePreferences]);
+
+  useEffect(() => {
+    if (loaded && !isAuthLoading && !preferencesLoading) {
       void SplashScreen.hideAsync();
     }
-  }, [loaded, isLoading]);
+  }, [loaded, isAuthLoading, preferencesLoading]);
 
-  if (!loaded || isLoading) {
+  if (!loaded || isAuthLoading || preferencesLoading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#ffffff" }}>
-        <FontAwesome name="spinner" size={20} color="#0EA5E9" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.bg }}>
+        <FontAwesome name="spinner" size={20} color={palette.primary} />
       </View>
     );
   }
@@ -69,10 +77,10 @@ export default function RootLayoutWithSentry() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const palette = useAppPalette();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={buildNavigationTheme(palette)}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

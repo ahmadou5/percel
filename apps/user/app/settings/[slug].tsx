@@ -4,12 +4,11 @@ import { BadgeCheck, Bell, CreditCard, HandCoins, Shield, Users, ChevronRight } 
 
 import { Button } from '@/components/ui/Button';
 import { Linking } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAuthStore } from '@/store/auth.store';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 const SLUGS = {
   kyc: { title: 'KYC', description: 'Verify your identity so your account stays compliant and ready for higher limits.', Icon: BadgeCheck },
@@ -24,8 +23,8 @@ type SlugKey = keyof typeof SLUGS;
 
 export default function SettingsDetailScreen() {
   const params = useLocalSearchParams<{ slug?: string }>();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
+  const lightBg = isLight(palette.bg);
   const back = useSafeBack("/settings");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isUnlocked = useAuthStore((state) => state.isUnlocked);
@@ -59,7 +58,7 @@ export default function SettingsDetailScreen() {
         <View style={[styles.icon, { backgroundColor: palette.text }]}> 
           <page.Icon size={24} color={palette.card} />
         </View>
-        <View style={[styles.note, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(10,132,255,0.06)', borderColor: palette.border }]}>
+        <View style={[styles.note, { backgroundColor: lightBg ? 'rgba(10,132,255,0.06)' : 'rgba(255,255,255,0.04)', borderColor: palette.border }]}>
           <Text style={[styles.noteText, { color: palette.textSecondary }]}>This screen is wired into the new settings flow and can be expanded with the full product feature later.</Text>
         </View>
         {slug === 'support' || slug === 'reset-pin' ? <Button title="Email support" variant="secondary" onPress={() => void Linking.openURL('mailto:support@percel.app?subject=Percel%20Support')} /> : null}
@@ -74,6 +73,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.8 },
   subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },

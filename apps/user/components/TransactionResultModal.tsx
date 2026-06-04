@@ -2,13 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CheckCircle2, Clock3, XCircle } from 'lucide-react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
-import { useReduceMotion } from '@/hooks/useReduceMotion';
-import { haptics } from '@/utils/haptics';
-
+import { Spacing } from "@/constants/spacing";
+import { Typography } from "@/constants/typography";
+import { useAppPalette } from "@/lib/theme";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { haptics } from "@/utils/haptics";
 interface TransactionResultModalProps {
   visible: boolean;
   type: 'success' | 'failed' | 'pending';
@@ -37,8 +35,7 @@ export function TransactionResultModal({
   onClose,
   onViewReceipt,
 }: TransactionResultModalProps) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const reduceMotion = useReduceMotion();
   const scale = useRef(new Animated.Value(reduceMotion ? 1 : 0.92)).current;
   const opacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;

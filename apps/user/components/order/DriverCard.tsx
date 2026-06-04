@@ -2,10 +2,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useColorScheme } from '@/components/useColorScheme';
 
 type Props = {
   driver?: {
@@ -20,8 +19,7 @@ type Props = {
 };
 
 function DriverCardBase({ driver, onCall }: Props) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
 
   if (!driver) {
     return (

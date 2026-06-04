@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useConfirmDelivery, useOrderDetail } from '@/hooks/useOrder';
 import { subscribeToDriverLocation, subscribeToOrderUpdates } from '@/lib/socket';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 export default function TrackingScreen() {
   const router = useRouter();

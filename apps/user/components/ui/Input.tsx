@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type TextStyle, type ViewStyle } from 'react-native';
-import { Colors } from '@/constants/palette';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 
@@ -18,8 +17,7 @@ type Props = TextInputProps & {
 };
 
 export function Input({ label, error, helperText, secureTextEntry, secureToggle, rightLabel, leftElement, rightElement, containerStyle, inputStyle, onFocus, onBlur, ...props }: Props) {
-  const scheme = useColorScheme() ?? 'dark';
-  const theme = Colors[scheme];
+  const theme = useAppPalette();
   const [hidden, setHidden] = useState(Boolean(secureTextEntry));
   const [focused, setFocused] = useState(false);
   return (

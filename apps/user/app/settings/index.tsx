@@ -1,17 +1,21 @@
 import { useState, type ComponentType } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronRight, CreditCard, History, LogOut, Shield, User, Bell, Users, BadgeCheck, CircleHelp, ChevronLeft } from 'lucide-react-native';
+import { BadgeCheck, Bell, ChevronLeft, ChevronRight, CircleHelp, CreditCard, History, LogOut, Palette, Shield, User, Users } from 'lucide-react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
+import { useAppPalette } from '@/lib/theme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useLogout } from '@/hooks/useAuth';
 
+const preferenceItems = [
+  { title: 'Preferences', subtitle: 'Choose your theme and custom palette', href: '/settings/preferences', Icon: Palette },
+] as const;
+
 const accountItems = [
-  { title: 'My Profile', subtitle: 'Edit your account information', href: '/profile/edit', Icon: User },
+  { title: 'My Profile', subtitle: 'View your profile', href: '/profile', Icon: User },
   { title: 'KYC', subtitle: 'Verify your identity', href: '/settings/kyc', Icon: BadgeCheck },
   { title: 'Spending Limits', subtitle: 'Manage your transaction limits', href: '/settings/spending-limits', Icon: CreditCard },
   { title: 'Beneficiaries', subtitle: 'Manage saved bank accounts', href: '/settings/beneficiaries', Icon: Users },
@@ -23,15 +27,14 @@ const activityItems = [
 ] as const;
 
 const securityItems = [
-  { title: 'Security', subtitle: 'Change password and PIN', href: '/profile/security', Icon: Shield },
+  { title: 'Security', subtitle: 'Change password, PIN, and biometrics', href: '/profile/security', Icon: Shield },
   { title: 'Support', subtitle: 'Talk to us', href: '/settings/support', Icon: CircleHelp },
 ] as const;
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
-  const back = useSafeBack("/profile");
+  const palette = useAppPalette();
+  const back = useSafeBack('/profile');
   const logout = useLogout();
   const [logoutVisible, setLogoutVisible] = useState(false);
 
@@ -52,14 +55,16 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-         <ChevronLeft size={20} color={palette.text} fill={"none"}  />
+        <Pressable onPress={() => back()} style={[styles.backButton, { borderColor: palette.border, backgroundColor: palette.card }]}>
+         <ChevronLeft size={20} color={palette.text} fill={'none'}  />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+        <SectionGroup label="Preferences" items={preferenceItems} palette={palette} onPress={openLink} />
+        <View style={styles.groupSpacer} />
         <SectionGroup label="Account" items={accountItems} palette={palette} onPress={openLink} />
         <View style={styles.groupSpacer} />
         <SectionGroup label="Activity" items={activityItems} palette={palette} onPress={openLink} />

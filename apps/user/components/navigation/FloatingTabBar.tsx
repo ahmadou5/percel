@@ -5,9 +5,8 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 type TabName = 'index' | 'send' | 'orders' | 'profile';
 
@@ -46,26 +45,15 @@ type ThemeTokens = {
   primary: string;
 };
 
-const NAV_THEME: Record<'light' | 'dark', ThemeTokens> = {
-  light: {
-    background: 'rgba(255, 255, 255, 0.94)',
-    border: 'rgba(0, 0, 0, 0.06)',
-    shadow: 'rgba(0, 0, 0, 0.14)',
-    active: Colors.light.primary,
-    inactive: 'rgba(0, 0, 0, 0.38)',
-    activeBackdrop: 'rgba(10, 132, 255, 0.10)',
-    primary: Colors.light.primary,
-  },
-  dark: {
-    background: 'rgba(18, 18, 20, 0.94)',
-    border: 'rgba(255, 255, 255, 0.08)',
-    shadow: 'rgba(0, 0, 0, 0.46)',
-    active: Colors.dark.primary,
-    inactive: 'rgba(255, 255, 255, 0.38)',
-    activeBackdrop: 'rgba(10, 132, 255, 0.16)',
-    primary: Colors.dark.primary,
-  },
-};function TabGlyph({
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace('#', '');
+  const value = normalized.length === 3 ? normalized.split('').map((part) => part + part).join('') : normalized;
+  const int = Number.parseInt(value, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}function TabGlyph({
   routeName,
   focused,
   theme,
@@ -179,8 +167,21 @@ function TabButton({
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const scheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
-  const theme = NAV_THEME[scheme];
+  const palette = useAppPalette();
+  const isDark = !isLight(palette.bg);
+
+  const theme = useMemo<ThemeTokens>(() => {
+    return {
+      background: hexToRgba(palette.card, 0.94),
+      border: palette.border,
+      shadow: isDark ? 'rgba(0, 0, 0, 0.46)' : 'rgba(0, 0, 0, 0.14)',
+      active: palette.primary,
+      inactive: hexToRgba(palette.text, 0.38),
+      activeBackdrop: hexToRgba(palette.primary, isDark ? 0.16 : 0.10),
+      primary: palette.primary,
+    };
+  }, [palette, isDark]);
+
   const insets = useSafeAreaInsets();
   const [mountReady, setMountReady] = useState(false);
 
@@ -231,7 +232,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         style={[
           styles.halo,
           {
-            backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(10,132,255,0.08)',
+            backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : hexToRgba(palette.primary, 0.08),
           },
         ]}
       />

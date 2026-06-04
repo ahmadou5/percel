@@ -9,6 +9,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useCreateOrder, useGetQuote } from '@/hooks/useOrder';
 import { PriceBreakdown } from '@/components/order/PriceBreakdown';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 export default function QuoteScreen() {
   const router = useRouter();

@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Animated, BackHandler, Pressable, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { haptics } from '@/utils/haptics';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 
@@ -14,8 +13,7 @@ type FlowProgressDotsProps = {
 };
 
 export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowProgressDotsProps) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const reduceMotion = useReduceMotion();
   const fill = useRef(new Animated.Value(currentStep / totalSteps)).current;
   const prevStep = useRef(currentStep);

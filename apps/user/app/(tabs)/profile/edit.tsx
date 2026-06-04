@@ -11,12 +11,11 @@ import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { KeyboardView } from '@/components/ui/KeyboardView';
-import { useColorScheme } from '@/components/useColorScheme';
 
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useChangePassword, useDeleteAccount, useProfile, useUpdateAvatar, useUpdateProfile } from '@/hooks/useProfile';
+import { useAppPalette } from '@/lib/theme';
 
 function toFormDate(value?: string | null) {
   return value ? value.slice(0, 10) : '';
@@ -24,8 +23,7 @@ function toFormDate(value?: string | null) {
 
 export default function EditProfileScreen() {
   const back = useSafeBack("/profile");
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const profileQuery = useProfile();
   const profile = profileQuery.data;
   const updateProfile = useUpdateProfile();

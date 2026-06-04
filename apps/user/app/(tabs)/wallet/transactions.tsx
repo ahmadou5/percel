@@ -7,13 +7,12 @@ import { haptics } from '@/utils/haptics';
 
 import { StateCard } from '@/components/ui/StateCard';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTransactions } from '@/hooks/useWallet';
 import { formatNaira, formatTxnDate, titleize, walletCategories } from '@/lib/wallet';
+import { useAppPalette } from '@/lib/theme';
 
 function DashedDivider() {
   return (
@@ -56,8 +55,7 @@ function ReceiptRow({ label, value, isStatus, statusType }: { label: string; val
 }
 
 export default function TransactionsScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const back = useSafeBack("/wallet");
   const [category, setCategory] = useState<'ALL' | string>('ALL');
   const [search, setSearch] = useState('');
@@ -359,7 +357,7 @@ function TransactionRow({
   item: { id: string; description: string; reference: string; category: string; createdAt: string; amount: number; status: string; type: 'CREDIT' | 'DEBIT' };
   index: number;
   onPress: () => void;
-  palette: (typeof Colors)[keyof typeof Colors];
+  palette: ReturnType<typeof useAppPalette>;
 }) {
   const credit = item.type === 'CREDIT';
   return (
@@ -383,7 +381,7 @@ function TransactionRow({
   );
 }
 
-function Row({ label, value, palette }: { label: string; value: string; palette: (typeof Colors)[keyof typeof Colors] }) {
+function Row({ label, value, palette }: { label: string; value: string; palette: ReturnType<typeof useAppPalette> }) {
   return (
     <View style={[styles.detailRow, { borderBottomColor: palette.border }]}>
       <Text style={[styles.detailLabel, { color: palette.textSecondary }]}>{label}</Text>

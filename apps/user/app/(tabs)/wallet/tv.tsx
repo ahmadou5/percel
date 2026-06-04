@@ -4,16 +4,18 @@ import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollV
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
+import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { ProviderBadge, providerLabelFromService } from '@/components/wallet/WalletFlow';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useBuyTv, useProviderServices, useProviderVariations, useValidateProviderAccount } from '@/hooks/useWallet';
+import { useBuyTv, useProviderServices, useProviderVariations, useValidateProviderAccount, useVerifyTransferPin } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { triggerBiometricAuth } from '@/lib/localAuthentication';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { useAppPalette } from '@/lib/theme';
 
 type ValidationResult = {
   name: string;
@@ -21,8 +23,7 @@ type ValidationResult = {
 };
 
 export default function TvScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const mutation = useBuyTv();
   const validateMutation = useValidateProviderAccount();
   const services = useProviderServices('tv-subscription').data ?? [];
@@ -35,7 +36,15 @@ export default function TvScreen() {
   const [validationStatus, setValidationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [validationError, setValidationError] = useState('');
   const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
-  const { opacity, translateX } = useSlideStepTransition(step);
+  const pinVerify = useVerifyTransferPin();
+  const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinStatus, setPinStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [pinError, setPinError] = useState("");
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricToast, setBiometricToast] = useState("");
+  const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
@@ -104,6 +113,86 @@ export default function TvScreen() {
     if (shouldReturn) back();
   };
 
+  const resetPaymentAuthState = () => {
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(false);
+  };
+
+  const executePayment = async () => {
+    if (!selectedService || !selectedVariation) return;
+
+    const response = await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.name, variationCode: selectedVariation.variation_code });
+    setResultModal({
+      visible: true,
+      type: "success",
+      title: "TV subscription paid",
+      message: "Your TV subscription renewal completed successfully.",
+      amount: formatNaira(selectedPrice),
+      reference: response.data.reference,
+      returnAfterClose: true,
+    });
+  };
+
+  const submitPaymentWithPin = async (overridePin?: string) => {
+    if (!selectedService || !selectedVariation || mutation.isPending) return;
+
+    const trimmed = (overridePin ?? pin).trim();
+    if (!/^[0-9]{4,6}$/.test(trimmed)) {
+      setPinStatus("error");
+      setPinError("Use a 4 to 6 digit transfer PIN.");
+      return;
+    }
+
+    setPinStatus("loading");
+    setPinError("");
+
+    try {
+      const verification = await pinVerify.mutateAsync({ pin: trimmed });
+      if (!verification.data.verified) {
+        throw new Error("That PIN is not valid.");
+      }
+
+      await executePayment();
+      resetPaymentAuthState();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unable to complete TV subscription.";
+      setPinError(reason);
+      setPinStatus("error");
+    }
+  };
+
+  const openPaymentAuth = async () => {
+    if (!selectedService || !selectedVariation || biometricBusy || mutation.isPending) return;
+
+    if (confirmTransactionsBiometricEnabled) {
+      setBiometricBusy(true);
+      try {
+        const result = await triggerBiometricAuth({
+          promptMessage: "Confirm this TV subscription",
+          cancelLabel: "Use PIN",
+          fallbackLabel: "Use PIN",
+        });
+
+        if (result.success) {
+          await executePayment();
+          return;
+        }
+
+        if (result.reason === "cancelled") {
+          setBiometricToast(result.message);
+        }
+      } finally {
+        setBiometricBusy(false);
+      }
+    }
+
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(true);
+  };
   const displayService = selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Choose a provider';
 
   return (
@@ -134,7 +223,7 @@ export default function TvScreen() {
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
-      <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+      <Animated.View style={{ transform: [{ translateX }] }}>
         {step === 1 ? (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <View style={styles.sectionHeader}>
@@ -269,34 +358,11 @@ export default function TvScreen() {
             </View>
 
             <Pressable
-              disabled={!selectedService || !selectedVariation || mutation.isPending}
-              onPress={async () => {
-                if (!selectedService || !selectedVariation) return;
-                try {
-                  const response = await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.name, variationCode: selectedVariation.variation_code });
-                  setResultModal({
-                    visible: true,
-                    type: 'success',
-                    title: 'TV subscription paid',
-                    message: 'Your TV subscription renewal completed successfully.',
-                    amount: formatNaira(selectedPrice),
-                    reference: response.data.reference,
-                    returnAfterClose: true,
-                  });
-                } catch (error) {
-                  setResultModal({
-                    visible: true,
-                    type: 'failed',
-                    title: 'Subscription failed',
-                    message: error instanceof Error ? error.message : 'Unable to renew the TV subscription.',
-                    amount: formatNaira(selectedPrice),
-                    returnAfterClose: false,
-                  });
-                }
-              }}
+              disabled={!selectedService || !selectedVariation || mutation.isPending || biometricBusy}
+              onPress={() => void openPaymentAuth()}
               style={[styles.primaryAction, { backgroundColor: selectedService && selectedVariation ? palette.primary : palette.border }]}
             >
-              {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : 'Select a bouquet'}</Text>}
+              {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : "Select a bouquet"}</Text>}
             </Pressable>
           </View>
         ) : null}
@@ -312,6 +378,34 @@ export default function TvScreen() {
         onClose={handleCloseResult}
       />
 
+      <PaymentPinModal
+        visible={pinModalOpen}
+        title="Enter transfer PIN"
+        subtitle={`You are about to renew ${formatNaira(selectedPrice)}.`}
+        reviewLabel="TV subscription"
+        reviewTitle={selectedVariation?.name ?? "Select a bouquet"}
+        reviewMeta={displayService}
+        reviewAmount={formatNaira(selectedPrice)}
+        pin={pin}
+        onPinChange={(value) => {
+          setPin(value);
+          if (pinStatus !== "idle") setPinStatus("idle");
+          if (pinError) setPinError("");
+          if (value.length === 4) {
+            void submitPaymentWithPin(value);
+          }
+        }}
+        loading={pinStatus === "loading" || mutation.isPending}
+        error={pinError || undefined}
+        confirmLabel="Verify and pay"
+        onConfirm={() => void submitPaymentWithPin()}
+        onClose={() => {
+          if (pinStatus === "loading" || mutation.isPending) return;
+          resetPaymentAuthState();
+        }}
+        canClose={!(pinStatus === "loading" || mutation.isPending)}
+        footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
+      />
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
@@ -423,4 +517,5 @@ const styles = StyleSheet.create({
   providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   providerRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   providerRowMeta: { fontSize: Typography.xs },
+  biometricToast: { fontSize: Typography.xs, lineHeight: 16, textAlign: 'center' },
 });

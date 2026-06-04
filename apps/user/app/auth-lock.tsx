@@ -5,8 +5,7 @@ import { router } from 'expo-router';
 import { Fingerprint, MoveLeft } from 'lucide-react-native';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useLogout } from '@/hooks/useAuth';
@@ -18,8 +17,7 @@ const PIN_LENGTH = 4;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'back'] as const;
 
 export default function AuthLockScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isUnlocked = useAuthStore((state) => state.isUnlocked);
@@ -151,7 +149,7 @@ export default function AuthLockScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}> 
       <AuthBackdrop />
-      <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.18)' }]} />
+      <View style={[styles.overlay, { backgroundColor: palette.text === '#FFFFFF' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.18)' }]} />
 
       <View style={styles.topBar}>
         <Pressable onPress={() => void logout.mutateAsync().then(() => router.replace('/(auth)/welcome'))} style={styles.topAction}>

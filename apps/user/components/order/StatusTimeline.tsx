@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { titleize } from '@/lib/wallet';
-import { useColorScheme } from '@/components/useColorScheme';
 
 type TimelineItem = {
   id: string;
@@ -18,8 +17,7 @@ type Props = {
 };
 
 export function StatusTimeline({ items }: Props) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
 
   return (
     <View style={styles.wrap}>

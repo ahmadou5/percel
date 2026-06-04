@@ -9,12 +9,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/palette';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 export function AuthBackdrop() {
-  const scheme = useColorScheme() ?? 'dark';
-  const theme = Colors[scheme];
+  const theme = useAppPalette();
+  const lightBg = isLight(theme.bg);
   const float = useSharedValue(0);
   const pulse = useSharedValue(0);
 
@@ -60,8 +59,8 @@ export function AuthBackdrop() {
       <View style={[styles.base, { backgroundColor: theme.bg }]} />
       <Animated.View style={[styles.orbA, { backgroundColor: theme.primary }, orbA]} />
       <Animated.View style={[styles.orbB, { backgroundColor: theme.primaryDark }, orbB]} />
-      <View style={[styles.line, { backgroundColor: theme.primary, opacity: scheme === 'dark' ? 0.08 : 0.12 }]} />
-      <View style={[styles.lineAlt, { backgroundColor: theme.primaryDark, opacity: scheme === 'dark' ? 0.06 : 0.08 }]} />
+      <View style={[styles.line, { backgroundColor: theme.primary, opacity: lightBg ? 0.12 : 0.08 }]} />
+      <View style={[styles.lineAlt, { backgroundColor: theme.primaryDark, opacity: lightBg ? 0.08 : 0.06 }]} />
     </View>
   );
 }

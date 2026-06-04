@@ -4,15 +4,13 @@ import { Redirect } from 'expo-router';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Gift, Share2, Users, Wallet } from 'lucide-react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAuthStore } from '@/store/auth.store';
+import { useAppPalette } from '@/lib/theme';
 
 export default function ReferralsScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isUnlocked = useAuthStore((state) => state.isUnlocked);
@@ -72,7 +70,7 @@ export default function ReferralsScreen() {
   );
 }
 
-function InfoRow({ Icon, title, subtitle, palette }: { Icon: ComponentType<{ color?: string; size?: number }>; title: string; subtitle: string; palette: (typeof Colors)[keyof typeof Colors]; }) {
+function InfoRow({ Icon, title, subtitle, palette }: { Icon: ComponentType<{ color?: string; size?: number }>; title: string; subtitle: string; palette: ReturnType<typeof useAppPalette>; }) {
   return (
     <View style={styles.infoRow}>
       <View style={[styles.infoIcon, { backgroundColor: palette.text }]}>
@@ -91,6 +89,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   backArrow: { fontSize: 28, lineHeight: 28, marginTop: -2 },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },

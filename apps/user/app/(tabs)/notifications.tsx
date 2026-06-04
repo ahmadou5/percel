@@ -6,8 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
 import { NotificationDetailModal } from '@/components/NotificationDetailModal';
 import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNotificationDate, type AppNotification } from '@/lib/notifications';
@@ -31,8 +30,7 @@ function iconFor(notification: AppNotification) {
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const back = useSafeBack('/');
   const [filter, setFilter] = useState<(typeof filters)[number]['key']>('ALL');
   const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);

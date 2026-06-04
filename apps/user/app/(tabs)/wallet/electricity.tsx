@@ -4,16 +4,18 @@ import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollV
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
+import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { ProviderBadge, providerLabelFromService } from '@/components/wallet/WalletFlow';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useBuyElectricity, useProviderServices, useValidateProviderAccount } from '@/hooks/useWallet';
+import { useBuyElectricity, useProviderServices, useValidateProviderAccount, useVerifyTransferPin } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { triggerBiometricAuth } from '@/lib/localAuthentication';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { useAppPalette } from '@/lib/theme';
 
 const amountPresets = [500, 1000, 2000, 5000] as const;
 
@@ -23,8 +25,7 @@ type ValidationResult = {
 };
 
 export default function ElectricityScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const mutation = useBuyElectricity();
   const validateMutation = useValidateProviderAccount();
   const services = useProviderServices('electricity-bill').data ?? [];
@@ -39,6 +40,14 @@ export default function ElectricityScreen() {
   const [validationStatus, setValidationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [validationError, setValidationError] = useState('');
   const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
+  const pinVerify = useVerifyTransferPin();
+  const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinStatus, setPinStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [pinError, setPinError] = useState("");
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricToast, setBiometricToast] = useState("");
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
@@ -97,6 +106,86 @@ export default function ElectricityScreen() {
 
   const amountValid = amountValue > 0;
 
+  const resetPaymentAuthState = () => {
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(false);
+  };
+
+  const executePayment = async () => {
+    if (!selectedService) return;
+
+    const response = await mutation.mutateAsync({ meterNumber: meterNumber.trim(), amount: amountValue, disco: selectedService.serviceID, type: meterType });
+    setResultModal({
+      visible: true,
+      type: "success",
+      title: "Electricity paid",
+      message: "Your electricity payment completed successfully.",
+      amount: formatNaira(amountValue),
+      reference: response.data.reference,
+      returnAfterClose: true,
+    });
+  };
+
+  const submitPaymentWithPin = async (overridePin?: string) => {
+    if (!selectedService || mutation.isPending) return;
+
+    const trimmed = (overridePin ?? pin).trim();
+    if (!/^[0-9]{4,6}$/.test(trimmed)) {
+      setPinStatus("error");
+      setPinError("Use a 4 to 6 digit transfer PIN.");
+      return;
+    }
+
+    setPinStatus("loading");
+    setPinError("");
+
+    try {
+      const verification = await pinVerify.mutateAsync({ pin: trimmed });
+      if (!verification.data.verified) {
+        throw new Error("That PIN is not valid.");
+      }
+
+      await executePayment();
+      resetPaymentAuthState();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unable to complete electricity payment.";
+      setPinError(reason);
+      setPinStatus("error");
+    }
+  };
+
+  const openPaymentAuth = async () => {
+    if (!selectedService || biometricBusy || mutation.isPending) return;
+
+    if (confirmTransactionsBiometricEnabled) {
+      setBiometricBusy(true);
+      try {
+        const result = await triggerBiometricAuth({
+          promptMessage: "Confirm this electricity payment",
+          cancelLabel: "Use PIN",
+          fallbackLabel: "Use PIN",
+        });
+
+        if (result.success) {
+          await executePayment();
+          return;
+        }
+
+        if (result.reason === "cancelled") {
+          setBiometricToast(result.message);
+        }
+      } finally {
+        setBiometricBusy(false);
+      }
+    }
+
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(true);
+  };
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
@@ -252,60 +341,8 @@ export default function ElectricityScreen() {
 
             <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected amount: {amountValue ? formatNaira(amountValue) : '₦0'}</Text>
 
-            <Pressable disabled={!amountValid} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: amountValid ? palette.primary : palette.border }]}>
+            <Pressable disabled={!amountValid || mutation.isPending || biometricBusy} onPress={() => void openPaymentAuth()} style={[styles.primaryAction, { backgroundColor: amountValid ? palette.primary : palette.border }]}>
               <Text style={styles.primaryActionText}>Review electricity payment</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {step === 3 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <CheckCircle2 size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the provider, meter type, and amount before payment.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Electricity</Text>
-              <Text style={[styles.reviewTitle, { color: palette.text }]}>{displayService}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{meterNumber} • {meterType}</Text>
-              <Text style={[styles.reviewAmount, { color: palette.text }]}>{amountValue ? formatNaira(amountValue) : '₦0'}</Text>
-            </View>
-
-            <Pressable
-              disabled={!selectedService || mutation.isPending}
-              onPress={async () => {
-                if (!selectedService) return;
-                try {
-                  const response = await mutation.mutateAsync({ meterNumber: meterNumber.trim(), amount: amountValue, disco: selectedService.serviceID, type: meterType });
-                  setResultModal({
-                    visible: true,
-                    type: 'success',
-                    title: 'Electricity paid',
-                    message: 'Your electricity payment completed successfully.',
-                    amount: formatNaira(amountValue),
-                    reference: response.data.reference,
-                    returnAfterClose: true,
-                  });
-                } catch (error) {
-                  setResultModal({
-                    visible: true,
-                    type: 'failed',
-                    title: 'Payment failed',
-                    message: error instanceof Error ? error.message : 'Unable to pay electricity bill.',
-                    amount: formatNaira(amountValue),
-                    returnAfterClose: false,
-                  });
-                }
-              }}
-              style={[styles.primaryAction, { backgroundColor: selectedService ? palette.primary : palette.border }]}
-            >
-              {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{`Pay ${formatNaira(amountValue)}`}</Text>}
             </Pressable>
           </View>
         ) : null}
@@ -321,6 +358,34 @@ export default function ElectricityScreen() {
         onClose={handleCloseResult}
       />
 
+      <PaymentPinModal
+        visible={pinModalOpen}
+        title="Enter transfer PIN"
+        subtitle={`You are about to pay ${formatNaira(amountValue)} for electricity.`}
+        reviewLabel="Electricity"
+        reviewTitle={displayService}
+        reviewMeta={`${meterNumber} • ${meterType}`}
+        reviewAmount={formatNaira(amountValue)}
+        pin={pin}
+        onPinChange={(value) => {
+          setPin(value);
+          if (pinStatus !== "idle") setPinStatus("idle");
+          if (pinError) setPinError("");
+          if (value.length === 4) {
+            void submitPaymentWithPin(value);
+          }
+        }}
+        loading={pinStatus === "loading" || mutation.isPending}
+        error={pinError || undefined}
+        confirmLabel="Verify and pay"
+        onConfirm={() => void submitPaymentWithPin()}
+        onClose={() => {
+          if (pinStatus === "loading" || mutation.isPending) return;
+          resetPaymentAuthState();
+        }}
+        canClose={!(pinStatus === "loading" || mutation.isPending)}
+        footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
+      />
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
@@ -434,4 +499,5 @@ const styles = StyleSheet.create({
   providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   providerRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   providerRowMeta: { fontSize: Typography.xs },
+  biometricToast: { fontSize: Typography.xs, lineHeight: 16, textAlign: 'center' },
 });

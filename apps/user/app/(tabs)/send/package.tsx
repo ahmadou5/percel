@@ -6,6 +6,7 @@ import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { orderSizes } from '@/lib/order';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 export default function PackageDetailsScreen() {
   const router = useRouter();

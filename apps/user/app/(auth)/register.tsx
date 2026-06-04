@@ -5,16 +5,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
-import { useColorScheme } from '@/components/useColorScheme';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
 import { PinInput } from '@/components/ui/PinInput';
 import { KeyboardView } from '@/components/ui/KeyboardView';
-import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
 import { useRegister } from '@/hooks/useAuth';
 import { useSetTransferPin } from '@/hooks/useWallet';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
@@ -23,8 +22,8 @@ const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function RegisterScreen() {
-  const scheme = useColorScheme() ?? 'dark';
-  const theme = Colors[scheme];
+  const theme = useAppPalette();
+  const lightBg = isLight(theme.bg);
   const [step, setStep] = useState<Step>(1);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -99,7 +98,7 @@ export default function RegisterScreen() {
     <KeyboardView>
       <View style={[styles.screen, { backgroundColor: theme.bg }]}>
         <AuthBackdrop />
-        <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)' }]} />
+        <View style={[styles.overlay, { backgroundColor: lightBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)' }]} />
         
         <View style={styles.topRow}>
           <Pressable onPress={handleBack} style={[styles.backButton, { borderColor: theme.border, backgroundColor: theme.card }]}>
@@ -118,7 +117,7 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.cardWrap}>
-          <Animated.View entering={FadeInDown.duration(600)} style={[styles.card, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.86)', borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : theme.border }]}>
+          <Animated.View entering={FadeInDown.duration(600)} style={[styles.card, { backgroundColor: lightBg ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.06)', borderColor: lightBg ? theme.border : 'rgba(255,255,255,0.08)' }]}>
             
             {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
@@ -171,7 +170,7 @@ export default function RegisterScreen() {
                   onChangeText={(value) => setPhone(value.replace(/\D/g, ''))}
                   error={phone && !phoneRegex.test(`+234${phoneValue}`) ? 'Enter a valid Nigerian phone number' : undefined}
                   leftElement={(
-                    <View style={[styles.countryPill, { backgroundColor: scheme === 'dark' ? '#202025' : '#f0f5ff', borderColor: theme.border }]}>
+                    <View style={[styles.countryPill, { backgroundColor: lightBg ? '#f0f5ff' : '#202025', borderColor: theme.border }]}>
                       <Text style={[styles.countryFlag, { color: theme.text }]}>🇳🇬</Text>
                       <Text style={[styles.countryCode, { color: theme.text }]}>+234</Text>
                     </View>

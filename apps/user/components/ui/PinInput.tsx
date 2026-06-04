@@ -1,9 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, Pressable, ActivityIndicator, Text } from 'react-native';
-import { Colors } from '@/constants/palette';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Typography } from '@/constants/typography';
-import { haptics } from '@/utils/haptics';
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from "react-native";
+
+import { Typography } from "@/constants/typography";
+import { useAppPalette } from "@/lib/theme";
+import { haptics } from "@/utils/haptics";
 
 interface PinInputProps {
   value: string;
@@ -24,15 +24,16 @@ export function PinInput({
   error,
   autoFocus = true,
 }: PinInputProps) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const palette = useAppPalette();
 
   // Split value into an array of characters
   const code = Array.from({ length }).map((_, i) => value[i] ?? '');
 
   // Ref array for input boxes
   const refs = useRef<(TextInput | null)[]>([]);
+
+  // State to track which digit input is currently focused
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (autoFocus && refs.current[0]) {
@@ -72,7 +73,7 @@ export function PinInput({
     }
   };
 
-  const handleKeyPress = (e: any, index: number) => {
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
     if (e.nativeEvent.key === 'Backspace') {
       if (code[index] === '') {
         if (index > 0) {

@@ -7,8 +7,6 @@ import { ArrowLeft, Banknote, Copy, CreditCard, ExternalLink, Landmark, PlusCirc
 import { AmountInput } from "@/components/wallet/AmountInput";
 import { ConfirmSheet } from "@/components/wallet/ConfirmSheet";
 import { StateCard } from "@/components/ui/StateCard";
-import { useColorScheme } from "@/components/useColorScheme";
-import { Colors } from "@/constants/palette";
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
 import { formatNaira } from "@/lib/wallet";
@@ -17,6 +15,7 @@ import { haptics } from "@/utils/haptics";
 import { useTopUp, useWallet } from "@/hooks/useWallet";
 import { useAuthStore } from "@/store/auth.store";
 import { useSafeBack } from "@/components/navigation/useSafeBack";
+import { useAppPalette } from "@/lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -26,8 +25,7 @@ type FundingMethod = "bank" | "paystack";
 
 export default function TopUpScreen() {
   const router = useRouter();
-  const scheme = (useColorScheme() ?? "light") as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const back = useSafeBack("/wallet");
   const mutation = useTopUp();
   const walletQuery = useWallet();

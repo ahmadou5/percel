@@ -5,14 +5,13 @@ import { Animated, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Te
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateProfile, useVerifyBvn } from '@/hooks/useProfile';
 import { useBanks } from '@/hooks/useWallet';
+import { useAppPalette } from '@/lib/theme';
 
 function isValidDateInput(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
@@ -42,8 +41,7 @@ type BankItem = {
 
 export default function KycScreen() {
   const queryClient = useQueryClient();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const profileQuery = useProfile();
   const updateProfile = useUpdateProfile();
   const verifyBvn = useVerifyBvn();
@@ -431,7 +429,7 @@ function Row({
 }: {
   label: string;
   value: string;
-  palette: (typeof Colors)[keyof typeof Colors];
+  palette: ReturnType<typeof useAppPalette>;
 }) {
   return (
     <View style={[styles.reviewRow, { borderBottomColor: palette.border }]}> 

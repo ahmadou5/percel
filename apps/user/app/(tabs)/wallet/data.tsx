@@ -4,16 +4,18 @@ import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollV
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
+import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { normalizeNigerianPhone, providerLabelFromService, ProviderBadge } from '@/components/wallet/WalletFlow';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useBuyData, useProviderServices, useProviderVariations, useResolveAirtimeProvider, useWallet } from '@/hooks/useWallet';
+import { useBuyData, useProviderServices, useProviderVariations, useResolveAirtimeProvider, useVerifyTransferPin, useWallet } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { triggerBiometricAuth } from '@/lib/localAuthentication';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 type ProviderSelection = {
   phone: string;
@@ -23,8 +25,8 @@ type ProviderSelection = {
 };
 
 export default function DataScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
+  const lightBg = isLight(palette.bg);
   const walletQuery = useWallet();
   const wallet = walletQuery.data;
   const mutation = useBuyData();
@@ -39,7 +41,15 @@ export default function DataScreen() {
   const [providerStatus, setProviderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [providerError, setProviderError] = useState('');
   const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
-  const { opacity, translateX } = useSlideStepTransition(step);
+  const pinVerify = useVerifyTransferPin();
+  const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinStatus, setPinStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [pinError, setPinError] = useState("");
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricToast, setBiometricToast] = useState("");
+  const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
@@ -180,6 +190,94 @@ export default function DataScreen() {
     if (shouldReturn) back();
   };
 
+  const resetPaymentAuthState = () => {
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(false);
+  };
+
+  const executePayment = async () => {
+    if (!selectedService || !selectedVariation) return;
+
+    const response = await mutation.mutateAsync({
+      phone,
+      network: displayNetwork,
+      amount: selectedPrice,
+      plan: selectedVariation.name,
+      variationCode: selectedVariation.variation_code,
+      serviceID: selectedService.serviceID,
+    });
+
+    setResultModal({
+      visible: true,
+      type: "success",
+      title: "Data purchased",
+      message: "Your data bundle purchase completed successfully.",
+      amount: formatNaira(selectedPrice),
+      reference: response.data.reference,
+      returnAfterClose: true,
+    });
+  };
+
+  const submitPaymentWithPin = async (overridePin?: string) => {
+    if (!selectedService || !selectedVariation || mutation.isPending) return;
+
+    const trimmed = (overridePin ?? pin).trim();
+    if (!/^[0-9]{4,6}$/.test(trimmed)) {
+      setPinStatus("error");
+      setPinError("Use a 4 to 6 digit transfer PIN.");
+      return;
+    }
+
+    setPinStatus("loading");
+    setPinError("");
+
+    try {
+      const verification = await pinVerify.mutateAsync({ pin: trimmed });
+      if (!verification.data.verified) {
+        throw new Error("That PIN is not valid.");
+      }
+
+      await executePayment();
+      resetPaymentAuthState();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unable to complete data purchase.";
+      setPinError(reason);
+      setPinStatus("error");
+    }
+  };
+
+  const openPaymentAuth = async () => {
+    if (!canReview || biometricBusy || mutation.isPending) return;
+
+    if (confirmTransactionsBiometricEnabled) {
+      setBiometricBusy(true);
+      try {
+        const result = await triggerBiometricAuth({
+          promptMessage: "Confirm this data purchase",
+          cancelLabel: "Use PIN",
+          fallbackLabel: "Use PIN",
+        });
+
+        if (result.success) {
+          await executePayment();
+          return;
+        }
+
+        if (result.reason === "cancelled") {
+          setBiometricToast(result.message);
+        }
+      } finally {
+        setBiometricBusy(false);
+      }
+    }
+
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(true);
+  };
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
@@ -208,7 +306,7 @@ export default function DataScreen() {
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
-      <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+      <Animated.View style={{ transform: [{ translateX }] }}>
         {step === 1 ? (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <View style={styles.sectionHeader}>
@@ -285,7 +383,7 @@ export default function DataScreen() {
                 <StateCard loading title="Loading plans" description="Fetching live data bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
               ) : variations.length ? (
                 <>
-                  <View style={[styles.tabBarContainer, { borderBottomColor: scheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+                  <View style={[styles.tabBarContainer, { borderBottomColor: lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
                       {TABS.map((tab) => {
                         const isActive = activeTab === tab;
@@ -309,9 +407,9 @@ export default function DataScreen() {
                     <View style={styles.planGrid}>
                       {filteredVariations.map((variation) => {
                         const active = variation.variation_code === selectedVariationCode;
-                        const cardBg = scheme === 'dark' ? (active ? 'rgba(10,132,255,0.12)' : '#1E293B') : (active ? 'rgba(10,132,255,0.06)' : '#FFFFFF');
-                        const cardText = scheme === 'dark' ? '#FFFFFF' : '#0F172A';
-                        const cardBorder = active ? palette.primary : (scheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)');
+                        const cardBg = lightBg ? (active ? 'rgba(10,132,255,0.06)' : '#FFFFFF') : (active ? 'rgba(10,132,255,0.12)' : '#1E293B');
+                        const cardText = lightBg ? '#0F172A' : '#FFFFFF';
+                        const cardBorder = active ? palette.primary : (lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)');
                         
                         return (
                           <Pressable
@@ -325,7 +423,7 @@ export default function DataScreen() {
                               </Text>
                               <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={18} />
                             </View>
-                            <Text style={[styles.planPriceText, { color: scheme === 'dark' ? '#CBD5E1' : '#475569' }]}>
+                            <Text style={[styles.planPriceText, { color: lightBg ? '#475569' : '#CBD5E1' }]}>
                               {formatNaira(Number(variation.variation_amount))}
                             </Text>
                             <Text style={[styles.planDurationText, { color: palette.primary }]}>
@@ -376,41 +474,11 @@ export default function DataScreen() {
             </View>
 
             <Pressable
-              disabled={!amountValid || mutation.isPending}
-              onPress={async () => {
-                if (!selectedService || !selectedVariation) return;
-                try {
-                  const response = await mutation.mutateAsync({
-                    phone,
-                    network: displayNetwork,
-                    amount: selectedPrice,
-                    plan: selectedVariation.name,
-                    variationCode: selectedVariation.variation_code,
-                    serviceID: selectedService.serviceID,
-                  });
-                  setResultModal({
-                    visible: true,
-                    type: 'success',
-                    title: 'Data purchased',
-                    message: 'Your data bundle purchase completed successfully.',
-                    amount: formatNaira(selectedPrice),
-                    reference: response.data.reference,
-                    returnAfterClose: true,
-                  });
-                } catch (error) {
-                  setResultModal({
-                    visible: true,
-                    type: 'failed',
-                    title: 'Purchase failed',
-                    message: error instanceof Error ? error.message : 'Unable to buy data.',
-                    amount: formatNaira(selectedPrice),
-                    returnAfterClose: false,
-                  });
-                }
-              }}
-              style={[styles.primaryAction, { backgroundColor: amountValid ? palette.primary : palette.border }]}
+              disabled={!canReview || mutation.isPending || biometricBusy}
+              onPress={() => void openPaymentAuth()}
+              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
             >
-              {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Buy for ${formatNaira(selectedPrice)}` : 'Select a bundle'}</Text>}
+              <Text style={styles.primaryActionText}>{selectedVariation ? `Buy for ${formatNaira(selectedPrice)}` : "Select a bundle"}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -426,6 +494,34 @@ export default function DataScreen() {
         onClose={handleCloseResult}
       />
 
+      <PaymentPinModal
+        visible={pinModalOpen}
+        title="Enter transfer PIN"
+        subtitle={`You are about to buy ${formatNaira(selectedPrice)} of data.`}
+        reviewLabel="Data plan"
+        reviewTitle={selectedVariation?.name ?? "Select a plan"}
+        reviewMeta={displayNetwork}
+        reviewAmount={formatNaira(selectedPrice)}
+        pin={pin}
+        onPinChange={(value) => {
+          setPin(value);
+          if (pinStatus !== "idle") setPinStatus("idle");
+          if (pinError) setPinError("");
+          if (value.length === 4) {
+            void submitPaymentWithPin(value);
+          }
+        }}
+        loading={pinStatus === "loading" || mutation.isPending}
+        error={pinError || undefined}
+        confirmLabel="Verify and pay"
+        onConfirm={() => void submitPaymentWithPin()}
+        onClose={() => {
+          if (pinStatus === "loading" || mutation.isPending) return;
+          resetPaymentAuthState();
+        }}
+        canClose={!(pinStatus === "loading" || mutation.isPending)}
+        footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
+      />
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
@@ -592,4 +688,5 @@ const styles = StyleSheet.create({
   providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   providerName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   providerMeta: { fontSize: Typography.xs },
+  biometricToast: { fontSize: Typography.xs, lineHeight: 16, textAlign: 'center' },
 });

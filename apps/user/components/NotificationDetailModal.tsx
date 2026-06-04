@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Bell, CircleAlert, CreditCard, Package, Wallet } from 'lucide-react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNotificationDate, notificationTone, type AppNotification } from '@/lib/notifications';
@@ -45,8 +44,7 @@ function notificationRows(notification: AppNotification) {
 }
 
 export function NotificationDetailModal({ visible, notification, onClose }: NotificationDetailModalProps) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const reduceMotion = useReduceMotion();
   const scale = useRef(new Animated.Value(reduceMotion ? 1 : 0.94)).current;
   const opacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;

@@ -7,7 +7,7 @@ import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrders } from '@/hooks/useOrder';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useAppPalette } from '@/lib/theme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 const ACTIVE_STATUSES = ['CREATED', 'PENDING_MATCH', 'MATCHED', 'ACCEPTED', 'IN_TRANSIT', 'DELIVERED'] as const;
@@ -76,8 +76,7 @@ function OrderCard({ order, palette, onPress }: { order: OrderItem; palette: (ty
 
 export default function OrdersScreen() {
   const router = useRouter();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const back = useSafeBack("/");
   const query = useOrders();
   const [tab, setTab] = useState<Tab>('ACTIVE');

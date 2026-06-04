@@ -6,11 +6,12 @@ import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, Plus, Smartphone, Globe, 
 import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNaira, formatTxnDate, safeBalance, titleize, type WalletTransaction } from '@/lib/wallet';
 import { useAuthStore } from '@/store/auth.store';
-import { useColorScheme } from '@/components/useColorScheme';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { StateCard } from '@/components/ui/StateCard';
 import { useTransactions, useWallet } from '@/hooks/useWallet';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -34,11 +35,10 @@ function initialsFrom(text: string) {
   return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
-function TransactionRow({ transaction, scheme, index }: { transaction: WalletTransaction; scheme: keyof typeof Colors; index: number }) {
+function TransactionRow({ transaction, palette, index }: { transaction: WalletTransaction; palette: (typeof Colors)[keyof typeof Colors]; index: number }) {
   const positive = transaction.type === 'CREDIT';
   const amount = `${positive ? '+' : '-'}${formatNaira(transaction.amount)}`;
   const avatar = positive ? '↑' : initialsFrom(transaction.description || transaction.category);
-  const palette = Colors[scheme];
 
   return (
     <AnimatedReveal index={index}>
@@ -63,8 +63,10 @@ function TransactionRow({ transaction, scheme, index }: { transaction: WalletTra
 
 export default function HomeScreen() {
   const router = useRouter();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
+  const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
+  const notificationsReminderDismissedAt = usePreferencesStore((state) => state.notificationsReminderDismissedAt);
+  const setNotificationsReminderDismissedAt = usePreferencesStore((state) => state.setNotificationsReminderDismissedAt);
   const user = useAuthStore((state) => state.user);
   const walletQuery = useWallet();
   const txQuery = useTransactions({ limit: 5 });
@@ -83,7 +85,9 @@ export default function HomeScreen() {
     void txQuery.refetch();
   };
   const hasPromptedForPin = useRef(false);
+  const hasPromptedForNotifications = useRef(false);
   const [pinPromptVisible, setPinPromptVisible] = useState(false);
+  const [notificationPromptVisible, setNotificationPromptVisible] = useState(false);
   const isInitialLoading = walletQuery.isLoading && !wallet && txQuery.isLoading;
 
   useEffect(() => {
@@ -92,6 +96,18 @@ export default function HomeScreen() {
       setPinPromptVisible(true);
     }
   }, [wallet, walletQuery.isLoading]);
+
+  useEffect(() => {
+    const dismissedAt = notificationsReminderDismissedAt ?? 0;
+    const cooldownExpired = !dismissedAt || Date.now() - dismissedAt >= 24 * 60 * 60 * 1000;
+    if (!notificationsEnabled && cooldownExpired && !hasPromptedForNotifications.current) {
+      hasPromptedForNotifications.current = true;
+      setNotificationPromptVisible(true);
+    }
+    if (notificationsEnabled) {
+      hasPromptedForNotifications.current = false;
+    }
+  }, [notificationsEnabled, notificationsReminderDismissedAt]);
 
   if (isInitialLoading) {
     return (
@@ -244,7 +260,7 @@ export default function HomeScreen() {
               icon={<CircleHelp size={24} color={palette.textSecondary} />}
             />
           ) : transactions.length ? (
-            transactions.map((transaction, index) => <TransactionRow key={transaction.id} transaction={transaction} index={index} scheme={scheme} />)
+            transactions.map((transaction, index) => <TransactionRow key={transaction.id} transaction={transaction} index={index} palette={palette} />)
           ) : (
             <StateCard
               title="No transactions yet"
@@ -273,6 +289,27 @@ export default function HomeScreen() {
               </Pressable>
               <Pressable onPress={() => { setPinPromptVisible(false); router.push('/profile/security'); }} style={[styles.pinPrimary, { backgroundColor: palette.primary }]}>
                 <Text style={[styles.pinPrimaryText, { color: palette.card }]}>Set PIN</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={notificationPromptVisible} transparent animationType="fade" onRequestClose={() => setNotificationPromptVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setNotificationPromptVisible(false)} />
+          <View style={[styles.notificationSheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={[styles.pinIcon, { backgroundColor: palette.primary }]}>
+              <Bell size={18} color={palette.card} />
+            </View>
+            <Text style={[styles.pinTitle, { color: palette.text }]}>Keep delivery alerts on</Text>
+            <Text style={[styles.pinBody, { color: palette.textSecondary }]}>Get delivery updates and payment alerts. You can turn them off later from settings.</Text>
+            <View style={styles.pinActions}>
+              <Pressable onPress={async () => { await setNotificationsReminderDismissedAt(Date.now()); setNotificationPromptVisible(false); }} style={[styles.pinSecondary, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.pinSecondaryText, { color: palette.text }]}>Maybe Later</Text>
+              </Pressable>
+              <Pressable onPress={() => { setNotificationPromptVisible(false); router.push('/settings/notifications'); }} style={[styles.pinPrimary, { backgroundColor: palette.primary }]}>
+                <Text style={[styles.pinPrimaryText, { color: palette.card }]}>Enable Now</Text>
               </Pressable>
             </View>
           </View>
@@ -378,6 +415,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.44)', padding: Spacing.lg },
   pinSheet: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 12 },
+  notificationSheet: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 12 },
   pinIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   pinTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   pinBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },

@@ -1,14 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Colors } from '@/constants/palette';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useAppPalette, isLight } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 
 export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
-  const scheme = useColorScheme() ?? 'dark';
-  const theme = Colors[scheme];
+  const theme = useAppPalette();
+  const lightBg = isLight(theme.bg);
   return (
-    <View style={[styles.wrap, { backgroundColor: scheme === 'dark' ? '#2b1717' : '#fff1ef', borderColor: theme.error }]}>
+    <View style={[styles.wrap, { backgroundColor: lightBg ? '#fff1ef' : '#2b1717', borderColor: theme.error }]}>
       <Text style={[styles.title, { color: theme.error }]}>Error</Text>
       <Text style={[styles.text, { color: theme.text }]}>{message}</Text>
       {onDismiss ? (

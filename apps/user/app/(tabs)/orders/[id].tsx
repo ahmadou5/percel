@@ -4,12 +4,11 @@ import { ChevronRight, CircleArrowRight, MapPin, Package, ShieldCheck } from 'lu
 
 import { DriverCard } from '@/components/order/DriverCard';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrderDetail } from '@/hooks/useOrder';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
+import { useAppPalette } from '@/lib/theme';
 
 function titleize(value: string) {
   return value.toLowerCase().split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
@@ -18,8 +17,7 @@ function titleize(value: string) {
 export default function OrderDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const back = useSafeBack("/orders");
   const query = useOrderDetail(id);
   const order = query.data;

@@ -4,21 +4,20 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 export default function WelcomeScreen() {
-  const scheme = useColorScheme() ?? 'dark';
-  const theme = Colors[scheme];
+  const theme = useAppPalette();
+  const lightBg = isLight(theme.bg);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       <AuthBackdrop />
-      <View style={[styles.overlay, { backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)' }]} />
+      <View style={[styles.overlay, { backgroundColor: lightBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)' }]} />
       <View style={styles.shell}>
         <Animated.View entering={FadeInDown.duration(700)} style={styles.heroWrap}>
-          <View style={[styles.heroMark, { backgroundColor: scheme === 'dark' ? 'rgba(10,132,255,0.16)' : 'rgba(10,132,255,0.12)', borderColor: scheme === 'dark' ? 'rgba(10,132,255,0.22)' : 'rgba(10,132,255,0.16)' }]}>
+          <View style={[styles.heroMark, { backgroundColor: lightBg ? 'rgba(10,132,255,0.12)' : 'rgba(10,132,255,0.16)', borderColor: lightBg ? 'rgba(10,132,255,0.16)' : 'rgba(10,132,255,0.22)' }]}>
             <View style={[styles.heroMarkInner, { backgroundColor: theme.primary }]} />
           </View>
           <Text style={[styles.logo, { color: theme.text }]}>Percel</Text>

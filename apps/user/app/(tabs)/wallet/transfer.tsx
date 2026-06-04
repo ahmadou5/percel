@@ -1,31 +1,24 @@
-import { useRouter } from 'expo-router';
-import * as ScreenCapture from 'expo-screen-capture';
-import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRouter } from "expo-router";
+import * as ScreenCapture from "expo-screen-capture";
+import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from "lucide-react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Input } from '@/components/ui/Input';
-import { PinInput } from '@/components/ui/PinInput';
-import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { AmountInput } from '@/components/wallet/AmountInput';
-import { normalizeNigerianPhone } from '@/components/wallet/WalletFlow';
-import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
-import { Colors } from '@/constants/palette';
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
-import {
-  useAccountLookup,
-  useBankTransfer,
-  useBanks,
-  useResolveTransferRecipient,
-  useTransfer,
-  useVerifyTransferPin,
-  useWallet,
-} from '@/hooks/useWallet';
-import { formatNaira } from '@/lib/wallet';
-import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { useSafeBack } from "@/components/navigation/useSafeBack";
+import { TransactionResultModal } from "@/components/TransactionResultModal";
+import { Input } from "@/components/ui/Input";
+import { PinInput } from "@/components/ui/PinInput";
+import { StateCard } from "@/components/ui/StateCard";
+import { AmountInput } from "@/components/wallet/AmountInput";
+import { normalizeNigerianPhone } from "@/components/wallet/WalletFlow";
+import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from "@/components/wallet/WalletFlowProgress";
+import { useAppPalette } from "@/lib/theme";
+import { Spacing } from "@/constants/spacing";
+import { Typography } from "@/constants/typography";
+import { useWallet, useAccountLookup, useBankTransfer, useBanks, useResolveTransferRecipient, useTransfer, useVerifyTransferPin } from "@/hooks/useWallet";
+import { triggerBiometricAuth } from "@/lib/localAuthentication";
+import { formatNaira } from "@/lib/wallet";
+import { usePreferencesStore } from "@/store/preferences.store";
 
 const modes = [
   { key: 'BANK', label: 'Bank transfer', description: 'Send to a bank account' },
@@ -93,8 +86,7 @@ function initialsFromName(name: string) {
 
 export default function TransferScreen() {
   const router = useRouter();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const walletQuery = useWallet();
   const wallet = walletQuery.data;
   const banksQuery = useBanks();
@@ -102,6 +94,7 @@ export default function TransferScreen() {
   const interAppTransfer = useTransfer();
   const { mutateAsync: resolveRecipientAsync } = useResolveTransferRecipient();
   const pinVerify = useVerifyTransferPin();
+  const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
   const [mode, setMode] = useState<Mode>('BANK');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [phone, setPhone] = useState('');
@@ -120,6 +113,8 @@ export default function TransferScreen() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [failureModalOpen, setFailureModalOpen] = useState(false);
   const [transferError, setTransferError] = useState('');
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricToast, setBiometricToast] = useState<string | null>(null);
   const [transferReceipt, setTransferReceipt] = useState<{
     reference: string;
     amount: number;
@@ -137,7 +132,7 @@ export default function TransferScreen() {
   const submissionAttemptRef = useRef(false);
   const accountDigits = accountNumber.replace(/\D/g, '');
   const bankLookup = useAccountLookup(accountDigits, bankCode);
-  const { opacity, translateX } = useSlideStepTransition(step);
+  const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
@@ -159,6 +154,7 @@ export default function TransferScreen() {
   const amountValid = amountValue > 0 && (!wallet || amountValue <= wallet.balance);
   const canContinueToReview = recipientReady && amountValid;
   const transferPending = pinStatus === 'loading' || bankTransfer.isPending || interAppTransfer.isPending || receiptBusy;
+  const stepOneLoading = mode === 'BANK' ? walletQuery.isLoading || banksQuery.isLoading : false;
 
   useEffect(() => {
     void ScreenCapture.preventScreenCaptureAsync();
@@ -197,6 +193,12 @@ export default function TransferScreen() {
     setPinStatus('idle');
     setPinError('');
   }, [amount, mode, recipientValidation, bankValidation]);
+
+  useEffect(() => {
+    if (!biometricToast) return;
+    const timer = setTimeout(() => setBiometricToast(null), 2400);
+    return () => clearTimeout(timer);
+  }, [biometricToast]);
 
   useEffect(() => {
     if (mode !== 'PHONE') return;
@@ -241,8 +243,26 @@ export default function TransferScreen() {
     back();
   };
 
-  const handleOpenPinModal = () => {
-    if (!canContinueToReview || transferPending) return;
+  const handleOpenPinModal = async () => {
+    if (!canContinueToReview || transferPending || biometricBusy) return;
+
+    if (confirmTransactionsBiometricEnabled) {
+      setBiometricBusy(true);
+      try {
+        const result = await triggerBiometricAuth({
+          promptMessage: 'Confirm this transfer',
+          cancelLabel: 'Use PIN',
+          fallbackLabel: 'Use PIN',
+        });
+
+        if (!result.success) {
+          setBiometricToast(result.message);
+        }
+      } finally {
+        setBiometricBusy(false);
+      }
+    }
+
     setPin('');
     setPinStatus('idle');
     setPinError('');
@@ -393,7 +413,8 @@ export default function TransferScreen() {
     : accountDigits || 'Account pending';
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Pressable onPress={headerBack} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <ArrowLeft size={20} color={palette.text} />
@@ -436,7 +457,7 @@ export default function TransferScreen() {
         })}
       </View>
 
-      <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+      <Animated.View style={{ transform: [{ translateX }] }}>
         {step === 1 ? (
           mode === 'BANK' ? (
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -450,7 +471,9 @@ export default function TransferScreen() {
                 </View>
               </View>
 
-              {!wallet?.kycComplete ? (
+              {stepOneLoading ? (
+                <StateCard loading title="Loading transfer details" description="Fetching wallet and bank data before you continue." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : !wallet?.kycComplete ? (
                 <StateCard
                   title="KYC required for bank payouts"
                   description="Complete KYC in Settings before you can send to a bank account. Inter-app transfers still work."
@@ -790,6 +813,14 @@ export default function TransferScreen() {
         </View>
       </Modal>
 
+      {biometricToast ? (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <View style={[styles.toast, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.toastText, { color: palette.text }]}>{biometricToast}</Text>
+          </View>
+        </View>
+      ) : null}
+
       <Modal visible={successModalOpen && Boolean(transferReceipt)} transparent animationType="fade" onRequestClose={handleDismissSuccess}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismissSuccess} />
@@ -852,6 +883,7 @@ export default function TransferScreen() {
         onClose={() => setReceiptResult(null)}
       />
     </ScrollView>
+    </View>
   );
 }
 
@@ -912,7 +944,6 @@ const styles = StyleSheet.create({
   secondaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
   secondaryModalAction: { minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   secondaryModalActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  errorText: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
   pinModalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '90%' },
@@ -931,4 +962,7 @@ const styles = StyleSheet.create({
   bankRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   bankRowMeta: { fontSize: Typography.xs },
   emptyText: { fontSize: Typography.sm, textAlign: 'center', paddingVertical: 18 },
+  toastWrap: { position: 'absolute', bottom: 100, left: 24, right: 24, alignItems: 'center', zIndex: 9999 },
+  toast: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
+  toastText: { fontSize: Typography.sm, fontFamily: Typography.family.semibold, textAlign: 'center' },
 });

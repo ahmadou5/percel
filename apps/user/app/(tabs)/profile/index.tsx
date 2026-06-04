@@ -2,20 +2,19 @@ import { useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft } from 'lucide-react-native';
+import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft, Pencil } from 'lucide-react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateAvatar } from '@/hooks/useProfile';
 import { useAuthStore } from '@/store/auth.store';
+import { useAppPalette, isLight } from '@/lib/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
+  const lightBg = isLight(palette.bg);
   const back = useSafeBack("/");
   const profileQuery = useProfile();
   const updateAvatar = useUpdateAvatar();
@@ -84,9 +83,6 @@ export default function ProfileScreen() {
               <Text style={[styles.avatarText, { color: palette.card }]}>{initials}</Text>
             )}
           </View>
-          <View style={[styles.cameraBadge, { backgroundColor: palette.primary, borderColor: palette.card }]}>
-            <Camera size={12} color={palette.card} />
-          </View>
         </Pressable>
 
         <View style={styles.identityBlock}>
@@ -97,14 +93,14 @@ export default function ProfileScreen() {
             <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'KYC complete' : 'KYC required'}</Text>
           </View>
           {!verified ? (
-            <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: scheme === 'dark' ? 'rgba(255,214,10,0.12)' : 'rgba(255,214,10,0.10)', borderColor: palette.border }]}>
+            <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: lightBg ? 'rgba(255,214,10,0.10)' : 'rgba(255,214,10,0.12)', borderColor: palette.border }]}>
               <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC to unlock your NUBAN</Text>
               <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Choose BVN or NIN and finish KYC in Settings.</Text>
             </Pressable>
           ) : null}
         </View>
 
-        <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: scheme === 'dark' ? 'rgba(10, 132, 255, 0.14)' : 'rgba(10, 132, 255, 0.08)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
+        <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
           <View style={[styles.referralIcon, { backgroundColor: palette.primary }]}> 
             <Gift size={20} color={palette.card} />
           </View>
@@ -115,13 +111,13 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color={palette.textSecondary} />
         </Pressable>
 
-        <Pressable onPress={() => router.push('/settings')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
+        <Pressable onPress={() => router.push('/profile/edit')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
           <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
-            <Settings2 size={16} color={palette.card} />
+            <Pencil size={16} color={palette.card} />
           </View>
           <View style={styles.settingsCopy}>
-            <Text style={[styles.settingsTitle, { color: palette.text }]}>Account Settings</Text>
-            <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Manage identity, security, and support</Text>
+            <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
+            <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit your profile information</Text>
           </View>
           <ChevronRight size={18} color={palette.textSecondary} />
         </Pressable>

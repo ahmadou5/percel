@@ -4,16 +4,18 @@ import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollV
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
-import { useColorScheme } from '@/components/useColorScheme';
+import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { normalizeNigerianPhone, providerLabelFromService, ProviderBadge } from '@/components/wallet/WalletFlow';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useBuyAirtime, useProviderServices, useResolveAirtimeProvider, useWallet } from '@/hooks/useWallet';
+import { useBuyAirtime, useProviderServices, useResolveAirtimeProvider, useVerifyTransferPin, useWallet } from '@/hooks/useWallet';
 import { formatNaira } from '@/lib/wallet';
+import { triggerBiometricAuth } from '@/lib/localAuthentication';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { useAppPalette } from '@/lib/theme';
 
 const presetAmounts = [100, 500, 1000, 2000, 5000, 10000] as const;
 
@@ -25,8 +27,7 @@ type ProviderSelection = {
 };
 
 export default function AirtimeScreen() {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const walletQuery = useWallet();
   const wallet = walletQuery.data;
   const mutation = useBuyAirtime();
@@ -42,6 +43,14 @@ export default function AirtimeScreen() {
   const [providerStatus, setProviderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [providerError, setProviderError] = useState('');
   const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
+  const pinVerify = useVerifyTransferPin();
+  const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinStatus, setPinStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [pinError, setPinError] = useState("");
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricToast, setBiometricToast] = useState("");
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
@@ -112,6 +121,84 @@ export default function AirtimeScreen() {
   };
 
   const title = providerValidation?.providerName ?? (selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Airtime');
+  const resetPaymentAuthState = () => {
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(false);
+  };
+
+  const executePayment = async () => {
+    const response = await mutation.mutateAsync({ phone: normalizedPhone || phone, network: displayNetwork, amount: selectedAmount });
+    setResultModal({
+      visible: true,
+      type: "success",
+      title: "Airtime bought",
+      message: "Your airtime purchase completed successfully.",
+      amount: formatNaira(selectedAmount),
+      reference: response.data.reference,
+      returnAfterClose: true,
+    });
+  };
+
+  const submitPaymentWithPin = async (overridePin?: string) => {
+    if (!selectedService || mutation.isPending) return;
+
+    const trimmed = (overridePin ?? pin).trim();
+    if (!/^[0-9]{4,6}$/.test(trimmed)) {
+      setPinStatus("error");
+      setPinError("Use a 4 to 6 digit transfer PIN.");
+      return;
+    }
+
+    setPinStatus("loading");
+    setPinError("");
+
+    try {
+      const verification = await pinVerify.mutateAsync({ pin: trimmed });
+      if (!verification.data.verified) {
+        throw new Error("That PIN is not valid.");
+      }
+
+      await executePayment();
+      resetPaymentAuthState();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unable to complete airtime purchase.";
+      setPinError(reason);
+      setPinStatus("error");
+    }
+  };
+
+  const openPaymentAuth = async () => {
+    if (!canReview || biometricBusy || mutation.isPending) return;
+
+    if (confirmTransactionsBiometricEnabled) {
+      setBiometricBusy(true);
+      try {
+        const result = await triggerBiometricAuth({
+          promptMessage: "Confirm this airtime purchase",
+          cancelLabel: "Use PIN",
+          fallbackLabel: "Use PIN",
+        });
+
+        if (result.success) {
+          await executePayment();
+          return;
+        }
+
+        if (result.reason === "cancelled") {
+          setBiometricToast(result.message);
+        }
+      } finally {
+        setBiometricBusy(false);
+      }
+    }
+
+    setPin("");
+    setPinStatus("idle");
+    setPinError("");
+    setPinModalOpen(true);
+  };
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -277,49 +364,16 @@ export default function AirtimeScreen() {
               <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{normalizedPhone}</Text>
               <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedAmount ? formatNaira(selectedAmount) : '₦0'}</Text>
             </View>
-
             <Pressable
-              disabled={!amountValid || mutation.isPending}
-              onPress={async () => {
-                try {
-                  const response = await mutation.mutateAsync({ phone, network: displayNetwork, amount: selectedAmount });
-                  setResultModal({
-                    visible: true,
-                    type: 'success',
-                    title: 'Airtime bought',
-                    message: 'Your airtime purchase completed successfully.',
-                    amount: formatNaira(selectedAmount),
-                    reference: response.data.reference,
-                    returnAfterClose: true,
-                  });
-                } catch (error) {
-                  setResultModal({
-                    visible: true,
-                    type: 'failed',
-                    title: 'Purchase failed',
-                    message: error instanceof Error ? error.message : 'Unable to buy airtime.',
-                    amount: formatNaira(selectedAmount),
-                    returnAfterClose: false,
-                  });
-                }
-              }}
-              style={[styles.primaryAction, { backgroundColor: amountValid ? palette.primary : palette.border }]}
+              disabled={!canReview || mutation.isPending || biometricBusy}
+              onPress={() => void openPaymentAuth()}
+              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
             >
-              {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedAmount > 0 ? `Pay ${formatNaira(selectedAmount)}` : 'Select an amount'}</Text>}
+              <Text style={styles.primaryActionText}>{selectedAmount > 0 ? `Pay ${formatNaira(selectedAmount)}` : "Select an amount"}</Text>
             </Pressable>
           </View>
         ) : null}
       </Animated.View>
-
-      <TransactionResultModal
-        visible={Boolean(resultModal?.visible)}
-        type={resultModal?.type ?? 'pending'}
-        title={resultModal?.title ?? ''}
-        message={resultModal?.message ?? ''}
-        amount={resultModal?.amount}
-        reference={resultModal?.reference}
-        onClose={handleCloseResult}
-      />
 
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
@@ -328,7 +382,7 @@ export default function AirtimeScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select the network operator for this number.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your provider below.</Text>
               </View>
               <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -368,6 +422,34 @@ export default function AirtimeScreen() {
           </View>
         </View>
       </Modal>
+      <PaymentPinModal
+        visible={pinModalOpen}
+        title="Enter transfer PIN"
+        subtitle={`You are about to send ${formatNaira(selectedAmount)}.`}
+        reviewLabel="Airtime"
+        reviewTitle={displayNetwork}
+        reviewMeta={normalizedPhone}
+        reviewAmount={formatNaira(selectedAmount)}
+        pin={pin}
+        onPinChange={(value) => {
+          setPin(value);
+          if (pinStatus !== "idle") setPinStatus("idle");
+          if (pinError) setPinError("");
+          if (value.length === 4) {
+            void submitPaymentWithPin(value);
+          }
+        }}
+        loading={pinStatus === "loading" || mutation.isPending}
+        error={pinError || undefined}
+        confirmLabel="Verify and pay"
+        onConfirm={() => void submitPaymentWithPin()}
+        onClose={() => {
+          if (pinStatus === "loading" || mutation.isPending) return;
+          resetPaymentAuthState();
+        }}
+        canClose={!(pinStatus === "loading" || mutation.isPending)}
+        footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
+      />
     </ScrollView>
   );
 }
@@ -410,6 +492,7 @@ const styles = StyleSheet.create({
   amountChipText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   prefix: { fontSize: Typography.xl, fontFamily: Typography.family.bold },
   amountHint: { fontSize: Typography.xs, marginTop: -4 },
+  biometricToast: { fontSize: Typography.xs, lineHeight: 16, textAlign: "center" },
   reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
   reviewLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   reviewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },

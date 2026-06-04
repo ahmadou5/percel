@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { Colors } from '@/constants/palette';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
@@ -79,8 +78,7 @@ export function providerLabelFromService(serviceID: string, name: string) {
 }
 
 export function WalletStepper({ currentStep, steps }: WalletStepperProps) {
-  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
-  const palette = Colors[scheme];
+  const palette = useAppPalette();
   const reduceMotion = useReduceMotion();
   const progress = useRef(new Animated.Value(currentStep)).current;
   const prevStep = useRef(currentStep);
