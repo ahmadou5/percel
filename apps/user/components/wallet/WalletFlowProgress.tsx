@@ -48,7 +48,7 @@ export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowP
   return (
     <View style={styles.wrap} accessibilityRole="progressbar" accessibilityValue={{ now: currentStep, min: 1, max: totalSteps }}>
       <View style={[styles.track, { backgroundColor: palette.border }]}> 
-        <View
+        <Animated.View
           style={[
             styles.fill,
             {
