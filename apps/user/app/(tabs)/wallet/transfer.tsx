@@ -95,6 +95,7 @@ export default function TransferScreen() {
   const { mutateAsync: resolveRecipientAsync } = useResolveTransferRecipient();
   const pinVerify = useVerifyTransferPin();
   const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
+  const allowScreenshots = usePreferencesStore((state) => state.allowScreenshots);
   const [mode, setMode] = useState<Mode>('BANK');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [phone, setPhone] = useState('');
@@ -157,11 +158,15 @@ export default function TransferScreen() {
   const stepOneLoading = mode === 'BANK' ? walletQuery.isLoading || banksQuery.isLoading : false;
 
   useEffect(() => {
-    void ScreenCapture.preventScreenCaptureAsync();
+    if (!allowScreenshots) {
+      void ScreenCapture.preventScreenCaptureAsync();
+    } else {
+      void ScreenCapture.allowScreenCaptureAsync();
+    }
     return () => {
       void ScreenCapture.allowScreenCaptureAsync();
     };
-  }, []);
+  }, [allowScreenshots]);
 
   useEffect(() => {
     setStep(1);

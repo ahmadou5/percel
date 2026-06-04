@@ -16,6 +16,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useChangePassword, useDeleteAccount, useProfile, useUpdateAvatar, useUpdateProfile } from '@/hooks/useProfile';
 import { useAppPalette } from '@/lib/theme';
+import { usePreferencesStore } from '@/store/preferences.store';
 
 function toFormDate(value?: string | null) {
   return value ? value.slice(0, 10) : '';
@@ -38,16 +39,22 @@ export default function EditProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [deleteVisible, setDeleteVisible] = useState(false);
 
+  const allowScreenshots = usePreferencesStore((s) => s.allowScreenshots);
+
   useEffect(() => {
     if (!Device.isDevice) {
       Alert.alert('Security warning', 'Use a physical device for profile changes when possible.');
     }
 
-    void ScreenCapture.preventScreenCaptureAsync();
+    if (!allowScreenshots) {
+      void ScreenCapture.preventScreenCaptureAsync();
+    } else {
+      void ScreenCapture.allowScreenCaptureAsync();
+    }
     return () => {
       void ScreenCapture.allowScreenCaptureAsync();
     };
-  }, []);
+  }, [allowScreenshots]);
 
   useEffect(() => {
     if (!profile) return;

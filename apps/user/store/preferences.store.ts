@@ -16,6 +16,7 @@ type PreferencesState = {
   walletAccessBiometricEnabled: boolean;
   confirmTransactionsBiometricEnabled: boolean;
   appLockEnabled: boolean;
+  allowScreenshots: boolean;
   isLoading: boolean;
 };
 
@@ -28,6 +29,7 @@ type PreferencesActions = {
   setWalletAccessBiometricEnabled: (enabled: boolean) => Promise<void>;
   setConfirmTransactionsBiometricEnabled: (enabled: boolean) => Promise<void>;
   setAppLockEnabled: (enabled: boolean) => Promise<void>;
+  setAllowScreenshots: (enabled: boolean) => Promise<void>;
 };
 
 type PreferencesStore = PreferencesState & PreferencesActions;
@@ -44,6 +46,7 @@ const NOTIFICATIONS_REMINDER_KEY = "percel_user_notifications_reminder_dismissed
 const WALLET_ACCESS_BIOMETRIC_KEY = "percel_user_wallet_access_biometric_enabled";
 const CONFIRM_TRANSACTIONS_BIOMETRIC_KEY = "percel_user_confirm_transactions_biometric_enabled";
 const APP_LOCK_KEY = "percel_user_app_lock_enabled";
+const ALLOW_SCREENSHOTS_KEY = "percel_user_allow_screenshots";
 
 let state: PreferencesState = {
   themeMode: "system",
@@ -53,6 +56,7 @@ let state: PreferencesState = {
   walletAccessBiometricEnabled: false,
   confirmTransactionsBiometricEnabled: false,
   appLockEnabled: false,
+  allowScreenshots: false,
   isLoading: true,
 };
 
@@ -89,7 +93,7 @@ function parseCustomTheme(raw: string | null): CustomTheme {
 
 async function hydrate() {
   setState({ isLoading: true });
-  const [themeModeRaw, customThemeRaw, notificationsRaw, notificationsReminderRaw, walletAccessBiometricRaw, confirmTransactionsBiometricRaw, appLockRaw] = await Promise.all([
+  const [themeModeRaw, customThemeRaw, notificationsRaw, notificationsReminderRaw, walletAccessBiometricRaw, confirmTransactionsBiometricRaw, appLockRaw, allowScreenshotsRaw] = await Promise.all([
     AsyncStorage.getItem(THEME_MODE_KEY),
     AsyncStorage.getItem(CUSTOM_THEME_KEY),
     AsyncStorage.getItem(NOTIFICATIONS_KEY),
@@ -97,6 +101,7 @@ async function hydrate() {
     AsyncStorage.getItem(WALLET_ACCESS_BIOMETRIC_KEY),
     AsyncStorage.getItem(CONFIRM_TRANSACTIONS_BIOMETRIC_KEY),
     AsyncStorage.getItem(APP_LOCK_KEY),
+    AsyncStorage.getItem(ALLOW_SCREENSHOTS_KEY),
   ]);
 
   setState({
@@ -107,6 +112,7 @@ async function hydrate() {
     walletAccessBiometricEnabled: walletAccessBiometricRaw == null ? false : walletAccessBiometricRaw === "true",
     confirmTransactionsBiometricEnabled: confirmTransactionsBiometricRaw == null ? false : confirmTransactionsBiometricRaw === "true",
     appLockEnabled: appLockRaw == null ? false : appLockRaw === "true",
+    allowScreenshots: allowScreenshotsRaw == null ? false : allowScreenshotsRaw === "true",
     isLoading: false,
   });
 }
@@ -156,6 +162,12 @@ async function setAppLockEnabled(enabled: boolean) {
   await setWalletAccessBiometricEnabled(enabled);
 }
 
+async function setAllowScreenshots(enabled: boolean) {
+  state = { ...state, allowScreenshots: enabled };
+  await AsyncStorage.setItem(ALLOW_SCREENSHOTS_KEY, enabled ? "true" : "false");
+  emit();
+}
+
 const actions: PreferencesActions = {
   hydrate,
   setThemeMode,
@@ -165,6 +177,7 @@ const actions: PreferencesActions = {
   setWalletAccessBiometricEnabled,
   setConfirmTransactionsBiometricEnabled,
   setAppLockEnabled,
+  setAllowScreenshots,
 };
 
 snapshot = { ...state, ...actions };

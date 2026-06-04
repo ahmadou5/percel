@@ -26,8 +26,10 @@ export default function ProfileSecurityScreen() {
   const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
   const walletAccessBiometricEnabled = usePreferencesStore((state) => state.walletAccessBiometricEnabled);
   const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
+  const allowScreenshots = usePreferencesStore((state) => state.allowScreenshots);
   const setWalletAccessBiometricEnabled = usePreferencesStore((state) => state.setWalletAccessBiometricEnabled);
   const setConfirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.setConfirmTransactionsBiometricEnabled);
+  const setAllowScreenshots = usePreferencesStore((state) => state.setAllowScreenshots);
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -258,6 +260,17 @@ export default function ProfileSecurityScreen() {
                 <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Require biometrics when confirming a transfer or bill payment.</Text>
               </View>
               <Switch value={confirmTransactionsBiometricEnabled} onValueChange={(value) => void onToggleConfirmTransactions(value)} trackColor={{ false: palette.border, true: palette.primary }} thumbColor='#fff' />
+            </View>
+          </View>
+
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Privacy</Text>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleCopy}>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Allow Screenshots</Text>
+                <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Allow screen capture and screenshots on sensitive screens like transfer and profile edit.</Text>
+              </View>
+              <Switch value={allowScreenshots} onValueChange={(value) => void setAllowScreenshots(value)} trackColor={{ false: palette.border, true: palette.primary }} thumbColor='#fff' />
             </View>
           </View>
         </View>
