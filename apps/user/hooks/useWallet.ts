@@ -15,6 +15,7 @@ import {
   type WalletTransactionsQuery,
   type WalletTransactionsResponse,
 } from '@/lib/wallet';
+import { useAuthStore } from '@/store/auth.store';
 
 type TopUpResult = { authorizationUrl: string; reference: string };
 type TopUpFlowResult = TopUpResult & { authResult: { type: string; url?: string } };
@@ -42,8 +43,11 @@ type ProviderValidationResponse = WalletApiResponse<ProviderValidation>;
 type MutationOptions<TData, TVariables> = UseMutationOptions<TData, Error, TVariables>;
 
 export function useWallet() {
+  const isUserAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
   return useQuery({
     queryKey: ['wallet'],
+    enabled: isUserAuthenticated && !isAuthLoading,
     queryFn: async () => (await http.get<WalletResponse>('/api/v1/wallet')).data.data,
     staleTime: 15_000,
   });
