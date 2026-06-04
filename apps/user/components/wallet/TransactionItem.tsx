@@ -2,10 +2,12 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNaira, formatTxnDate, titleize, type WalletTransaction } from '@/lib/wallet';
+import { haptics } from '@/utils/haptics';
 
 type Props = {
   transaction: WalletTransaction;
@@ -32,23 +34,29 @@ function TransactionItemBase({ transaction, onPress }: Props) {
   const icon = iconMap[transaction.category] ?? 'circle';
 
   return (
-    <Pressable onPress={onPress} style={styles.row}>
-      <View style={[styles.icon, isCredit ? styles.iconCredit : styles.iconDebit]}>
-        <FontAwesome name={icon as keyof typeof FontAwesome.glyphMap} size={16} color={isCredit ? Colors.light.success : Colors.light.error} />
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.title}>{transaction.description}</Text>
-        <Text style={styles.subtitle}>
-          {titleize(transaction.category)} • {formatTxnDate(transaction.createdAt)}
-        </Text>
-      </View>
-      <View style={styles.amountWrap}>
-        <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]}>
-          {isCredit ? '+' : '-'}{amount}
-        </Text>
-        <Text style={styles.status}>{transaction.status}</Text>
-      </View>
-    </Pressable>
+    <AnimatedReveal index={0}>
+      <Pressable
+        onPressIn={() => void haptics.tap()}
+        onPress={onPress}
+        style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
+      >
+        <View style={[styles.icon, isCredit ? styles.iconCredit : styles.iconDebit]}>
+          <FontAwesome name={icon as keyof typeof FontAwesome.glyphMap} size={16} color={isCredit ? Colors.light.success : Colors.light.error} />
+        </View>
+        <View style={styles.body}>
+          <Text style={styles.title}>{transaction.description}</Text>
+          <Text style={styles.subtitle}>
+            {titleize(transaction.category)} • {formatTxnDate(transaction.createdAt)}
+          </Text>
+        </View>
+        <View style={styles.amountWrap}>
+          <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]}>
+            {isCredit ? '+' : '-'}{amount}
+          </Text>
+          <Text style={styles.status}>{transaction.status}</Text>
+        </View>
+      </Pressable>
+    </AnimatedReveal>
   );
 }
 
@@ -78,6 +86,7 @@ const styles = StyleSheet.create({
   credit: { color: Colors.light.success },
   debit: { color: Colors.light.error },
   status: { color: Colors.light.textSecondary, fontSize: Typography.xs, textTransform: 'uppercase' },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
 });
 
 export const TransactionItem = memo(TransactionItemBase);

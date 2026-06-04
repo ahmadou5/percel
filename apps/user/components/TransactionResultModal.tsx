@@ -6,6 +6,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { haptics } from '@/utils/haptics';
 
 interface TransactionResultModalProps {
   visible: boolean;
@@ -37,13 +39,25 @@ export function TransactionResultModal({
 }: TransactionResultModalProps) {
   const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
-  const scale = useRef(new Animated.Value(0.92)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
+  const scale = useRef(new Animated.Value(reduceMotion ? 1 : 0.92)).current;
+  const opacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   const [openedAt, setOpenedAt] = useState<Date>(new Date());
+  const hapticFired = useRef(false);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      hapticFired.current = false;
+      return;
+    }
+
     setOpenedAt(new Date());
+    if (!hapticFired.current) {
+      hapticFired.current = true;
+      void (type === 'success' ? haptics.success() : type === 'failed' ? haptics.error() : haptics.warning());
+    }
+    if (reduceMotion) return;
+
     scale.setValue(0.92);
     opacity.setValue(0);
     Animated.parallel([
@@ -59,13 +73,14 @@ export function TransactionResultModal({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opacity, scale, visible]);
+  }, [opacity, reduceMotion, scale, type, visible]);
 
-  const tone = type === 'success'
-    ? { backgroundColor: 'rgba(48,209,88,0.12)', iconColor: palette.success, accent: palette.success }
-    : type === 'failed'
-      ? { backgroundColor: 'rgba(255,69,58,0.12)', iconColor: palette.error, accent: palette.error }
-      : { backgroundColor: 'rgba(255,159,10,0.12)', iconColor: palette.warning, accent: palette.warning };
+  const tone =
+    type === 'success'
+      ? { backgroundColor: 'rgba(48,209,88,0.12)', iconColor: palette.success, accent: palette.success }
+      : type === 'failed'
+        ? { backgroundColor: 'rgba(255,69,58,0.12)', iconColor: palette.error, accent: palette.error }
+        : { backgroundColor: 'rgba(255,159,10,0.12)', iconColor: palette.warning, accent: palette.warning };
 
   const Icon = type === 'success' ? CheckCircle2 : type === 'failed' ? XCircle : Clock3;
 
@@ -100,12 +115,12 @@ export function TransactionResultModal({
             </View>
           </View>
 
-          <Pressable onPress={onClose} style={[styles.primaryButton, { backgroundColor: tone.accent }] }>
+          <Pressable onPressIn={() => void haptics.tap()} onPress={onClose} style={[styles.primaryButton, { backgroundColor: tone.accent }]}>
             <Text style={styles.primaryText}>Done</Text>
           </Pressable>
 
           {onViewReceipt ? (
-            <Pressable onPress={onViewReceipt} style={[styles.secondaryButton, { backgroundColor: palette.bg, borderColor: palette.border }] }>
+            <Pressable onPressIn={() => void haptics.tap()} onPress={onViewReceipt} style={[styles.secondaryButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
               <Text style={[styles.secondaryText, { color: palette.text }]}>View Receipt</Text>
             </Pressable>
           ) : null}

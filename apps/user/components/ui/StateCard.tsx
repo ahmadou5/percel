@@ -1,10 +1,11 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { haptics } from '@/utils/haptics';
 
 type StateCardProps = {
   actionLabel?: string;
@@ -21,13 +22,17 @@ export function StateCard({ actionLabel, description, icon, loading = false, onA
 
   return (
     <View style={[styles.card, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-      <View style={[styles.iconWrap, { backgroundColor: palette.card }]}> 
+      <View style={[styles.iconWrap, { backgroundColor: palette.card }]}>
         {loading ? <ActivityIndicator color={palette.primary} /> : icon}
       </View>
       <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
       <Text style={[styles.description, { color: palette.textSecondary }]}>{description}</Text>
       {actionLabel && onActionPress ? (
-        <Pressable onPress={onActionPress} style={[styles.action, { backgroundColor: palette.primary }]}> 
+        <Pressable
+          onPressIn={() => void haptics.press()}
+          onPress={onActionPress}
+          style={({ pressed }) => [styles.action, { backgroundColor: palette.primary }, pressed ? styles.pressed : null]}
+        >
           <Text style={styles.actionText}>{actionLabel}</Text>
         </Pressable>
       ) : null}
@@ -76,4 +81,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.sm,
     fontFamily: Typography.family.bold,
   },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
 });

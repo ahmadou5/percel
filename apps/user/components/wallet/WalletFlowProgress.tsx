@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
-import { Animated, BackHandler, Pressable, StyleSheet, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useRef } from 'react';
+import { Animated, BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
-import { useColorScheme } from "@/components/useColorScheme";
-import { Colors } from "@/constants/palette";
-
+import { useColorScheme } from '@/components/useColorScheme';
+import { Colors } from '@/constants/palette';
+import { haptics } from '@/utils/haptics';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
 
 type FlowProgressDotsProps = {
   currentStep: number;
@@ -13,18 +14,46 @@ type FlowProgressDotsProps = {
 };
 
 export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowProgressDotsProps) {
-  const scheme = (useColorScheme() ?? "light") as keyof typeof Colors;
+  const scheme = (useColorScheme() ?? 'light') as keyof typeof Colors;
   const palette = Colors[scheme];
+  const reduceMotion = useReduceMotion();
+  const fill = useRef(new Animated.Value(currentStep / totalSteps)).current;
+  const prevStep = useRef(currentStep);
+
+  useEffect(() => {
+    const next = Math.max(0, Math.min(1, currentStep / totalSteps));
+    if (currentStep > prevStep.current) {
+      void haptics.success();
+    }
+    prevStep.current = currentStep;
+
+    if (reduceMotion) {
+      fill.setValue(next);
+      return;
+    }
+
+    Animated.spring(fill, {
+      toValue: next,
+      damping: 20,
+      stiffness: 150,
+      useNativeDriver: false,
+    }).start();
+  }, [currentStep, fill, reduceMotion, totalSteps]);
+
+  const fillWidth = fill.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <View style={styles.wrap} accessibilityRole="progressbar" accessibilityValue={{ now: currentStep, min: 1, max: totalSteps }}>
-      <View style={[styles.track, { backgroundColor: palette.border }]}>
+      <View style={[styles.track, { backgroundColor: palette.border }]}> 
         <View
           style={[
             styles.fill,
             {
               backgroundColor: palette.primary,
-              width: `${Math.max(0, Math.min(1, currentStep / totalSteps)) * 100}%`,
+              width: fillWidth,
             },
           ]}
         />
@@ -35,14 +64,18 @@ export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowP
           const active = step === currentStep;
           const complete = step < currentStep;
           const interactive = Boolean(onStepPress) && (active || complete);
+          const label = 'Step ' + step + (complete ? ', completed' : active ? ', current' : '');
 
           return (
             <Pressable
               key={step}
               disabled={!interactive}
-              accessibilityRole={interactive ? "button" : "text"}
-              accessibilityLabel={`Step ${step}${complete ? ", completed" : active ? ", current" : ""}`}
-              onPress={() => onStepPress?.(step)}
+              accessibilityRole={interactive ? 'button' : 'text'}
+              accessibilityLabel={label}
+              onPress={() => {
+                void haptics.tap();
+                onStepPress?.(step);
+              }}
               style={[
                 styles.dot,
                 {
@@ -63,7 +96,7 @@ export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowP
 export function useStepBackHandler(step: number, onPreviousStep: () => void) {
   useFocusEffect(
     useCallback(() => {
-      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
         if (step <= 1) return false;
         onPreviousStep();
         return true;
@@ -75,10 +108,13 @@ export function useStepBackHandler(step: number, onPreviousStep: () => void) {
 }
 
 export function useSlideStepTransition(step: number) {
+  const reduceMotion = useReduceMotion();
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (reduceMotion) return;
+
     translateX.setValue(24);
     opacity.setValue(0);
 
@@ -94,7 +130,7 @@ export function useSlideStepTransition(step: number) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opacity, step, translateX]);
+  }, [opacity, reduceMotion, step, translateX]);
 
   return { opacity, translateX };
 }
@@ -106,15 +142,15 @@ const styles = StyleSheet.create({
   track: {
     height: 4,
     borderRadius: 999,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   fill: {
-    height: "100%",
+    height: '100%',
     borderRadius: 999,
   },
   dots: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 8,
   },
   dot: {

@@ -1,8 +1,11 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useReduceMotion } from '@/hooks/useReduceMotion';
+import { haptics } from '@/utils/haptics';
 
 type ConfirmRow = {
   label: string;
@@ -32,11 +35,37 @@ export function ConfirmSheet({
   onConfirm,
   onCancel,
 }: Props) {
+  const reduceMotion = useReduceMotion();
+  const scale = useRef(new Animated.Value(reduceMotion ? 1 : 0.96)).current;
+  const opacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    void haptics.tap();
+    if (reduceMotion) return;
+
+    scale.setValue(0.96);
+    opacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 200,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, reduceMotion, scale, visible]);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <View style={styles.sheet}>
+        <Animated.View style={[styles.sheet, { opacity, transform: [{ scale }] }]}>
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -48,13 +77,21 @@ export function ConfirmSheet({
               </View>
             ))}
           </View>
-          <Pressable onPress={onConfirm} style={styles.confirm}>
+          <Pressable
+            onPressIn={() => void haptics.press()}
+            onPress={onConfirm}
+            style={({ pressed }) => [styles.confirm, pressed ? styles.pressed : null]}
+          >
             <Text style={styles.confirmText}>{loading ? 'Processing…' : confirmLabel}</Text>
           </Pressable>
-          <Pressable onPress={onCancel} style={styles.cancel}>
+          <Pressable
+            onPressIn={() => void haptics.tap()}
+            onPress={onCancel}
+            style={({ pressed }) => [styles.cancel, pressed ? styles.pressed : null]}
+          >
             <Text style={styles.cancelText}>{cancelLabel}</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -108,4 +145,5 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   cancelText: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.semibold },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
 });

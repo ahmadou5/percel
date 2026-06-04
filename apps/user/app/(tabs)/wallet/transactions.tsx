@@ -2,6 +2,8 @@ import { FlashList } from '@shopify/flash-list';
 import { ChevronLeft, Clock3, CreditCard, Search, TriangleAlert } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
+import { haptics } from '@/utils/haptics';
 
 import { StateCard } from '@/components/ui/StateCard';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
@@ -128,7 +130,7 @@ export default function TransactionsScreen() {
     <View style={{ flexGrow: 0, flexShrink: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.headerContent}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Pressable onPressIn={() => void haptics.tap()} onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}> 
             <ChevronLeft size={20} color={palette.text} />
           </Pressable>
           <View style={styles.headerSpacer} />
@@ -167,7 +169,7 @@ export default function TransactionsScreen() {
             return (
               <Pressable
                 key={item.key}
-                onPress={() => setCategory(item.key)}
+                onPressIn={() => void haptics.tap()} onPress={() => setCategory(item.key)}
                 style={[styles.filterChip, { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border }]}
               >
                 <Text style={[styles.filterText, { color: active ? palette.card : palette.text }]}>{item.label}</Text>
@@ -188,13 +190,13 @@ export default function TransactionsScreen() {
           description="Check your connection and try again."
           icon={<TriangleAlert size={24} color={palette.textSecondary} />}
           actionLabel="Retry"
-          onActionPress={() => void query.refetch()}
+          onActionPress={() => { void haptics.tap(); void query.refetch(); }}
         />
       ) : visibleTransactions.length ? (
         <FlashList
           data={visibleTransactions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <TransactionRow item={item} palette={palette} onPress={() => setSelectedId(item.id)} />}
+          renderItem={({ item, index }) => <TransactionRow item={item} index={index} palette={palette} onPress={() => setSelectedId(item.id)} />}
           
           // 🌟 FIX 3: FlashList still needs this prop to size rows correctly!
           //estimatedItemSize={76}
@@ -206,7 +208,7 @@ export default function TransactionsScreen() {
             }
           }}
           refreshing={query.isRefetching}
-          onRefresh={() => query.refetch()}
+          onRefresh={() => { void haptics.tap(); void query.refetch(); }}
           ListFooterComponent={renderFooter}
           showsVerticalScrollIndicator={false}
         />
@@ -216,7 +218,7 @@ export default function TransactionsScreen() {
           description={search ? 'Try a different filter or search term.' : 'Your deposits, transfers, and bill payments will appear here.'}
           icon={<CreditCard size={24} color={palette.textSecondary} />}
           actionLabel="Refresh"
-          onActionPress={() => void query.refetch()}
+          onActionPress={() => { void haptics.tap(); void query.refetch(); }}
         />
       )}
     </View>
@@ -267,30 +269,34 @@ export default function TransactionsScreen() {
 
 function TransactionRow({
   item,
+  index,
   onPress,
   palette,
 }: {
   item: { id: string; description: string; reference: string; category: string; createdAt: string; amount: number; status: string; type: 'CREDIT' | 'DEBIT' };
+  index: number;
   onPress: () => void;
   palette: (typeof Colors)[keyof typeof Colors];
 }) {
   const credit = item.type === 'CREDIT';
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, { borderBottomColor: palette.border }, pressed ? styles.pressed : null]}>
-      <View style={[styles.rowIcon, { backgroundColor: credit ? 'rgba(48,209,88,0.12)' : 'rgba(255,69,58,0.12)' }]}>
-        <CreditCard size={16} color={credit ? palette.success : palette.error} />
-      </View>
-      <View style={styles.rowBody}>
-        <Text style={[styles.rowTitle, { color: palette.text }]}>{item.description}</Text>
-        <Text style={[styles.rowMeta, { color: palette.textSecondary }]}>
-          {titleize(item.category)} • {formatTxnDate(item.createdAt)}
-        </Text>
-      </View>
-      <View style={styles.rowAmountWrap}>
-        <Text style={[styles.rowAmount, { color: credit ? palette.success : palette.error }]}>{`${credit ? '+' : '-'}${formatNaira(item.amount)}`}</Text>
-        <Text style={[styles.rowStatus, { color: palette.textSecondary }]}>{item.status.toLowerCase()}</Text>
-      </View>
-    </Pressable>
+    <AnimatedReveal index={index}>
+      <Pressable onPressIn={() => void haptics.tap()} onPress={onPress} style={({ pressed }) => [styles.row, { borderBottomColor: palette.border }, pressed ? styles.pressed : null]}>
+        <View style={[styles.rowIcon, { backgroundColor: credit ? 'rgba(48,209,88,0.12)' : 'rgba(255,69,58,0.12)' }]}>
+          <CreditCard size={16} color={credit ? palette.success : palette.error} />
+        </View>
+        <View style={styles.rowBody}>
+          <Text style={[styles.rowTitle, { color: palette.text }]}>{item.description}</Text>
+          <Text style={[styles.rowMeta, { color: palette.textSecondary }]}>
+            {titleize(item.category)} • {formatTxnDate(item.createdAt)}
+          </Text>
+        </View>
+        <View style={styles.rowAmountWrap}>
+          <Text style={[styles.rowAmount, { color: credit ? palette.success : palette.error }]}>{`${credit ? '+' : '-'}${formatNaira(item.amount)}`}</Text>
+          <Text style={[styles.rowStatus, { color: palette.textSecondary }]}>{item.status.toLowerCase()}</Text>
+        </View>
+      </Pressable>
+    </AnimatedReveal>
   );
 }
 

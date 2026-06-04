@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
+import { haptics } from '@/utils/haptics';
 import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, Plus, Smartphone, Globe, Tv2, Zap, CircleHelp, ShieldCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
@@ -32,14 +34,15 @@ function initialsFrom(text: string) {
   return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
-function TransactionRow({ transaction, scheme }: { transaction: WalletTransaction; scheme: keyof typeof Colors }) {
+function TransactionRow({ transaction, scheme, index }: { transaction: WalletTransaction; scheme: keyof typeof Colors; index: number }) {
   const positive = transaction.type === 'CREDIT';
   const amount = `${positive ? '+' : '-'}${formatNaira(transaction.amount)}`;
   const avatar = positive ? '↑' : initialsFrom(transaction.description || transaction.category);
   const palette = Colors[scheme];
 
   return (
-    <View style={[styles.txRow, { borderBottomColor: palette.border }]}>
+    <AnimatedReveal index={index}>
+      <View style={[styles.txRow, { borderBottomColor: palette.border }]}>
       <View style={[styles.txAvatar, { backgroundColor: positive ? 'rgba(48, 209, 88, 0.14)' : 'rgba(255, 69, 58, 0.12)' }]}>
         <Text style={[styles.txAvatarText, { color: positive ? palette.success : palette.text }]}>{avatar}</Text>
       </View>
@@ -54,6 +57,7 @@ function TransactionRow({ transaction, scheme }: { transaction: WalletTransactio
         <Text style={[styles.txStatus, { color: palette.textSecondary }]}>{transaction.status.toLowerCase()}</Text>
       </View>
     </View>
+    </AnimatedReveal>
   );
 }
 
@@ -74,6 +78,7 @@ export default function HomeScreen() {
   const balance = safeBalance(wallet?.balance);
   const transactions = useMemo(() => txQuery.data?.pages.flatMap((page) => page.data).slice(0, 5) ?? wallet?.transactions ?? [], [txQuery.data, wallet?.transactions]);
   const refresh = () => {
+    void haptics.tap();
     void walletQuery.refetch();
     void txQuery.refetch();
   };
@@ -143,7 +148,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.topRow}>
-          <Pressable onPress={() => router.push('/profile')} style={styles.profileRow}>
+          <Pressable onPressIn={() => void haptics.tap()} onPress={() => router.push('/profile')} style={styles.profileRow}>
             <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
@@ -156,7 +161,7 @@ export default function HomeScreen() {
               <Text style={[styles.userName, { color: palette.text }]}>{user?.fullName ?? 'Percel User'}</Text>
             </View>
           </Pressable>
-          <Pressable style={[styles.bellButton, { borderColor: palette.border, backgroundColor: palette.card }]} onPress={() => router.push('/notifications')}>
+          <Pressable onPressIn={() => void haptics.tap()} style={[styles.bellButton, { borderColor: palette.border, backgroundColor: palette.card }]} onPress={() => router.push('/notifications')}>
             <Bell size={18} color={palette.text} />
             {unreadNotifications > 0 ? (
               <View style={[styles.badge, { backgroundColor: palette.error }]}>
@@ -171,11 +176,11 @@ export default function HomeScreen() {
             <View style={styles.heroDecorA} />
             <View style={styles.heroDecorB} />
             <View style={styles.heroHeader}>
-              <Pressable style={styles.currencyPill} onPress={() => setCurrencyOpen(true)}>
+              <Pressable onPressIn={() => void haptics.tap()} style={styles.currencyPill} onPress={() => setCurrencyOpen(true)}>
                 <Text style={styles.currencyText}>🇳🇬 {currencies.find((item) => item.value === currency)?.label ?? 'NGN Wallet'}</Text>
                 <ChevronDown size={16} color="#fff" />
               </Pressable>
-              <Pressable onPress={() => setBalanceHidden((value) => !value)} style={styles.eyeButton} hitSlop={10}>
+              <Pressable onPressIn={() => void haptics.tap()} onPress={() => setBalanceHidden((value) => !value)} style={styles.eyeButton} hitSlop={10}>
                 {balanceHidden ? <EyeOff size={18} color="#fff" /> : <Eye size={18} color="#fff" />}
               </Pressable>
             </View>
@@ -197,11 +202,11 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.heroActions}>
-              <Pressable style={styles.heroAction} onPress={() => router.push('/wallet/topup')}>
+              <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction} onPress={() => router.push('/wallet/topup')}>
                 <Plus size={16} color="#fff" />
                 <Text style={styles.heroActionText}>Deposit</Text>
               </Pressable>
-              <Pressable style={styles.heroAction} onPress={() => router.push('/wallet/transfer')}>
+              <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction} onPress={() => router.push('/wallet/transfer')}>
                 <ArrowUpRight size={16} color="#fff" />
                 <Text style={styles.heroActionText}>Transfer</Text>
               </Pressable>
@@ -213,8 +218,8 @@ export default function HomeScreen() {
           <Text style={[styles.sectionLink, { color: palette.textSecondary }]}>Bills & top ups</Text>
         </View>
         <View style={styles.quickGrid}>
-          {quickActions.map(({ label, href, Icon, bg }) => (
-            <Pressable key={label} onPress={() => router.push(href as never)} style={({ pressed }) => [styles.quickCard, { backgroundColor: palette.card, borderColor: palette.border, opacity: pressed ? 0.94 : 1 }]}>
+          {quickActions.map(({ label, href, Icon }) => (
+            <Pressable key={label} onPressIn={() => void haptics.tap()} onPress={() => router.push(href as never)} style={({ pressed }) => [styles.quickCard, { backgroundColor: palette.card, borderColor: palette.border, opacity: pressed ? 0.94 : 1 } ]}>
               <View style={[styles.quickIcon, {  borderColor: palette.primaryDark }]}>
                 <Icon size={19} color={palette.primary} />
               </View>
@@ -239,7 +244,7 @@ export default function HomeScreen() {
               icon={<CircleHelp size={24} color={palette.textSecondary} />}
             />
           ) : transactions.length ? (
-            transactions.map((transaction) => <TransactionRow key={transaction.id} transaction={transaction} scheme={scheme} />)
+            transactions.map((transaction, index) => <TransactionRow key={transaction.id} transaction={transaction} index={index} scheme={scheme} />)
           ) : (
             <StateCard
               title="No transactions yet"
