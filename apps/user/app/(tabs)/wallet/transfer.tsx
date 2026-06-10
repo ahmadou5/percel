@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import * as ScreenCapture from "expo-screen-capture";
+import * as SecureStore from "expo-secure-store";
 import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -168,7 +169,7 @@ export default function TransferScreen() {
     };
   }, [allowScreenshots]);
 
-  useEffect(() => {
+  const resetForm = () => {
     setStep(1);
     setAmount('');
     setPin('');
@@ -182,6 +183,14 @@ export default function TransferScreen() {
     setRecipientValidation(null);
     setRecipientStatus('idle');
     setRecipientError('');
+    setAccountNumber('');
+    setBankCode('044');
+    setPhone('');
+    setBankSearch('');
+  };
+
+  useEffect(() => {
+    resetForm();
   }, [mode]);
 
   useEffect(() => {
@@ -260,9 +269,19 @@ export default function TransferScreen() {
           fallbackLabel: 'Use PIN',
         });
 
-        if (!result.success) {
+        if (result.success) {
+          const savedPin = await SecureStore.getItemAsync('percel_transfer_pin');
+          if (savedPin) {
+            await handleSubmitTransfer(savedPin);
+            return;
+          } else {
+            setBiometricToast('Transfer PIN not set for biometrics. Please use PIN.');
+          }
+        } else {
           setBiometricToast(result.message);
         }
+      } catch (err) {
+        setBiometricToast('Biometric confirmation failed. Please use PIN.');
       } finally {
         setBiometricBusy(false);
       }
@@ -363,8 +382,7 @@ export default function TransferScreen() {
   };
 
   const handleDismissSuccess = () => {
-    setSuccessModalOpen(false);
-    setTransferReceipt(null);
+    resetForm();
     back();
   };
 

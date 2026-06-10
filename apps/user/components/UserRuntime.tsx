@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { AppState, type AppStateStatus } from "react-native";
+import * as ScreenCapture from "expo-screen-capture";
 import { useEffect, useRef } from "react";
 import { router } from "expo-router";
 
@@ -18,10 +19,19 @@ export function UserRuntime() {
   const lastRegisteredToken = useRef<string | null>(null);
   const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
   const walletAccessBiometricEnabled = usePreferencesStore((state) => state.walletAccessBiometricEnabled);
+  const allowScreenshots = usePreferencesStore((state) => state.allowScreenshots);
   const isUnlocked = useAuthStore((state) => state.isUnlocked);
   const walletQuery = useWallet();
   const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
   const walletReady = !walletQuery.isLoading && !walletQuery.isFetching;
+
+  useEffect(() => {
+    if (!allowScreenshots) {
+      void ScreenCapture.preventScreenCaptureAsync();
+    } else {
+      void ScreenCapture.allowScreenCaptureAsync();
+    }
+  }, [allowScreenshots]);
 
   const queryClient = useQueryClient();
 

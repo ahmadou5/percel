@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
+import * as SecureStore from 'expo-secure-store';
 
 import { Button } from '@/components/ui/Button';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Input } from '@/components/ui/Input';
+import { PinInput } from '@/components/ui/PinInput';
 import { KeyboardView } from '@/components/ui/KeyboardView';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useResetTransferPin, useSetTransferPin, useWallet } from '@/hooks/useWallet';
+import { useResetTransferPin, useSetTransferPin, useWallet, useVerifyTransferPin } from '@/hooks/useWallet';
 import { useAuthStore } from '@/store/auth.store';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { describeBiometricTypes, LocalAuthentication } from '@/lib/localAuthentication';
@@ -22,6 +24,7 @@ export default function ProfileSecurityScreen() {
   const user = useAuthStore((state) => state.user);
   const mutation = useSetTransferPin();
   const resetMutation = useResetTransferPin();
+  const verifyPinMutation = useVerifyTransferPin();
   const walletQuery = useWallet();
   const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
   const walletAccessBiometricEnabled = usePreferencesStore((state) => state.walletAccessBiometricEnabled);
@@ -34,6 +37,10 @@ export default function ProfileSecurityScreen() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [biometricTypeLabel, setBiometricTypeLabel] = useState('Biometrics');
+  const [pinPromptVisible, setPinPromptVisible] = useState(false);
+  const [pinPromptValue, setPinPromptValue] = useState('');
+  const [pinPromptError, setPinPromptError] = useState<string | null>(null);
+  const [pinPromptLoading, setPinPromptLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +95,8 @@ export default function ProfileSecurityScreen() {
       setNewPin('');
       setConfirmPin('');
       await setWalletAccessBiometricEnabled(false);
+      await SecureStore.deleteItemAsync('percel_transfer_pin');
+      await setConfirmTransactionsBiometricEnabled(false);
       Alert.alert('Transfer PIN removed', 'Transfers will no longer require a PIN until you set one again.');
     } catch (error) {
       Alert.alert('Could not remove PIN', error instanceof Error ? error.message : 'Please try again.');
@@ -129,6 +138,30 @@ export default function ProfileSecurityScreen() {
     return true;
   };
 
+  const submitBiometricPin = async (enteredPin: string) => {
+    setPinPromptLoading(true);
+    setPinPromptError(null);
+    try {
+      const response = await verifyPinMutation.mutateAsync({ pin: enteredPin });
+      if (response.data.verified) {
+        const allowed = await confirmBiometricEnable('Confirm transactions with biometrics');
+        if (allowed) {
+          await SecureStore.setItemAsync('percel_transfer_pin', enteredPin);
+          await setConfirmTransactionsBiometricEnabled(true);
+          setPinPromptVisible(false);
+        } else {
+          setPinPromptVisible(false);
+        }
+      } else {
+        setPinPromptError('Incorrect PIN. Please try again.');
+      }
+    } catch (err) {
+      setPinPromptError(err instanceof Error ? err.message : 'PIN verification failed.');
+    } finally {
+      setPinPromptLoading(false);
+    }
+  };
+
   const onToggleWalletAccess = async (next: boolean) => {
     if (next && !walletPinSet) {
       Alert.alert('Set a PIN first', 'Create a transfer PIN above before turning on wallet access protection.');
@@ -144,12 +177,21 @@ export default function ProfileSecurityScreen() {
   };
 
   const onToggleConfirmTransactions = async (next: boolean) => {
-    if (next) {
-      const allowed = await confirmBiometricEnable('Confirm transactions with biometrics');
-      if (!allowed) return;
+    if (!next) {
+      await SecureStore.deleteItemAsync('percel_transfer_pin');
+      await setConfirmTransactionsBiometricEnabled(false);
+      return;
     }
 
-    await setConfirmTransactionsBiometricEnabled(next);
+    if (!walletPinSet) {
+      Alert.alert('Set a PIN first', 'Create a transfer PIN above before turning on transaction confirmation.');
+      return;
+    }
+
+    setPinPromptValue('');
+    setPinPromptError(null);
+    setPinPromptLoading(false);
+    setPinPromptVisible(true);
   };
 
   return (
@@ -275,6 +317,56 @@ export default function ProfileSecurityScreen() {
           </View>
         </View>
       </View>
+
+      <Modal
+        visible={pinPromptVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!pinPromptLoading) setPinPromptVisible(false);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              if (!pinPromptLoading) setPinPromptVisible(false);
+            }}
+          />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Verify Transfer PIN</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>
+                  Enter your transfer PIN to enable biometric transaction confirmation.
+                </Text>
+              </View>
+              <Pressable
+                disabled={pinPromptLoading}
+                onPress={() => setPinPromptVisible(false)}
+                style={[styles.modalClose, { backgroundColor: palette.bg }]}
+              >
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            <View style={{ marginVertical: Spacing.md }}>
+              <PinInput
+                value={pinPromptValue}
+                onChangeText={(val) => {
+                  const cleaned = val.replace(/\s/g, '');
+                  setPinPromptValue(cleaned);
+                  if (cleaned.length === 4) {
+                    void submitBiometricPin(cleaned);
+                  }
+                }}
+                loading={pinPromptLoading}
+                error={pinPromptError ?? undefined}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardView>
   );
 }
@@ -309,4 +401,11 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   toggleCopy: { flex: 1, gap: 6 },
   helperHint: { fontSize: Typography.sm, fontFamily: Typography.family.semibold },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalSubtitle: { fontSize: Typography.sm, marginTop: 2, color: '#8888AA' },
+  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
 });

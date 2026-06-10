@@ -93,7 +93,23 @@ export default function LoginScreen() {
                   label="Phone or Email"
                   placeholder="801 234 5678 or name@email.com"
                   value={identifier}
-                  onChangeText={setIdentifier}
+                  onChangeText={(val) => {
+                    const isPhone = val.replace(/[\s-+]/g, '').length > 0 && /^\d+$/.test(val.replace(/[\s-+]/g, ''));
+                    if (isPhone) {
+                      const cleaned = val.replace(/[\s-]/g, '');
+                      if (cleaned.startsWith('+234')) {
+                        setIdentifier(cleaned.slice(4));
+                      } else if (cleaned.startsWith('234') && cleaned.length >= 13) {
+                        setIdentifier(cleaned.slice(3));
+                      } else if (cleaned.startsWith('0')) {
+                        setIdentifier(cleaned.slice(1));
+                      } else {
+                        setIdentifier(cleaned);
+                      }
+                    } else {
+                      setIdentifier(val);
+                    }
+                  }}
                   autoCapitalize="none"
                   keyboardType={isEmail ? "email-address" : "phone-pad"}
                   leftElement={

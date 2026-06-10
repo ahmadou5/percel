@@ -167,7 +167,18 @@ export default function RegisterScreen() {
                   placeholder="801 234 5678"
                   keyboardType="phone-pad"
                   value={phone}
-                  onChangeText={(value) => setPhone(value.replace(/\D/g, ''))}
+                  onChangeText={(value) => {
+                    const cleaned = value.replace(/[\s-]/g, '');
+                    if (cleaned.startsWith('+234')) {
+                      setPhone(cleaned.slice(4));
+                    } else if (cleaned.startsWith('234') && cleaned.length >= 13) {
+                      setPhone(cleaned.slice(3));
+                    } else if (cleaned.startsWith('0')) {
+                      setPhone(cleaned.slice(1));
+                    } else {
+                      setPhone(cleaned.replace(/\D/g, ''));
+                    }
+                  }}
                   error={phone && !phoneRegex.test(`+234${phoneValue}`) ? 'Enter a valid Nigerian phone number' : undefined}
                   leftElement={(
                     <View style={[styles.countryPill, { backgroundColor: lightBg ? '#f0f5ff' : '#202025', borderColor: theme.border }]}>
