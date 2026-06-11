@@ -126,8 +126,6 @@ function TabPill({
       stiffness: 180,
       mass: 0.8,
       overshootClamping: false,
-      restDisplacementThreshold: 0.001,
-      restSpeedThreshold: 0.001,
     });
   }, [focused, progress]);
 
