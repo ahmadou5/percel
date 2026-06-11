@@ -31,7 +31,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name='send'
         options={{
-          title: 'Create',
+          title: 'Create Order',
         }}
       />
       <Tabs.Screen
@@ -43,11 +43,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name='profile'
         options={{
-          title: 'Settings',
+          title: 'Profile',
         }}
       />
       <Tabs.Screen name='notifications' options={{ href: null }} />
-      <Tabs.Screen name='wallet' options={{ href: null }} />
+      <Tabs.Screen name='wallet' options={{ href: null, title: 'Wallet' }} />
     </Tabs>
   );
 }

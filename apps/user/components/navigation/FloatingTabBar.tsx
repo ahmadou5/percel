@@ -1,14 +1,20 @@
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { CirclePlus, ClipboardList, House, Settings } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { ClipboardList, House, Plus, UserRound, Wallet } from 'lucide-react-native';
+import { type ComponentType, useEffect, useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  interpolate,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 
 import { Typography } from '@/constants/typography';
 import { useAppPalette, isLight } from '@/lib/theme';
-
-type TabName = 'index' | 'send' | 'orders' | 'profile';
+import { haptics } from '@/utils/haptics';
 
 type IconProps = {
   color?: string;
@@ -19,31 +25,39 @@ type IconProps = {
 
 type IconComponent = ComponentType<IconProps>;
 
-const TAB_ORDER: TabName[] = ['index', 'send', 'orders', 'profile'];
-
-const TAB_META: Record<
-  TabName,
-  {
-    label: string;
-    Icon: IconComponent;
-    elevated?: boolean;
-  }
-> = {
-  index: { label: 'Home', Icon: House },
-  send: { label: 'Create', Icon: CirclePlus, elevated: true },
-  orders: { label: 'Orders', Icon: ClipboardList },
-  profile: { label: 'Settings', Icon: Settings },
-};
-
 type ThemeTokens = {
-  background: string;
-  border: string;
-  shadow: string;
-  active: string;
-  inactive: string;
-  activeBackdrop: string;
-  primary: string;
+  shellBackground: string;
+  shellBorder: string;
+  shellShadow: string;
+  shellTint: string;
+  activeFill: string;
+  activeBorder: string;
+  activeText: string;
+  inactiveText: string;
+  fabPrimary: string;
+  fabSecondary: string;
+  fabShadow: string;
 };
+
+type NavItem = {
+  key: 'home' | 'orders' | 'wallet' | 'profile';
+  label: string;
+  Icon: IconComponent;
+  routeName?: 'index' | 'orders' | 'profile';
+  href: string;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { key: 'home', label: 'Home', Icon: House, routeName: 'index', href: '/' },
+  { key: 'orders', label: 'Orders', Icon: ClipboardList, routeName: 'orders', href: '/orders' },
+  { key: 'wallet', label: 'Wallet', Icon: Wallet, href: '/wallet/topup' },
+  { key: 'profile', label: 'Profile', Icon: UserRound, routeName: 'profile', href: '/profile' },
+];
+
+const PILL_WIDTH = 92;
+const PILL_COLLAPSED = 40;
+const PILL_HEIGHT = 44;
+const FAB_SIZE = 56;
 
 function hexToRgba(hex: string, alpha: number) {
   const normalized = hex.replace('#', '');
@@ -53,167 +67,186 @@ function hexToRgba(hex: string, alpha: number) {
   const g = (int >> 8) & 255;
   const b = int & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}function TabGlyph({
-  routeName,
-  focused,
-  theme,
-}: {
-  routeName: TabName;
-  focused: boolean;
-  theme: ThemeTokens;
-}) {
-  const meta = TAB_META[routeName];
-  const motion = useRef(new Animated.Value(focused ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.spring(motion, {
-      toValue: focused ? 1 : 0,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 200,
-      mass: 0.8,
-    }).start();
-  }, [focused, motion]);
-
-  const translateY = motion.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -6],
-  });
-
-  const labelOpacity = motion.interpolate({
-    inputRange: [0, 0.4, 1],
-    outputRange: [0, 0, 1],
-  });
-
-  const labelTranslateY = motion.interpolate({
-    inputRange: [0, 1],
-    outputRange: [4, 0],
-  });
-
-  const iconScale = motion.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1.08, 1.0],
-  });
-
-  const iconColor = focused ? theme.active : theme.inactive;
-  //const iconFill = focused ? theme.active : 'transparent';
-
-  return (
-    // Outer view is the full tab cell — icon always perfectly centered in it
-    <View style={styles.tabInner}>
-
-      {/* Icon animates up via translateY, independently of label */}
-      <Animated.View
-        style={{
-          transform: [{ translateY }, { scale: iconScale }],
-        }}
-      >
-        <View style={styles.iconSlot}>
-          <meta.Icon
-            color={iconColor}
-
-            size={meta.elevated ? 26 : 23}
-            strokeWidth={focused ? 2.0 : 1.7}
-          />
-        </View>
-      </Animated.View>
-
-      {/* Label is absolutely positioned — never affects icon centering */}
-      <Animated.Text
-        numberOfLines={1}
-        style={[
-          styles.label,
-          {
-            position: 'absolute',
-            bottom: 0,             // anchored to bottom of the cell
-            color: theme.active,
-            opacity: labelOpacity,
-            transform: [{ translateY: labelTranslateY }],
-          },
-        ]}
-      >
-        {meta.label}
-      </Animated.Text>
-
-    </View>
-  );
 }
-function TabButton({
-  routeName,
+
+function getFocusKey(pathname: string) {
+  if (pathname === '/' || pathname === '/index') return 'home';
+  if (pathname.startsWith('/orders')) return 'orders';
+  if (pathname.startsWith('/wallet')) return 'wallet';
+  if (pathname.startsWith('/profile')) return 'profile';
+  return null;
+}
+
+function isHiddenRoute(pathname: string) {
+  return ['/auth-lock', '/notifications', '/settings'].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+function useThemeTokens() {
+  const palette = useAppPalette();
+  const dark = !isLight(palette.bg);
+
+  return useMemo<ThemeTokens>(() => {
+    const primary = palette.primary;
+    const secondary = palette.primaryDark ?? palette.primary;
+
+    return {
+      shellBackground: dark ? 'rgba(16, 16, 20, 0.74)' : hexToRgba(palette.card, 0.92),
+      shellBorder: dark ? 'rgba(255, 255, 255, 0.10)' : hexToRgba(palette.border, 0.9),
+      shellShadow: dark ? 'rgba(0, 0, 0, 0.50)' : 'rgba(0, 0, 0, 0.16)',
+      shellTint: dark ? 'rgba(139, 92, 246, 0.10)' : hexToRgba(primary, 0.08),
+      activeFill: dark ? 'rgba(255, 255, 255, 0.95)' : hexToRgba(palette.card, 0.98),
+      activeBorder: dark ? 'rgba(255, 255, 255, 0.14)' : hexToRgba(primary, 0.14),
+      activeText: primary,
+      inactiveText: hexToRgba(palette.text, dark ? 0.58 : 0.46),
+      fabPrimary: primary,
+      fabSecondary: secondary,
+      fabShadow: dark ? 'rgba(139, 92, 246, 0.38)' : hexToRgba(primary, 0.28),
+    };
+  }, [dark, palette]);
+}
+
+function TabPill({
+  item,
   focused,
   onPress,
   onLongPress,
   theme,
 }: {
-  routeName: TabName;
+  item: NavItem;
   focused: boolean;
   onPress: () => void;
   onLongPress: () => void;
   theme: ThemeTokens;
 }) {
+  const progress = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withSpring(focused ? 1 : 0, {
+      damping: 18,
+      stiffness: 180,
+      mass: 0.8,
+      overshootClamping: false,
+      restDisplacementThreshold: 0.001,
+      restSpeedThreshold: 0.001,
+    });
+  }, [focused, progress]);
+
+  const containerStyle = useAnimatedStyle(() => {
+    const width = interpolate(progress.value, [0, 1], [PILL_COLLAPSED, PILL_WIDTH]);
+    const translateY = interpolate(progress.value, [0, 1], [0, -1]);
+
+    return {
+      width,
+      backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0)', theme.activeFill]),
+      borderColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0)', theme.activeBorder]),
+      transform: [{ translateY }],
+    };
+  });
+
+  const iconStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 1], [0.64, 1]),
+      transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.04]) }],
+    };
+  });
+
+  const labelStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 0.45, 1], [0, 0, 1]),
+      transform: [{ translateX: interpolate(progress.value, [0, 1], [-4, 0]) }],
+    };
+  });
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={focused ? { selected: true } : {}}
       onLongPress={onLongPress}
       onPress={onPress}
-   style={({ pressed }) => [styles.tabButton, pressed ? styles.pressed : null]}
+      onPressIn={() => void haptics.tap()}
+      style={({ pressed }) => [styles.tabPressable, pressed ? styles.pressed : null]}
     >
-      <TabGlyph focused={focused} routeName={routeName} theme={theme} />
+      <Animated.View style={[styles.tabPill, { shadowColor: theme.shellShadow }, containerStyle]}>
+        <Animated.View style={[styles.iconWrap, iconStyle]}>
+          <item.Icon
+            color={focused ? theme.activeText : theme.inactiveText}
+            size={item.key === 'wallet' ? 20 : 20}
+            strokeWidth={focused ? 2.1 : 1.85}
+          />
+        </Animated.View>
+        <Animated.Text numberOfLines={1} style={[styles.tabLabel, { color: theme.activeText }, labelStyle]}>
+          {item.label}
+        </Animated.Text>
+      </Animated.View>
     </Pressable>
+  );
+}
+
+function CreateOrderFab({ theme, onPress }: { theme: ThemeTokens; onPress: () => void }) {
+  const progress = useSharedValue(0.15);
+
+  useEffect(() => {
+    progress.value = withSpring(1, {
+      damping: 16,
+      stiffness: 170,
+      mass: 0.85,
+    });
+  }, [progress]);
+
+  const fabStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: interpolate(progress.value, [0, 1], [0.94, 1]) },
+        { translateY: interpolate(progress.value, [0, 1], [4, 0]) },
+      ],
+      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.fabWrap, fabStyle]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Create Order"
+        onPress={onPress}
+        onPressIn={() => void haptics.press()}
+        style={({ pressed }) => [styles.fab, { shadowColor: theme.fabShadow }, pressed ? styles.fabPressed : null]}
+      >
+        <View style={[styles.fabGlow, { backgroundColor: hexToRgba(theme.fabPrimary, 0.18) }]} />
+        <View style={[styles.fabCore, { backgroundColor: theme.fabPrimary }]}>
+          <View style={[styles.fabCoreInner, { backgroundColor: theme.fabSecondary }]} />
+          <Plus size={22} color="#FFFFFF" strokeWidth={2.4} />
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const palette = useAppPalette();
-  const isDark = !isLight(palette.bg);
-
-  const theme = useMemo<ThemeTokens>(() => {
-    return {
-      background: hexToRgba(palette.card, 0.94),
-      border: palette.border,
-      shadow: isDark ? 'rgba(0, 0, 0, 0.46)' : 'rgba(0, 0, 0, 0.14)',
-      active: palette.primary,
-      inactive: hexToRgba(palette.text, 0.38),
-      activeBackdrop: hexToRgba(palette.primary, isDark ? 0.16 : 0.10),
-      primary: palette.primary,
-    };
-  }, [palette, isDark]);
-
   const insets = useSafeAreaInsets();
-  const [mountReady, setMountReady] = useState(false);
-
-  const hiddenRoutes = ['/wallet/airtime', '/wallet/data', '/wallet/tv', '/wallet/electricity', '/settings', '/auth-lock', '/referrals', '/notifications'];
-
-  const visibleRoutes = useMemo(
-    () => state.routes.filter((route): route is (typeof state.routes)[number] & { name: TabName } => TAB_ORDER.includes(route.name as TabName)),
-    [state.routes]
-  );
+  const theme = useThemeTokens();
+  const focusedKey = getFocusKey(pathname);
+  const hidden = isHiddenRoute(pathname);
+  const intro = useSharedValue(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => setMountReady(true), 40);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const translateY = useRef(new Animated.Value(24)).current;
-
-  useEffect(() => {
-    Animated.spring(translateY, {
-      toValue: mountReady ? 0 : 24,
-      useNativeDriver: true,
-      damping: 16,
-      stiffness: 140,
+    intro.value = withSpring(1, {
+      damping: 18,
+      stiffness: 150,
       mass: 0.9,
-    }).start();
-  }, [mountReady, translateY]);
-  const isHomePath = pathname === '/' || pathname === '/index';
+    });
+  }, [intro]);
 
-  if (!isHomePath) return null;
+  const shellStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(intro.value, [0, 1], [0, 1]),
+      transform: [{ translateY: interpolate(intro.value, [0, 1], [24, 0]) }],
+    };
+  });
 
-  if (hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) return null;
-  if (!visibleRoutes.length) return null;
+  if (hidden) return null;
 
   return (
     <Animated.View
@@ -221,126 +254,180 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       style={[
         styles.outer,
         {
-          paddingBottom: insets.bottom + 8,
-          opacity: mountReady ? 1 : 0,
-          transform: [{ translateY }],
+          bottom: Math.max(insets.bottom, 8),
         },
+        shellStyle,
       ]}
     >
       <View
-        pointerEvents="none"
         style={[
-          styles.halo,
+          styles.shell,
           {
-            backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : hexToRgba(palette.primary, 0.08),
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: theme.background,
-            borderColor: theme.border,
-            shadowColor: theme.shadow,
+            backgroundColor: theme.shellBackground,
+            borderColor: theme.shellBorder,
+            shadowColor: theme.shellShadow,
           },
         ]}
       >
-        {visibleRoutes.map((route) => {
-          const focused = state.routes[state.index]?.key === route.key;
+        <View pointerEvents="none" style={[styles.shellTint, { backgroundColor: theme.shellTint }]} />
+        <View style={styles.tabRow}>
+          {NAV_ITEMS.map((item) => {
+            const focused = focusedKey === item.key;
+            const onPress = () => {
+              if (item.routeName) {
+                const route = state.routes.find((candidate) => candidate.name === item.routeName);
+                if (!route) return;
 
-          return (
-            <TabButton
-              key={route.key}
-              focused={focused}
-              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-              onPress={() => {
                 const event = navigation.emit({
                   type: 'tabPress',
                   target: route.key,
                   canPreventDefault: true,
                 });
 
-                if (route.name === 'profile') {
-                  if (!event.defaultPrevented) {
-                    router.push('/settings');
-                  }
-                  return;
-                }
-
                 if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(route.name as never);
+                  navigation.navigate(item.routeName as never);
                 }
-              }}
-              routeName={route.name}
-              theme={theme}
-            />
-          );
-        })}
+                return;
+              }
+
+              router.push(item.href as never);
+            };
+
+            const onLongPress = () => {
+              if (!item.routeName) return;
+              const route = state.routes.find((candidate) => candidate.name === item.routeName);
+              if (!route) return;
+              navigation.emit({ type: 'tabLongPress', target: route.key });
+            };
+
+            return (
+              <TabPill
+                key={item.key}
+                focused={focused}
+                item={item}
+                onLongPress={onLongPress}
+                onPress={onPress}
+                theme={theme}
+              />
+            );
+          })}
+        </View>
+
+        <CreateOrderFab theme={theme} onPress={() => router.push('/send' as never)} />
       </View>
     </Animated.View>
   );
 }
+
 const styles = StyleSheet.create({
   outer: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 0,
+    left: 14,
+    right: 14,
   },
-  halo: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    top: 4,
-    bottom: 0,
-    borderRadius: 30,
-    opacity: 0.75,
-  },
-  container: {
+  shell: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 28,
-    borderWidth: 0.5,           // was 1 — thinner border, more refined
-    justifyContent: 'center',
-    paddingHorizontal: 8,       // was 10
-    paddingTop: 8,              // was 10
-    paddingBottom: 8,           // was 7 — now symmetric
-    minHeight: 58,              // was 66 — less chunky
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 8 },   // was 10
-    shadowOpacity: 0.9,
-    shadowRadius: 20,           // was 24
-    elevation: 14,              // was 18
+    minHeight: 74,
+    borderRadius: 30,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
+    paddingRight: FAB_SIZE + 20,
+    overflow: 'visible',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.34,
+    shadowRadius: 26,
+    elevation: 18,
   },
-   tabButton: {
+  shellTint: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 30,
+    opacity: 1,
+  },
+  tabRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    paddingRight: 10,
+  },
+  tabPressable: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,            // enough room for icon + label when active
+    minHeight: 48,
   },
- tabInner: {
-  alignItems: 'center',
-  justifyContent: 'center',  // icon always vertically centered
-  minWidth: 48,
-  minHeight: 52,             // enough room: icon centered + label at bottom
-  position: 'relative',     // needed for absolute label
-},
-iconSlot: {
-  width: 28,
-  height: 28,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-label: {
-  fontSize: Typography.xs,
-  fontFamily: Typography.family.semibold,
-  letterSpacing: 0.2,
-  lineHeight: 13,
-},
-
+  tabPill: {
+    height: PILL_HEIGHT,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontFamily: Typography.family.semibold,
+    letterSpacing: 0.1,
+    marginLeft: 2,
+    paddingRight: 12,
+  },
+  fabWrap: {
+    position: 'absolute',
+    right: 14,
+    top: -10,
+  },
+  fab: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 16,
+  },
+  fabGlow: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 999,
+    opacity: 0.95,
+  },
+  fabCore: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  fabCoreInner: {
+    position: 'absolute',
+    top: -10,
+    left: -14,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    opacity: 0.42,
+  },
   pressed: {
-    transform: [{ scale: 0.94 }],  // was 0.96 — more tactile
-    opacity: 0.9,               // was 0.96
+    opacity: 0.92,
+  },
+  fabPressed: {
+    transform: [{ scale: 0.96 }],
   },
 });
