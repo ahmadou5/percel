@@ -136,17 +136,7 @@ export default function OrdersScreen() {
     >
       {/* Back + title header */}
       <View style={styles.headerRow}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.backButton,
-            { backgroundColor: palette.card, borderColor: palette.border },
-            pressed && { opacity: 0.7 },
-          ]}
-          onPress={() => back()}
-        >
-          <ChevronLeft size={18} color={palette.text} />
-        </Pressable>
-        <View style={styles.headerSpacer} />
+       
       </View>
 
       <View style={styles.headerCopy}>

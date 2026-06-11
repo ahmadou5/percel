@@ -1,0 +1,166 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { useSafeBack } from '@/components/navigation/useSafeBack';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
+import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteById } from '@/lib/hubs';
+import { useAppPalette } from '@/lib/theme';
+
+export default function PickupDetailsScreen() {
+  const router = useRouter();
+  const back = useSafeBack('/send');
+  const palette = useAppPalette();
+  const params = useLocalSearchParams<{
+    originHubId?: string;
+    destinationHubId?: string;
+    routeId?: string;
+  }>();
+
+  const originHub = getHubById(params.originHubId);
+  const destinationHub = getHubById(params.destinationHubId);
+  const route = getRouteById(params.routeId);
+
+  const [localPickupAddress, setLocalPickupAddress] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [pickupNote, setPickupNote] = useState('');
+
+  const canContinue = Boolean(originHub && destinationHub && route && localPickupAddress.trim() && contactName.trim() && contactPhone.trim());
+
+  const preview = useMemo(() => {
+    if (!originHub || !destinationHub) return null;
+    return {
+      pickupAddress: composePickupAddress(originHub, localPickupAddress),
+      deliveryAddress: composeDeliveryAddress(destinationHub),
+    };
+  }, [destinationHub, localPickupAddress, originHub]);
+
+  return (
+    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.hero}>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Pickup details</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Add the local pickup details near the chosen hub.</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>We keep the interstate move hub-to-hub and capture only the local pickup point here.</Text>
+      </View>
+
+      <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Selected route</Text>
+        <Text style={[styles.routeText, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub not selected'}</Text>
+        <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
+        <Text style={styles.arrow}>↓</Text>
+        <Text style={[styles.routeText, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub not selected'}</Text>
+        <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup landmark</Text>
+        <TextInput
+          value={localPickupAddress}
+          onChangeText={setLocalPickupAddress}
+          placeholder="Landmark, street, or area near the origin hub"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+        />
+        <Text style={[styles.helper, { color: palette.textSecondary }]}>Example: Ojuelegba bus stop or Ring Road junction.</Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup contact</Text>
+        <TextInput
+          value={contactName}
+          onChangeText={setContactName}
+          placeholder="Contact name"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+        />
+        <TextInput
+          value={contactPhone}
+          onChangeText={setContactPhone}
+          keyboardType="phone-pad"
+          placeholder="Phone number"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+        />
+        <TextInput
+          value={pickupNote}
+          onChangeText={setPickupNote}
+          placeholder="Optional note for the driver"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.noteInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+          multiline
+        />
+      </View>
+
+      {preview ? (
+        <View style={[styles.previewCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup preview</Text>
+          <Text style={[styles.previewText, { color: palette.text }]} numberOfLines={2}>
+            {preview.pickupAddress}
+          </Text>
+          <Text style={[styles.previewMeta, { color: palette.textSecondary }]} numberOfLines={1}>
+            {preview.deliveryAddress}
+          </Text>
+        </View>
+      ) : null}
+
+      <Pressable
+        disabled={!canContinue}
+        onPress={() =>
+          router.push({
+            pathname: '/send/package',
+            params: {
+              originHubId: params.originHubId ?? '',
+              destinationHubId: params.destinationHubId ?? '',
+              routeId: params.routeId ?? '',
+              localPickupAddress,
+              contactName,
+              contactPhone,
+              pickupNote,
+            },
+          })
+        }
+        style={({ pressed }) => [
+          styles.primary,
+          { backgroundColor: canContinue ? palette.primary : palette.border },
+          pressed && canContinue ? { opacity: 0.88 } : null,
+        ]}
+      >
+        <Text style={styles.primaryText}>Continue</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  hero: { gap: Spacing.sm },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
+  subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
+  routeCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: 6 },
+  sectionLabel: { textTransform: 'uppercase', letterSpacing: 1.1, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  routeText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  routeMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  arrow: { fontSize: Typography.xl, textAlign: 'center' },
+  card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  input: { minHeight: 54, borderRadius: 16, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: Typography.md, fontFamily: Typography.family.regular },
+  noteInput: { minHeight: 98, borderRadius: 16, borderWidth: 1, paddingHorizontal: Spacing.md, paddingTop: 14, fontSize: Typography.md, fontFamily: Typography.family.regular, textAlignVertical: 'top' },
+  helper: { fontSize: Typography.xs, lineHeight: 18 },
+  previewCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: 4 },
+  previewText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  previewMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  primary: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
+});

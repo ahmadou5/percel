@@ -1,33 +1,43 @@
 import { useRouter } from 'expo-router';
-import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { useState } from 'react';
+import { ArrowLeftRight, ChevronLeft } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeftRight, ChevronLeft, MapPin } from 'lucide-react-native';
 
-import { AddressPicker } from '@/components/order/AddressPicker';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
+import { HubPicker } from '@/components/order/HubPicker';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { getRouteWithHubs, listHubs } from '@/lib/hubs';
+import { formatMoney } from '@/lib/order';
 import { useAppPalette } from '@/lib/theme';
+import type { Hub } from '@/types/hubs';
 
-const sampleAddresses = [
-  '12 Admiralty Way, Lekki, Lagos, Nigeria',
-  '25 Ikorodu Road, Yaba, Lagos, Nigeria',
-  '8B GRA Road, Port Harcourt, Rivers, Nigeria',
-];
+const starterHubs = listHubs();
 
 export default function SendOrderEntryScreen() {
   const router = useRouter();
   const back = useSafeBack('/');
   const palette = useAppPalette();
-  const [pickup, setPickup] = useState(sampleAddresses[0]);
-  const [delivery, setDelivery] = useState(sampleAddresses[1]);
+  const [originHub, setOriginHub] = useState<Hub | null>(starterHubs[0] ?? null);
+  const [destinationHub, setDestinationHub] = useState<Hub | null>(starterHubs[1] ?? null);
 
-  const swapAddresses = () => {
-    setPickup(delivery);
-    setDelivery(pickup);
+  const routePreview = useMemo(() => {
+    if (!originHub || !destinationHub) return null;
+    return getRouteWithHubs(originHub.id, destinationHub.id);
+  }, [destinationHub, originHub]);
+
+  const canContinue = Boolean(routePreview && originHub && destinationHub && originHub.id !== destinationHub.id);
+
+  const swapHubs = () => {
+    setOriginHub(destinationHub);
+    setDestinationHub(originHub);
   };
 
-  const canContinue = pickup.trim().length > 4 && delivery.trim().length > 4;
+  const routeMessage = !originHub || !destinationHub
+    ? 'Pick both hubs to see the route cost and delivery window.'
+    : routePreview
+      ? 'This route is live and ready for pickup details.'
+      : 'Route not available yet. Choose a supported hub pair.';
 
   return (
     <ScrollView
@@ -36,13 +46,12 @@ export default function SendOrderEntryScreen() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Back button */}
-       <View style={styles.headerRow}>
+      <View style={styles.headerRow}>
         <Pressable
           style={({ pressed }) => [
             styles.backButton,
             { backgroundColor: palette.card, borderColor: palette.border },
-            pressed && { opacity: 0.7 },
+            pressed ? { opacity: 0.7 } : null,
           ]}
           onPress={() => back()}
         >
@@ -51,42 +60,29 @@ export default function SendOrderEntryScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Hero copy */}
       <View style={styles.hero}>
-       
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Send waybill</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Where is the package going?</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-          Set the pickup and delivery addresses to get an instant delivery quote.
-        </Text>
+        <Text style={[styles.title, { color: palette.text }]}>Choose the hubs for this interstate move.</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Percel moves hub-to-hub. Pick the origin and destination stations first, then add the local pickup details.</Text>
       </View>
 
-      {/* Address inputs */}
-      <View style={[styles.addressCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        {/* Pickup */}
-        <View style={styles.addressRow}>
-          <View style={[styles.dotWrap, { backgroundColor: `${palette.primary}1A` }]}>
-            <View style={[styles.dotInner, { backgroundColor: palette.primary }]} />
-          </View>
-          <View style={styles.addressField}>
-            <AddressPicker
-              label="Pickup address"
-              value={pickup}
-              onChangeText={setPickup}
-              placeholder="Where should we pick it up?"
-              helperText="Enter the full pickup address"
-            />
-          </View>
-        </View>
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+        <HubPicker
+          label="Origin hub"
+          value={originHub}
+          onSelect={setOriginHub}
+          helperText="This is the pickup station where the parcel enters our network."
+          disabledHubId={destinationHub?.id}
+        />
 
-        {/* Swap divider */}
         <View style={styles.swapRow}>
           <View style={[styles.swapLine, { backgroundColor: palette.border }]} />
           <Pressable
-            onPress={swapAddresses}
+            onPress={swapHubs}
             style={({ pressed }) => [
               styles.swapButton,
-              { borderColor: palette.border, backgroundColor: pressed ? `${palette.primary}1A` : palette.bg },
+              { backgroundColor: palette.bg, borderColor: palette.border },
+              pressed ? { opacity: 0.85 } : null,
             ]}
           >
             <ArrowLeftRight size={16} color={palette.primary} />
@@ -94,34 +90,54 @@ export default function SendOrderEntryScreen() {
           <View style={[styles.swapLine, { backgroundColor: palette.border }]} />
         </View>
 
-        {/* Delivery */}
-        <View style={styles.addressRow}>
-          <View style={[styles.dotWrap, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-            <MapPin size={14} color="#10B981" />
-          </View>
-          <View style={styles.addressField}>
-            <AddressPicker
-              label="Delivery address"
-              value={delivery}
-              onChangeText={setDelivery}
-              placeholder="Where should we deliver it?"
-              helperText="Enter the full delivery address"
-            />
-          </View>
-        </View>
+        <HubPicker
+          label="Destination hub"
+          value={destinationHub}
+          onSelect={setDestinationHub}
+          helperText="This is the receiving station for the interstate leg."
+          disabledHubId={originHub?.id}
+        />
       </View>
 
-      {/* CTA */}
+      {routePreview ? (
+        <View style={[styles.previewCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <View style={styles.previewRow}>
+            <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Base fare</Text>
+            <Text style={[styles.previewValue, { color: palette.text }]}>{formatMoney(routePreview.baseFare)}</Text>
+          </View>
+          <View style={styles.previewRow}>
+            <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Estimated delivery</Text>
+            <Text style={[styles.previewValue, { color: palette.text }]}>{routePreview.estimatedDays} day{routePreview.estimatedDays === 1 ? '' : 's'}</Text>
+          </View>
+          <Text style={[styles.previewNote, { color: palette.textSecondary }]}>{routeMessage}</Text>
+        </View>
+      ) : (
+        <View style={[styles.previewCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Route preview</Text>
+          <Text style={[styles.routeMissing, { color: palette.text }]}>{routeMessage}</Text>
+        </View>
+      )}
+
       <Pressable
-        onPress={() => router.push({ pathname: '/send/package', params: { pickup, delivery } })}
         disabled={!canContinue}
+        onPress={() => {
+          if (!routePreview || !originHub || !destinationHub) return;
+          router.push({
+            pathname: '/send/pickup-details',
+            params: {
+              originHubId: originHub.id,
+              destinationHubId: destinationHub.id,
+              routeId: routePreview.id,
+            },
+          });
+        }}
         style={({ pressed }) => [
           styles.primary,
           { backgroundColor: canContinue ? palette.primary : palette.border },
-          pressed && canContinue && { opacity: 0.88 },
+          pressed && canContinue ? { opacity: 0.9 } : null,
         ]}
       >
-        <Text style={styles.primaryText}>Get Quote</Text>
+        <Text style={styles.primaryText}>{canContinue ? 'Continue' : 'Route unavailable'}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -129,70 +145,24 @@ export default function SendOrderEntryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xxxl,
-    gap: Spacing.lg,
-  },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  hero: { gap: Spacing.sm, paddingTop: Spacing.sm },
-  eyebrow: {
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    fontSize: Typography.xs,
-    fontFamily: Typography.family.bold,
-  },
-  title: {
-    fontSize: 26,
-    lineHeight: 32,
-    fontFamily: Typography.family.bold,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: Typography.md,
-    lineHeight: 22,
-    fontFamily: Typography.family.regular,
-  },
-  addressCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  addressRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  dotWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-    flexShrink: 0,
-  },
-  dotInner: { width: 8, height: 8, borderRadius: 4 },
-  addressField: { flex: 1 },
-  swapRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: 4 },
-  swapLine: { flex: 1, height: 1 },
-  swapButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primary: {
-    minHeight: 54,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
-  primaryText: {
-    color: '#FFFFFF',
-    fontSize: Typography.md,
-    fontFamily: Typography.family.bold,
-  },
+  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  hero: { gap: Spacing.sm },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
+  subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
+  card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
+  swapRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  swapLine: { flex: 1, height: 1 },
+  swapButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  previewCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  previewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
+  previewLabel: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  previewValue: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  previewNote: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+  routeMissing: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  primary: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

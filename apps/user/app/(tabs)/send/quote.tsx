@@ -1,37 +1,89 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/palette';
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
-import { formatDistance, formatDuration, formatMoney } from '@/lib/order';
-import { useWallet } from '@/hooks/useWallet';
-import { useCreateOrder, useGetQuote } from '@/hooks/useOrder';
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { PriceBreakdown } from '@/components/order/PriceBreakdown';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
-import { useSafeBack } from '@/components/navigation/useSafeBack';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
+import { useCreateOrder, useGetQuote } from '@/hooks/useOrder';
+import { useWallet } from '@/hooks/useWallet';
+import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteById } from '@/lib/hubs';
+import { formatDistance, formatDuration, formatMoney } from '@/lib/order';
+import { useAppPalette } from '@/lib/theme';
+
+type PackageItem = {
+  description: string;
+  quantity: number;
+};
 
 export default function QuoteScreen() {
   const router = useRouter();
-  const back = useSafeBack("/send");
-  const params = useLocalSearchParams<{ pickup?: string; delivery?: string; size?: 'SMALL' | 'MEDIUM' | 'LARGE'; fragile?: string; notes?: string }>();
+  const back = useSafeBack('/send/package');
+  const palette = useAppPalette();
+  const params = useLocalSearchParams<{
+    originHubId?: string;
+    destinationHubId?: string;
+    routeId?: string;
+    localPickupAddress?: string;
+    contactName?: string;
+    contactPhone?: string;
+    pickupNote?: string;
+    size?: 'SMALL' | 'MEDIUM' | 'LARGE';
+    fragile?: string;
+    notes?: string;
+    items?: string;
+  }>();
   const walletQuery = useWallet();
   const quoteQuery = useGetQuote();
   const createOrder = useCreateOrder();
 
-  const pickup = params.pickup ?? '';
-  const delivery = params.delivery ?? '';
+  const originHub = getHubById(params.originHubId);
+  const destinationHub = getHubById(params.destinationHubId);
+  const route = getRouteById(params.routeId);
+  const pickupAddress = originHub ? composePickupAddress(originHub, params.localPickupAddress ?? '') : params.localPickupAddress ?? '';
+  const deliveryAddress = destinationHub ? composeDeliveryAddress(destinationHub) : '';
   const size = params.size ?? 'SMALL';
   const fragile = params.fragile === 'true';
   const notes = params.notes ?? '';
+  const pickupNote = params.pickupNote ?? '';
+  const contactName = params.contactName ?? '';
+  const contactPhone = params.contactPhone ?? '';
   const walletBalance = Number(walletQuery.data?.balance ?? 0);
 
+  const packageItems = useMemo<PackageItem[]>(() => {
+    if (!params.items) return [];
+    try {
+      const parsed = JSON.parse(params.items) as Array<Partial<PackageItem>>;
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((item) => ({
+          description: String(item.description ?? '').trim(),
+          quantity: Number(item.quantity ?? 1) || 1,
+        }))
+        .filter((item) => item.description.length > 0 || item.quantity > 0);
+    } catch {
+      return [];
+    }
+  }, [params.items]);
+
+  const orderItems = packageItems.length
+    ? packageItems.map((item) => ({ description: item.description || 'Package', quantity: Math.max(1, item.quantity), weightKg: 1, fragile }))
+    : [{ description: 'Package', quantity: 1, weightKg: 1, fragile }];
+
   const quote = quoteQuery.data;
+  const orderNotes = [
+    notes.trim(),
+    pickupNote.trim() ? `Pickup note: ${pickupNote.trim()}` : '',
+    contactName.trim() ? `Pickup contact: ${contactName.trim()}${contactPhone.trim() ? ` (${contactPhone.trim()})` : ''}` : '',
+  ].filter(Boolean).join('\n');
 
   const loadQuote = async () => {
-    if (!pickup || !delivery) return;
+    if (!pickupAddress || !deliveryAddress) return;
     try {
-      await quoteQuery.mutateAsync({ size, pickupAddress: pickup, deliveryAddress: delivery });
+      await quoteQuery.mutateAsync({ size, pickupAddress, deliveryAddress });
     } catch (error) {
       Alert.alert('Quote failed', error instanceof Error ? error.message : 'Unable to generate quote.');
     }
@@ -42,11 +94,11 @@ export default function QuoteScreen() {
     try {
       const order = await createOrder.mutateAsync({
         size,
-        pickupAddress: pickup,
-        deliveryAddress: delivery,
+        pickupAddress,
+        deliveryAddress,
         fragile,
-        notes,
-        items: [{ description: 'Package', quantity: 1, weightKg: 1, fragile }],
+        notes: orderNotes,
+        items: orderItems,
       });
       router.replace(`/send/tracking/${order.id}`);
     } catch (error) {
@@ -55,54 +107,85 @@ export default function QuoteScreen() {
   };
 
   const canProceed = Boolean(quote) && walletBalance >= Number(quote?.totalPrice ?? 0) && !createOrder.isPending;
+  const routeUnavailable = Boolean(originHub && destinationHub && !route);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Pressable onPress={() => back()} style={{ alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.light.card, borderColor: Colors.light.border }}>
-        <Text style={{ color: Colors.light.text, fontSize: 14, fontWeight: Typography.bold }}>Back</Text>
-      </Pressable>
-
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Confirm quote</Text>
-        <Text style={styles.title}>Review the route, price, and wallet balance.</Text>
+    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => back()} style={({ pressed }) => [styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? { opacity: 0.85 } : null]}>
+          <ChevronLeft size={18} color={palette.text} />
+          <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
+        </Pressable>
       </View>
 
-      {quoteQuery.isError ? <ErrorBanner message="Could not load quote. Check the addresses and try again." onDismiss={() => quoteQuery.reset()} /> : null}
+      <View style={styles.hero}>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Confirm quote</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Review the route, price, and wallet balance.</Text>
+      </View>
+
+      {routeUnavailable ? <ErrorBanner message="This hub pair is not serviced yet. Go back and choose a supported route." onDismiss={() => quoteQuery.reset()} /> : null}
+      {quoteQuery.isError ? <ErrorBanner message="Could not load quote. Check the hubs and route details and try again." onDismiss={() => quoteQuery.reset()} /> : null}
+
+      <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Route summary</Text>
+        <Text style={[styles.routeTitle, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub missing'}</Text>
+        <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
+        <Text style={styles.arrow}>↓</Text>
+        <Text style={[styles.routeTitle, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub missing'}</Text>
+        <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
+        {route ? (
+          <View style={styles.routeStats}>
+            <View style={styles.statRow}>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Base route fare</Text>
+              <Text style={[styles.statValue, { color: palette.text }]}>{formatMoney(route.baseFare)}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Estimated transit</Text>
+              <Text style={[styles.statValue, { color: palette.text }]}>{route.estimatedDays} day{route.estimatedDays === 1 ? '' : 's'}</Text>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup summary</Text>
+        <Text style={[styles.cardText, { color: palette.text }]}>{pickupAddress || 'Add the pickup landmark near the origin hub.'}</Text>
+        <Text style={[styles.cardSub, { color: palette.textSecondary }]}>{deliveryAddress || 'Destination hub will be used for the interstate leg.'}</Text>
+        {(contactName || contactPhone || pickupNote) ? (
+          <View style={styles.metaGroup}>
+            {contactName ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Contact: {contactName}{contactPhone ? ` • ${contactPhone}` : ''}</Text> : null}
+            {pickupNote ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Pickup note: {pickupNote}</Text> : null}
+          </View>
+        ) : null}
+      </View>
 
       {!quote ? (
-        <Pressable onPress={loadQuote} style={styles.primary}>
+        <Pressable onPress={loadQuote} style={({ pressed }) => [styles.primary, { backgroundColor: palette.primary }, pressed ? { opacity: 0.9 } : null]}>
           <Text style={styles.primaryText}>{quoteQuery.isPending ? 'Calculating…' : 'Get quote'}</Text>
         </Pressable>
       ) : (
         <>
-          <View style={styles.routeCard}>
-            <Text style={styles.routeLabel}>Route summary</Text>
-            <Text style={styles.routeText}>{pickup}</Text>
-            <Text style={styles.arrow}>↓</Text>
-            <Text style={styles.routeText}>{delivery}</Text>
-          </View>
-
           <PriceBreakdown quote={quote} walletBalance={walletBalance} />
 
-          <View style={styles.metaCard}>
-            <Text style={styles.metaTitle}>Estimated delivery time</Text>
-            <Text style={styles.metaValue}>{formatDuration(quote.durationMin)}</Text>
-            <Text style={styles.metaSub}>{formatDistance(quote.distanceKm)}</Text>
+          <View style={[styles.metaCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.metaTitle, { color: palette.textSecondary }]}>Estimated delivery time</Text>
+            <Text style={[styles.metaValue, { color: palette.text }]}>{formatDuration(quote.durationMin)}</Text>
+            <Text style={[styles.metaSub, { color: palette.textSecondary }]}>{formatDistance(quote.distanceKm)}</Text>
           </View>
 
-          <View style={styles.metaCard}>
-            <Text style={styles.metaTitle}>Wallet balance</Text>
-            <Text style={styles.metaValue}>{formatMoney(walletBalance)}</Text>
-            {!canProceed ? <Text style={styles.warning}>Top up your wallet before confirming this order.</Text> : null}
+          <View style={[styles.metaCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.metaTitle, { color: palette.textSecondary }]}>Wallet balance</Text>
+            <Text style={[styles.metaValue, { color: palette.text }]}>{formatMoney(walletBalance)}</Text>
+            {!canProceed ? <Text style={[styles.warning, { color: palette.error }]}>Top up your wallet before confirming this order.</Text> : null}
           </View>
 
-          <View style={styles.metaCard}>
-            <Text style={styles.metaTitle}>Address check</Text>
-            <Text style={styles.metaValue}>Backend geocoding</Text>
-            <Text style={styles.metaSub}>The server resolves both addresses before pricing and order creation.</Text>
+          <View style={[styles.metaCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.metaTitle, { color: palette.textSecondary }]}>Address check</Text>
+            <Text style={[styles.metaValue, { color: palette.text }]}>Backend geocoding</Text>
+            <Text style={[styles.metaSub, { color: palette.textSecondary }]}>The server resolves the composed pickup and delivery addresses before pricing and order creation.</Text>
           </View>
 
-          <Pressable disabled={!canProceed} onPress={submitOrder} style={[styles.primary, !canProceed ? styles.disabled : null]}>
+          <Pressable disabled={!canProceed} onPress={submitOrder} style={({ pressed }) => [styles.primary, { backgroundColor: canProceed ? palette.primary : palette.border }, pressed && canProceed ? { opacity: 0.9 } : null]}>
             <Text style={styles.primaryText}>{createOrder.isPending ? 'Creating order…' : `Pay ${formatMoney(quote.totalPrice)} from Wallet`}</Text>
           </Pressable>
         </>
@@ -112,21 +195,33 @@ export default function QuoteScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.light.bg },
+  screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' },
+  backButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   hero: { gap: Spacing.sm },
-  eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.sm, fontWeight: Typography.bold },
-  title: { color: Colors.light.text, fontSize: 28, lineHeight: 34, fontWeight: Typography.bold },
-  routeCard: { backgroundColor: Colors.light.card, borderRadius: 20, borderWidth: 1, borderColor: Colors.light.border, padding: Spacing.lg, gap: 6 },
-  routeLabel: { color: Colors.light.textSecondary, fontSize: Typography.xs, textTransform: 'uppercase' },
-  routeText: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.semibold },
-  arrow: { color: Colors.light.primary, fontSize: Typography.xl, alignSelf: 'center' },
-  metaCard: { backgroundColor: Colors.light.card, borderRadius: 20, borderWidth: 1, borderColor: Colors.light.border, padding: Spacing.lg, gap: 4 },
-  metaTitle: { color: Colors.light.textSecondary, fontSize: Typography.sm },
-  metaValue: { color: Colors.light.text, fontSize: Typography.xl, fontWeight: Typography.bold },
-  metaSub: { color: Colors.light.textSecondary, fontSize: Typography.sm },
-  warning: { color: Colors.light.error, fontSize: Typography.sm },
-  primary: { minHeight: 52, borderRadius: 16, backgroundColor: Colors.light.primary, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#fff', fontSize: Typography.md, fontWeight: Typography.bold },
-  disabled: { opacity: 0.5 },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
+  sectionLabel: { textTransform: 'uppercase', letterSpacing: 1.1, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  routeCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  routeTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  routeMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  routeStats: { gap: 6, paddingTop: Spacing.xs },
+  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
+  statLabel: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  statValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  arrow: { color: '#8B5CF6', fontSize: Typography.xl, alignSelf: 'center' },
+  card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  cardText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  cardSub: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+  metaGroup: { gap: 4, paddingTop: 2 },
+  metaLine: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  metaCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: 4 },
+  metaTitle: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  metaValue: { fontSize: Typography.xl, fontFamily: Typography.family.bold },
+  metaSub: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  warning: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  primary: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
 });
