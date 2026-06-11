@@ -7,8 +7,16 @@ export class OrderController {
   constructor(private readonly service: OrderService) {}
 
   getQuote = async (request: FastifyRequest) => {
-    const body = request.body as { size: 'SMALL' | 'MEDIUM' | 'LARGE'; pickupAddress: string; deliveryAddress: string };
-    return success(await this.service.getQuote(body.size, body.pickupAddress, body.deliveryAddress), 'Quote generated');
+    const body = request.body as {
+      size: 'SMALL' | 'MEDIUM' | 'LARGE';
+      originHubId?: string;
+      destinationHubId?: string;
+      routeId?: string;
+      localPickupAddress?: string;
+      pickupAddress?: string;
+      deliveryAddress?: string;
+    };
+    return success(await this.service.getQuote(body), 'Quote generated');
   };
 
   createOrder = async (request: FastifyRequest) => {

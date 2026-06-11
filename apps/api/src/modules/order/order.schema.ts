@@ -21,14 +21,25 @@ export const OrderItemBody = Type.Object({
 
 export const QuoteBody = Type.Object({
   size: Type.Union([Type.Literal('SMALL'), Type.Literal('MEDIUM'), Type.Literal('LARGE')]),
-  pickupAddress: Type.String({ minLength: 1 }),
-  deliveryAddress: Type.String({ minLength: 1 }),
+  originHubId: Type.Optional(Type.String()),
+  destinationHubId: Type.Optional(Type.String()),
+  routeId: Type.Optional(Type.String()),
+  localPickupAddress: Type.Optional(Type.String()),
+  pickupAddress: Type.Optional(Type.String()),
+  deliveryAddress: Type.Optional(Type.String()),
 });
 
 export const CreateOrderBody = Type.Object({
   size: Type.Union([Type.Literal('SMALL'), Type.Literal('MEDIUM'), Type.Literal('LARGE')]),
-  pickupAddress: Type.String({ minLength: 1 }),
-  deliveryAddress: Type.String({ minLength: 1 }),
+  originHubId: Type.Optional(Type.String()),
+  destinationHubId: Type.Optional(Type.String()),
+  routeId: Type.Optional(Type.String()),
+  localPickupAddress: Type.Optional(Type.String()),
+  pickupAddress: Type.Optional(Type.String()),
+  deliveryAddress: Type.Optional(Type.String()),
+  contactName: Type.Optional(Type.String()),
+  contactPhone: Type.Optional(Type.String()),
+  pickupNote: Type.Optional(Type.String()),
   items: Type.Array(OrderItemBody, { minItems: 1 }),
   notes: Type.Optional(Type.String()),
   fragile: Type.Optional(Type.Boolean()),

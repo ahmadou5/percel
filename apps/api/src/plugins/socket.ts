@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 import { Server } from 'socket.io';
 
@@ -16,7 +17,7 @@ function getToken(socket: { handshake: { auth?: { token?: string }; headers: Rec
   return null;
 }
 
-async function allowDriverLocationUpdate(app: any, driverId: string) {
+async function allowDriverLocationUpdate(app: FastifyInstance, driverId: string) {
   const bucketKey = `driver:location:bucket:${driverId}`;
   const acquired = await app.redis.set(bucketKey, "1", "EX", 1, "NX");
   return acquired === "OK";

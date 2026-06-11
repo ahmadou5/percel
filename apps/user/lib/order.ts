@@ -21,8 +21,15 @@ export type OrderStatus = 'CREATED' | 'PENDING_MATCH' | 'MATCHED' | 'ACCEPTED' |
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 
 export type OrderDraft = {
-  pickupAddress: string;
-  deliveryAddress: string;
+  originHubId?: string;
+  destinationHubId?: string;
+  routeId?: string;
+  localPickupAddress?: string;
+  pickupAddress?: string;
+  deliveryAddress?: string;
+  contactName?: string;
+  contactPhone?: string;
+  pickupNote?: string;
   size: OrderSize;
   fragile: boolean;
   items: OrderItem[];

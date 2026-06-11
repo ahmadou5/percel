@@ -6,7 +6,15 @@ import type { Order, OrderDetailResponse, OrderDraft, OrderListResponse, OrderQu
 
 export function useGetQuote() {
   return useMutation({
-    mutationFn: async (payload: { size: 'SMALL' | 'MEDIUM' | 'LARGE'; pickupAddress: string; deliveryAddress: string }) => {
+    mutationFn: async (payload: {
+      size: 'SMALL' | 'MEDIUM' | 'LARGE';
+      originHubId?: string;
+      destinationHubId?: string;
+      routeId?: string;
+      localPickupAddress?: string;
+      pickupAddress?: string;
+      deliveryAddress?: string;
+    }) => {
       const response = await http.post<{ data: OrderQuoteResponse }>('/api/v1/orders/quote', payload);
       return response.data.data;
     },

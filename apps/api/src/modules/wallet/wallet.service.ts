@@ -43,14 +43,6 @@ function normalizeNigerianPhone(phone: string) {
   return trimmed;
 }
 
-function splitFullName(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  const [firstName = 'Percel', ...rest] = parts;
-  return {
-    firstName,
-    lastName: rest.join(' ') || 'User',
-  };
-}
 
 function isKycComplete(user: {
   dateOfBirth: Date | null;

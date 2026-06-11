@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -74,30 +74,44 @@ export default function QuoteScreen() {
     : [{ description: 'Package', quantity: 1, weightKg: 1, fragile }];
 
   const quote = quoteQuery.data;
-  const orderNotes = [
-    notes.trim(),
-    pickupNote.trim() ? `Pickup note: ${pickupNote.trim()}` : '',
-    contactName.trim() ? `Pickup contact: ${contactName.trim()}${contactPhone.trim() ? ` (${contactPhone.trim()})` : ''}` : '',
-  ].filter(Boolean).join('\n');
 
   const loadQuote = async () => {
-    if (!pickupAddress || !deliveryAddress) return;
+    if (!originHub || !destinationHub || !route) return;
     try {
-      await quoteQuery.mutateAsync({ size, pickupAddress, deliveryAddress });
+      await quoteQuery.mutateAsync({
+        size,
+        originHubId: originHub.id,
+        destinationHubId: destinationHub.id,
+        routeId: route.id,
+        localPickupAddress: params.localPickupAddress ?? '',
+        pickupAddress,
+        deliveryAddress,
+      });
     } catch (error) {
       Alert.alert('Quote failed', error instanceof Error ? error.message : 'Unable to generate quote.');
     }
   };
+
+  useEffect(() => {
+    loadQuote();
+  }, [params.originHubId, params.destinationHubId, params.routeId, size]);
 
   const submitOrder = async () => {
     if (!quote) return;
     try {
       const order = await createOrder.mutateAsync({
         size,
+        originHubId: originHub?.id,
+        destinationHubId: destinationHub?.id,
+        routeId: route?.id,
+        localPickupAddress: params.localPickupAddress ?? '',
         pickupAddress,
         deliveryAddress,
+        contactName,
+        contactPhone,
+        pickupNote,
         fragile,
-        notes: orderNotes,
+        notes: notes.trim(),
         items: orderItems,
       });
       router.replace(`/send/tracking/${order.id}`);
@@ -160,8 +174,12 @@ export default function QuoteScreen() {
       </View>
 
       {!quote ? (
-        <Pressable onPress={loadQuote} style={({ pressed }) => [styles.primary, { backgroundColor: palette.primary }, pressed ? { opacity: 0.9 } : null]}>
-          <Text style={styles.primaryText}>{quoteQuery.isPending ? 'Calculating…' : 'Get quote'}</Text>
+        <Pressable
+          disabled={!route}
+          onPress={loadQuote}
+          style={({ pressed }) => [styles.primary, { backgroundColor: route ? palette.primary : palette.border }, pressed && route ? { opacity: 0.9 } : null]}
+        >
+          <Text style={styles.primaryText}>{quoteQuery.isPending ? 'Calculating…' : route ? 'Get quote' : 'Route unavailable'}</Text>
         </Pressable>
       ) : (
         <>
@@ -180,9 +198,9 @@ export default function QuoteScreen() {
           </View>
 
           <View style={[styles.metaCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.metaTitle, { color: palette.textSecondary }]}>Address check</Text>
-            <Text style={[styles.metaValue, { color: palette.text }]}>Backend geocoding</Text>
-            <Text style={[styles.metaSub, { color: palette.textSecondary }]}>The server resolves the composed pickup and delivery addresses before pricing and order creation.</Text>
+            <Text style={[styles.metaTitle, { color: palette.textSecondary }]}>Route handling</Text>
+            <Text style={[styles.metaValue, { color: palette.text }]}>Hub-driven pricing</Text>
+            <Text style={[styles.metaSub, { color: palette.textSecondary }]}>The server now prices and creates this order from the selected hubs, not from geocoded hub names.</Text>
           </View>
 
           <Pressable disabled={!canProceed} onPress={submitOrder} style={({ pressed }) => [styles.primary, { backgroundColor: canProceed ? palette.primary : palette.border }, pressed && canProceed ? { opacity: 0.9 } : null]}>

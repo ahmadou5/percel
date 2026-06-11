@@ -270,6 +270,7 @@ export class UserService {
   }
 
   async verifyUserNin(userId: string, nin: string) {
+    this.logger.info({ userId, ninLength: nin.length }, 'verifyUserNin called');
     throw new ValidationError('NIN verification is not available in the customer app');
   }
 
