@@ -1,5 +1,6 @@
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { ClipboardList, House, Plus, UserRound, Wallet } from 'lucide-react-native';
+import { usePathname, useRouter } from 'expo-router';
+import { ClipboardList, House, Plus, Settings } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -10,9 +11,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePathname, useRouter } from 'expo-router';
 
-import { Typography } from '@/constants/typography';
 import { useAppPalette, isLight } from '@/lib/theme';
 import { haptics } from '@/utils/haptics';
 
@@ -40,24 +39,24 @@ type ThemeTokens = {
 };
 
 type NavItem = {
-  key: 'home' | 'orders' | 'wallet' | 'profile';
+  key: 'home' | 'orders' | 'settings';
   label: string;
   Icon: IconComponent;
-  routeName?: 'index' | 'orders' | 'profile';
+  routeName?: 'index' | 'orders';
   href: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'Home', Icon: House, routeName: 'index', href: '/' },
   { key: 'orders', label: 'Orders', Icon: ClipboardList, routeName: 'orders', href: '/orders' },
-  { key: 'wallet', label: 'Wallet', Icon: Wallet, href: '/wallet/topup' },
-  { key: 'profile', label: 'Profile', Icon: UserRound, routeName: 'profile', href: '/profile' },
+  { key: 'settings', label: 'Settings', Icon: Settings, href: '/settings' },
 ];
 
-const PILL_WIDTH = 92;
-const PILL_COLLAPSED = 40;
-const PILL_HEIGHT = 44;
-const FAB_SIZE = 56;
+// Structural Geometry Configurations
+const PILL_HEIGHT = 56;         // Height of the navigation pill container
+const ACTIVE_PILL_WIDTH = 116;   // Expanded width for the active item view
+const INACTIVE_ICON_SIZE = 44;   // Tap target diameter for standard inactive icons
+const FAB_SIZE = 56;            // Matching height actions boundary
 
 function hexToRgba(hex: string, alpha: number) {
   const normalized = hex.replace('#', '');
@@ -72,13 +71,13 @@ function hexToRgba(hex: string, alpha: number) {
 function getFocusKey(pathname: string) {
   if (pathname === '/' || pathname === '/index') return 'home';
   if (pathname.startsWith('/orders')) return 'orders';
-  if (pathname.startsWith('/wallet')) return 'wallet';
-  if (pathname.startsWith('/profile')) return 'profile';
+  if (pathname.startsWith('/profile')) return 'settings';
+  if (pathname.startsWith('/settings')) return 'settings';
   return null;
 }
 
-function isHiddenRoute(pathname: string) {
-  return ['/auth-lock', '/notifications', '/settings'].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+function shouldShowDock(pathname: string) {
+  return pathname === '/' || pathname === '/index' || pathname.startsWith('/orders');
 }
 
 function useThemeTokens() {
@@ -90,17 +89,17 @@ function useThemeTokens() {
     const secondary = palette.primaryDark ?? palette.primary;
 
     return {
-      shellBackground: dark ? 'rgba(16, 16, 20, 0.74)' : hexToRgba(palette.card, 0.92),
-      shellBorder: dark ? 'rgba(255, 255, 255, 0.10)' : hexToRgba(palette.border, 0.9),
-      shellShadow: dark ? 'rgba(0, 0, 0, 0.50)' : 'rgba(0, 0, 0, 0.16)',
-      shellTint: dark ? 'rgba(139, 92, 246, 0.10)' : hexToRgba(primary, 0.08),
-      activeFill: dark ? 'rgba(255, 255, 255, 0.95)' : hexToRgba(palette.card, 0.98),
-      activeBorder: dark ? 'rgba(255, 255, 255, 0.14)' : hexToRgba(primary, 0.14),
+      shellBackground: palette.card,
+      shellBorder:palette.border,
+      shellShadow: dark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(0, 0, 0, 0.12)',
+      shellTint: dark ? 'rgba(255, 255, 255, 0.02)' : hexToRgba(primary, 0.04),
+      activeFill: dark ? 'rgba(255, 255, 255, 0.96)' : hexToRgba(palette.card, 0.98),
+      activeBorder: dark ? 'rgba(255, 255, 255, 0.15)' : hexToRgba(primary, 0.15),
       activeText: primary,
-      inactiveText: hexToRgba(palette.text, dark ? 0.58 : 0.46),
+      inactiveText: hexToRgba(palette.text, dark ? 0.55 : 0.45),
       fabPrimary: primary,
       fabSecondary: secondary,
-      fabShadow: dark ? 'rgba(139, 92, 246, 0.38)' : hexToRgba(primary, 0.28),
+      fabShadow: dark ? hexToRgba(primary, 0.3) : hexToRgba(primary, 0.22),
     };
   }, [dark, palette]);
 }
@@ -123,37 +122,21 @@ function TabPill({
   useEffect(() => {
     progress.value = withSpring(focused ? 1 : 0, {
       damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-      overshootClamping: false,
+      stiffness: 170,
+      mass: 0.85,
     });
   }, [focused, progress]);
 
-  const containerStyle = useAnimatedStyle(() => {
-    const width = interpolate(progress.value, [0, 1], [PILL_COLLAPSED, PILL_WIDTH]);
-    const translateY = interpolate(progress.value, [0, 1], [0, -1]);
+  const containerStyle = useAnimatedStyle(() => ({
+    width: interpolate(progress.value, [0, 1], [INACTIVE_ICON_SIZE, ACTIVE_PILL_WIDTH]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0)', theme.activeFill]),
+    borderColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0)', theme.activeBorder]),
+  }));
 
-    return {
-      width,
-      backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0)', theme.activeFill]),
-      borderColor: interpolateColor(progress.value, [0, 1], ['rgba(255,255,255,0)', theme.activeBorder]),
-      transform: [{ translateY }],
-    };
-  });
-
-  const iconStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(progress.value, [0, 1], [0.64, 1]),
-      transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.04]) }],
-    };
-  });
-
-  const labelStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(progress.value, [0, 0.45, 1], [0, 0, 1]),
-      transform: [{ translateX: interpolate(progress.value, [0, 1], [-4, 0]) }],
-    };
-  });
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 1], [0.65, 1]),
+    transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.04]) }],
+  }));
 
   return (
     <Pressable
@@ -164,42 +147,33 @@ function TabPill({
       onPressIn={() => void haptics.tap()}
       style={({ pressed }) => [styles.tabPressable, pressed ? styles.pressed : null]}
     >
-      <Animated.View style={[styles.tabPill, { shadowColor: theme.shellShadow }, containerStyle]}>
+      <Animated.View style={[styles.tabPill, containerStyle]}>
         <Animated.View style={[styles.iconWrap, iconStyle]}>
-          <item.Icon
-            color={focused ? theme.activeText : theme.inactiveText}
-            size={item.key === 'wallet' ? 20 : 20}
-            strokeWidth={focused ? 2.1 : 1.85}
-          />
+          <item.Icon color={focused ? theme.activeText : theme.inactiveText} size={22} strokeWidth={focused ? 2.2 : 1.9} />
         </Animated.View>
-        <Animated.Text numberOfLines={1} style={[styles.tabLabel, { color: theme.activeText }, labelStyle]}>
-          {item.label}
-        </Animated.Text>
       </Animated.View>
     </Pressable>
   );
 }
 
 function CreateOrderFab({ theme, onPress }: { theme: ThemeTokens; onPress: () => void }) {
-  const progress = useSharedValue(0.15);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withSpring(1, {
       damping: 16,
-      stiffness: 170,
-      mass: 0.85,
+      stiffness: 160,
+      mass: 0.9,
     });
   }, [progress]);
 
-  const fabStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { scale: interpolate(progress.value, [0, 1], [0.94, 1]) },
-        { translateY: interpolate(progress.value, [0, 1], [4, 0]) },
-      ],
-      opacity: interpolate(progress.value, [0, 1], [0, 1]),
-    };
-  });
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(progress.value, [0, 1], [0.94, 1]) },
+      { translateY: interpolate(progress.value, [0, 1], [4, 0]) },
+    ],
+    opacity: interpolate(progress.value, [0, 1], [0, 1]),
+  }));
 
   return (
     <Animated.View style={[styles.fabWrap, fabStyle]}>
@@ -210,10 +184,10 @@ function CreateOrderFab({ theme, onPress }: { theme: ThemeTokens; onPress: () =>
         onPressIn={() => void haptics.press()}
         style={({ pressed }) => [styles.fab, { shadowColor: theme.fabShadow }, pressed ? styles.fabPressed : null]}
       >
-        <View style={[styles.fabGlow, { backgroundColor: hexToRgba(theme.fabPrimary, 0.18) }]} />
+        <View style={[styles.fabGlow, { backgroundColor: hexToRgba(theme.fabPrimary, 0.16) }]} />
         <View style={[styles.fabCore, { backgroundColor: theme.fabPrimary }]}>
           <View style={[styles.fabCoreInner, { backgroundColor: theme.fabSecondary }]} />
-          <Plus size={22} color="#FFFFFF" strokeWidth={2.4} />
+          <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
         </View>
       </Pressable>
     </Animated.View>
@@ -226,40 +200,39 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const theme = useThemeTokens();
   const focusedKey = getFocusKey(pathname);
-  const hidden = isHiddenRoute(pathname);
+  const visible = shouldShowDock(pathname);
   const intro = useSharedValue(0);
 
   useEffect(() => {
     intro.value = withSpring(1, {
       damping: 18,
-      stiffness: 150,
+      stiffness: 145,
       mass: 0.9,
     });
   }, [intro]);
 
-  const shellStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(intro.value, [0, 1], [0, 1]),
-      transform: [{ translateY: interpolate(intro.value, [0, 1], [24, 0]) }],
-    };
-  });
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(intro.value, [0, 1], [0, 1]),
+    transform: [{ translateY: interpolate(intro.value, [0, 1], [20, 0]) }],
+  }));
 
-  if (hidden) return null;
+  if (!visible) return null;
 
   return (
     <Animated.View
       pointerEvents="box-none"
       style={[
-        styles.outer,
+        styles.masterContainer,
         {
-          bottom: Math.max(insets.bottom, 8),
+          bottom: Math.max(insets.bottom, 14),
         },
-        shellStyle,
+        containerStyle,
       ]}
     >
+      {/* 1. Isolated Navigation Bar Pill Shape */}
       <View
         style={[
-          styles.shell,
+          styles.navPillShell,
           {
             backgroundColor: theme.shellBackground,
             borderColor: theme.shellBorder,
@@ -268,9 +241,11 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         ]}
       >
         <View pointerEvents="none" style={[styles.shellTint, { backgroundColor: theme.shellTint }]} />
+
         <View style={styles.tabRow}>
           {NAV_ITEMS.map((item) => {
             const focused = focusedKey === item.key;
+            
             const onPress = () => {
               if (item.routeName) {
                 const route = state.routes.find((candidate) => candidate.name === item.routeName);
@@ -287,7 +262,6 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 }
                 return;
               }
-
               router.push(item.href as never);
             };
 
@@ -310,56 +284,54 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             );
           })}
         </View>
-
-        <CreateOrderFab theme={theme} onPress={() => router.push('/send' as never)} />
       </View>
+
+      {/* 2. Standalone Floating Action Button Layout */}
+      <CreateOrderFab theme={theme} onPress={() => router.push('/send' as never)} />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
+  masterContainer: {
     position: 'absolute',
-    left: 14,
-    right: 14,
-  },
-  shell: {
-    position: 'relative',
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 74,
-    borderRadius: 30,
+    marginBottom: 7,
+    justifyContent: 'space-between',
+    gap: 16, // Spacing between the navigation shell and the plus action button
+  },
+  navPillShell: {
+    flex: 1,
+    position: 'relative',
+    height: PILL_HEIGHT,
+    borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 11,
-    paddingRight: FAB_SIZE + 20,
-    overflow: 'visible',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.34,
-    shadowRadius: 26,
-    elevation: 18,
+    paddingHorizontal: 12, // More padding left and right inside the shell
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 12,
   },
   shellTint: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 30,
-    opacity: 1,
+    borderRadius: 999,
   },
   tabRow: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 6,
-    paddingRight: 10,
+    width: '100%',
   },
   tabPressable: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
   },
   tabPill: {
-    height: PILL_HEIGHT,
+    height: PILL_HEIGHT - 16, // Balanced vertical clearance padding top/bottom
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -368,22 +340,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   iconWrap: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabLabel: {
-    fontSize: 11,
-    fontFamily: Typography.family.semibold,
-    letterSpacing: 0.1,
-    marginLeft: 2,
-    paddingRight: 12,
-  },
   fabWrap: {
-    position: 'absolute',
-    right: 14,
-    top: -10,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
   },
   fab: {
     width: FAB_SIZE,
@@ -391,19 +355,19 @@ const styles = StyleSheet.create({
     borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 16,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 10,
   },
   fabGlow: {
     position: 'absolute',
-    top: -6,
-    left: -6,
-    right: -6,
-    bottom: -6,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: 999,
-    opacity: 0.95,
+    opacity: 0.9,
   },
   fabCore: {
     width: FAB_SIZE,
@@ -416,16 +380,16 @@ const styles = StyleSheet.create({
   fabCoreInner: {
     position: 'absolute',
     top: -10,
-    left: -14,
+    left: -12,
     width: 52,
     height: 52,
     borderRadius: 26,
-    opacity: 0.42,
+    opacity: 0.35,
   },
   pressed: {
-    opacity: 0.92,
+    opacity: 0.85,
   },
   fabPressed: {
-    transform: [{ scale: 0.96 }],
+    transform: [{ scale: 0.94 }],
   },
 });
