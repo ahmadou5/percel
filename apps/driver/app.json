@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "googleServicesFile": "./GoogleService-info.plist",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.percel.driver",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Percel uses your location to match deliveries near you and keep customers updated.",
