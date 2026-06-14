@@ -24,8 +24,8 @@ export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
 
   const totals = useMemo(() => {
-    const earned = wallet.transactions.filter((tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT').reduce((sum, tx) => sum + tx.amount, 0);
-    const commission = wallet.transactions.filter((tx) => tx.category === 'COMMISSION' && tx.type === 'DEBIT').reduce((sum, tx) => sum + tx.amount, 0);
+    const earned = wallet.transactions.filter((tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT').reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const commission = wallet.transactions.filter((tx) => tx.category === 'COMMISSION' && tx.type === 'DEBIT').reduce((sum, tx) => sum + Number(tx.amount), 0);
     return {
       earned,
       commission,

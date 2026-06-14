@@ -89,7 +89,7 @@ export default function DriverHomeScreen() {
     (tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT' && new Date(tx.createdAt).toDateString() === todayDateStr
   );
   
-  const earningsToday = todaysTx.reduce((sum, tx) => sum + tx.amount, 0);
+  const earningsToday = todaysTx.reduce((sum, tx) => sum + Number(tx.amount), 0);
   const deliveriesToday = todaysTx.length;
 
   const [incomingOrder, setIncomingOrder] = useState<DriverOrder | null>(null);
