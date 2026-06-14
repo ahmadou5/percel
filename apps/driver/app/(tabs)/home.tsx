@@ -19,6 +19,7 @@ import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
 import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
+import { useToggleOnlineStatus } from '@/hooks/useDriverProfile';
 import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
 import { demoOrders, demoWallet } from '@/lib/demo-data';
@@ -144,13 +145,28 @@ export default function DriverHomeScreen() {
     return () => clearInterval(t);
   }, [sheetVisible]);
 
+  const toggleOnlineStatus = useToggleOnlineStatus();
+
   const toggleOnline = async () => {
     const next = !isOnline;
+    const lat = driver?.currentLocation?.lat ?? 6.5244;
+    const lng = driver?.currentLocation?.lng ?? 3.3792;
+
+    // Optimistic local update for instant UI feedback
     await setOnlineStatus(next);
+
+    try {
+      // This is the critical step — sync the state to the DB so the order
+      // matching worker can find this driver as a candidate
+      await toggleOnlineStatus.mutateAsync({ isOnline: next, lat, lng });
+    } catch {
+      // onError in the hook reverts the optimistic update
+    }
+
     emitDriverEvent(next ? 'driver_online' : 'driver_offline', {
       driverId: driver?.id ?? 'demo',
-      lat: driver?.currentLocation?.lat ?? 0,
-      lng: driver?.currentLocation?.lng ?? 0,
+      lat,
+      lng,
     });
   };
 

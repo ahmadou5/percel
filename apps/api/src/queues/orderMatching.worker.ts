@@ -18,35 +18,78 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
       const order = await app.prisma.order.findUnique({ where: { id: orderId } });
       if (!order || order.status !== OrderStatus.PENDING_MATCH) return;
 
-      const drivers = await app.prisma.driver.findMany({
-        where: {
-          isOnline: true,
-          status: 'ACTIVE',
-          currentLat: { not: null },
-          currentLng: { not: null },
-        },
-      });
+      // ─────────────────────────────────────────────────────────────────────
+      // Helper: fetch the top-3 scored nearby drivers for this order
+      // ─────────────────────────────────────────────────────────────────────
+      const findCandidates = async () => {
+        const drivers = await app.prisma.driver.findMany({
+          where: {
+            isOnline: true,
+            status: 'ACTIVE',
+            currentLat: { not: null },
+            currentLng: { not: null },
+          },
+        });
+        return drivers
+          .map((driver) => {
+            const distanceKm = haversineDistanceKm(
+              pickupLat,
+              pickupLng,
+              Number(driver.currentLat ?? 0),
+              Number(driver.currentLng ?? 0),
+            );
+            const rating = Number(driver.rating ?? 5);
+            const completionRate = Math.min(1, driver.totalDeliveries / 100);
+            return {
+              driverId: driver.id,
+              distanceKm,
+              score: rating * 0.6 + completionRate * 0.4 - distanceKm * 0.1,
+            };
+          })
+          .filter((c) => c.distanceKm <= 20)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+      };
 
-      const candidates = drivers
-        .map((driver) => {
-          const distanceKm = haversineDistanceKm(
-            pickupLat,
-            pickupLng,
-            Number(driver.currentLat ?? 0),
-            Number(driver.currentLng ?? 0),
-          );
-          const rating = Number(driver.rating ?? 5);
-          const completionRate = Math.min(1, driver.totalDeliveries / 100);
-          return {
-            driverId: driver.id,
-            distanceKm,
-            score: rating * 0.6 + completionRate * 0.4 - distanceKm * 0.1,
-          };
-        })
-        .filter((candidate) => candidate.distanceKm <= 20)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
+      // ─────────────────────────────────────────────────────────────────────
+      // Wait up to 3 minutes for at least one nearby driver to appear.
+      // Poll every 15 seconds. This handles the case where the driver goes
+      // online a few moments after the order is placed.
+      // ─────────────────────────────────────────────────────────────────────
+      const WAIT_LIMIT_MS = 3 * 60 * 1000; // 3 minutes
+      const POLL_INTERVAL_MS = 15_000;       // 15 seconds
+      const startedAt = Date.now();
 
+      let candidates = await findCandidates();
+
+      while (candidates.length === 0 && Date.now() - startedAt < WAIT_LIMIT_MS) {
+        // Bail early if order was externally cancelled/accepted while waiting
+        const liveStatus = await app.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+        if (!liveStatus || liveStatus.status !== OrderStatus.PENDING_MATCH) return;
+
+        app.log.info({ orderId, elapsed: Date.now() - startedAt }, 'order.matching.waiting_for_driver');
+        await sleep(POLL_INTERVAL_MS);
+        candidates = await findCandidates();
+      }
+
+      // If still no candidates after the wait window, cancel the order
+      if (candidates.length === 0) {
+        await app.prisma.order.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.CANCELLED, cancelReason: 'No driver available in your area' },
+        });
+        broadcastOrderStatusUpdate(app as RealtimeApp, {
+          orderId,
+          status: OrderStatus.CANCELLED,
+          message: 'No driver available in your area',
+          userId: order.userId,
+        });
+        return;
+      }
+
+      // ─────────────────────────────────────────────────────────────────────
+      // Try each candidate one by one — offer for 60 s each
+      // ─────────────────────────────────────────────────────────────────────
       for (const candidate of candidates) {
         // Re-check order is still waiting before making each offer
         const freshOrder = await app.prisma.order.findUnique({

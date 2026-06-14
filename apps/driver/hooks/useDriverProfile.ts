@@ -52,3 +52,28 @@ export function useChangePassword() {
     },
   });
 }
+
+export function useToggleOnlineStatus() {
+  const setOnlineStatus = useDriverStore((s) => s.setOnlineStatus);
+
+  return useMutation({
+    mutationFn: async (payload: { isOnline: boolean; lat?: number; lng?: number }) => {
+      Sentry.addBreadcrumb({
+        category: 'driver',
+        message: payload.isOnline ? 'driver.going_online' : 'driver.going_offline',
+        level: 'info',
+        data: { lat: payload.lat, lng: payload.lng },
+      });
+      const response = await http.patch<ApiResponse<{ isOnline: boolean }>>('/api/v1/driver/status', payload);
+      return response.data.data;
+    },
+    onSuccess: async (data) => {
+      // Sync local store with backend-confirmed state
+      await setOnlineStatus(data.isOnline);
+    },
+    onError: async (_err, variables) => {
+      // Revert the optimistic local update if the API call failed
+      await setOnlineStatus(!variables.isOnline);
+    },
+  });
+}
