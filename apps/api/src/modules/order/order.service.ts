@@ -513,7 +513,7 @@ export class OrderService {
           Number(order.pickupLng),
         ),
       }))
-      .filter((item) => item.distanceKm <= 20)
+      // .filter((item) => item.distanceKm <= 20) // Removed for testing so drivers can see all orders
       .map((item) => serializeOrder(item.order));
   }
 

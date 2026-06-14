@@ -46,7 +46,7 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
               score: rating * 0.6 + completionRate * 0.4 - distanceKm * 0.1,
             };
           })
-          .filter((c) => c.distanceKm <= 20)
+          // .filter((c) => c.distanceKm <= 20) // Removed for testing
           .sort((a, b) => b.score - a.score)
           .slice(0, 3);
       };
