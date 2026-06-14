@@ -84,8 +84,9 @@ export default function DriverRegisterScreen() {
         licenseNumber: licenseNumber.trim().toUpperCase(),
       });
       router.replace('/(kyc)');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create a driver account.');
+    } catch (err: any) {
+      const serverMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
+      setError(serverMessage || err.message || 'Unable to create a driver account.');
     }
   };
 

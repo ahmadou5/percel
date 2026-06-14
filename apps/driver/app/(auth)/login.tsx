@@ -47,8 +47,9 @@ export default function LoginScreen() {
       const formattedIdentifier = isEmail ? identifier.trim().toLowerCase() : `+234${phoneValue}`;
       const session = await login.mutateAsync({ identifier: formattedIdentifier, password });
       router.replace(routeForStatus(session.driver.status));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid driver credentials.');
+    } catch (err: any) {
+      const serverMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
+      setError(serverMessage || err.message || 'Invalid driver credentials.');
     }
   };
 
