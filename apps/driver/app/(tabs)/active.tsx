@@ -1,24 +1,82 @@
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
-import { useState } from 'react';
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MapPin, Phone, Package, Clock, DollarSign, CheckCircle, Zap } from 'lucide-react-native';
+import { router } from 'expo-router';
 
-import { ActionButton, Card, Pill, Screen, SectionHeader } from '@/components/DriverPrimitives';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Colors } from '@percel/shared/constants';
-import { Text, View } from '@/components/Themed';
+import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { useDriverRateOrder, useUpdateOrderStatus } from '@/hooks/useDriverOrders';
-import { demoOrders } from '@/lib/demo-data';
+import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
+import type { DriverOrder } from '@/lib/types';
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value);
+function formatNaira(value: number) {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
-function nextStatus(status: string) {
-  return status === 'ACCEPTED' ? 'IN_TRANSIT' : 'DELIVERED';
+function InfoRow({
+  label,
+  value,
+  palette,
+}: {
+  label: string;
+  value: string;
+  palette: ReturnType<typeof useAppPalette>;
+}) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={[styles.infoLabel, { color: palette.textSecondary }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: palette.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+function RouteTimeline({
+  order,
+  palette,
+}: {
+  order: DriverOrder;
+  palette: ReturnType<typeof useAppPalette>;
+}) {
+  const steps = [
+    { label: 'Pickup', addr: order.pickupFormattedAddress, done: order.status !== 'ACCEPTED', color: '#30D158' },
+    { label: 'Dropoff', addr: order.deliveryFormattedAddress, done: order.status === 'DELIVERED' || order.status === 'COMPLETED', color: '#FF9F0A' },
+  ];
+
+  return (
+    <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <Text style={[styles.cardSectionLabel, { color: palette.textSecondary }]}>ROUTE</Text>
+      {steps.map((step, idx) => (
+        <View key={step.label}>
+          <View style={styles.routeStep}>
+            <View style={[styles.routeStepDot, { backgroundColor: step.done ? step.color : palette.border }]}>
+              {step.done && <CheckCircle size={10} color="#fff" />}
+            </View>
+            <View style={styles.routeStepBody}>
+              <Text style={[styles.routeStepLabel, { color: palette.textSecondary }]}>{step.label}</Text>
+              <Text style={[styles.routeStepAddr, { color: palette.text }]} numberOfLines={2}>
+                {step.addr}
+              </Text>
+            </View>
+          </View>
+          {idx < steps.length - 1 && (
+            <View style={[styles.routeConnector, { backgroundColor: palette.border }]} />
+          )}
+        </View>
+      ))}
+    </View>
+  );
 }
 
 export default function ActiveOrderScreen() {
-  const order = useDriverStore((state) => state.currentOrder) ?? demoOrders[1];
+  const palette = useAppPalette();
+  const insets = useSafeAreaInsets();
+  const currentOrder = useDriverStore((s) => s.currentOrder);
+  const setCurrentOrder = useDriverStore((s) => s.setCurrentOrder);
   const updateStatus = useUpdateOrderStatus();
   const rateCustomer = useDriverRateOrder();
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -26,97 +84,204 @@ export default function ActiveOrderScreen() {
   const [feedbackRating, setFeedbackRating] = useState<1 | 5>(5);
   const [feedbackComment, setFeedbackComment] = useState('');
 
-  const statusButtonLabel = order.status === 'ACCEPTED' ? "I've Picked Up the Package" : 'Mark as Delivered';
+  // If the order is cancelled externally, reflect it
+  useEffect(() => {
+    const unsub = subscribeDriverSocket('order_status_update', (payload: { orderId?: string; status?: string }) => {
+      if (payload.orderId && payload.orderId === currentOrder?.id) {
+        if (payload.status === 'CANCELLED') {
+          void setCurrentOrder(null);
+          Alert.alert('Order cancelled', 'This order was cancelled.');
+        }
+      }
+    });
+    return unsub;
+  }, [currentOrder?.id, setCurrentOrder]);
+
+  if (!currentOrder) {
+    return (
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <View style={[styles.emptyWrap, { paddingTop: insets.top + 32 }]}>
+          <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Zap size={32} color={palette.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>No active order</Text>
+            <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>
+              Accept an incoming order from the Home or Dispatch tab to see it here.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/(tabs)/home')}
+              style={[styles.emptyBtn, { backgroundColor: palette.primary }]}
+            >
+              <Text style={styles.emptyBtnText}>Go to Home</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const order: DriverOrder = currentOrder;
+
+  const canAdvance =
+    (order.status === 'ACCEPTED' || order.status === 'IN_TRANSIT') &&
+    !updateStatus.isPending;
+
+  const advanceLabel =
+    order.status === 'ACCEPTED' ? "I've Picked Up the Package" : 'Mark as Delivered';
 
   const advance = async () => {
-    const next = await updateStatus.mutateAsync({
-      orderId: order.id,
-      status: nextStatus(order.status) as 'IN_TRANSIT' | 'DELIVERED',
-    });
-
-    if (next.status === 'DELIVERED') {
-      setFeedbackOrderId(next.id);
-      setFeedbackVisible(true);
-      setFeedbackRating(5);
-      setFeedbackComment('');
+    if (!canAdvance) return;
+    const nextStatus = order.status === 'ACCEPTED' ? 'IN_TRANSIT' : 'DELIVERED';
+    try {
+      const updated = await updateStatus.mutateAsync({ orderId: order.id, status: nextStatus });
+      if (updated.status === 'DELIVERED') {
+        setFeedbackOrderId(updated.id);
+        setFeedbackVisible(true);
+        setFeedbackRating(5);
+        setFeedbackComment('');
+      }
+    } catch (err) {
+      Alert.alert('Could not update status', err instanceof Error ? err.message : 'Please try again.');
     }
   };
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Active order</Text>
-          <Text style={styles.title}>{order.trackingCode}</Text>
-          <Text style={styles.subtitle}>Route progress, rider contact, and delivery status live in one place.</Text>
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: 100 }]}
+      >
+        {/* Hero */}
+        <View style={[styles.hero, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.heroDecorA} />
+          <View style={styles.heroDecorB} />
+          <Text style={[styles.heroEyebrow, { color: palette.primary }]}>ACTIVE ORDER</Text>
+          <Text style={[styles.heroCode, { color: palette.text }]}>{order.trackingCode}</Text>
+          <View style={[styles.heroBadge, { backgroundColor: hexToRgba(palette.primary, 0.14) }]}>
+            <View style={[styles.heroBadgeDot, { backgroundColor: palette.primary }]} />
+            <Text style={[styles.heroBadgeText, { color: palette.primary }]}>{order.status.replace('_', ' ')}</Text>
+          </View>
         </View>
 
-        <Card>
-          <SectionHeader title="Route preview" caption="Pickup to delivery" />
-          <View style={styles.mapBox}>
-            <View style={styles.mapLine} />
-            <View style={styles.mapMarkerStart} />
-            <View style={styles.mapMarkerEnd} />
-            <Text style={styles.mapText}>Map preview unavailable in this build</Text>
+        {/* Route timeline */}
+        <RouteTimeline order={order} palette={palette} />
+
+        {/* Order details */}
+        <View style={[styles.detailCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.cardSectionLabel, { color: palette.textSecondary }]}>ORDER DETAILS</Text>
+          <View style={styles.chipRow}>
+            {[
+              { Icon: Package,    value: order.size,                        color: palette.primary },
+              { Icon: MapPin,     value: `${order.distanceKm.toFixed(1)} km`, color: '#FFD60A' },
+              { Icon: Clock,      value: `${order.estimatedDurationMin} min`, color: '#0A84FF' },
+              { Icon: DollarSign, value: formatNaira(order.price),           color: '#30D158' },
+            ].map(({ Icon, value, color }) => (
+              <View key={value} style={[styles.chip, { backgroundColor: hexToRgba(color, 0.12) }]}>
+                <Icon size={13} color={color} />
+                <Text style={[styles.chipText, { color }]}>{value}</Text>
+              </View>
+            ))}
           </View>
-          <Text style={styles.routeText}>{order.pickupFormattedAddress}</Text>
-          <Text style={styles.routeArrow}>↓</Text>
-          <Text style={styles.routeText}>{order.deliveryFormattedAddress}</Text>
-        </Card>
+          <InfoRow label="Tracking code" value={order.trackingCode} palette={palette} />
+          <InfoRow label="Payment" value={order.paymentStatus} palette={palette} />
+          <InfoRow label="Created" value={new Date(order.createdAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })} palette={palette} />
+        </View>
 
-        <Card>
-          <SectionHeader title="Customer" caption="Tap to call" />
-          <Text style={styles.customerName}>Amaka Okafor</Text>
-          <Text style={styles.customerPhone} onPress={() => void Linking.openURL('tel:+2348012345678')}>
-            +234 801 234 5678
-          </Text>
-        </Card>
-
-        <Card>
-          <SectionHeader title="Order details" caption="Package and payout" />
-          <View style={styles.orderMetaRow}>
-            <Pill label={order.size} tone="info" />
-            <Pill label={`${order.distanceKm.toFixed(1)} km`} tone="neutral" />
-            <Pill label={formatCurrency(order.price)} tone="warning" />
+        {/* Driver info (if assigned) */}
+        {order.driver && (
+          <View style={[styles.detailCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.cardSectionLabel, { color: palette.textSecondary }]}>CUSTOMER CONTACT</Text>
+            <Text style={[styles.customerName, { color: palette.text }]}>{order.driver.fullName}</Text>
+            <Pressable
+              style={[styles.callBtn, { backgroundColor: hexToRgba('#30D158', 0.14), borderColor: hexToRgba('#30D158', 0.24) }]}
+              onPress={() => void Linking.openURL(`tel:${order.driver?.vehiclePlate ?? ''}`)}
+            >
+              <Phone size={15} color="#30D158" />
+              <Text style={styles.callBtnText}>Call customer</Text>
+            </Pressable>
           </View>
-          <Text style={styles.metaText}>Items: Clothing box, accessories, and sealed parcel</Text>
-          <Text style={styles.metaText}>Tracking code: {order.trackingCode}</Text>
-        </Card>
+        )}
 
-        <ActionButton title={statusButtonLabel} onPress={advance} disabled={updateStatus.isPending} />
+        {/* CTA */}
+        {canAdvance && (
+          <Pressable
+            onPress={() => void advance()}
+            disabled={updateStatus.isPending}
+            style={({ pressed }) => [
+              styles.cta,
+              { backgroundColor: palette.primary, opacity: pressed || updateStatus.isPending ? 0.75 : 1 },
+            ]}
+          >
+            <Text style={styles.ctaText}>
+              {updateStatus.isPending ? 'Updating…' : advanceLabel}
+            </Text>
+          </Pressable>
+        )}
+
+        {(order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
+          <View style={[styles.completedBanner, { backgroundColor: hexToRgba('#30D158', 0.12), borderColor: hexToRgba('#30D158', 0.22) }]}>
+            <CheckCircle size={18} color="#30D158" />
+            <Text style={[styles.completedText, { color: '#30D158' }]}>
+              {order.status === 'COMPLETED' ? 'Order completed — earnings credited.' : 'Package delivered — awaiting customer confirmation.'}
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
-      <Modal visible={feedbackVisible} transparent animationType="fade" onRequestClose={() => setFeedbackVisible(false)}>
+      {/* Rating modal */}
+      <Modal
+        visible={feedbackVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFeedbackVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalEyebrow}>Delivery complete</Text>
-            <Text style={styles.modalTitle}>Rate this customer</Text>
-            <Text style={styles.modalCopy}>Use a quick thumbs-up or thumbs-down before you close the run.</Text>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setFeedbackVisible(false)} />
+          <View style={[styles.modalSheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={[styles.modalHandle, { backgroundColor: palette.border }]} />
+            <Text style={[styles.modalEyebrow, { color: palette.primary }]}>DELIVERY COMPLETE</Text>
+            <Text style={[styles.modalTitle, { color: palette.text }]}>Rate this customer</Text>
+            <Text style={[styles.modalBody, { color: palette.textSecondary }]}>
+              Quick feedback helps us keep the platform safe for everyone.
+            </Text>
 
             <View style={styles.thumbRow}>
-              <Pressable onPress={() => setFeedbackRating(5)} style={[styles.thumbButton, feedbackRating === 5 ? styles.thumbButtonActive : null]}>
-                <FontAwesome name="thumbs-up" size={22} color={feedbackRating === 5 ? '#fff' : Colors.light.text} />
-                <Text style={[styles.thumbLabel, feedbackRating === 5 ? styles.thumbLabelActive : null]}>Good</Text>
-              </Pressable>
-              <Pressable onPress={() => setFeedbackRating(1)} style={[styles.thumbButton, feedbackRating === 1 ? styles.thumbButtonDanger : null]}>
-                <FontAwesome name="thumbs-down" size={22} color={feedbackRating === 1 ? '#fff' : Colors.light.text} />
-                <Text style={[styles.thumbLabel, feedbackRating === 1 ? styles.thumbLabelActive : null]}>Bad</Text>
-              </Pressable>
+              {[
+                { value: 5 as const, label: '👍 Good', active: feedbackRating === 5, danger: false },
+                { value: 1 as const, label: '👎 Bad',  active: feedbackRating === 1, danger: true },
+              ].map((btn) => (
+                <Pressable
+                  key={btn.value}
+                  onPress={() => setFeedbackRating(btn.value)}
+                  style={[
+                    styles.thumbBtn,
+                    { borderColor: btn.active ? (btn.danger ? '#FF453A' : palette.primary) : palette.border },
+                    btn.active && { backgroundColor: btn.danger ? hexToRgba('#FF453A', 0.16) : hexToRgba(palette.primary, 0.16) },
+                  ]}
+                >
+                  <Text style={[styles.thumbBtnText, { color: btn.active ? (btn.danger ? '#FF453A' : palette.primary) : palette.text }]}>
+                    {btn.label}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
             <TextInput
               value={feedbackComment}
               onChangeText={setFeedbackComment}
-              placeholder="Optional note"
-              placeholderTextColor={Colors.light.textSecondary}
-              style={styles.commentInput}
+              placeholder="Optional note…"
+              placeholderTextColor={palette.textSecondary}
+              style={[styles.commentInput, { backgroundColor: palette.bg, color: palette.text, borderColor: palette.border }]}
               multiline
             />
 
             <View style={styles.modalActions}>
-              <ActionButton title="Skip" variant="secondary" onPress={() => setFeedbackVisible(false)} />
-              <ActionButton
-                title="Submit"
+              <Pressable
+                onPress={() => setFeedbackVisible(false)}
+                style={[styles.modalBtn, { backgroundColor: palette.bg, borderColor: palette.border }]}
+              >
+                <Text style={[styles.modalBtnText, { color: palette.text }]}>Skip</Text>
+              </Pressable>
+              <Pressable
                 onPress={async () => {
                   if (!feedbackOrderId) return;
                   try {
@@ -126,131 +291,88 @@ export default function ActiveOrderScreen() {
                       driverComment: feedbackComment.trim() || undefined,
                     });
                     setFeedbackVisible(false);
-                    Alert.alert('Customer rated', 'Feedback submitted successfully.');
-                  } catch (error) {
-                    const message = error instanceof Error ? error.message : 'Unable to submit rating';
-                    Alert.alert('Rating failed', message);
+                    Alert.alert('Feedback sent', 'Thank you for rating this customer.');
+                  } catch (err) {
+                    Alert.alert('Rating failed', err instanceof Error ? err.message : 'Please try again.');
                   }
                 }}
                 disabled={rateCustomer.isPending}
-              />
+                style={[styles.modalBtn, { backgroundColor: palette.primary }]}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>
+                  {rateCustomer.isPending ? 'Submitting…' : 'Submit'}
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>
       </Modal>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16, paddingBottom: 30 },
-  hero: {
-    borderRadius: 32,
-    padding: 24,
-    backgroundColor: '#0F172A',
-    gap: 8,
-  },
-  eyebrow: { color: '#FDE68A', textTransform: 'uppercase', letterSpacing: 1.2, fontSize: 12, fontWeight: '800' },
-  title: { color: '#FFFFFF', fontSize: 30, lineHeight: 35, fontWeight: '800' },
-  subtitle: { color: '#CBD5E1', fontSize: 15, lineHeight: 22 },
-  mapBox: {
-    height: 210,
-    borderRadius: 24,
-    backgroundColor: '#0B1120',
-    borderWidth: 1,
-    borderColor: '#1F2937',
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapLine: { position: 'absolute', left: '22%', right: '22%', top: '50%', height: 2, backgroundColor: '#334155' },
-  mapMarkerStart: { position: 'absolute', left: '20%', top: '45%', width: 18, height: 18, borderRadius: 9, backgroundColor: '#30D158' },
-  mapMarkerEnd: { position: 'absolute', right: '20%', top: '45%', width: 18, height: 18, borderRadius: 9, backgroundColor: '#0A84FF' },
-  mapText: { color: '#64748B', fontSize: 12 },
-  routeText: { color: '#F8FAFC', fontSize: 14, lineHeight: 20 },
-  routeArrow: { color: '#FDE68A', fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  customerName: { color: '#F8FAFC', fontSize: 18, fontWeight: '800' },
-  customerPhone: { color: '#BFDBFE', fontSize: 14, marginTop: 4 },
-  orderMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  metaText: { color: '#CBD5E1', fontSize: 14, lineHeight: 21 },
-  modalBackdrop: {
-    flex: 1,
-    padding: 16,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(2, 6, 23, 0.68)',
-  },
-  modalSheet: {
-    gap: 12,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    padding: 24,
-    backgroundColor: Colors.light.card,
-  },
-  modalEyebrow: {
-    color: Colors.light.primary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  modalTitle: {
-    color: Colors.light.text,
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
-  },
-  modalCopy: {
-    color: Colors.light.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  thumbRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  thumbButton: {
-    flex: 1,
-    minHeight: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: 'rgba(148, 163, 184, 0.08)',
-  },
-  thumbButtonActive: {
-    borderColor: Colors.light.primary,
-    backgroundColor: Colors.light.primary,
-  },
-  thumbButtonDanger: {
-    borderColor: '#DC2626',
-    backgroundColor: '#DC2626',
-  },
-  thumbLabel: {
-    color: Colors.light.text,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  thumbLabelActive: {
-    color: '#fff',
-  },
-  commentInput: {
-    minHeight: 100,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: '#fff',
-    color: Colors.light.text,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 14,
-    textAlignVertical: 'top',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-  },
+  screen: { flex: 1 },
+  content: { paddingHorizontal: 20, gap: 16 },
+
+  // empty state
+  emptyWrap: { flex: 1, paddingHorizontal: 20 },
+  emptyCard: { borderRadius: 24, borderWidth: 1, padding: 28, alignItems: 'center', gap: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '800' },
+  emptyBody: { fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  emptyBtn: { minHeight: 48, paddingHorizontal: 28, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  // hero
+  hero: { borderRadius: 24, borderWidth: 1, padding: 20, gap: 8, overflow: 'hidden' },
+  heroDecorA: { position: 'absolute', top: -40, right: -20, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.04)' },
+  heroDecorB: { position: 'absolute', bottom: -50, left: -30, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.03)' },
+  heroEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  heroCode: { fontSize: 28, fontWeight: '800' },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' },
+  heroBadgeDot: { width: 7, height: 7, borderRadius: 4 },
+  heroBadgeText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  // route card
+  routeCard: { borderRadius: 20, borderWidth: 1, padding: 16, gap: 8 },
+  routeStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  routeStepDot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  routeStepBody: { flex: 1, gap: 2 },
+  routeStepLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  routeStepAddr: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  routeConnector: { width: 1, height: 18, marginLeft: 10, marginVertical: 4 },
+
+  // detail card
+  detailCard: { borderRadius: 20, borderWidth: 1, padding: 16, gap: 12 },
+  cardSectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 },
+  chipText: { fontSize: 12, fontWeight: '700' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoLabel: { fontSize: 12, fontWeight: '500' },
+  infoValue: { fontSize: 13, fontWeight: '700' },
+  customerName: { fontSize: 18, fontWeight: '800' },
+  callBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'flex-start' },
+  callBtnText: { color: '#30D158', fontSize: 14, fontWeight: '700' },
+
+  // CTA
+  cta: { minHeight: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6 },
+  ctaText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  completedBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, padding: 14 },
+  completedText: { flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+
+  // modal
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  modalSheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, padding: 20, paddingBottom: 36, gap: 14 },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
+  modalEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  modalTitle: { fontSize: 24, fontWeight: '800' },
+  modalBody: { fontSize: 14, lineHeight: 20 },
+  thumbRow: { flexDirection: 'row', gap: 12 },
+  thumbBtn: { flex: 1, minHeight: 56, borderRadius: 16, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  thumbBtnText: { fontSize: 15, fontWeight: '800' },
+  commentInput: { borderRadius: 16, borderWidth: 1, minHeight: 90, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, textAlignVertical: 'top' },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  modalBtn: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  modalBtnText: { fontSize: 15, fontWeight: '800' },
 });
