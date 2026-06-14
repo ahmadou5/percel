@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, TrendingUp, Package, Zap, ChevronRight, MapPin, Clock, DollarSign } from 'lucide-react-native';
+import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX, TrendingUp, DollarSign, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
@@ -83,12 +83,14 @@ export default function DriverHomeScreen() {
   const queryClient = useQueryClient();
 
   const wallet = walletQuery.data ?? demoWallet;
-  const earningsToday = wallet.transactions
-    .filter((tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT')
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  const deliveriesToday = wallet.transactions.filter(
-    (tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT',
-  ).length;
+  
+  const todayDateStr = new Date().toDateString();
+  const todaysTx = wallet.transactions.filter(
+    (tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT' && new Date(tx.createdAt).toDateString() === todayDateStr
+  );
+  
+  const earningsToday = todaysTx.reduce((sum, tx) => sum + tx.amount, 0);
+  const deliveriesToday = todaysTx.length;
 
   const [incomingOrder, setIncomingOrder] = useState<DriverOrder | null>(null);
   const [countdown, setCountdown] = useState(60);
@@ -378,11 +380,22 @@ export default function DriverHomeScreen() {
                 ))}
               </View>
             ) : (
-              <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                <Zap size={28} color={palette.textSecondary} />
-                <Text style={[styles.emptyTitle, { color: palette.text }]}>No active order</Text>
-                <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>
-                  {isOnline ? 'Waiting for an incoming order…' : 'Go online to start receiving orders.'}
+              <View style={[styles.emptyStateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                <View style={styles.emptyStateIconWrap}>
+                  {isOnline ? (
+                    <Radar size={32} color={palette.primary} />
+                  ) : (
+                    <SearchX size={32} color={palette.textSecondary} />
+                  )}
+                  {isOnline && (
+                    <Animated.View style={[styles.radarPing, { borderColor: palette.primary }]} />
+                  )}
+                </View>
+                <Text style={[styles.emptyStateTitle, { color: palette.text }]}>
+                  {isOnline ? 'Scanning for orders...' : 'You are offline'}
+                </Text>
+                <Text style={[styles.emptyStateBody, { color: palette.textSecondary }]}>
+                  {isOnline ? 'Stay in high-demand areas to get matched with delivery requests faster.' : 'Go online to start receiving and accepting delivery requests.'}
                 </Text>
               </View>
             )}
@@ -511,10 +524,12 @@ const styles = StyleSheet.create({
   tag: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   tagText: { fontSize: 11, fontWeight: '700' },
 
-  // empty
-  emptyCard: { borderRadius: 20, borderWidth: 1, padding: 28, alignItems: 'center', gap: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: '700' },
-  emptyBody: { fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 240 },
+  // empty state
+  emptyStateCard: { borderRadius: 24, borderWidth: 1, padding: 32, alignItems: 'center', gap: 12, overflow: 'hidden' },
+  emptyStateIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center', marginBottom: 8, position: 'relative' },
+  radarPing: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 1, opacity: 0.2 },
+  emptyStateTitle: { fontSize: 18, fontWeight: '800' },
+  emptyStateBody: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
 
   // bottom sheet
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
