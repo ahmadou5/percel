@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Image,
   Modal,
@@ -149,6 +150,12 @@ export default function DriverHomeScreen() {
 
   const toggleOnline = async () => {
     const next = !isOnline;
+
+    if (next && driver?.status !== 'ACTIVE') {
+      Alert.alert('Action Required', 'Your account is not active. Please ensure your KYC is approved before going online.');
+      return;
+    }
+
     const lat = driver?.currentLocation?.lat ?? 6.5244;
     const lng = driver?.currentLocation?.lng ?? 3.3792;
 
@@ -159,8 +166,10 @@ export default function DriverHomeScreen() {
       // This is the critical step — sync the state to the DB so the order
       // matching worker can find this driver as a candidate
       await toggleOnlineStatus.mutateAsync({ isOnline: next, lat, lng });
-    } catch {
+    } catch (error: any) {
       // onError in the hook reverts the optimistic update
+      const msg = error?.response?.data?.message || error?.message || 'Failed to update online status.';
+      Alert.alert('Status Update Failed', msg);
     }
 
     emitDriverEvent(next ? 'driver_online' : 'driver_offline', {
