@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   bellBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
 
   // hero online card
-  heroCard: { borderRadius: 24, borderWidth: 1, padding: 20, gap: 12, overflow: 'hidden' },
+  heroCard: { borderRadius: 32, borderWidth: 1, padding: 24, gap: 12, overflow: 'hidden' },
   heroDecorA: { position: 'absolute', top: -40, right: -20, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.07)' },
   heroDecorB: { position: 'absolute', bottom: -50, left: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.04)' },
   heroInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 },
@@ -493,19 +493,19 @@ const styles = StyleSheet.create({
   thumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 3 },
 
   // stats
-  statRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, borderRadius: 18, borderWidth: 1, padding: 14, gap: 6, alignItems: 'flex-start' },
-  statIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 17, fontWeight: '800', marginTop: 2 },
-  statLabel: { fontSize: 11, fontWeight: '500', lineHeight: 14 },
+  statRow: { flexDirection: 'row', gap: 12 },
+  statCard: { flex: 1, borderRadius: 24, borderWidth: 1, padding: 20, gap: 8, alignItems: 'flex-start' },
+  statIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 20, fontWeight: '800', marginTop: 4 },
+  statLabel: { fontSize: 12, fontWeight: '600', lineHeight: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // wallet
-  walletCard: { borderRadius: 20, borderWidth: 1, padding: 18, gap: 6 },
+  walletCard: { borderRadius: 28, borderWidth: 1, padding: 24, gap: 8 },
   walletTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  walletLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '600' },
-  walletLink: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  walletLinkText: { fontSize: 13, fontWeight: '600' },
-  walletAmount: { fontSize: 32, fontWeight: '800', letterSpacing: -0.5 },
+  walletLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '700' },
+  walletLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  walletLinkText: { fontSize: 13, fontWeight: '700' },
+  walletAmount: { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
 
   // section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -514,15 +514,15 @@ const styles = StyleSheet.create({
   activeBadgeText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   // order card
-  orderCard: { borderRadius: 20, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  orderIconWrap: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  orderCard: { borderRadius: 24, borderWidth: 1, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  orderIconWrap: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   orderBody: { flex: 1, gap: 6 },
-  orderCode: { fontSize: 16, fontWeight: '800' },
-  orderMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  orderRoute: { fontSize: 12, flex: 1 },
-  orderTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  tagText: { fontSize: 11, fontWeight: '700' },
+  orderCode: { fontSize: 18, fontWeight: '800' },
+  orderMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  orderRoute: { fontSize: 13, flex: 1 },
+  orderTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  tagText: { fontSize: 12, fontWeight: '700' },
 
   // empty state
   emptyStateCard: { borderRadius: 24, borderWidth: 1, padding: 32, alignItems: 'center', gap: 12, overflow: 'hidden' },
