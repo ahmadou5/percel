@@ -606,6 +606,11 @@ export class OrderService {
         },
       });
 
+      if (status === 'DELIVERED') {
+        const payoutAmount = Number(order.price) * 0.8; // 80% payout
+        await this.walletService.creditDriverEarning(driverId, orderId, payoutAmount, tx);
+      }
+
       return next;
     });
 
