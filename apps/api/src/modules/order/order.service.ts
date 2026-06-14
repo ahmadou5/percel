@@ -745,4 +745,28 @@ export class OrderService {
       },
     };
   }
+
+  async getDriverOrdersHistory(driverId: string, query: { page?: number; limit?: number }) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const where: Prisma.OrderWhereInput = {
+      driverId,
+    };
+
+    const [total, orders] = await this.prisma.$transaction([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        include: { driver: { include: { user: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      data: orders.map(serializeOrder),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
 }

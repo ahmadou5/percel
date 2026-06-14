@@ -92,4 +92,10 @@ export class OrderController {
     const { status, lat, lng } = request.body as { status: 'IN_TRANSIT' | 'DELIVERED'; lat?: number; lng?: number };
     return success(await this.service.updateOrderStatus(driverId, id, status, lat, lng), 'Order status updated');
   };
+
+  getDriverOrdersHistory = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const query = request.query as { page?: number; limit?: number };
+    return success(await this.service.getDriverOrdersHistory(driverId, query), 'Driver orders history fetched');
+  };
 }

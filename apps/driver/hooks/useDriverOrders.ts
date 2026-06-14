@@ -75,3 +75,17 @@ export function useUpdateOrderStatus() {
     },
   });
 }
+
+export function useDriverOrdersHistory() {
+  const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
+
+  return useQuery({
+    queryKey: ['driver-orders-history'],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const response = await http.get<ApiResponse<{ data: DriverOrder[] }>>('/api/v1/driver/orders/history');
+      return response.data.data.data;
+    },
+    staleTime: 15_000,
+  });
+}

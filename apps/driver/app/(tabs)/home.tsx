@@ -18,7 +18,8 @@ import { router } from 'expo-router';
 import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
-import { useAcceptOrder } from '@/hooks/useDriverOrders';
+import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
+import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
 import { demoOrders, demoWallet } from '@/lib/demo-data';
 import type { DriverOrder } from '@/lib/types';
@@ -76,6 +77,8 @@ export default function DriverHomeScreen() {
 
   const walletQuery = useWallet();
   const acceptOrder = useAcceptOrder();
+  const ordersQuery = useAvailableOrders();
+  const queryClient = useQueryClient();
 
   const wallet = walletQuery.data ?? demoWallet;
   const earningsToday = wallet.transactions
@@ -91,7 +94,12 @@ export default function DriverHomeScreen() {
   const [translateY] = useState(() => new Animated.Value(320));
 
   useEffect(() => {
+    const invalidate = () => {
+      void queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+    };
+
     const unsub1 = subscribeDriverSocket('new_order_available', (payload: Partial<DriverOrder> & { orderId?: string }) => {
+      invalidate();
       // Use real order data from the socket payload; fall back to demo only if no order fields present
       const order: DriverOrder = {
         id: payload.orderId ?? payload.id ?? demoOrders[0].id,
@@ -115,11 +123,15 @@ export default function DriverHomeScreen() {
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
     });
     const unsub2 = subscribeDriverSocket('order_cancelled', () => {
+      invalidate();
       setIncomingOrder(null);
       setSheetVisible(false);
     });
-    return () => { unsub1(); unsub2(); };
-  }, [translateY]);
+    const unsub3 = subscribeDriverSocket('order_status_update', () => {
+      invalidate();
+    });
+    return () => { unsub1(); unsub2(); unsub3(); };
+  }, [translateY, queryClient]);
 
   useEffect(() => {
     if (!sheetVisible) return;
@@ -299,12 +311,56 @@ export default function DriverHomeScreen() {
             <ChevronRight size={18} color={palette.textSecondary} />
           </Pressable>
         ) : (
-          <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Zap size={28} color={palette.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>No active order</Text>
-            <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>
-              {isOnline ? 'Waiting for an incoming order…' : 'Go online to start receiving orders.'}
-            </Text>
+          <View style={styles.availableSection}>
+            {ordersQuery.data && ordersQuery.data.length > 0 ? (
+              <View style={styles.list}>
+                {ordersQuery.data.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      setIncomingOrder(item);
+                      setSheetVisible(true);
+                      setCountdown(60);
+                      translateY.setValue(320);
+                      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
+                    }}
+                    style={[styles.orderCard, { backgroundColor: palette.card, borderColor: palette.border }]}
+                  >
+                    <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+                      <Package size={22} color={palette.primary} />
+                    </View>
+                    <View style={styles.orderBody}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={[styles.orderCode, { color: palette.text }]}>{item.trackingCode}</Text>
+                        <Text style={[styles.tagText, { color: palette.primary, fontWeight: '800' }]}>TAP TO VIEW</Text>
+                      </View>
+                      <View style={styles.orderMeta}>
+                        <MapPin size={12} color={palette.textSecondary} />
+                        <Text style={[styles.orderRoute, { color: palette.textSecondary }]} numberOfLines={1}>
+                          {item.pickupFormattedAddress} → {item.deliveryFormattedAddress}
+                        </Text>
+                      </View>
+                      <View style={styles.orderTags}>
+                        <View style={[styles.tag, { backgroundColor: hexToRgba('#FFD60A', 0.14) }]}>
+                          <Text style={[styles.tagText, { color: '#FFD60A' }]}>{formatNaira(item.price)}</Text>
+                        </View>
+                        <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+                          <Text style={[styles.tagText, { color: palette.primary }]}>{item.distanceKm.toFixed(1)} km</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                <Zap size={28} color={palette.textSecondary} />
+                <Text style={[styles.emptyTitle, { color: palette.text }]}>No active order</Text>
+                <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>
+                  {isOnline ? 'Waiting for an incoming order…' : 'Go online to start receiving orders.'}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -452,4 +508,6 @@ const styles = StyleSheet.create({
   sheetBtn: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   sheetBtnPrimary: { shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
   sheetBtnText: { fontSize: 16, fontWeight: '800' },
+  list: { gap: 12 },
+  availableSection: { gap: 12 },
 });
