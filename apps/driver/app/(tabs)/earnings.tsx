@@ -8,10 +8,12 @@ import { Text, View } from '@/components/Themed';
 import { useWallet } from '@/hooks/useWallet';
 import { demoEarningsByDay, demoWallet } from '@/lib/demo-data';
 import { useAppPalette } from '@/lib/theme';
-import { formatNaira } from '@/lib/utils';
-import { haptics } from '@/utils/haptics';
 
 const periods = ['Today', 'This Week', 'This Month'] as const;
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value);
+}
 
 export default function EarningsScreen() {
   const [period, setPeriod] = useState<(typeof periods)[number]>('This Week');
@@ -44,22 +46,22 @@ export default function EarningsScreen() {
               <View style={styles.currencyPill}>
                 <Text style={styles.currencyText}>NGN Wallet</Text>
               </View>
-              <Pressable onPressIn={() => void haptics.tap()} onPress={() => setBalanceHidden((value) => !value)} style={styles.eyeButton} hitSlop={10}>
+              <Pressable onPress={() => setBalanceHidden((value) => !value)} style={styles.eyeButton} hitSlop={10}>
                 {balanceHidden ? <EyeOff size={18} color="#fff" /> : <Eye size={18} color="#fff" />}
               </Pressable>
             </View>
 
             <View style={styles.balanceBlock}>
               <Text style={styles.balanceLabel}>Available balance</Text>
-              <Text style={styles.balanceValue}>{balanceHidden ? '••••••••' : formatNaira(wallet.realBalance)}</Text>
+              <Text style={styles.balanceValue}>{balanceHidden ? '••••••••' : formatCurrency(wallet.balance)}</Text>
             </View>
 
             <View style={styles.heroActions}>
-              <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction}>
+              <Pressable style={styles.heroAction}>
                 <Download size={16} color="#fff" />
                 <Text style={styles.heroActionText}>Withdraw</Text>
               </Pressable>
-              <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction}>
+              <Pressable style={styles.heroAction}>
                 <History size={16} color="#fff" />
                 <Text style={styles.heroActionText}>History</Text>
               </Pressable>
@@ -90,11 +92,11 @@ export default function EarningsScreen() {
         <View style={styles.metricRow}>
           <View style={[styles.statChip, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.statChipLabel, { color: palette.textSecondary }]}>Gross earnings</Text>
-            <Text style={[styles.statChipValue, { color: palette.text }]}>{formatNaira(totals.earned)}</Text>
+            <Text style={[styles.statChipValue, { color: palette.text }]}>{formatCurrency(totals.earned)}</Text>
           </View>
           <View style={[styles.statChip, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.statChipLabel, { color: palette.textSecondary }]}>Net payout</Text>
-            <Text style={[styles.statChipValue, { color: palette.primary }]}>{formatNaira(totals.net)}</Text>
+            <Text style={[styles.statChipValue, { color: palette.primary }]}>{formatCurrency(totals.net)}</Text>
           </View>
         </View>
 
@@ -131,7 +133,7 @@ export default function EarningsScreen() {
                 <Text style={[styles.txMeta, { color: palette.textSecondary }]}>{new Date(tx.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}</Text>
               </View>
               <Text style={[styles.txAmount, { color: tx.type === 'CREDIT' ? '#30D158' : palette.text }]}>
-                {tx.type === 'CREDIT' ? '+' : '-'}{formatNaira(tx.amount)}
+                {tx.type === 'CREDIT' ? '+' : '-'}{formatCurrency(tx.amount)}
               </Text>
             </View>
           ))}
