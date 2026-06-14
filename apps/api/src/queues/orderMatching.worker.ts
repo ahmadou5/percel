@@ -48,9 +48,59 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
         .slice(0, 3);
 
       for (const candidate of candidates) {
+        // Re-check order is still waiting before making each offer
+        const freshOrder = await app.prisma.order.findUnique({
+          where: { id: orderId },
+          select: { status: true },
+        });
+        if (
+          !freshOrder ||
+          (freshOrder.status !== OrderStatus.PENDING_MATCH && freshOrder.status !== OrderStatus.MATCHED)
+        ) {
+          // Order was accepted or cancelled externally — stop processing
+          return;
+        }
+
+        // Mark as MATCHED and send the offer to this specific driver
+        const fullOrder = await app.prisma.order.findUnique({
+          where: { id: orderId },
+          select: {
+            id: true,
+            trackingCode: true,
+            status: true,
+            paymentStatus: true,
+            price: true,
+            currency: true,
+            size: true,
+            pickupFormattedAddress: true,
+            deliveryFormattedAddress: true,
+            distanceKm: true,
+            estimatedDurationMin: true,
+            createdAt: true,
+          },
+        });
         await app.prisma.order.update({ where: { id: orderId }, data: { status: OrderStatus.MATCHED } });
         await app.redis.set(`order:offer:${orderId}`, candidate.driverId, 'EX', 65);
-        broadcastNewOrder(app as RealtimeApp, candidate.driverId, { orderId, driverId: candidate.driverId });
+        broadcastNewOrder(app as RealtimeApp, candidate.driverId, {
+          orderId,
+          driverId: candidate.driverId,
+          ...(fullOrder
+            ? {
+                id: fullOrder.id,
+                trackingCode: fullOrder.trackingCode,
+                status: 'MATCHED',
+                paymentStatus: fullOrder.paymentStatus,
+                price: Number(fullOrder.price),
+                currency: fullOrder.currency,
+                size: fullOrder.size,
+                pickupFormattedAddress: fullOrder.pickupFormattedAddress,
+                deliveryFormattedAddress: fullOrder.deliveryFormattedAddress,
+                distanceKm: Number(fullOrder.distanceKm),
+                estimatedDurationMin: fullOrder.estimatedDurationMin,
+                createdAt: fullOrder.createdAt.toISOString(),
+              }
+            : {}),
+        });
 
         await addNotificationJob(app, order.userId, 'ORDER_MATCHED', {
           orderId,
@@ -58,18 +108,39 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
           driverName: 'driver',
         });
 
+        // Poll for up to 60 seconds to see if this driver accepts
+        let accepted = false;
         for (let i = 0; i < 60; i += 1) {
           const acceptedDriver = await app.redis.get(`order:accepted:${orderId}`);
           if (acceptedDriver === candidate.driverId) {
-            await app.redis.del(`order:offer:${orderId}`);
-            return;
+            accepted = true;
+            break;
           }
           await sleep(1000);
         }
 
         await app.redis.del(`order:offer:${orderId}`);
+
+        if (accepted) return; // Driver confirmed — done
+
+        // Offer timed out. Reset back to PENDING_MATCH only if nobody else changed the status.
+        const afterTimeout = await app.prisma.order.findUnique({
+          where: { id: orderId },
+          select: { status: true },
+        });
+        if (afterTimeout?.status === OrderStatus.MATCHED) {
+          // Still in MATCHED (offer expired without acceptance) — safe to reset
+          await app.prisma.order.update({
+            where: { id: orderId },
+            data: { status: OrderStatus.PENDING_MATCH },
+          });
+        } else {
+          // Accepted or cancelled while we were waiting — bail out
+          return;
+        }
       }
 
+      // All candidates exhausted without any acceptance — cancel the order
       await app.prisma.order.update({
         where: { id: orderId },
         data: { status: OrderStatus.CANCELLED, cancelReason: 'No driver accepted the order' },

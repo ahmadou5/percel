@@ -92,7 +92,22 @@ export default function DriverHomeScreen() {
 
   useEffect(() => {
     const unsub1 = subscribeDriverSocket('new_order_available', (payload: Partial<DriverOrder> & { orderId?: string }) => {
-      const order = demoOrders.find((o) => o.id === payload.orderId) ?? { ...demoOrders[0], id: payload.orderId ?? demoOrders[0].id };
+      // Use real order data from the socket payload; fall back to demo only if no order fields present
+      const order: DriverOrder = {
+        id: payload.orderId ?? payload.id ?? demoOrders[0].id,
+        trackingCode: payload.trackingCode ?? 'TRK-NEW',
+        status: payload.status ?? 'MATCHED',
+        paymentStatus: payload.paymentStatus ?? 'PAID',
+        price: payload.price ?? demoOrders[0].price,
+        currency: payload.currency ?? 'NGN',
+        size: payload.size ?? 'SMALL',
+        pickupFormattedAddress: payload.pickupFormattedAddress ?? demoOrders[0].pickupFormattedAddress,
+        deliveryFormattedAddress: payload.deliveryFormattedAddress ?? demoOrders[0].deliveryFormattedAddress,
+        distanceKm: payload.distanceKm ?? demoOrders[0].distanceKm,
+        estimatedDurationMin: payload.estimatedDurationMin ?? demoOrders[0].estimatedDurationMin,
+        createdAt: payload.createdAt ?? new Date().toISOString(),
+        driver: payload.driver ?? null,
+      };
       setIncomingOrder(order);
       setSheetVisible(true);
       setCountdown(60);
@@ -129,10 +144,16 @@ export default function DriverHomeScreen() {
 
   const acceptIncoming = async () => {
     if (!incomingOrder) return;
-    await acceptOrder.mutateAsync(incomingOrder.id);
-    await setCurrentOrder(incomingOrder);
-    setIncomingOrder(null);
-    setSheetVisible(false);
+    try {
+      // mutateAsync returns { accepted, order } from the API
+      await acceptOrder.mutateAsync(incomingOrder.id);
+      // setCurrentOrder is called inside useAcceptOrder.onSuccess with the real order data
+      setIncomingOrder(null);
+      setSheetVisible(false);
+    } catch (error) {
+      // Keep the sheet visible so driver can retry
+      console.error('[acceptIncoming] failed:', error);
+    }
   };
 
   const declineOrder = async () => {

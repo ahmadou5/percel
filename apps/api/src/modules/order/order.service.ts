@@ -9,7 +9,7 @@ import { getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { addNotificationJob } from '../../queues/index.js';
 import { broadcastOrderStatusUpdate, clearActiveDriverTracking, setActiveDriverTracking, type RealtimeApp } from '../../lib/realtime.js';
 import { getPriceQuote } from '../../lib/pricing.js';
-import { createOrderMatchingQueue } from '../../queues/orderMatching.queue.js';
+import { addOrderMatchingJob } from '../../queues/index.js';
 import { haversineDistanceKm } from '../../utils/helpers.js';
 import { cleanText } from '../../utils/sanitize.js';
 import { ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
@@ -85,16 +85,12 @@ function serializeOrder(order: OrderLike): OrderSummary {
 }
 
 export class OrderService {
-  private readonly queue;
-
   constructor(
     private readonly prisma: PrismaClient,
     private readonly walletService: WalletService,
     private readonly logger: FastifyBaseLogger,
     private readonly app: FastifyInstance,
-  ) {
-    this.queue = createOrderMatchingQueue(app);
-  }
+  ) {}
 
   async getQuote(payload: {
     size: OrderSize;
@@ -296,7 +292,7 @@ export class OrderService {
       return updated;
     });
 
-    await this.queue.add('match-order', {
+    await addOrderMatchingJob(this.app, {
       orderId: order.id,
       pickupLat: Number(pickup.lat),
       pickupLng: Number(pickup.lng),

@@ -76,40 +76,44 @@ if (TaskManager?.defineTask) {
 }
 
 async function ensureBackgroundTracking() {
-  if (!Location) return;
+  try {
+    if (!Location || AppState.currentState !== 'active') return;
 
-  const foreground = await Location.requestForegroundPermissionsAsync();
-  const background = await Location.requestBackgroundPermissionsAsync?.();
+    const foreground = await Location.requestForegroundPermissionsAsync();
+    const background = await Location.requestBackgroundPermissionsAsync?.();
 
-  if (foreground.status !== 'granted' || (background && background.status !== 'granted')) {
-    return;
-  }
+    if (foreground.status !== 'granted' || (background && background.status !== 'granted')) {
+      return;
+    }
 
-  const alreadyStarted = await Location.hasStartedLocationUpdatesAsync?.(TASK_NAME);
-  if (!alreadyStarted) {
-    await Location.startLocationUpdatesAsync(TASK_NAME, {
+    const alreadyStarted = await Location.hasStartedLocationUpdatesAsync?.(TASK_NAME);
+    if (!alreadyStarted) {
+      await Location.startLocationUpdatesAsync(TASK_NAME, {
+        accuracy: Location.Accuracy?.Balanced ?? 1,
+        deferredUpdatesInterval: 15_000,
+        distanceInterval: 25,
+        foregroundService: {
+          notificationTitle: 'Percel driver tracking',
+          notificationBody: 'Live location is being shared while you are online.',
+        },
+        pausesUpdatesAutomatically: true,
+      });
+    }
+
+    const current = await Location.getCurrentPositionAsync?.({
       accuracy: Location.Accuracy?.Balanced ?? 1,
-      deferredUpdatesInterval: 15_000,
-      distanceInterval: 25,
-      foregroundService: {
-        notificationTitle: 'Percel driver tracking',
-        notificationBody: 'Live location is being shared while you are online.',
-      },
-      pausesUpdatesAutomatically: true,
     });
-  }
 
-  const current = await Location.getCurrentPositionAsync?.({
-    accuracy: Location.Accuracy?.Balanced ?? 1,
-  });
-
-  if (current?.coords) {
-    await pushLocation(
-      current.coords.latitude,
-      current.coords.longitude,
-      current.coords.heading ?? 0,
-      current.coords.speed ?? 0,
-    );
+    if (current?.coords) {
+      await pushLocation(
+        current.coords.latitude,
+        current.coords.longitude,
+        current.coords.heading ?? 0,
+        current.coords.speed ?? 0,
+      );
+    }
+  } catch (e) {
+    console.error('Failed to start tracking:', e);
   }
 }
 
