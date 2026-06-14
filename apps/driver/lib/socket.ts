@@ -9,9 +9,17 @@ type EventHandler = (payload: any) => void;
 const listeners = new Map<string, Set<EventHandler>>();
 let socket: any = null;
 
-function safeRequire<T = any>(moduleName: string): T | null {
+function requireSocketIoClient() {
   try {
-    return require(moduleName) as T;
+    return require('socket.io-client');
+  } catch {
+    return null;
+  }
+}
+
+function requireNetInfo() {
+  try {
+    return require('@react-native-community/netinfo');
   } catch {
     return null;
   }
@@ -83,7 +91,7 @@ export function connectDriverSocket() {
   const session = useDriverStore.getState();
   if (!session.isAuthenticated || !session.isOnline) return null;
 
-  const io = safeRequire<any>('socket.io-client');
+  const io = requireSocketIoClient();
   if (!io?.io && typeof io !== 'function') return null;
 
   if (!socket) {
@@ -131,7 +139,7 @@ export function useDriverSocketLifecycle() {
   const isOnline = useDriverStore((state) => state.isOnline);
 
   useEffect(() => {
-    const netInfo = safeRequire<any>('@react-native-community/netinfo');
+    const netInfo = requireNetInfo();
     if (isAuthenticated && isOnline) {
       connectDriverSocket();
     } else {

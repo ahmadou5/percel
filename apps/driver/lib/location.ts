@@ -18,16 +18,24 @@ type LocationPayload = {
 
 const TASK_NAME = 'driver-location';
 
-function safeRequire<T = any>(moduleName: string): T | null {
+function requireExpoLocation() {
   try {
-    return require(moduleName) as T;
+    return require('expo-location');
   } catch {
     return null;
   }
 }
 
-const Location = safeRequire<any>('expo-location');
-const TaskManager = safeRequire<any>('expo-task-manager');
+function requireExpoTaskManager() {
+  try {
+    return require('expo-task-manager');
+  } catch {
+    return null;
+  }
+}
+
+const Location = requireExpoLocation();
+const TaskManager = requireExpoTaskManager();
 
 async function pushLocation(lat: number, lng: number, heading = 0, speed = 0) {
   const driver = useDriverStore.getState().driver;
