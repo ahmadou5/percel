@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ClipboardList, ChevronRight, Zap } from 'lucide-react-native';
+import { ClipboardList } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
@@ -14,8 +14,13 @@ function formatNaira(value: number) {
 }
 
 function HistoryCard({ order, palette }: { order: DriverOrder; palette: ReturnType<typeof useAppPalette> }) {
-  const isCompleted = order.status === 'COMPLETED' || order.status === 'DELIVERED';
-  const statusColor = isCompleted ? '#30D158' : order.status === 'CANCELLED' ? '#FF453A' : '#FF9F0A';
+  const statusColor = order.status === 'DELIVERED' || order.status === 'COMPLETED'
+    ? '#30D158'
+    : order.status === 'ACCEPTED' || order.status === 'IN_TRANSIT' || order.status === 'MATCHED'
+      ? '#0A84FF'
+      : order.status === 'CANCELLED'
+        ? '#FF453A'
+        : '#FFD60A';
 
   return (
     <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -32,12 +37,14 @@ function HistoryCard({ order, palette }: { order: DriverOrder; palette: ReturnTy
       </View>
 
       <View style={[styles.routeBox, { backgroundColor: palette.bg }]}>
-        <Text style={[styles.address, { color: palette.text }]} numberOfLines={1}>
-          🟢 {order.pickupFormattedAddress}
-        </Text>
-        <Text style={[styles.address, { color: palette.text, marginTop: 4 }]} numberOfLines={1}>
-          🔴 {order.deliveryFormattedAddress}
-        </Text>
+        <View style={styles.routeRow}>
+          <View style={[styles.routeDot, { backgroundColor: '#30D158' }]} />
+          <Text style={[styles.address, { color: palette.text }]} numberOfLines={1}>{order.pickupFormattedAddress}</Text>
+        </View>
+        <View style={styles.routeRow}>
+          <View style={[styles.routeDot, { backgroundColor: '#FF453A' }]} />
+          <Text style={[styles.address, { color: palette.text }]} numberOfLines={1}>{order.deliveryFormattedAddress}</Text>
+        </View>
       </View>
 
       <View style={styles.cardFooter}>
@@ -149,8 +156,10 @@ const styles = StyleSheet.create({
   date: { fontSize: 12, fontWeight: '500' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   statusText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  routeBox: { borderRadius: 14, padding: 12 },
-  address: { fontSize: 13, fontWeight: '600' },
+  routeBox: { borderRadius: 16, padding: 12, gap: 8 },
+  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  routeDot: { width: 9, height: 9, borderRadius: 5 },
+  address: { flex: 1, fontSize: 13, fontWeight: '700' },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(148,163,184,0.15)', paddingTop: 10 },
   payoutLabel: { fontSize: 12, fontWeight: '600' },
   payoutValue: { fontSize: 16, fontWeight: '800' },

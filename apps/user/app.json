@@ -23,10 +23,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "notification": {
-        "icon": "./assets/images/adaptive-icon.png",
-        "color": "#0EA5E9"
-      },
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -38,7 +34,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/adaptive-icon.png",
+          "color": "#0EA5E9"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

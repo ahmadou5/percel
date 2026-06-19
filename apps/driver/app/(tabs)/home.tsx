@@ -13,10 +13,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX, TrendingUp, DollarSign, Clock } from 'lucide-react-native';
+import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX, TrendingUp, DollarSign } from 'lucide-react-native';
 import { router } from 'expo-router';
 
-import { useAppPalette, hexToRgba } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
 import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
@@ -25,6 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
 import { demoOrders, demoWallet } from '@/lib/demo-data';
 import type { DriverOrder } from '@/lib/types';
+import { DriverWalletCard } from '@/components/DriverWalletCard';
 
 function formatNaira(value: number) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value);
@@ -59,7 +60,7 @@ function StatCard({ label, value, icon, color }: { label: string; value: string;
   const palette = useAppPalette();
   return (
     <View style={[styles.statCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-      <View style={[styles.statIcon, { backgroundColor: hexToRgba(color, 0.14) }]}>{icon}</View>
+      <View style={[styles.statIcon, { backgroundColor: palette.primaryDark}]}>{icon}</View>
       <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: palette.textSecondary }]}>{label}</Text>
     </View>
@@ -75,7 +76,6 @@ export default function DriverHomeScreen() {
   const isOnline = useDriverStore((s) => s.isOnline);
   const currentOrder = useDriverStore((s) => s.currentOrder);
   const setOnlineStatus = useDriverStore((s) => s.setOnlineStatus);
-  const setCurrentOrder = useDriverStore((s) => s.setCurrentOrder);
 
   const walletQuery = useWallet();
   const acceptOrder = useAcceptOrder();
@@ -93,7 +93,7 @@ export default function DriverHomeScreen() {
   const deliveriesToday = todaysTx.length;
 
   const [incomingOrder, setIncomingOrder] = useState<DriverOrder | null>(null);
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(30);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [translateY] = useState(() => new Animated.Value(320));
 
@@ -122,7 +122,7 @@ export default function DriverHomeScreen() {
       };
       setIncomingOrder(order);
       setSheetVisible(true);
-      setCountdown(60);
+      setCountdown(30);
       translateY.setValue(320);
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
     });
@@ -168,9 +168,9 @@ export default function DriverHomeScreen() {
       // This is the critical step — sync the state to the DB so the order
       // matching worker can find this driver as a candidate
       await toggleOnlineStatus.mutateAsync({ isOnline: next, lat, lng });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // onError in the hook reverts the optimistic update
-      const msg = error?.response?.data?.message || error?.message || 'Failed to update online status.';
+      const msg = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'Failed to update online status.';
       Alert.alert('Status Update Failed', msg);
     }
 
@@ -199,7 +199,7 @@ export default function DriverHomeScreen() {
     if (incomingOrder) emitDriverEvent('order_status_update', { orderId: incomingOrder.id, status: 'CANCELLED' });
     setIncomingOrder(null);
     setSheetVisible(false);
-    setCountdown(60);
+    setCountdown(30);
   };
 
   const isLoading = walletQuery.isLoading && !wallet;
@@ -227,7 +227,7 @@ export default function DriverHomeScreen() {
             </View>
           </Pressable>
           <View style={styles.headerRight}>
-            <Pressable style={[styles.bellBtn, { borderColor: palette.border, backgroundColor: palette.card }]}>
+            <Pressable onPress={() => router.push('/(tabs)/notifications')} style={[styles.bellBtn, { borderColor: palette.border, backgroundColor: palette.card }]}>
               <Bell size={18} color={palette.text} />
             </Pressable>
           </View>
@@ -281,20 +281,7 @@ export default function DriverHomeScreen() {
         </View>
 
         {/* ── Wallet snapshot ────────────────────────────────── */}
-        <View style={[styles.walletCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={styles.walletTop}>
-            <Text style={[styles.walletLabel, { color: palette.textSecondary }]}>Wallet balance</Text>
-            <Pressable onPress={() => router.push('/(tabs)/earnings')} style={styles.walletLink}>
-              <Text style={[styles.walletLinkText, { color: palette.primary }]}>View all</Text>
-              <ChevronRight size={14} color={palette.primary} />
-            </Pressable>
-          </View>
-          {isLoading ? (
-            <ActivityIndicator color={palette.primary} style={{ marginVertical: 8 }} />
-          ) : (
-            <Text style={[styles.walletAmount, { color: palette.text }]}>{formatNaira(wallet.balance)}</Text>
-          )}
-        </View>
+        <DriverWalletCard balance={wallet.balance} isLoading={isLoading} isOnline={isOnline} onToggleOnline={toggleOnline} />
 
         {/* ── Current order ──────────────────────────────────── */}
         <View style={styles.sectionHeader}>
@@ -347,7 +334,7 @@ export default function DriverHomeScreen() {
                     onPress={() => {
                       setIncomingOrder(item);
                       setSheetVisible(true);
-                      setCountdown(60);
+                      setCountdown(30);
                       translateY.setValue(320);
                       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
                     }}
@@ -498,14 +485,6 @@ const styles = StyleSheet.create({
   statIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontSize: 20, fontWeight: '800', marginTop: 4 },
   statLabel: { fontSize: 12, fontWeight: '600', lineHeight: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  // wallet
-  walletCard: { borderRadius: 28, borderWidth: 1, padding: 24, gap: 8 },
-  walletTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  walletLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '700' },
-  walletLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  walletLinkText: { fontSize: 13, fontWeight: '700' },
-  walletAmount: { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
 
   // section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -1,59 +1,123 @@
 import { useMemo } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme as useDeviceColorScheme } from 'react-native';
+import { DarkTheme, DefaultTheme, type Theme as NavigationTheme } from '@react-navigation/native';
 
-// ── Percel dark-premium palette ──────────────────────────────────────────────
-export const Colors = {
-  light: {
-    primary: '#0A84FF',
-    primaryDark: '#0066CC',
-    success: '#30D158',
-    error: '#FF453A',
-    warning: '#FFD60A',
-    bg: '#F2F2F7',
-    card: '#FFFFFF',
-    text: '#000000',
-    textSecondary: '#6C6C70',
-    border: '#E5E5EA',
-  },
-  dark: {
-    primary: '#0A84FF',
-    primaryDark: '#003D99',
-    success: '#30D158',
-    error: '#FF453A',
-    warning: '#FFD60A',
-    bg: '#0B1220',
-    card: '#141C2E',
-    text: '#FFFFFF',
-    textSecondary: '#8A94A8',
-    border: '#232D42',
-  },
-} as const;
+import { Colors } from '@/constants/palette';
+import { usePreferencesStore, type CustomTheme, type ThemeMode } from '@/store/preferences.store';
 
-export type AppPalette = (typeof Colors)['dark'] | (typeof Colors)['light'];
+export type AppPalette = (typeof Colors)[keyof typeof Colors];
+
+function clamp(value: number) {
+  return Math.max(0, Math.min(255, value));
+}
+
+function hexToRgb(hex: string) {
+  const normalized = hex.replace('#', '');
+  const value = normalized.length === 3 ? normalized.split('').map((part) => part + part).join('') : normalized;
+  const int = Number.parseInt(value, 16);
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b].map((value) => clamp(value).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function mix(hexA: string, hexB: string, ratio: number) {
+  const a = hexToRgb(hexA);
+  const b = hexToRgb(hexB);
+  const weight = Math.max(0, Math.min(1, ratio));
+  return rgbToHex(
+    Math.round(a.r * (1 - weight) + b.r * weight),
+    Math.round(a.g * (1 - weight) + b.g * weight),
+    Math.round(a.b * (1 - weight) + b.b * weight),
+  );
+}
 
 function luminance(hex: string) {
-  const n = hex.replace('#', '');
-  const v = n.length === 3 ? n.split('').map((c) => c + c).join('') : n;
-  const int = parseInt(v, 16);
-  const transform = (x: number) => {
-    const s = x / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  const { r, g, b } = hexToRgb(hex);
+  const transform = (value: number) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
   };
-  return 0.2126 * transform((int >> 16) & 255) + 0.7152 * transform((int >> 8) & 255) + 0.0722 * transform(int & 255);
+  return 0.2126 * transform(r) + 0.7152 * transform(g) + 0.0722 * transform(b);
 }
 
 export function isLight(hex: string) {
   return luminance(hex) > 0.5;
 }
 
-export function hexToRgba(hex: string, alpha: number) {
-  const n = hex.replace('#', '');
-  const v = n.length === 3 ? n.split('').map((c) => c + c).join('') : n;
-  const int = parseInt(v, 16);
-  return `rgba(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}, ${alpha})`;
+function contrastText(hex: string) {
+  return isLight(hex) ? '#0B1220' : '#FFFFFF';
 }
 
-export function useAppPalette(): AppPalette {
-  const scheme = useColorScheme() ?? 'dark';
-  return useMemo(() => Colors[scheme] as AppPalette, [scheme]);
+function adjustText(hex: string, background: string) {
+  return isLight(background) ? mix(hex, '#000000', 0.45) : mix(hex, '#FFFFFF', 0.45);
+}
+
+export function hexToRgba(hex: string, alpha: number) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function resolvePalette(mode: ThemeMode, systemScheme: keyof typeof Colors | undefined, customTheme: CustomTheme): AppPalette {
+  if (mode === 'custom') {
+    const background = customTheme.background;
+    const card = mix(background, contrastText(background), isLight(background) ? 0.06 : 0.08);
+    const border = mix(background, contrastText(background), isLight(background) ? 0.14 : 0.18);
+    const text = contrastText(background);
+    const textSecondary = adjustText(text, background);
+    const primary = customTheme.accent;
+    const primaryDark = mix(primary, isLight(background) ? '#0B1220' : '#000000', 0.22);
+
+    return {
+      primary,
+      primaryDark,
+      success: '#30D158',
+      error: '#FF453A',
+      warning: '#FFD60A',
+      bg: background,
+      card,
+      text,
+      textSecondary,
+      border,
+    } as AppPalette;
+  }
+
+  const scheme = mode === 'system' ? systemScheme ?? 'light' : mode;
+  return Colors[scheme] as AppPalette;
+}
+
+export function useAppPalette() {
+  const deviceScheme = (useDeviceColorScheme() ?? 'light') as keyof typeof Colors;
+  const themeMode = usePreferencesStore((state) => state.themeMode);
+  const customTheme = usePreferencesStore((state) => state.customTheme);
+
+  return useMemo(() => resolvePalette(themeMode, deviceScheme, customTheme), [customTheme, deviceScheme, themeMode]);
+}
+
+export function getThemeLabel(mode: ThemeMode, systemScheme: keyof typeof Colors | undefined) {
+  if (mode === 'system') return `System (${(systemScheme ?? 'light').replace(/^./, (char) => char.toUpperCase())})`;
+  return mode.replace(/^./, (char) => char.toUpperCase());
+}
+
+export function buildNavigationTheme(palette: AppPalette): NavigationTheme {
+  const dark = luminance(palette.bg) < 0.5;
+  const base = dark ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    dark,
+    colors: {
+      ...base.colors,
+      primary: palette.primary,
+      background: palette.bg,
+      card: palette.card,
+      text: palette.text,
+      border: palette.border,
+      notification: palette.primary,
+    },
+  };
 }

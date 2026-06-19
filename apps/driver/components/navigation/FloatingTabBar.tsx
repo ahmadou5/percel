@@ -6,6 +6,7 @@ import {
   ClipboardList,
   TrendingUp,
   User,
+  Settings,
 } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -52,6 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'history',  label: 'History',  Icon: ClipboardList,  routeName: 'history',  href: '/(tabs)/history' },
   { key: 'earnings', label: 'Earnings', Icon: TrendingUp,     routeName: 'earnings', href: '/(tabs)/earnings' },
   { key: 'profile',  label: 'Profile',  Icon: User,           routeName: 'profile',  href: '/(tabs)/profile' },
+  { key: 'settings', label: 'Settings', Icon: Settings,       routeName: 'settings', href: '/(tabs)/settings' },
 ];
 
 const PILL_HEIGHT = 56;
@@ -64,12 +66,13 @@ function getFocusKey(pathname: string) {
   if (pathname.startsWith('/(tabs)/history') || pathname.startsWith('/history')) return 'history';
   if (pathname.startsWith('/(tabs)/earnings') || pathname.startsWith('/earnings')) return 'earnings';
   if (pathname.startsWith('/(tabs)/profile') || pathname.startsWith('/profile')) return 'profile';
+  if (pathname.startsWith('/(tabs)/settings') || pathname.startsWith('/settings')) return 'settings';
   return null;
 }
 
 function shouldShowDock(pathname: string) {
   const base = pathname.replace('/(tabs)', '').replace(/^\//, '');
-  return ['home', 'active', 'history', 'earnings', 'profile', ''].some(
+  return ['home', 'active', 'history', 'earnings', 'profile', 'settings', ''].some(
     (seg) => base === seg || base.startsWith(seg + '/'),
   );
 }

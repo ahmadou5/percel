@@ -31,10 +31,6 @@
         "backgroundColor": "#ffffff"
       },
       "googleServicesFile": "./google-services.json",
-      "notification": {
-        "icon": "./assets/images/adaptive-icon.png",
-        "color": "#0EA5E9"
-      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.percel.driver",
@@ -55,7 +51,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/adaptive-icon.png",
+          "color": "#0EA5E9"
+        }
+      ],
       "expo-location"
     ],
     "experiments": {
