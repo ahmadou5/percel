@@ -17,14 +17,6 @@ function requireSocketIoClient() {
   }
 }
 
-function requireNetInfo() {
-  try {
-    return require('@react-native-community/netinfo');
-  } catch {
-    return null;
-  }
-}
-
 function getSocketUrl() {
   return process.env.EXPO_PUBLIC_SOCKET_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
 }
@@ -117,7 +109,6 @@ export function useUserSocketLifecycle() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    const netInfo = requireNetInfo();
     if (isAuthenticated) {
       connectUserSocket();
     } else {
@@ -133,16 +124,9 @@ export function useUserSocketLifecycle() {
       disconnectUserSocket();
     });
 
-    const unsubscribeNetInfo = netInfo?.addEventListener?.((state: { isConnected?: boolean }) => {
-      if (state.isConnected && isAuthenticated) {
-        connectUserSocket();
-      }
-    });
-
 
     return () => {
       activeListener.remove();
-      unsubscribeNetInfo?.();
     };
   }, [isAuthenticated]);
 }

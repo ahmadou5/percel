@@ -1,13 +1,12 @@
+import { useRouter } from 'expo-router';
+import { Package, Clock3, BadgeCheck } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Package, Clock3, BadgeCheck, ChevronLeft } from 'lucide-react-native';
 
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrders } from '@/hooks/useOrder';
 import { useAppPalette } from '@/lib/theme';
-import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 const ACTIVE_STATUSES = ['CREATED', 'PENDING_MATCH', 'MATCHED', 'ACCEPTED', 'IN_TRANSIT', 'DELIVERED'] as const;
 const PAST_STATUSES = ['COMPLETED', 'CANCELLED', 'DISPUTED'] as const;
@@ -18,6 +17,10 @@ function isActiveStatus(status: string) {
 
 function isPastStatus(status: string) {
   return PAST_STATUSES.some((item) => item === status);
+}
+
+function isLiveTrackable(status: string) {
+  return ['IN_TRANSIT', 'ACCEPTED'].includes(status);
 }
 
 type Tab = 'ACTIVE' | 'PAST';
@@ -116,7 +119,6 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
 export default function OrdersScreen() {
   const router = useRouter();
   const palette = useAppPalette();
-  const back = useSafeBack('/');
   const query = useOrders();
   const [tab, setTab] = useState<Tab>('ACTIVE');
 
@@ -206,13 +208,23 @@ export default function OrdersScreen() {
           </Pressable>
         </View>
       ) : current.length ? (
-        current.map((order) => <OrderCard key={order.id} order={order} onPress={() => router.push(`/orders/${order.id}`)} />)
+        current.map((order) => (
+          <OrderCard
+            key={order.id}
+            order={order}
+            onPress={() => router.push(
+              isLiveTrackable(order.status)
+                ? ({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never)
+                : ({ pathname: '/orders/[id]', params: { id: order.id } } as never)
+            )}
+          />
+        ))
       ) : (
         <View style={[styles.stateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <BadgeCheck size={32} color={palette.textSecondary} />
           <Text style={[styles.stateTitle, { color: palette.text }]}>No orders here yet</Text>
           <Text style={[styles.stateBody, { color: palette.textSecondary }]}>Create a delivery to see it show up here.</Text>
-          <Pressable onPress={() => router.push('/send')} style={[styles.retryButton, { backgroundColor: palette.primary }]}>
+          <Pressable onPress={() => router.navigate('/send')} style={[styles.retryButton, { backgroundColor: palette.primary }]}>
             <Text style={styles.retryText}>Create order</Text>
           </Pressable>
         </View>
@@ -225,11 +237,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerSpacer: { width: 42 },
   headerCopy: { gap: 6 },
   eyebrowTitle: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
   titleText: { fontSize: 26, lineHeight: 32, fontFamily: Typography.family.bold },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   heroCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   heroLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1, fontFamily: Typography.family.bold },

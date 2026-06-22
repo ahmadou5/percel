@@ -43,6 +43,29 @@ export function useUpdateVehicle() {
   });
 }
 
+export function useUpdateAvatar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'driver.avatar_update_requested', level: 'info' });
+      const response = await http.post<ApiResponse<{ avatarUrl: string }>>('/api/v1/user/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.setQueryData<DriverProfile | undefined>(['driver-profile'], (current) =>
+        current ? { ...current, avatarUrl: data.avatarUrl } : current,
+      );
+      const store = useDriverStore.getState();
+      if (store.user) {
+        store.setUser({ ...store.user, avatarUrl: data.avatarUrl });
+      }
+    },
+  });
+}
+
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (payload: { currentPassword: string; newPassword: string }) => {

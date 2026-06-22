@@ -1,19 +1,57 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
+import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { http } from '@/lib/api';
 import { useDriverLocation } from '@/lib/location';
 import { useDriverSocketLifecycle } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
+import { usePreferencesStore } from '@/store/preferences.store';
 
 export function DriverRuntime() {
   const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
   const token = useDriverStore((state) => state.tokens?.accessToken);
+  const isUnlocked = useDriverStore((state) => state.isUnlocked);
+  const appLockEnabled = usePreferencesStore((state) => state.appLockEnabled);
+  const allowScreenshots = usePreferencesStore((state) => state.allowScreenshots);
   const lastRegisteredToken = useRef<string | null>(null);
 
   useDriverLocation();
   useDriverSocketLifecycle();
+
+  useEffect(() => {
+    if (!allowScreenshots) {
+      void ScreenCapture.preventScreenCaptureAsync();
+    } else {
+      void ScreenCapture.allowScreenCaptureAsync();
+    }
+  }, [allowScreenshots]);
+
+  useEffect(() => {
+    if (isAuthenticated && appLockEnabled && !isUnlocked) {
+      router.replace('/auth-lock');
+    }
+  }, [appLockEnabled, isAuthenticated, isUnlocked]);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      const auth = useDriverStore.getState();
+      if (nextState !== 'active') {
+        if (auth.isAuthenticated && appLockEnabled) auth.lock();
+        return;
+      }
+
+      if (auth.isAuthenticated && appLockEnabled && !auth.isUnlocked) {
+        router.replace('/auth-lock');
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [appLockEnabled]);
 
   useEffect(() => {
     if (!isAuthenticated || !token) return;

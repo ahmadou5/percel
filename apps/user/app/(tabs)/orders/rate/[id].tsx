@@ -1,20 +1,19 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, TextInput, Text, View } from 'react-native';
 
 import { DriverCard } from '@/components/order/DriverCard';
-import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrderDetail, useRateOrder } from '@/hooks/useOrder';
-import { Text, View } from '@/components/Themed';
+import { useAppPalette } from '@/lib/theme';
 
-function RatingStar({ filled, onPress, index, scale }: { filled: boolean; onPress: () => void; index: number; scale: Animated.Value }) {
+function RatingStar({ filled, onPress, index, scale, colors }: { filled: boolean; onPress: () => void; index: number; scale: Animated.Value; colors: any }) {
   return (
     <Pressable onPress={onPress} style={styles.starPressable} accessibilityRole="button" accessibilityLabel={`Rate ${index + 1} star${index === 0 ? '' : 's'}`}>
       <Animated.View style={{ transform: [{ scale }] }}>
-        <FontAwesome name="star" size={28} color={filled ? Colors.light.warning : Colors.light.border} />
+        <FontAwesome name="star" size={28} color={filled ? colors.warning : colors.border} />
       </Animated.View>
     </Pressable>
   );
@@ -22,6 +21,7 @@ function RatingStar({ filled, onPress, index, scale }: { filled: boolean; onPres
 
 export default function OrderRatingScreen() {
   const router = useRouter();
+  const palette = useAppPalette();
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useOrderDetail(id);
   const rateOrder = useRateOrder();
@@ -46,54 +46,54 @@ export default function OrderRatingScreen() {
 
   if (!order) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.loading}>Loading rating…</Text>
+      <View style={[styles.center, { backgroundColor: palette.bg }]}>
+        <Text style={[styles.loading, { color: palette.text }]}>Loading rating…</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Delivery complete</Text>
+    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content}>
+      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Delivery complete</Text>
         <Text style={styles.title}>{order.trackingCode}</Text>
-        <Text style={styles.subtitle}>{alreadyRated ? 'You already left feedback for this delivery.' : 'Tell us how the driver performed.'}</Text>
+        <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.85)' }]}>{alreadyRated ? 'You already left feedback for this delivery.' : 'Tell us how the driver performed.'}</Text>
       </View>
 
       <DriverCard driver={driver} onCall={undefined} />
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Your rating</Text>
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Your rating</Text>
         <View style={styles.starsRow}>
           {scaleValues.map((scale, index) => (
-            <RatingStar key={index} index={index} filled={index < rating} scale={scale} onPress={() => setRating(index + 1)} />
+            <RatingStar key={index} index={index} filled={index < rating} scale={scale} onPress={() => setRating(index + 1)} colors={palette} />
           ))}
         </View>
-        <Text style={styles.helper}>{rating >= 4 ? 'Great delivery' : rating >= 3 ? 'Good delivery' : 'Needs improvement'}</Text>
+        <Text style={[styles.helper, { color: palette.textSecondary }]}>{rating >= 4 ? 'Great delivery' : rating >= 3 ? 'Good delivery' : 'Needs improvement'}</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Comment</Text>
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Comment</Text>
         <TextInput
           value={comment}
           onChangeText={setComment}
           placeholder="Add a short note for the driver (optional)"
-          placeholderTextColor={Colors.light.textSecondary}
+          placeholderTextColor={palette.textSecondary}
           multiline
-          style={styles.commentInput}
+          style={[styles.commentInput, { borderColor: palette.border, backgroundColor: palette.bg, color: palette.text }]}
         />
       </View>
 
       {order.rating ? (
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>{`Submitted ${order.rating.userRating}/5`}</Text>
-          <Text style={styles.summaryBody}>{order.rating.userComment ?? 'No comment left'}</Text>
+        <View style={[styles.summaryCard, { backgroundColor: 'rgba(10,132,255,0.08)' }]}>
+          <Text style={[styles.summaryTitle, { color: palette.text }]}>{`Submitted ${order.rating.userRating}/5`}</Text>
+          <Text style={[styles.summaryBody, { color: palette.textSecondary }]}>{order.rating.userComment ?? 'No comment left'}</Text>
         </View>
       ) : null}
 
       <View style={styles.actionRow}>
-        <Pressable onPress={() => router.replace('/(tabs)/orders')} style={styles.secondaryButton}>
-          <Text style={styles.secondaryText}>Skip</Text>
+        <Pressable onPress={() => router.replace('/(tabs)/orders')} style={[styles.secondaryButton, { borderColor: palette.border, backgroundColor: palette.card }]}>
+          <Text style={[styles.secondaryText, { color: palette.text }]}>Skip</Text>
         </Pressable>
         <Pressable
           disabled={rateOrder.isPending || alreadyRated}
@@ -101,7 +101,7 @@ export default function OrderRatingScreen() {
             await rateOrder.mutateAsync({ id: order.id, userRating: rating, userComment: comment.trim() || undefined });
             router.replace('/(tabs)/orders');
           }}
-          style={[styles.primaryButton, (rateOrder.isPending || alreadyRated) ? styles.primaryButtonDisabled : null]}
+          style={[styles.primaryButton, { backgroundColor: palette.primary }, (rateOrder.isPending || alreadyRated) ? styles.primaryButtonDisabled : null]}
         >
           <Text style={styles.primaryText}>{alreadyRated ? 'Rated' : 'Submit Rating'}</Text>
         </Pressable>
@@ -111,38 +111,35 @@ export default function OrderRatingScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.light.bg },
+  screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loading: { color: Colors.light.text, fontSize: Typography.lg, fontWeight: Typography.bold },
-  hero: { gap: 6, borderRadius: 28, padding: Spacing.lg, backgroundColor: '#0F172A' },
-  eyebrow: { color: Colors.light.primary, textTransform: 'uppercase', letterSpacing: 1.4, fontSize: Typography.xs, fontWeight: Typography.bold },
+  loading: { fontSize: Typography.lg, fontWeight: Typography.bold },
+  hero: { gap: 6, borderRadius: 28, padding: Spacing.lg },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.4, fontSize: Typography.xs, fontWeight: Typography.bold },
   title: { color: '#fff', fontSize: 26, fontWeight: Typography.bold },
-  subtitle: { color: '#CBD5E1', fontSize: Typography.sm, lineHeight: 21 },
-  card: { backgroundColor: Colors.light.card, borderRadius: 24, borderWidth: 1, borderColor: Colors.light.border, padding: Spacing.lg, gap: Spacing.md },
-  sectionTitle: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.bold },
+  subtitle: { fontSize: Typography.sm, lineHeight: 21 },
+  card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  sectionTitle: { fontSize: Typography.md, fontWeight: Typography.bold },
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
   starPressable: { padding: 4 },
-  helper: { color: Colors.light.textSecondary, textAlign: 'center', fontSize: Typography.sm },
+  helper: { textAlign: 'center', fontSize: Typography.sm },
   commentInput: {
     minHeight: 120,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: '#fff',
-    color: Colors.light.text,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: Typography.md,
     textAlignVertical: 'top',
   },
-  summaryCard: { backgroundColor: 'rgba(10,132,255,0.08)', borderRadius: 20, padding: Spacing.lg, gap: 4 },
-  summaryTitle: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.bold },
-  summaryBody: { color: Colors.light.textSecondary, fontSize: Typography.sm },
+  summaryCard: { borderRadius: 20, padding: Spacing.lg, gap: 4 },
+  summaryTitle: { fontSize: Typography.md, fontWeight: Typography.bold },
+  summaryBody: { fontSize: Typography.sm },
   actionRow: { flexDirection: 'row', gap: Spacing.sm },
-  secondaryButton: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: Colors.light.border, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.card },
-  secondaryText: { color: Colors.light.text, fontSize: Typography.md, fontWeight: Typography.bold },
-  primaryButton: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.primary },
+  secondaryButton: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  secondaryText: { fontSize: Typography.md, fontWeight: Typography.bold },
+  primaryButton: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primaryButtonDisabled: { opacity: 0.65 },
   primaryText: { color: '#fff', fontSize: Typography.md, fontWeight: Typography.bold },
 });

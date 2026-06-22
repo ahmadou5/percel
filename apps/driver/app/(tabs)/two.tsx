@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Package, MapPin, Clock, DollarSign, Zap } from 'lucide-react-native';
+import { MapPin, Clock, DollarSign, Zap } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   heroDecorA: { position: 'absolute', top: -40, right: -20, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.04)' },
   heroDecorB: { position: 'absolute', bottom: -50, left: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.03)' },
   heroInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 },
-  heroEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
+  heroEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 0, textTransform: 'uppercase', marginBottom: 4 },
   heroTitle: { fontSize: 20, fontWeight: '800' },
   livePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   liveDot: { width: 7, height: 7, borderRadius: 4 },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 22, borderWidth: 1, padding: 16, gap: 12 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   cardTopLeft: { flex: 1, gap: 2 },
-  trackingCode: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  trackingCode: { fontSize: 12, fontWeight: '800', letterSpacing: 0 },
   cardSize: { fontSize: 16, fontWeight: '800' },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   routeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   routeDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
   routeContent: { flex: 1, gap: 1 },
-  routeLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  routeLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0 },
   routeAddr: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
   routeLine: { width: 1, height: 14, marginLeft: 4 },
 

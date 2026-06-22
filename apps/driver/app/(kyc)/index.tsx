@@ -3,6 +3,10 @@ import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { ActionButton, Card, Pill, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text, View } from '@/components/Themed';
+import { Colors } from '@/constants/palette';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
+import { hexToRgba } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
 
 const steps = [
@@ -60,23 +64,23 @@ export default function KycOverviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16, paddingBottom: 28 },
+  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   hero: {
-    borderRadius: 32,
-    padding: 24,
-    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    padding: Spacing.xl,
+    backgroundColor: Colors.light.primary,
     gap: 8,
   },
-  eyebrow: { color: '#FDE68A', textTransform: 'uppercase', letterSpacing: 1.2, fontSize: 12, fontWeight: '800' },
-  title: { color: '#FFFFFF', fontSize: 30, lineHeight: 35, fontWeight: '800' },
-  subtitle: { color: '#CBD5E1', fontSize: 15, lineHeight: 22 },
+  eyebrow: { color: 'rgba(255,255,255,0.78)', textTransform: 'uppercase', letterSpacing: 0, fontSize: Typography.xs, fontWeight: Typography.bold, fontFamily: Typography.family.bold },
+  title: { color: '#FFFFFF', fontSize: Typography.xxl, lineHeight: 36, fontWeight: Typography.bold, fontFamily: Typography.family.bold },
+  subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1F2937',
+    borderBottomColor: Colors.light.border,
   },
   stepBadge: {
     width: 30,
@@ -85,11 +89,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBadgePending: { backgroundColor: '#334155' },
-  stepBadgeComplete: { backgroundColor: '#14432C' },
-  stepBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  stepBadgePending: { backgroundColor: hexToRgba(Colors.light.textSecondary, 0.18) },
+  stepBadgeComplete: { backgroundColor: Colors.light.success },
+  stepBadgeText: { color: '#FFFFFF', fontSize: Typography.xs, fontWeight: Typography.bold, fontFamily: Typography.family.bold },
   stepCopy: { flex: 1 },
-  stepLabel: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-  stepMeta: { color: '#94A3B8', fontSize: 12, marginTop: 2 },
-  reviewCopy: { color: '#CBD5E1', fontSize: 14, lineHeight: 21 },
+  stepLabel: { color: Colors.light.text, fontSize: Typography.sm, fontWeight: Typography.semibold, fontFamily: Typography.family.semibold },
+  stepMeta: { color: Colors.light.textSecondary, fontSize: Typography.xs, marginTop: 2, fontFamily: Typography.family.regular },
+  reviewCopy: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular },
 });

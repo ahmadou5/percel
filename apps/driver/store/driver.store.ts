@@ -13,6 +13,7 @@ type DriverState = {
   currentOrder: DriverOrder | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isUnlocked: boolean;
   currentLocation: DriverLocation | null;
 };
 
@@ -25,6 +26,8 @@ type DriverActions = {
   setOnlineStatus: (isOnline: boolean) => Promise<void>;
   setCurrentOrder: (order: DriverOrder | null) => Promise<void>;
   updateLocation: (location: DriverLocation) => Promise<void>;
+  unlock: () => void;
+  lock: () => void;
   logout: () => Promise<void>;
 };
 
@@ -45,6 +48,7 @@ let state: DriverState = {
   currentOrder: null,
   isAuthenticated: false,
   isLoading: true,
+  isUnlocked: false,
   currentLocation: null,
 };
 
@@ -103,6 +107,7 @@ async function hydrate() {
     isOnline: rawOnline === 'true' || Boolean(driver?.isOnline),
     isAuthenticated: Boolean(user && tokens),
     isLoading: false,
+    isUnlocked: false,
   });
 
   Sentry.setUser(user ? { id: user.id, email: user.email } : null);
@@ -115,6 +120,7 @@ async function setSession(session: { user: AuthSessionUser; tokens: AuthTokens; 
     tokens: session.tokens,
     driver: session.driver ?? state.driver,
     isAuthenticated: true,
+    isUnlocked: true,
   };
   await persist();
   Sentry.setUser({ id: session.user.id, email: session.user.email });
@@ -165,6 +171,14 @@ async function updateLocation(location: DriverLocation) {
   emit();
 }
 
+function unlock() {
+  setState({ isUnlocked: true });
+}
+
+function lock() {
+  setState({ isUnlocked: false });
+}
+
 async function logout() {
   await Promise.all([
     SecureStore.deleteItemAsync(USER_KEY),
@@ -182,6 +196,7 @@ async function logout() {
     currentOrder: null,
     isAuthenticated: false,
     isLoading: false,
+    isUnlocked: false,
     currentLocation: null,
   };
   Sentry.setUser(null);
@@ -197,6 +212,8 @@ const actions: DriverActions = {
   setOnlineStatus,
   setCurrentOrder,
   updateLocation,
+  unlock,
+  lock,
   logout,
 };
 

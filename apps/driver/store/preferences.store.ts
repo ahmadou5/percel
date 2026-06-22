@@ -1,5 +1,46 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
+
+// Safe AsyncStorage wrapper to prevent startup crashes when the native module is missing (e.g. in outdated native builds or web/test environments)
+let nativeAsyncStorage: any = null;
+try {
+  nativeAsyncStorage = require("@react-native-async-storage/async-storage").default;
+} catch {
+  // Safe fallback when native module throws during load
+}
+
+const memoryStorage = new Map<string, string>();
+const AsyncStorage = {
+  getItem: async (key: string) => {
+    try {
+      if (!nativeAsyncStorage) return memoryStorage.get(key) ?? null;
+      return await nativeAsyncStorage.getItem(key);
+    } catch {
+      return memoryStorage.get(key) ?? null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      if (!nativeAsyncStorage) {
+        memoryStorage.set(key, value);
+        return;
+      }
+      await nativeAsyncStorage.setItem(key, value);
+    } catch {
+      memoryStorage.set(key, value);
+    }
+  },
+  removeItem: async (key: string) => {
+    try {
+      if (!nativeAsyncStorage) {
+        memoryStorage.delete(key);
+        return;
+      }
+      await nativeAsyncStorage.removeItem(key);
+    } catch {
+      memoryStorage.delete(key);
+    }
+  },
+};
 
 export type ThemeMode = "system" | "light" | "dark" | "custom";
 
@@ -40,13 +81,13 @@ const DEFAULT_CUSTOM_THEME: CustomTheme = {
 };
 
 const THEME_MODE_KEY = "percel_driver_theme_mode";
-const CUSTOM_THEME_KEY = "percel_user_custom_theme";
-const NOTIFICATIONS_KEY = "percel_user_notifications_enabled";
-const NOTIFICATIONS_REMINDER_KEY = "percel_user_notifications_reminder_dismissed_at";
-const WALLET_ACCESS_BIOMETRIC_KEY = "percel_user_wallet_access_biometric_enabled";
-const CONFIRM_TRANSACTIONS_BIOMETRIC_KEY = "percel_user_confirm_transactions_biometric_enabled";
-const APP_LOCK_KEY = "percel_user_app_lock_enabled";
-const ALLOW_SCREENSHOTS_KEY = "percel_user_allow_screenshots";
+const CUSTOM_THEME_KEY = "percel_driver_custom_theme";
+const NOTIFICATIONS_KEY = "percel_driver_notifications_enabled";
+const NOTIFICATIONS_REMINDER_KEY = "percel_driver_notifications_reminder_dismissed_at";
+const WALLET_ACCESS_BIOMETRIC_KEY = "percel_driver_wallet_access_biometric_enabled";
+const CONFIRM_TRANSACTIONS_BIOMETRIC_KEY = "percel_driver_confirm_transactions_biometric_enabled";
+const APP_LOCK_KEY = "percel_driver_app_lock_enabled";
+const ALLOW_SCREENSHOTS_KEY = "percel_driver_allow_screenshots";
 
 let state: PreferencesState = {
   themeMode: "system",

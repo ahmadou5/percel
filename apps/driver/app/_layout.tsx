@@ -1,17 +1,19 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import { ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import * as ScreenCapture from 'expo-screen-capture';
+import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { DriverRuntime } from '@/components/DriverRuntime';
-import { useColorScheme } from '@/components/useColorScheme';
-import { Sentry, initSentry } from '@/lib/sentry';
+import { Sentry, initSentry, isSentryInitialized } from '@/lib/sentry';
 import { useDriverStore } from '@/store/driver.store';
+import { usePreferencesStore } from '@/store/preferences.store';
+import { useAppPalette, buildNavigationTheme } from '@/lib/theme';
 
 export { ErrorBoundary } from '@/components/AppErrorBoundary';
 
@@ -27,18 +29,19 @@ const queryClient = new QueryClient();
 function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
     ...FontAwesome.font,
   });
 
-  useEffect(() => {
-    void ScreenCapture.preventScreenCaptureAsync();
-    return () => {
-      void ScreenCapture.allowScreenCaptureAsync();
-    };
-  }, []);
-
   const hydrate = useDriverStore((state) => state.hydrate);
   const isLoading = useDriverStore((state) => state.isLoading);
+  
+  const hydratePreferences = usePreferencesStore((state) => state.hydrate);
+  const preferencesLoading = usePreferencesStore((state) => state.isLoading);
+  const palette = useAppPalette();
 
   useEffect(() => {
     if (error) throw error;
@@ -49,13 +52,21 @@ function RootLayout() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (loaded && !isLoading) {
+    void hydratePreferences();
+  }, [hydratePreferences]);
+
+  useEffect(() => {
+    if (loaded && !isLoading && !preferencesLoading) {
       void SplashScreen.hideAsync();
     }
-  }, [loaded, isLoading]);
+  }, [loaded, isLoading, preferencesLoading]);
 
-  if (!loaded || isLoading) {
-    return null;
+  if (!loaded || isLoading || preferencesLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.bg }}>
+        <ActivityIndicator size="small" color={palette.primary} />
+      </View>
+    );
   }
 
   return (
@@ -66,17 +77,25 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default function RootLayoutWithSentry() {
+  if (!isSentryInitialized()) {
+    return <RootLayout />;
+  }
+
+  const WrappedRootLayout = Sentry.wrap(RootLayout);
+  return <WrappedRootLayout />;
+}
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const palette = useAppPalette();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={buildNavigationTheme(palette)}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(kyc)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="auth-lock" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

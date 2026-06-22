@@ -4,6 +4,8 @@ import { Alert, Pressable, StyleSheet } from 'react-native';
 
 import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text, View } from '@/components/Themed';
+import { Colors } from '@/constants/palette';
+import { Typography } from '@/constants/typography';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
@@ -92,16 +94,16 @@ export default function KycDocumentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  copy: { color: '#CBD5E1', fontSize: 14, lineHeight: 21 },
+  copy: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular },
   sampleGrid: { gap: 10 },
   sampleCard: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: '#111827',
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.light.border,
     gap: 4,
   },
-  sampleTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  sampleCopy: { color: '#94A3B8', fontSize: 12, lineHeight: 17 },
+  sampleTitle: { color: Colors.light.text, fontSize: Typography.sm, fontWeight: Typography.bold, fontFamily: Typography.family.bold },
+  sampleCopy: { color: Colors.light.textSecondary, fontSize: Typography.xs, lineHeight: 17, fontFamily: Typography.family.regular },
 });

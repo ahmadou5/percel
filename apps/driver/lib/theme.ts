@@ -91,7 +91,7 @@ export function resolvePalette(mode: ThemeMode, systemScheme: keyof typeof Color
   return Colors[scheme] as AppPalette;
 }
 
-export function useAppPalette() {
+export function useAppPalette(): AppPalette {
   const deviceScheme = (useDeviceColorScheme() ?? 'light') as keyof typeof Colors;
   const themeMode = usePreferencesStore((state) => state.themeMode);
   const customTheme = usePreferencesStore((state) => state.customTheme);

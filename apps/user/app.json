@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.percel.user"
+      "bundleIdentifier": "com.percel.user",
+      "config": {
+        "googleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
+      }
     },
     "android": {
       "package": "com.percel.user",
@@ -25,7 +28,12 @@
       },
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -40,6 +48,13 @@
           "icon": "./assets/images/adaptive-icon.png",
           "color": "#0EA5E9"
         }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik",
+          "iosGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
+        }
       ]
     ],
     "experiments": {
@@ -49,9 +64,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "30f2a6fc-c536-4065-9b28-3a9aba55f1f1"
+        "projectId": "6074075d-15bb-44aa-b777-6bef939bb79a"
       }
     },
-    "owner": "ahmadou5"
+    "owner": "ahmadousol"
   }
 }

@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Colors } from '@/constants/palette';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 import { Sentry } from '@/lib/sentry';
 
 type ErrorBoundaryProps = {
@@ -32,40 +35,43 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#07111F',
-    padding: 24,
+    backgroundColor: Colors.light.bg,
+    padding: Spacing.xl,
     justifyContent: 'center',
   },
   card: {
     borderRadius: 24,
-    padding: 24,
-    backgroundColor: '#0F172A',
+    padding: Spacing.xl,
+    backgroundColor: Colors.light.card,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: Colors.light.border,
     gap: 14,
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: 24,
+    color: Colors.light.text,
+    fontSize: Typography.xl,
     lineHeight: 30,
-    fontWeight: '800',
+    fontWeight: Typography.bold,
+    fontFamily: Typography.family.bold,
   },
   message: {
-    color: '#CBD5E1',
-    fontSize: 15,
+    color: Colors.light.textSecondary,
+    fontSize: Typography.sm,
     lineHeight: 22,
+    fontFamily: Typography.family.regular,
   },
   primary: {
     marginTop: 6,
     alignSelf: 'flex-start',
     borderRadius: 999,
-    backgroundColor: '#FDE68A',
-    paddingHorizontal: 18,
+    backgroundColor: Colors.light.primary,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: 12,
   },
   primaryText: {
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: Typography.sm,
+    fontWeight: Typography.bold,
+    fontFamily: Typography.family.bold,
   },
 });

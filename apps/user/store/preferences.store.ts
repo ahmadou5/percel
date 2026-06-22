@@ -1,5 +1,46 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSyncExternalStore } from "react";
+
+// Safe AsyncStorage wrapper to prevent startup crashes when the native module is missing (e.g. in outdated native builds or web/test environments)
+let nativeAsyncStorage: any = null;
+try {
+  nativeAsyncStorage = require("@react-native-async-storage/async-storage").default;
+} catch {
+  // Safe fallback when native module throws during load
+}
+
+const memoryStorage = new Map<string, string>();
+const AsyncStorage = {
+  getItem: async (key: string) => {
+    try {
+      if (!nativeAsyncStorage) return memoryStorage.get(key) ?? null;
+      return await nativeAsyncStorage.getItem(key);
+    } catch {
+      return memoryStorage.get(key) ?? null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      if (!nativeAsyncStorage) {
+        memoryStorage.set(key, value);
+        return;
+      }
+      await nativeAsyncStorage.setItem(key, value);
+    } catch {
+      memoryStorage.set(key, value);
+    }
+  },
+  removeItem: async (key: string) => {
+    try {
+      if (!nativeAsyncStorage) {
+        memoryStorage.delete(key);
+        return;
+      }
+      await nativeAsyncStorage.removeItem(key);
+    } catch {
+      memoryStorage.delete(key);
+    }
+  },
+};
 
 export type ThemeMode = "system" | "light" | "dark" | "custom";
 

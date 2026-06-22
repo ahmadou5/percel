@@ -300,8 +300,9 @@ export default function ProfileSecurityScreen() {
               <View style={styles.toggleCopy}>
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Confirm Transactions</Text>
                 <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Require biometrics when confirming a transfer or bill payment.</Text>
+                {!walletPinSet ? <Text style={[styles.helperHint, { color: palette.warning }]}>Set a transfer PIN first to enable this.</Text> : null}
               </View>
-              <Switch value={confirmTransactionsBiometricEnabled} onValueChange={(value) => void onToggleConfirmTransactions(value)} trackColor={{ false: palette.border, true: palette.primary }} thumbColor='#fff' />
+              <Switch value={confirmTransactionsBiometricEnabled && walletPinSet} onValueChange={(value) => void onToggleConfirmTransactions(value)} disabled={!walletPinSet} trackColor={{ false: palette.border, true: palette.primary }} thumbColor='#fff' />
             </View>
           </View>
 

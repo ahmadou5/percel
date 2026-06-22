@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,10 +13,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX, TrendingUp, DollarSign } from 'lucide-react-native';
+import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX, TrendingUp, DollarSign, Navigation, Pin } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { hexToRgba, useAppPalette } from '@/lib/theme';
+import { Typography } from '@/constants/typography';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
 import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
@@ -44,7 +45,7 @@ function OnlineToggle({ isOnline, onToggle }: { isOnline: boolean; onToggle: () 
     Animated.spring(anim, { toValue: isOnline ? 1 : 0, useNativeDriver: false, damping: 15, stiffness: 150 }).start();
   }, [isOnline]);
 
-  const trackColor = anim.interpolate({ inputRange: [0, 1], outputRange: ['#334155', palette.primary] });
+  const trackColor = anim.interpolate({ inputRange: [0, 1], outputRange: [palette.border, palette.primary] });
   const thumbX = anim.interpolate({ inputRange: [0, 1], outputRange: [3, 27] });
 
   return (
@@ -56,13 +57,69 @@ function OnlineToggle({ isOnline, onToggle }: { isOnline: boolean; onToggle: () 
   );
 }
 
-function StatCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
+function PulseDot({ isOnline }: { isOnline: boolean }) {
+  const pulseAnim = useRef(new Animated.Value(0)).current;
   const palette = useAppPalette();
+
+  useEffect(() => {
+    if (!isOnline) {
+      pulseAnim.setValue(0);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [isOnline]);
+
+  const dotColor = isOnline ? '#30D158' : palette.border;
+
   return (
-    <View style={[styles.statCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-      <View style={[styles.statIcon, { backgroundColor: palette.primaryDark}]}>{icon}</View>
-      <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: palette.textSecondary }]}>{label}</Text>
+    <View style={{ width: 14, height: 14, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      {isOnline && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            backgroundColor: '#30D158',
+            opacity: pulseAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.5, 0],
+            }),
+            transform: [
+              {
+                scale: pulseAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 2.2],
+                }),
+              },
+            ],
+          }}
+        />
+      )}
+      <View
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: dotColor,
+        }}
+      />
     </View>
   );
 }
@@ -83,12 +140,12 @@ export default function DriverHomeScreen() {
   const queryClient = useQueryClient();
 
   const wallet = walletQuery.data ?? demoWallet;
-  
+
   const todayDateStr = new Date().toDateString();
   const todaysTx = wallet.transactions.filter(
     (tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT' && new Date(tx.createdAt).toDateString() === todayDateStr
   );
-  
+
   const earningsToday = todaysTx.reduce((sum, tx) => sum + Number(tx.amount), 0);
   const deliveriesToday = todaysTx.length;
 
@@ -104,7 +161,6 @@ export default function DriverHomeScreen() {
 
     const unsub1 = subscribeDriverSocket('new_order_available', (payload: Partial<DriverOrder> & { orderId?: string }) => {
       invalidate();
-      // Use real order data from the socket payload; fall back to demo only if no order fields present
       const order: DriverOrder = {
         id: payload.orderId ?? payload.id ?? demoOrders[0].id,
         trackingCode: payload.trackingCode ?? 'TRK-NEW',
@@ -161,15 +217,11 @@ export default function DriverHomeScreen() {
     const lat = driver?.currentLocation?.lat ?? 6.5244;
     const lng = driver?.currentLocation?.lng ?? 3.3792;
 
-    // Optimistic local update for instant UI feedback
     await setOnlineStatus(next);
 
     try {
-      // This is the critical step — sync the state to the DB so the order
-      // matching worker can find this driver as a candidate
       await toggleOnlineStatus.mutateAsync({ isOnline: next, lat, lng });
     } catch (error: unknown) {
-      // onError in the hook reverts the optimistic update
       const msg = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'Failed to update online status.';
       Alert.alert('Status Update Failed', msg);
     }
@@ -181,16 +233,14 @@ export default function DriverHomeScreen() {
     });
   };
 
-  const acceptIncoming = async () => {
-    if (!incomingOrder) return;
+  const acceptIncoming = async (orderId?: string) => {
+    const id = orderId ?? incomingOrder?.id;
+    if (!id) return;
     try {
-      // mutateAsync returns { accepted, order } from the API
-      await acceptOrder.mutateAsync(incomingOrder.id);
-      // setCurrentOrder is called inside useAcceptOrder.onSuccess with the real order data
+      await acceptOrder.mutateAsync(id);
       setIncomingOrder(null);
       setSheetVisible(false);
     } catch (error) {
-      // Keep the sheet visible so driver can retry
       console.error('[acceptIncoming] failed:', error);
     }
   };
@@ -204,6 +254,21 @@ export default function DriverHomeScreen() {
 
   const isLoading = walletQuery.isLoading && !wallet;
 
+  // Derived human-readable location label
+  const locationLabel = useMemo(() => {
+    if (!driver?.currentLocation) return 'Locating...';
+    const lat = driver.currentLocation.lat;
+    const lng = driver.currentLocation.lng;
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lngDir = lng >= 0 ? 'E' : 'W';
+    
+    // Check if within Lagos region
+    const isLagos = Math.abs(lat - 6.5244) < 0.2 && Math.abs(lng - 3.3792) < 0.2;
+    const citySuffix = isLagos ? ' (Lagos)' : '';
+    
+    return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}${citySuffix}`;
+  }, [driver?.currentLocation]);
+
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
       <ScrollView
@@ -213,79 +278,104 @@ export default function DriverHomeScreen() {
       >
         {/* ── Header ─────────────────────────────────────────── */}
         <View style={styles.topRow}>
-          <Pressable style={styles.profileRow} onPress={() => router.push('/(tabs)/profile')}>
-            <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
+          {/* Location context — mirrors image's "Live Location" header signal */}
+          <View style={styles.locationRow}>
+            <PulseDot isOnline={isOnline} />
+            <View style={{ gap: 2 }}>
+              <Text style={[styles.locationEye, { color: palette.textSecondary, marginLeft: 16 }]}>Live Location</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <MapPin size={12} color={palette.primary} />
+                <Text style={[styles.locationText, { color: palette.text }]} numberOfLines={1}>
+                  {locationLabel}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerRight}>
+            {/* Avatar */}
+            <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.avatar, { backgroundColor: palette.primary }]}>
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
               ) : (
                 <Text style={styles.avatarText}>{initialsFrom(user?.fullName ?? 'Driver')}</Text>
               )}
-            </View>
-            <View>
-              <Text style={[styles.greeting, { color: palette.textSecondary }]}>Good shift 👋</Text>
-              <Text style={[styles.userName, { color: palette.text }]}>{user?.fullName ?? 'Driver'}</Text>
-            </View>
-          </Pressable>
-          <View style={styles.headerRight}>
+            </Pressable>
             <Pressable onPress={() => router.push('/(tabs)/notifications')} style={[styles.bellBtn, { borderColor: palette.border, backgroundColor: palette.card }]}>
               <Bell size={18} color={palette.text} />
             </Pressable>
           </View>
         </View>
 
-        {/* ── Online hero card ───────────────────────────────── */}
+        {/* ── MERGED HERO CARD: online toggle + earnings + stats ── */}
+        {/* Concept change: one unified card instead of hero + stat chips + wallet card */}
         <View style={[styles.heroCard, { backgroundColor: isOnline ? palette.primary : palette.card, borderColor: isOnline ? 'transparent' : palette.border }]}>
           <View style={styles.heroDecorA} />
           <View style={styles.heroDecorB} />
-          <View style={styles.heroInner}>
-            <View style={styles.heroText}>
-              <Text style={[styles.heroEye, { color: isOnline ? 'rgba(255,255,255,0.72)' : palette.textSecondary }]}>
-                {isOnline ? 'You are live' : 'You are offline'}
+
+          {/* Top row: status label + toggle */}
+          <View style={styles.heroTopRow}>
+            <View>
+              <Text style={[styles.heroEye, { color: isOnline ? 'rgba(255,255,255,0.65)' : palette.textSecondary }]}>
+                {isOnline ? 'Open to any delivery' : 'You are offline'}
               </Text>
-              <Text style={[styles.heroTitle, { color: isOnline ? '#fff' : palette.text }]}>
-                {isOnline ? 'Accepting orders' : 'Go online to start'}
+              <Text style={[styles.heroStatusText, { color: isOnline ? '#fff' : palette.text }]}>
+                {'Delivery Status'}
               </Text>
             </View>
             <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
           </View>
-          <View style={styles.heroMeta}>
-            <View style={[styles.heroPill, { backgroundColor: isOnline ? 'rgba(255,255,255,0.15)' : hexToRgba(palette.primary, 0.12) }]}>
-              <View style={[styles.statusDot, { backgroundColor: isOnline ? '#30D158' : '#FF453A' }]} />
-              <Text style={[styles.heroPillText, { color: isOnline ? '#fff' : palette.primary }]}>
-                {driver?.vehicleType ?? 'Vehicle'} • {driver?.vehiclePlate ?? '---'}
-              </Text>
-            </View>
+
+          {/* DOMINANT earnings figure — the visual anchor of the whole card */}
+          <View style={styles.earningsBlock}>
+            <Text style={[styles.earningsLabel, { color: isOnline ? 'rgba(255,255,255,0.65)' : palette.textSecondary }]}>
+              Today's Earnings
+            </Text>
+            <Text style={[styles.earningsValue, { color: isOnline ? '#fff' : palette.text }]}>
+              {isLoading ? '---' : formatNaira(earningsToday)}
+            </Text>
+            <Text style={[styles.driverName, { color: isOnline ? 'rgba(255,255,255,0.8)' : palette.textSecondary }]}>
+              {user?.fullName ?? 'Driver'}
+            </Text>
+          </View>
+
+          {/* Sub-stats row at the bottom of the card 
+          <View style={[styles.heroStatRow, { borderTopColor: isOnline ? 'rgba(255,255,255,0.15)' : palette.border }]}>
+            {[
+              { label: 'Deliveries', value: isLoading ? '--' : String(deliveriesToday) },
+              { label: 'Rating', value: driver?.rating != null ? driver.rating.toFixed(1) : '---' },
+              { label: 'Balance', value: isLoading ? '---' : formatNaira(wallet.balance) },
+            ].map(({ label, value }, i, arr) => (
+              <View
+                key={label}
+                style={[
+                  styles.heroStat,
+                  i < arr.length - 1 && {
+                    borderRightWidth: 1,
+                    borderRightColor: isOnline ? 'rgba(255,255,255,0.15)' : palette.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.heroStatValue, { color: isOnline ? '#fff' : palette.text }]}>{value}</Text>
+                <Text style={[styles.heroStatLabel, { color: isOnline ? 'rgba(255,255,255,0.6)' : palette.textSecondary }]}>{label}</Text>
+              </View>
+            ))}
+          </View>*/}
+
+          {/* Vehicle pill */}
+          <View style={[styles.heroPill, { backgroundColor: isOnline ? 'rgba(255,255,255,0.15)' : hexToRgba(palette.primary, 0.12) }]}>
+            <View style={[styles.statusDot, { backgroundColor: isOnline ? '#30D158' : '#FF453A' }]} />
+            <Text style={[styles.heroPillText, { color: isOnline ? '#fff' : palette.primary }]}>
+              {driver?.vehicleType ?? 'Vehicle'} • {driver?.vehiclePlate ?? '---'}
+            </Text>
           </View>
         </View>
 
-        {/* ── Stat chips ─────────────────────────────────────── */}
-        <View style={styles.statRow}>
-          <StatCard
-            label="Today's earnings"
-            value={isLoading ? '---' : formatNaira(earningsToday)}
-            icon={<DollarSign size={18} color="#30D158" />}
-            color="#30D158"
-          />
-          <StatCard
-            label="Deliveries"
-            value={isLoading ? '--' : String(deliveriesToday)}
-            icon={<Package size={18} color={palette.primary} />}
-            color={palette.primary}
-          />
-          <StatCard
-            label="Rating"
-            value={driver?.rating != null ? driver.rating.toFixed(1) : '---'}
-            icon={<TrendingUp size={18} color="#FFD60A" />}
-            color="#FFD60A"
-          />
-        </View>
-
-        {/* ── Wallet snapshot ────────────────────────────────── */}
-        <DriverWalletCard balance={wallet.balance} isLoading={isLoading} isOnline={isOnline} onToggleOnline={toggleOnline} />
-
-        {/* ── Current order ──────────────────────────────────── */}
+        {/* ── Current / Available orders ──────────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Current order</Text>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>
+            {currentOrder ? 'Current order' : 'Available jobs'}
+          </Text>
           {currentOrder && (
             <View style={[styles.activeBadge, { backgroundColor: hexToRgba(palette.primary, 0.14) }]}>
               <View style={[styles.statusDot, { backgroundColor: palette.primary }]} />
@@ -295,11 +385,12 @@ export default function DriverHomeScreen() {
         </View>
 
         {currentOrder ? (
+          // Confirmed order — solid border, chevron to navigate
           <Pressable
             onPress={() => router.push('/(tabs)/active')}
             style={[styles.orderCard, { backgroundColor: palette.card, borderColor: palette.border }]}
           >
-            <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+            <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primaryDark, 0.12) }]}>
               <Package size={22} color={palette.primary} />
             </View>
             <View style={styles.orderBody}>
@@ -311,15 +402,13 @@ export default function DriverHomeScreen() {
                 </Text>
               </View>
               <View style={styles.orderTags}>
-                <View style={[styles.tag, { backgroundColor: hexToRgba('#FFD60A', 0.14) }]}>
-                  <Text style={[styles.tagText, { color: '#FFD60A' }]}>{formatNaira(currentOrder.price)}</Text>
+                <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primaryDark, 0.14) }]}>
+                  <Text style={[styles.tagText, { color: palette.primary }]}>{formatNaira(currentOrder.price)}</Text>
                 </View>
                 <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
                   <Text style={[styles.tagText, { color: palette.primary }]}>{currentOrder.distanceKm.toFixed(1)} km</Text>
                 </View>
-                <View style={[styles.tag, { backgroundColor: hexToRgba('#30D158', 0.12) }]}>
-                  <Text style={[styles.tagText, { color: '#30D158' }]}>{currentOrder.size}</Text>
-                </View>
+               
               </View>
             </View>
             <ChevronRight size={18} color={palette.textSecondary} />
@@ -329,41 +418,60 @@ export default function DriverHomeScreen() {
             {ordersQuery.data && ordersQuery.data.length > 0 ? (
               <View style={styles.list}>
                 {ordersQuery.data.map((item) => (
-                  <Pressable
+                  // Concept change: dashed border signals "pending/available, not yet accepted"
+                  // Concept change: inline accept/decline buttons — no modal needed for browsing
+                  <View
                     key={item.id}
-                    onPress={() => {
-                      setIncomingOrder(item);
-                      setSheetVisible(true);
-                      setCountdown(30);
-                      translateY.setValue(320);
-                      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
-                    }}
-                    style={[styles.orderCard, { backgroundColor: palette.card, borderColor: palette.border }]}
+                    style={[styles.orderCard, styles.orderCardDashed, { backgroundColor: palette.card, borderColor: palette.border }]}
                   >
-                    <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
-                      <Package size={22} color={palette.primary} />
-                    </View>
-                    <View style={styles.orderBody}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[styles.orderCode, { color: palette.text }]}>{item.trackingCode}</Text>
-                        <Text style={[styles.tagText, { color: palette.primary, fontWeight: '800' }]}>TAP TO VIEW</Text>
+                    <View style={styles.orderCardTop}>
+                      <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+                        <Package size={22} color={palette.primary} />
                       </View>
-                      <View style={styles.orderMeta}>
-                        <MapPin size={12} color={palette.textSecondary} />
-                        <Text style={[styles.orderRoute, { color: palette.textSecondary }]} numberOfLines={1}>
-                          {item.pickupFormattedAddress} → {item.deliveryFormattedAddress}
-                        </Text>
-                      </View>
-                      <View style={styles.orderTags}>
-                        <View style={[styles.tag, { backgroundColor: hexToRgba('#FFD60A', 0.14) }]}>
+                      <View style={styles.orderBody}>
+                        <View style={styles.orderTopRow}>
+                          <Text style={[styles.orderCode, { color: palette.text }]}>{item.trackingCode}</Text>
+                          {/* Concept change: distance badge floats right, visually detached */}
+                          <View style={[styles.distanceBadge, { backgroundColor: palette.primary }]}>
+                            <Text style={styles.distanceBadgeText}>{item.distanceKm.toFixed(1)} KM</Text>
+                          </View>
+                        </View>
+                        <View style={styles.orderMeta}>
+                          <MapPin size={12} color={palette.textSecondary} />
+                          <Text style={[styles.orderRoute, { color: palette.textSecondary }]} numberOfLines={1}>
+                            {item.pickupFormattedAddress} → {item.deliveryFormattedAddress}
+                          </Text>
+                        </View>
+                        <View style={[styles.tag, { backgroundColor: hexToRgba('#FFD60A', 0.14), alignSelf: 'flex-start' }]}>
                           <Text style={[styles.tagText, { color: '#FFD60A' }]}>{formatNaira(item.price)}</Text>
                         </View>
-                        <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
-                          <Text style={[styles.tagText, { color: palette.primary }]}>{item.distanceKm.toFixed(1)} km</Text>
-                        </View>
                       </View>
                     </View>
-                  </Pressable>
+
+                    {/* Concept change: inline actions directly on the card */}
+                    <View style={[styles.inlineActions, { borderTopColor: palette.border }]}>
+                      <Pressable
+                        onPress={() => {
+                          emitDriverEvent('order_status_update', { orderId: item.id, status: 'CANCELLED' });
+                          void queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+                        }}
+                        style={[styles.inlineBtn, { borderColor: palette.border, borderBottomLeftRadius: 23 }]}
+                      >
+                        <Text style={[styles.inlineBtnText, { color: palette.textSecondary }]}>Decline</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => void acceptIncoming(item.id)}
+                        disabled={acceptOrder.isPending}
+                        style={[styles.inlineBtn, styles.inlineBtnPrimary, { backgroundColor: palette.primary, borderBottomRightRadius: 23 }]}
+                      >
+                        {acceptOrder.isPending ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <Text style={[styles.inlineBtnText, { color: '#fff' }]}>Accept</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
                 ))}
               </View>
             ) : (
@@ -382,7 +490,9 @@ export default function DriverHomeScreen() {
                   {isOnline ? 'Scanning for orders...' : 'You are offline'}
                 </Text>
                 <Text style={[styles.emptyStateBody, { color: palette.textSecondary }]}>
-                  {isOnline ? 'Stay in high-demand areas to get matched with delivery requests faster.' : 'Go online to start receiving and accepting delivery requests.'}
+                  {isOnline
+                    ? 'Stay in high-demand areas to get matched with delivery requests faster.'
+                    : 'Go online to start receiving and accepting delivery requests.'}
                 </Text>
               </View>
             )}
@@ -390,7 +500,7 @@ export default function DriverHomeScreen() {
         )}
       </ScrollView>
 
-      {/* ── Incoming order bottom sheet ──────────────────────── */}
+      {/* ── Incoming order bottom sheet (socket push only) ───── */}
       <Modal visible={sheetVisible} transparent animationType="fade" onRequestClose={declineOrder}>
         <View style={styles.backdrop}>
           <Animated.View style={[styles.sheet, { backgroundColor: palette.card, transform: [{ translateY }] }]}>
@@ -428,7 +538,7 @@ export default function DriverHomeScreen() {
                 <Text style={[styles.sheetBtnText, { color: palette.text }]}>Decline</Text>
               </Pressable>
               <Pressable
-                onPress={acceptIncoming}
+                onPress={() => void acceptIncoming()}
                 disabled={acceptOrder.isPending}
                 style={[styles.sheetBtn, styles.sheetBtnPrimary, { backgroundColor: palette.primary }]}
               >
@@ -452,26 +562,38 @@ const styles = StyleSheet.create({
 
   // header
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  locationDot: { width: 8, height: 8, borderRadius: 4 },
+  locationEye: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0, fontFamily: Typography.family.semibold },
+  locationText: { fontSize: 13, fontFamily: Typography.family.bold },
+  headerRight: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImg: { width: '100%', height: '100%' },
-  avatarText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  greeting: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600' },
-  userName: { fontSize: 18, fontWeight: '800' },
-  headerRight: { flexDirection: 'row', gap: 10 },
+  avatarText: { color: '#fff', fontSize: 16, fontFamily: Typography.family.bold },
   bellBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
 
-  // hero online card
-  heroCard: { borderRadius: 32, borderWidth: 1, padding: 24, gap: 12, overflow: 'hidden' },
+  // merged hero card
+  heroCard: { borderRadius: 32, borderWidth: 1, padding: 24, gap: 16, overflow: 'hidden' },
   heroDecorA: { position: 'absolute', top: -40, right: -20, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.07)' },
   heroDecorB: { position: 'absolute', bottom: -50, left: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.04)' },
-  heroInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 },
-  heroText: { gap: 4 },
-  heroEye: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600' },
-  heroTitle: { fontSize: 22, fontWeight: '800' },
-  heroMeta: { zIndex: 1 },
-  heroPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, alignSelf: 'flex-start' },
-  heroPillText: { fontSize: 13, fontWeight: '600' },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 },
+  heroEye: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0, fontFamily: Typography.family.semibold },
+  heroStatusText: { fontSize: 15, fontFamily: Typography.family.bold, marginTop: 2 },
+
+  // dominant earnings block
+  earningsBlock: { zIndex: 1, gap: 2 },
+  earningsLabel: { fontSize: 13, fontFamily: Typography.family.semibold, letterSpacing: 0 },
+  earningsValue: { fontSize: 42, fontFamily: Typography.family.bold, letterSpacing: -1, lineHeight: 48 },
+  driverName: { fontSize: 15, fontFamily: Typography.family.semibold, marginTop: 2 },
+
+  // sub-stats row
+  heroStatRow: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 16, zIndex: 1 },
+  heroStat: { flex: 1, alignItems: 'center', gap: 3 },
+  heroStatValue: { fontSize: 18, fontFamily: Typography.family.bold },
+  heroStatLabel: { fontSize: 11, fontFamily: Typography.family.semibold, textTransform: 'uppercase', letterSpacing: 0 },
+
+  heroPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, alignSelf: 'flex-start', zIndex: 1 },
+  heroPillText: { fontSize: 13, fontFamily: Typography.family.semibold },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
 
   // toggle
@@ -479,54 +601,62 @@ const styles = StyleSheet.create({
   track: { width: 52, height: 28, borderRadius: 14, justifyContent: 'center' },
   thumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 3 },
 
-  // stats
-  statRow: { flexDirection: 'row', gap: 12 },
-  statCard: { flex: 1, borderRadius: 24, borderWidth: 1, padding: 20, gap: 8, alignItems: 'flex-start' },
-  statIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 20, fontWeight: '800', marginTop: 4 },
-  statLabel: { fontSize: 12, fontWeight: '600', lineHeight: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
-
   // section
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 17, fontWeight: '800' },
+  sectionTitle: { fontSize: 17, fontFamily: Typography.family.bold },
   activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  activeBadgeText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  activeBadgeText: { fontSize: 12, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0 },
 
-  // order card
-  orderCard: { borderRadius: 24, borderWidth: 1, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  // order card — solid (confirmed)
+  orderCard: { borderRadius: 24, borderWidth: 1, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 16, overflow: 'hidden' },
+  // dashed variant for available/pending orders
+  orderCardDashed: { flexDirection: 'column', borderStyle: 'dashed', padding: 0, gap: 0, overflow: 'hidden' },
+  orderCardTop: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 10 },
+  orderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+
   orderIconWrap: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   orderBody: { flex: 1, gap: 6 },
-  orderCode: { fontSize: 18, fontWeight: '800' },
+  orderCode: { fontSize: 14, fontFamily: Typography.family.bold },
   orderMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  orderRoute: { fontSize: 13, flex: 1 },
+  orderRoute: { fontSize: 13, flex: 1, fontFamily: Typography.family.regular },
   orderTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  tagText: { fontSize: 12, fontWeight: '700' },
+  tagText: { fontSize: 12, fontFamily: Typography.family.bold },
+
+  // detached distance badge — floats right in card header
+  distanceBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  distanceBadgeText: { color: '#fff', fontSize: 12, fontFamily: Typography.family.bold },
+
+  // inline accept/decline actions (replaces modal for list browsing)
+  inlineActions: { flexDirection: 'row', borderTopWidth: 1, gap: 0 },
+  inlineBtn: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 0 },
+  inlineBtnPrimary: {},
+  inlineBtnText: { fontSize: 14, fontFamily: Typography.family.bold },
 
   // empty state
   emptyStateCard: { borderRadius: 24, borderWidth: 1, padding: 32, alignItems: 'center', gap: 12, overflow: 'hidden' },
   emptyStateIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center', marginBottom: 8, position: 'relative' },
   radarPing: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 1, opacity: 0.2 },
-  emptyStateTitle: { fontSize: 18, fontWeight: '800' },
-  emptyStateBody: { fontSize: 14, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
+  emptyStateTitle: { fontSize: 18, fontFamily: Typography.family.bold },
+  emptyStateBody: { fontSize: 14, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 22, maxWidth: 260 },
 
-  // bottom sheet
+  // bottom sheet (socket push — urgent interrupt)
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
   sheet: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 20, paddingBottom: 36, gap: 14 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
   sheetBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' },
-  sheetBadgeText: { color: '#FFD60A', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
-  sheetCode: { fontSize: 26, fontWeight: '800' },
+  sheetBadgeText: { color: '#FFD60A', fontSize: 12, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0 },
+  sheetCode: { fontSize: 26, fontFamily: Typography.family.bold },
   sheetMetaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  sheetRoute: { fontSize: 13, lineHeight: 19, flex: 1 },
+  sheetRoute: { fontSize: 13, fontFamily: Typography.family.regular, lineHeight: 19, flex: 1 },
   sheetStats: { flexDirection: 'row', gap: 10 },
   sheetStat: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 12, gap: 4, alignItems: 'center' },
-  sheetStatValue: { fontSize: 16, fontWeight: '800' },
-  sheetStatLabel: { fontSize: 11, fontWeight: '500' },
+  sheetStatValue: { fontSize: 16, fontFamily: Typography.family.bold },
+  sheetStatLabel: { fontSize: 11, fontFamily: Typography.family.medium },
   sheetActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   sheetBtn: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   sheetBtnPrimary: { shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
-  sheetBtnText: { fontSize: 16, fontWeight: '800' },
+  sheetBtnText: { fontSize: 16, fontFamily: Typography.family.bold },
   list: { gap: 12 },
   availableSection: { gap: 12 },
 });

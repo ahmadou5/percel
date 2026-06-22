@@ -46,7 +46,7 @@
 | `apps/user/app/(tabs)/send/index.tsx` | Shipment entry screen for pickup/delivery address input. |
 | `apps/user/app/(tabs)/send/package.tsx` | Package details step with size, fragile toggle, items, and notes. |
 | `apps/user/app/(tabs)/send/quote.tsx` | Quote review and payment confirmation for a shipment. |
-| `apps/user/app/(tabs)/send/tracking/[id].tsx` | Live shipment tracking screen with status updates and confirmation. |
+| `apps/user/app/(tabs)/send/tracking/[id].tsx` | Full-screen live shipment tracking map with route polyline, floating header, bottom tracking sheet, status fallback, and delivery confirmation/rating handoff. |
 | `apps/user/app/(tabs)/orders/_layout.tsx` | Stack shell for order list/detail/rating routes. |
 | `apps/user/app/(tabs)/orders/index.tsx` | Orders list with active/past tabs and order cards. |
 | `apps/user/app/(tabs)/orders/[id].tsx` | Order detail with route, driver, items, and status timeline. |

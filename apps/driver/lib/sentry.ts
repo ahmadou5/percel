@@ -17,4 +17,8 @@ export function initSentry() {
   initialized = true;
 }
 
+export function isSentryInitialized() {
+  return initialized;
+}
+
 export { Sentry };

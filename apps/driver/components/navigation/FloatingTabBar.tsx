@@ -2,11 +2,9 @@ import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { usePathname, useRouter } from 'expo-router';
 import {
   House,
-  MapPin,
   ClipboardList,
-  TrendingUp,
-  User,
   Settings,
+  BadgeDollarSign,
 } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -49,15 +47,13 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home',     label: 'Home',     Icon: House,          routeName: 'home',     href: '/(tabs)/home' },
-  { key: 'active',   label: 'Active',   Icon: MapPin,         routeName: 'active',   href: '/(tabs)/active' },
   { key: 'history',  label: 'History',  Icon: ClipboardList,  routeName: 'history',  href: '/(tabs)/history' },
-  { key: 'earnings', label: 'Earnings', Icon: TrendingUp,     routeName: 'earnings', href: '/(tabs)/earnings' },
-  { key: 'profile',  label: 'Profile',  Icon: User,           routeName: 'profile',  href: '/(tabs)/profile' },
+  { key: 'earnings', label: 'Earnings', Icon: BadgeDollarSign,     routeName: 'earnings', href: '/(tabs)/earnings' },
   { key: 'settings', label: 'Settings', Icon: Settings,       routeName: 'settings', href: '/(tabs)/settings' },
 ];
 
 const PILL_HEIGHT = 56;
-const ACTIVE_PILL_WIDTH = 56; // icon-only pill, expands slightly
+const ACTIVE_PILL_WIDTH = 83; // icon-only pill, expands slightly
 const INACTIVE_ICON_SIZE = 44;
 
 function getFocusKey(pathname: string) {

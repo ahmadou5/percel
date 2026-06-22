@@ -1,54 +1,50 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, MapPin, Package, Phone } from 'lucide-react-native';
-import { useEffect } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronLeft, Package, RefreshCw, Share2 } from 'lucide-react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { DriverCard } from '@/components/order/DriverCard';
+import { DeliveryRouteMap } from '@/components/order/DeliveryRouteMap';
+import { OrderTrackingSheet } from '@/components/order/OrderTrackingSheet';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
+import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useLiveTracking } from '@/hooks/useLiveTracking';
 import { useConfirmDelivery, useOrderDetail } from '@/hooks/useOrder';
 import type { OrderStatus } from '@/lib/order';
 import { subscribeToDriverLocation, subscribeToOrderUpdates } from '@/lib/socket';
 import { useAppPalette } from '@/lib/theme';
+import { haptics } from '@/utils/haptics';
 
-// ─── Status helpers ────────────────────────────────────────────────────────────
-
-function statusLabel(status: OrderStatus): string {
-  const map: Record<OrderStatus, string> = {
-    CREATED: 'Order created',
-    PENDING_MATCH: 'Finding driver',
-    MATCHED: 'Driver matched',
-    ACCEPTED: 'Driver accepted',
-    IN_TRANSIT: 'In transit',
-    DELIVERED: 'Delivered',
-    COMPLETED: 'Completed',
-    CANCELLED: 'Cancelled',
-    DISPUTED: 'Disputed',
-  };
-  return map[status] ?? status;
+function isDelivered(status?: OrderStatus | string) {
+  return status === 'DELIVERED' || status === 'COMPLETED';
 }
 
-function statusColor(status: OrderStatus, primary: string): string {
-  if (['COMPLETED', 'DELIVERED'].includes(status)) return '#30D158';
-  if (status === 'CANCELLED' || status === 'DISPUTED') return '#FF453A';
-  if (status === 'IN_TRANSIT') return primary;
-  return '#FFD60A';
+function canTrack(status?: OrderStatus | string) {
+  return ['IN_TRANSIT', 'ACCEPTED', 'MATCHED'].includes(String(status));
 }
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function TrackingScreen() {
   const router = useRouter();
   const back = useSafeBack('/orders');
+  const insets = useSafeAreaInsets();
   const palette = useAppPalette();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderQuery = useOrderDetail(id);
+  const trackingQuery = useLiveTracking(id);
   const confirmDelivery = useConfirmDelivery();
   const order = orderQuery.data;
+  const tracking = trackingQuery.data;
+  const orderCode = order?.trackingCode ?? `#${id ?? ''}`;
+
+  useEffect(() => {
+    void haptics.tap();
+  }, []);
 
   useEffect(() => {
     if (!order?.id) return;
@@ -56,12 +52,13 @@ export default function TrackingScreen() {
     const unsubscribeStatus = subscribeToOrderUpdates(order.id, async () => {
       await queryClient.invalidateQueries({ queryKey: ['order', id] });
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['tracking', id] });
     });
 
     const driverId = order.driver?.id;
     const unsubscribeLocation = driverId
       ? subscribeToDriverLocation(driverId, async () => {
-          await queryClient.invalidateQueries({ queryKey: ['order', id] });
+          await queryClient.invalidateQueries({ queryKey: ['tracking', id] });
         })
       : undefined;
 
@@ -73,204 +70,137 @@ export default function TrackingScreen() {
 
   useEffect(() => {
     if (order?.status === 'COMPLETED') {
-      router.setParams({});
+      router.replace({ pathname: '/orders/[id]', params: { id: order.id } } as never);
     }
-  }, [order?.status, router]);
+  }, [order?.id, order?.status, router]);
 
-  // ── Loading state ────────────────────────────────────────────────────────
-
-  if (!order) {
+  if (orderQuery.isLoading || !order) {
     return (
-      <View style={[styles.center, { backgroundColor: palette.bg }]}>
-        <View style={[styles.loadingCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Package size={36} color={palette.primary} strokeWidth={1.5} />
-          <Text style={[styles.loadingTitle, { color: palette.text }]}>Loading order…</Text>
-          <Text style={[styles.loadingSubtitle, { color: palette.textSecondary }]}>Fetching your live order details.</Text>
-        </View>
+      <View style={[styles.center, { backgroundColor: palette.bg }]}> 
+        <ActivityIndicator color={palette.primary} size="large" />
+        <Text style={[styles.loadingTitle, { color: palette.text }]}>Loading order...</Text>
+        <Text style={[styles.loadingBody, { color: palette.textSecondary }]}>Fetching live delivery details.</Text>
       </View>
     );
   }
 
-  const status = order.status as OrderStatus;
-  const canConfirm = status === 'DELIVERED';
-  const canRate = status === 'DELIVERED' || status === 'COMPLETED';
-  const pill = statusColor(status, palette.primary);
+  if (isDelivered(order.status) || !canTrack(order.status)) {
+    const canConfirm = order.status === 'DELIVERED';
+    const canRate = isDelivered(order.status);
 
-  // ── Main render ──────────────────────────────────────────────────────────
+    return (
+      <ScrollView style={[styles.fallbackScreen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.fallbackContent}>
+        <Pressable onPress={() => back()} style={[styles.fallbackBack, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <ChevronLeft size={20} color={palette.text} />
+        </Pressable>
+        <View style={[styles.fallbackCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Package size={34} color={palette.primary} />
+          <Text style={[styles.fallbackTitle, { color: palette.text }]}>Live tracking unavailable</Text>
+          <Text style={[styles.fallbackBody, { color: palette.textSecondary }]}>This order is not currently in active transit.</Text>
+        </View>
+        <View style={[styles.fallbackCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Status timeline</Text>
+          <StatusTimeline items={order.statusHistory} />
+        </View>
+        {canConfirm ? (
+          <Pressable
+            onPress={async () => {
+              try {
+                await confirmDelivery.mutateAsync(order.id);
+                router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never);
+              } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to confirm delivery';
+                Alert.alert('Confirm delivery', message);
+              }
+            }}
+            style={[styles.primaryButton, { backgroundColor: palette.primary }]}
+          >
+            <Text style={styles.primaryText}>Confirm Delivery</Text>
+          </Pressable>
+        ) : null}
+        {canRate ? (
+          <Pressable onPress={() => router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never)} style={[styles.secondaryButton, { borderColor: palette.primary }]}> 
+            <Text style={[styles.secondaryText, { color: palette.primary }]}>{order.rating ? 'View Rating' : 'Rate Delivery'}</Text>
+          </Pressable>
+        ) : null}
+      </ScrollView>
+    );
+  }
+
+  const showMap = Platform.OS !== 'web' && tracking;
 
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: palette.bg }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Pressable
-          id="tracking-back-btn"
-          onPress={() => back()}
-          style={({ pressed }) => [
-            styles.backButton,
-            { backgroundColor: palette.card, borderColor: palette.border },
-            pressed ? { opacity: 0.7 } : null,
-          ]}
-        >
-          <ChevronLeft size={20} color={palette.text} strokeWidth={2} />
-        </Pressable>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {/* Hero / map placeholder */}
-      <View style={[styles.mapCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <View style={styles.mapIconWrap}>
-          <MapPin size={28} color={palette.primary} strokeWidth={1.5} />
-        </View>
-        <Text style={[styles.mapTitle, { color: palette.text }]}>Live tracking</Text>
-        <Text style={[styles.mapBody, { color: palette.textSecondary }]}>
-          Map view is coming. Your driver's location updates in real-time via WebSocket.
-        </Text>
-      </View>
-
-      {/* Status pill + tracking code */}
-      <View style={[styles.statusRow, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <View style={[styles.pillWrap, { backgroundColor: `${pill}1A` }]}>
-          <View style={[styles.pillDot, { backgroundColor: pill }]} />
-          <Text style={[styles.pillText, { color: pill }]}>{statusLabel(status)}</Text>
-        </View>
-        <Text style={[styles.code, { color: palette.textSecondary }]}>{order.trackingCode}</Text>
-      </View>
-
-      {/* Driver card */}
-      <DriverCard
-        driver={order.driver}
-        onCall={() => Alert.alert('Call driver', 'Direct calling is wired in the next tracking module release.')}
-      />
-
-      {/* Address summary */}
-      {(order.pickupFormattedAddress || order.deliveryFormattedAddress) && (
-        <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Route summary</Text>
-          {order.pickupFormattedAddress ? (
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: palette.primary }]} />
-              <Text style={[styles.addressText, { color: palette.text }]} numberOfLines={2}>
-                {order.pickupFormattedAddress}
-              </Text>
-            </View>
-          ) : null}
-          {order.deliveryFormattedAddress ? (
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: '#30D158' }]} />
-              <Text style={[styles.addressText, { color: palette.text }]} numberOfLines={2}>
-                {order.deliveryFormattedAddress}
-              </Text>
-            </View>
-          ) : null}
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}> 
+      {showMap ? (
+        <DeliveryRouteMap
+          driverLocation={tracking.current_location}
+          destinationLocation={tracking.destination_location}
+          routeCoordinates={tracking.route_coordinates}
+        />
+      ) : (
+        <View style={[styles.mapFallback, { backgroundColor: palette.bg }]}> 
+          <Package size={36} color={palette.primary} />
+          <Text style={[styles.loadingTitle, { color: palette.text }]}>Map unavailable</Text>
+          <Text style={[styles.loadingBody, { color: palette.textSecondary }]}>Showing tracking details without the native map.</Text>
         </View>
       )}
 
-      {/* Timeline */}
-      <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Status timeline</Text>
-        <StatusTimeline items={order.statusHistory} />
-      </View>
+      <LinearGradient colors={[Colors.dark.bg, 'transparent']} style={[styles.headerGradient, { paddingTop: insets.top + Spacing.sm }]}> 
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => back()} style={[styles.headerButton, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+            <ChevronLeft size={20} color={palette.text} />
+            <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: Colors.dark.text }]} numberOfLines={1}>{orderCode}</Text>
+          <Pressable
+            onPress={() => void Share.share({ message: `Track my Percel order ${orderCode}` })}
+            style={[styles.shareButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+          >
+            <Share2 size={18} color={palette.text} />
+          </Pressable>
+        </View>
+      </LinearGradient>
 
-      {/* Actions */}
-      {canConfirm && (
-        <Pressable
-          id="confirm-delivery-btn"
-          onPress={async () => {
-            try {
-              await confirmDelivery.mutateAsync(order.id);
-              router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Unable to confirm delivery';
-              Alert.alert('Confirm delivery', message);
-            }
-          }}
-          style={({ pressed }) => [
-            styles.primary,
-            { backgroundColor: palette.primary },
-            pressed ? { opacity: 0.88 } : null,
-          ]}
-        >
-          <Text style={styles.primaryText}>Confirm Delivery</Text>
-        </Pressable>
-      )}
+      {trackingQuery.isError ? (
+        <View style={[styles.errorBanner, { backgroundColor: palette.card, borderColor: palette.error }]}> 
+          <Text style={[styles.errorText, { color: palette.text }]}>Connection issue. Live location may be stale.</Text>
+          <Pressable onPress={() => void trackingQuery.refetch()} style={styles.retryInline}>
+            <RefreshCw size={14} color={palette.primary} />
+            <Text style={[styles.retryInlineText, { color: palette.primary }]}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-      {canRate && (
-        <Pressable
-          id="rate-delivery-btn"
-          onPress={() => router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never)}
-          style={({ pressed }) => [
-            styles.secondary,
-            { borderColor: palette.primary },
-            pressed ? { opacity: 0.8 } : null,
-          ]}
-        >
-          <Text style={[styles.secondaryText, { color: palette.primary }]}>
-            {order.rating ? 'View Rating' : 'Rate Delivery'}
-          </Text>
-        </Pressable>
-      )}
-
-      {/* Support hint */}
-      <Pressable
-        id="contact-support-btn"
-        onPress={() => Alert.alert('Support', 'In-app support chat is coming soon.')}
-        style={({ pressed }) => [styles.ghostRow, pressed ? { opacity: 0.7 } : null]}
-      >
-        <Phone size={14} color={palette.textSecondary} strokeWidth={1.5} />
-        <Text style={[styles.ghostText, { color: palette.textSecondary }]}>Need help with this order?</Text>
-      </Pressable>
-    </ScrollView>
+      {tracking ? <OrderTrackingSheet data={tracking} orderCode={orderCode} /> : null}
+    </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
-
-  // Header
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerSpacer: { width: 42 },
-  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-
-  // Loading
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  loadingCard: { alignItems: 'center', gap: Spacing.md, borderRadius: 24, borderWidth: 1, padding: Spacing.xl, width: '100%' },
-  loadingTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  loadingSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center' },
-
-  // Map placeholder
-  mapCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.xl, minHeight: 180, justifyContent: 'flex-end', gap: 6 },
-  mapIconWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mapTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  mapBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
-
-  // Status pill row
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 20, borderWidth: 1, padding: Spacing.md },
-  pillWrap: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: 999 },
-  pillDot: { width: 7, height: 7, borderRadius: 4 },
-  pillText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  code: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-
-  // Address + timeline section
-  sectionCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm },
+  loadingTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
+  loadingBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20 },
+  headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
+  headerButton: { height: 42, borderRadius: 21, borderWidth: 1, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  backText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  shareButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  errorBanner: { position: 'absolute', top: 116, left: Spacing.lg, right: Spacing.lg, borderWidth: 1, borderRadius: 16, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  errorText: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  retryInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  retryInlineText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  mapFallback: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm },
+  fallbackScreen: { flex: 1 },
+  fallbackContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl, gap: Spacing.lg },
+  fallbackBack: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  fallbackCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  fallbackTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  fallbackBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular, lineHeight: 20 },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 1.1, fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, flexShrink: 0 },
-  addressText: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.regular, lineHeight: 20 },
-
-  // Primary / secondary buttons
-  primary: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
-  secondary: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, backgroundColor: 'transparent' },
+  primaryButton: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: Colors.dark.text, fontSize: Typography.md, fontFamily: Typography.family.bold },
+  secondaryButton: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   secondaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-
-  // Ghost support row
-  ghostRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm },
-  ghostText: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
 });

@@ -1,14 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, CircleArrowRight, MapPin, Package, ShieldCheck } from 'lucide-react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { DriverCard } from '@/components/order/DriverCard';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrderDetail } from '@/hooks/useOrder';
 import { useAppPalette } from '@/lib/theme';
-import { useSafeBack } from '@/components/navigation/useSafeBack';
 
 function getStatusConfig(status: string) {
   const s = status.toUpperCase();
@@ -59,6 +59,7 @@ export default function OrderDetailScreen() {
   }
 
   const isDone = order.status === 'DELIVERED' || order.status === 'COMPLETED';
+  const isActiveDelivery = order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED';
   const statusConfig = getStatusConfig(order.status);
 
   return (
@@ -169,6 +170,19 @@ export default function OrderDetailScreen() {
         <StatusTimeline items={order.statusHistory} />
       </View>
 
+      {isActiveDelivery ? (
+        <Pressable
+          onPress={() => router.push({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never)}
+          style={({ pressed }) => [
+            styles.trackButton,
+            { backgroundColor: palette.primary },
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          <Text style={styles.trackButtonText}>Track Live</Text>
+        </Pressable>
+      ) : null}
+
       {/* Rate CTA */}
       {isDone ? (
         <Pressable
@@ -220,6 +234,8 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 8, borderTopWidth: 1 },
   itemText: { fontSize: Typography.md, fontFamily: Typography.family.medium, flex: 1 },
   itemQty: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  trackButton: { borderRadius: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
+  trackButtonText: { fontSize: Typography.md, fontFamily: Typography.family.bold, color: '#FFFFFF' },
   rateButton: { borderRadius: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
   rateButtonText: { fontSize: Typography.md, fontFamily: Typography.family.bold, color: '#FFFFFF' },
 });

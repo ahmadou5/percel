@@ -4,6 +4,8 @@ import { Alert, StyleSheet } from 'react-native';
 
 import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text } from '@/components/Themed';
+import { Colors } from '@/constants/palette';
+import { Typography } from '@/constants/typography';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
@@ -46,5 +48,5 @@ export default function NinScreen() {
 }
 
 const styles = StyleSheet.create({
-  copy: { color: '#CBD5E1', fontSize: 14, lineHeight: 21 },
+  copy: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular },
 });

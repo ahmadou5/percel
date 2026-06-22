@@ -19,8 +19,8 @@ async function registerPushToken() {
   }
 }
 
-export default function NotificationsSettingsScreen() {
-  const back = useSafeBack('/settings');
+export default function DriverNotificationsSettingsScreen() {
+  const back = useSafeBack('/(tabs)/settings');
   const palette = useAppPalette();
   const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
   const setNotificationsEnabled = usePreferencesStore((state) => state.setNotificationsEnabled);
@@ -58,7 +58,7 @@ export default function NotificationsSettingsScreen() {
 
       await setNotificationsEnabled(true);
       await registerPushToken();
-      Alert.alert('Notifications enabled', 'You will receive delivery updates and payment alerts.');
+      Alert.alert('Notifications enabled', 'You will receive delivery offers, chat updates, and payment alerts.');
     } catch (error) {
       Alert.alert('Could not enable notifications', error instanceof Error ? error.message : 'Please try again.');
     } finally {
@@ -81,8 +81,8 @@ export default function NotificationsSettingsScreen() {
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Test notification',
-          body: 'Delivery updates and payment alerts are active.',
+          title: 'Percel Driver Test',
+          body: 'Delivery requests and chat updates are active.',
         },
         trigger: null,
       });
@@ -105,7 +105,7 @@ export default function NotificationsSettingsScreen() {
 
       <View style={[styles.heroCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
         <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Alerts</Text>
-        <Text style={[styles.heroTitle, { color: palette.text }]}>Choose when the app should ping you about important activity.</Text>
+        <Text style={[styles.heroTitle, { color: palette.text }]}>Choose when the app should ping you about important delivery activity.</Text>
       </View>
 
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
@@ -113,15 +113,15 @@ export default function NotificationsSettingsScreen() {
           <View style={[styles.iconWrap, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.10)' }]}>
             <Bell size={22} color={enabled ? palette.primary : palette.textSecondary} />
           </View>
-          <View style={[styles.badge, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.16)' }]}>
-            <View style={[styles.badgeDot, { backgroundColor: enabled ? '#14B8A6' : palette.textSecondary }]} />
-            <Text style={[styles.badgeText, { color: enabled ? '#14B8A6' : palette.textSecondary }]}>{enabled ? 'Enabled' : 'Disabled'}</Text>
+          <View style={[styles.badge, { backgroundColor: enabled ? 'rgba(48,209,88,0.14)' : 'rgba(148,163,184,0.16)' }]}>
+            <View style={[styles.badgeDot, { backgroundColor: enabled ? palette.success : palette.textSecondary }]} />
+            <Text style={[styles.badgeText, { color: enabled ? palette.success : palette.textSecondary }]}>{enabled ? 'Enabled' : 'Disabled'}</Text>
           </View>
         </View>
 
         <View style={styles.copyBlock}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Push Notifications</Text>
-          <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Get delivery updates, payment alerts, and important security reminders the moment they happen.</Text>
+          <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Get new delivery offers, route changes, support replies, and payout updates instantly.</Text>
         </View>
 
         <View style={styles.actions}>

@@ -1,31 +1,45 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Colors, Spacing, Typography } from '@percel/shared/constants';
 import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, TextInput, View as RNView } from 'react-native';
 
-import { Text, View } from '@/components/Themed';
+import { Text } from '@/components/Themed';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
+import { useAppPalette, hexToRgba } from '@/lib/theme';
 
 export function Screen({ children }: { children: ReactNode }) {
-  return <View style={styles.screen} lightColor={Colors.light.bg} darkColor={Colors.dark.bg}>{children}</View>;
+  const palette = useAppPalette();
+  return (
+    <RNView style={[styles.screen, { backgroundColor: palette.bg }]}>
+      {children}
+    </RNView>
+  );
 }
 
 export function Card({ children, tone = 'surface' }: { children: ReactNode; tone?: 'surface' | 'tint' }) {
+  const palette = useAppPalette();
   return (
-    <View
-      style={[styles.card, tone === 'tint' ? styles.cardTint : null]}
-      lightColor={tone === 'tint' ? '#0F172A' : Colors.light.card}
-      darkColor={tone === 'tint' ? '#0F172A' : Colors.dark.card}
+    <RNView
+      style={[
+        styles.card,
+        {
+          backgroundColor: tone === 'tint' ? hexToRgba(palette.primary, 0.1) : palette.card,
+          borderColor: palette.border,
+        },
+        tone === 'tint' ? styles.cardTint : null,
+      ]}
     >
       {children}
-    </View>
+    </RNView>
   );
 }
 
 export function SectionHeader({ title, caption }: { title: string; caption?: string }) {
+  const palette = useAppPalette();
   return (
     <RNView style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {caption ? <Text style={styles.sectionCaption}>{caption}</Text> : null}
+      <Text style={[styles.sectionTitle, { color: palette.text }]}>{title}</Text>
+      {caption ? <Text style={[styles.sectionCaption, { color: palette.textSecondary }]}>{caption}</Text> : null}
     </RNView>
   );
 }
@@ -37,10 +51,27 @@ export function Pill({
   label: string;
   tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 }) {
+  const palette = useAppPalette();
+  const toneBg = {
+    neutral: hexToRgba(palette.textSecondary, 0.14),
+    success: hexToRgba(palette.success, 0.16),
+    warning: hexToRgba(palette.warning, 0.22),
+    danger: hexToRgba(palette.error, 0.14),
+    info: hexToRgba(palette.primary, 0.12),
+  }[tone];
+
+  const toneText = {
+    neutral: palette.textSecondary,
+    success: palette.success,
+    warning: palette.warning,
+    danger: palette.error,
+    info: palette.primary,
+  }[tone];
+
   return (
-    <View style={[styles.pill, pillTone[tone]]}>
-      <Text style={styles.pillText}>{label}</Text>
-    </View>
+    <RNView style={[styles.pill, { backgroundColor: toneBg }]}>
+      <Text style={[styles.pillText, { color: toneText }]}>{label}</Text>
+    </RNView>
   );
 }
 
@@ -57,6 +88,17 @@ export function ActionButton({
   icon?: ComponentProps<typeof FontAwesome>['name'];
   disabled?: boolean;
 }) {
+  const palette = useAppPalette();
+
+  const variantStyle = {
+    primary: { backgroundColor: palette.primary },
+    secondary: { backgroundColor: palette.primaryDark ?? palette.primary },
+    ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: palette.primary },
+    danger: { backgroundColor: palette.error },
+  }[variant];
+
+  const textColor = variant === 'ghost' ? palette.primary : '#FFFFFF';
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -64,13 +106,13 @@ export function ActionButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        buttonVariant[variant],
+        variantStyle,
         disabled ? styles.buttonDisabled : null,
         pressed && !disabled ? styles.buttonPressed : null,
       ]}
     >
-      {icon ? <FontAwesome name={icon} size={14} color={variant === 'primary' ? '#061423' : '#F8FAFC'} /> : null}
-      <Text style={[styles.buttonText, variant === 'primary' ? styles.buttonTextPrimary : styles.buttonTextLight]}>
+      {icon ? <FontAwesome name={icon} size={14} color={textColor} /> : null}
+      <Text style={[styles.buttonText, { color: textColor }]}>
         {title}
       </Text>
     </Pressable>
@@ -96,56 +138,44 @@ export function InputField({
   multiline?: boolean;
   helperText?: string;
 }) {
+  const palette = useAppPalette();
   return (
-    <View style={styles.inputWrap}>
-      <Text style={styles.inputLabel}>{label}</Text>
+    <RNView style={[styles.inputWrap, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>{label}</Text>
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType={keyboardType}
         multiline={multiline}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={palette.textSecondary}
         secureTextEntry={secureTextEntry}
-        style={[styles.input, multiline ? styles.inputMultiline : null]}
+        style={[styles.input, { color: palette.text }, multiline ? styles.inputMultiline : null]}
         value={value}
         onChangeText={onChangeText}
       />
-      {helperText ? <Text style={styles.inputHelper}>{helperText}</Text> : null}
-    </View>
+      {helperText ? <Text style={[styles.inputHelper, { color: palette.textSecondary }]}>{helperText}</Text> : null}
+    </RNView>
   );
 }
 
 export function StatChip({ label, value }: { label: string; value: string }) {
+  const palette = useAppPalette();
   return (
-    <View style={styles.statChip}>
-      <Text style={styles.statChipLabel}>{label}</Text>
-      <Text style={styles.statChipValue}>{value}</Text>
-    </View>
+    <RNView style={[styles.statChip, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <Text style={[styles.statChipLabel, { color: palette.textSecondary }]}>{label}</Text>
+      <Text style={[styles.statChipValue, { color: palette.text }]}>{value}</Text>
+    </RNView>
   );
 }
-
-const buttonVariant = {
-  primary: { backgroundColor: '#FDE68A' },
-  secondary: { backgroundColor: '#1E293B' },
-  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#334155' },
-  danger: { backgroundColor: '#3F1D1D' },
-} as const;
-
-const pillTone = {
-  neutral: { backgroundColor: '#1E293B' },
-  success: { backgroundColor: '#14432C' },
-  warning: { backgroundColor: '#4C3D08' },
-  danger: { backgroundColor: '#4B1C1C' },
-  info: { backgroundColor: '#12324A' },
-} as const;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   card: {
-    borderRadius: 28,
+    borderRadius: 24,
     padding: Spacing.lg,
     gap: Spacing.md,
+    borderWidth: 1,
   },
   cardTint: {
     shadowColor: '#000',
@@ -159,14 +189,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    color: '#E2E8F0',
     fontSize: Typography.lg,
     fontWeight: Typography.bold,
+    fontFamily: Typography.family.bold,
   },
   sectionCaption: {
-    color: '#94A3B8',
     fontSize: Typography.xs,
     fontWeight: Typography.semibold,
+    fontFamily: Typography.family.semibold,
   },
   pill: {
     alignSelf: 'flex-start',
@@ -175,10 +205,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   pillText: {
-    color: '#F8FAFC',
     fontSize: 11,
     fontWeight: Typography.bold,
-    letterSpacing: 0.6,
+    fontFamily: Typography.family.bold,
+    letterSpacing: 0,
     textTransform: 'uppercase',
   },
   button: {
@@ -195,29 +225,26 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 14,
     fontWeight: Typography.bold,
-    letterSpacing: 0.2,
+    fontFamily: Typography.family.bold,
+    letterSpacing: 0,
   },
-  buttonTextPrimary: { color: '#061423' },
-  buttonTextLight: { color: '#F8FAFC' },
   inputWrap: {
     gap: 8,
-    borderRadius: 20,
+    borderRadius: 18,
     padding: Spacing.lg,
-    backgroundColor: '#0F172A',
     borderWidth: 1,
-    borderColor: '#1F2937',
   },
   inputLabel: {
-    color: '#94A3B8',
     fontSize: 11,
     fontWeight: Typography.bold,
-    letterSpacing: 0.8,
+    fontFamily: Typography.family.bold,
+    letterSpacing: 0,
     textTransform: 'uppercase',
   },
   input: {
-    color: '#F8FAFC',
     fontSize: 15,
     fontWeight: Typography.semibold,
+    fontFamily: Typography.family.semibold,
     minHeight: 22,
   },
   inputMultiline: {
@@ -225,28 +252,26 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputHelper: {
-    color: '#64748B',
     fontSize: 12,
     lineHeight: 17,
+    fontFamily: Typography.family.regular,
   },
   statChip: {
     flex: 1,
     borderRadius: 18,
     padding: Spacing.lg,
-    backgroundColor: '#0F172A',
     borderWidth: 1,
-    borderColor: '#1F2937',
     gap: 4,
   },
   statChipLabel: {
-    color: '#94A3B8',
     fontSize: 11,
     textTransform: 'uppercase',
     fontWeight: Typography.bold,
+    fontFamily: Typography.family.bold,
   },
   statChipValue: {
-    color: '#F8FAFC',
     fontSize: 18,
     fontWeight: Typography.bold,
+    fontFamily: Typography.family.bold,
   },
 });

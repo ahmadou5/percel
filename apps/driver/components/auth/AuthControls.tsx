@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sm,
     fontWeight: Typography.semibold,
     marginBottom: Spacing.xs,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
   },
   inputRow: {
     minHeight: 54,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: Typography.bold,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0,
   },
   errorText: { fontSize: 15, lineHeight: 20, fontWeight: Typography.regular },
   errorAction: { fontWeight: Typography.semibold, alignSelf: 'flex-start' },

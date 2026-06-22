@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { gap: 8 },
-  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 0, textTransform: 'uppercase' },
   title: { fontSize: 28, lineHeight: 34, fontWeight: '900' },
   summaryCard: { borderRadius: 28, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   summaryLabel: { color: 'rgba(255,255,255,0.72)', fontSize: 13, fontWeight: '700' },
