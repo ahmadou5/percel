@@ -11,6 +11,7 @@ import { useAppPalette } from '@/lib/theme';
 
 type Props = {
   driverLocation: TrackingLocation | null;
+  originLocation: TrackingLocation;
   destinationLocation: TrackingLocation;
   routeCoordinates: TrackingLocation[];
 };
@@ -96,7 +97,7 @@ function PulseRing({ color }: { color: string }) {
   );
 }
 
-export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoordinates }: Props) {
+export function DeliveryRouteMap({ driverLocation, originLocation, destinationLocation, routeCoordinates }: Props) {
   const palette = useAppPalette();
   const mapRef = useRef<MapView>(null);
   // Track whether the user has manually moved the map so we don't fight them
@@ -104,14 +105,17 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
   const prevDriverLocation = useRef<TrackingLocation | null>(null);
 
   const points = useMemo(
-    () => (driverLocation ? [driverLocation, destinationLocation] : [destinationLocation]),
-    [destinationLocation, driverLocation],
+    () => {
+      const all = [originLocation, destinationLocation];
+      if (driverLocation) all.push(driverLocation);
+      return all;
+    },
+    [originLocation, destinationLocation, driverLocation],
   );
   const initialRegion = useMemo(() => getRegion(points), [points]); // stable for initialRegion
-  const route = routeCoordinates.length ? routeCoordinates : driverLocation ? [driverLocation, destinationLocation] : [];
+  const route = routeCoordinates.length ? routeCoordinates : [originLocation, destinationLocation];
 
-  // Smoothly re-center on driver when their location changes, but only if user hasn't
-  // manually dragged the map away.
+  // Smoothly follow the driver when location changes (unless user interacted)
   useEffect(() => {
     if (!driverLocation) return;
 
@@ -125,16 +129,11 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
     prevDriverLocation.current = driverLocation;
 
     if (isFirstFix) {
-      // Always center on first fix
-      mapRef.current?.animateToRegion(
-        {
-          latitude: driverLocation.latitude,
-          longitude: driverLocation.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        },
-        800,
-      );
+      // Fit to see everything on start
+      mapRef.current?.fitToCoordinates(points, {
+        edgePadding: { top: 100, right: 50, bottom: 250, left: 50 },
+        animated: true,
+      });
       userInteracted.current = false;
     } else if (moved && !userInteracted.current) {
       // Gently follow the driver when they move
@@ -148,7 +147,7 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
         { duration: 1200 },
       );
     }
-  }, [driverLocation]);
+  }, [driverLocation, points]);
 
   const handleLocateDriver = () => {
     userInteracted.current = false;
@@ -162,6 +161,11 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
         },
         600,
       );
+    } else {
+      mapRef.current?.fitToCoordinates([originLocation, destinationLocation], {
+        edgePadding: { top: 100, right: 50, bottom: 250, left: 50 },
+        animated: true,
+      });
     }
   };
 
@@ -182,7 +186,7 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
           userInteracted.current = true;
         }}
       >
-        {/* Route polyline */}
+        {/* Route polyline from Origin to Destination */}
         {route.length > 1 ? (
           <Polyline
             coordinates={route}
@@ -190,9 +194,28 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
             strokeWidth={4}
             lineCap="round"
             lineJoin="round"
-            lineDashPattern={undefined}
           />
         ) : null}
+
+        {/* Origin Pin */}
+        <Marker coordinate={originLocation} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+          <View style={styles.destinationWrap}>
+            <View style={[styles.originBubble, { backgroundColor: palette.card, borderColor: '#10B981' }]}>
+              <MapPin size={14} color="#10B981" strokeWidth={2.5} />
+            </View>
+            <View style={[styles.destinationStem, { backgroundColor: '#10B981' }]} />
+          </View>
+        </Marker>
+
+        {/* Destination pin */}
+        <Marker coordinate={destinationLocation} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+          <View style={styles.destinationWrap}>
+            <View style={[styles.destinationBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
+              <MapPin size={14} color={palette.primary} strokeWidth={2.5} />
+            </View>
+            <View style={[styles.destinationStem, { backgroundColor: palette.primary }]} />
+          </View>
+        </Marker>
 
         {/* Driver / vehicle marker */}
         {driverLocation ? (
@@ -207,31 +230,19 @@ export function DeliveryRouteMap({ driverLocation, destinationLocation, routeCoo
             </View>
           </Marker>
         ) : null}
-
-        {/* Destination pin */}
-        <Marker coordinate={destinationLocation} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
-          <View style={styles.destinationWrap}>
-            <View style={[styles.destinationBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
-              <MapPin size={14} color={palette.primary} strokeWidth={2.5} />
-            </View>
-            <View style={[styles.destinationStem, { backgroundColor: palette.primary }]} />
-          </View>
-        </Marker>
       </MapView>
 
       {/* Locate driver FAB */}
-      {driverLocation ? (
-        <Pressable
-          onPress={handleLocateDriver}
-          style={({ pressed }) => [
-            styles.locateButton,
-            { backgroundColor: palette.card, borderColor: palette.border },
-            pressed ? { opacity: 0.85 } : null,
-          ]}
-        >
-          <Navigation size={20} color={palette.primary} />
-        </Pressable>
-      ) : null}
+      <Pressable
+        onPress={handleLocateDriver}
+        style={({ pressed }) => [
+          styles.locateButton,
+          { backgroundColor: palette.card, borderColor: palette.border },
+          pressed ? { opacity: 0.85 } : null,
+        ]}
+      >
+        <Navigation size={20} color={palette.primary} />
+      </Pressable>
 
       {/* Searching overlay */}
       {!driverLocation ? (
@@ -275,6 +286,19 @@ const styles = StyleSheet.create({
   // Destination pin
   destinationWrap: {
     alignItems: 'center',
+  },
+  originBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   destinationBubble: {
     width: 36,

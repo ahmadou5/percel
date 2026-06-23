@@ -135,6 +135,7 @@ export default function TrackingScreen() {
       {showMap ? (
         <DeliveryRouteMap
           driverLocation={tracking.current_location}
+          originLocation={tracking.origin_location}
           destinationLocation={tracking.destination_location}
           routeCoordinates={tracking.route_coordinates}
         />

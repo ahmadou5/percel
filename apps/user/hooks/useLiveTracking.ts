@@ -20,6 +20,7 @@ export interface TrackingData {
     phone: string;
   };
   current_location: TrackingLocation | null;
+  origin_location: TrackingLocation;
   destination_location: TrackingLocation;
   route_coordinates: TrackingLocation[];
   origin_hub: string;

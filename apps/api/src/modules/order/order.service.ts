@@ -660,15 +660,13 @@ export class OrderService {
     const driverLat = driver?.currentLat != null ? Number(driver.currentLat) : null;
     const driverLng = driver?.currentLng != null ? Number(driver.currentLng) : null;
 
+    const pickupLat = Number(order.pickupLat);
+    const pickupLng = Number(order.pickupLng);
     const destLat = Number(order.deliveryLat);
     const destLng = Number(order.deliveryLng);
 
-    // Fetch road-following route from driver's current position to destination.
-    // Falls back to straight line internally if the Directions API fails.
-    const routeCoordinates =
-      driverLat != null && driverLng != null
-        ? await getDirectionsRoute(driverLat, driverLng, destLat, destLng)
-        : [];
+    // Fetch road-following route from pickup/origin position to destination.
+    const routeCoordinates = await getDirectionsRoute(pickupLat, pickupLng, destLat, destLng);
 
     // Estimated delivery: use order estimate as a proxy.
     const estimatedMinutes = order.estimatedDurationMin ?? 60;
@@ -685,6 +683,7 @@ export class OrderService {
       current_location: driverLat != null && driverLng != null
         ? { latitude: driverLat, longitude: driverLng }
         : null,
+      origin_location: { latitude: pickupLat, longitude: pickupLng },
       destination_location: { latitude: destLat, longitude: destLng },
       route_coordinates: routeCoordinates,
       origin_hub: order.pickupFormattedAddress,
