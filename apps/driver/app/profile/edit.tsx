@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import { Alert, Image, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Camera, ChevronLeft, ShieldCheck, Truck } from 'lucide-react-native';
 
@@ -60,32 +59,43 @@ export default function EditProfileScreen() {
   };
 
   const changeAvatar = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo access to change your avatar.');
+    let ImagePickerModule;
+    try {
+      ImagePickerModule = require('expo-image-picker');
+    } catch (e) {
+      Alert.alert(
+        'Feature Unavailable',
+        'The image picker native module is not installed in this development build. Please run a new EAS development build to update the app.'
+      );
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    if (!asset?.uri) return;
-
-    const formData = new FormData();
-    formData.append('file', {
-      uri: asset.uri,
-      name: asset.fileName ?? 'avatar.jpg',
-      type: asset.mimeType ?? 'image/jpeg',
-    } as never);
-
     try {
+      const permission = await ImagePickerModule.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission required', 'Allow photo access to change your avatar.');
+        return;
+      }
+
+      const result = await ImagePickerModule.launchImageLibraryAsync({
+        mediaTypes: ImagePickerModule.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) return;
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName ?? 'avatar.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      } as never);
+
       await updateAvatar.mutateAsync(formData);
       Alert.alert('Avatar updated', 'Your profile photo has been saved.');
     } catch (error) {

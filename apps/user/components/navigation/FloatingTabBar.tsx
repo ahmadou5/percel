@@ -287,7 +287,15 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       </View>
 
       {/* 2. Standalone Floating Action Button Layout */}
-      <CreateOrderFab theme={theme} onPress={() => navigation.navigate('send' as never)} />
+      <CreateOrderFab
+        theme={theme}
+        onPress={() => {
+          navigation.navigate('send', {
+            screen: 'index',
+            params: undefined,
+          } as never);
+        }}
+      />
     </Animated.View>
   );
 }

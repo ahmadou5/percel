@@ -1,9 +1,10 @@
 import { useIsFocused } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { http } from '@/lib/api';
+import { subscribeToDriverLocation } from '@/lib/socket';
 import type { OrderStatus } from '@/lib/order';
+import { useEffect } from 'react';
 
 export type TrackingLocation = {
   latitude: number;
@@ -29,55 +30,44 @@ export interface TrackingData {
   estimated_delivery: string;
 }
 
-function createMockTracking(): TrackingData {
-  const driverLocation = { latitude: 6.5244, longitude: 3.3792 };
-  const destinationLocation = { latitude: 6.6018, longitude: 3.3515 };
-
-  return {
-    status: 'IN_TRANSIT',
-    driver: {
-      id: 'mock-driver',
-      name: 'Percel Driver',
-      avatar_url: null,
-      phone: '',
-    },
-    current_location: driverLocation,
-    destination_location: destinationLocation,
-    route_coordinates: [
-      driverLocation,
-      { latitude: 6.545, longitude: 3.371 },
-      { latitude: 6.567, longitude: 3.362 },
-      { latitude: 6.584, longitude: 3.356 },
-      destinationLocation,
-    ],
-    origin_hub: 'Origin hub',
-    destination_hub: 'Destination hub',
-    departed_at: new Date().toISOString(),
-    distance_km: 8.4,
-    weight_kg: 2.5,
-    estimated_delivery: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
-  };
-}
-
-export function useLiveTracking(orderId?: string) {
+export function useLiveTracking(orderId?: string, driverId?: string) {
   const isFocused = useIsFocused();
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['tracking', orderId],
     enabled: Boolean(orderId),
-    refetchInterval: isFocused ? 10_000 : false,
+    // Poll every 30 seconds as a safety net; real-time updates come via socket below
+    refetchInterval: isFocused ? 30_000 : false,
     refetchIntervalInBackground: false,
-    queryFn: async () => {
-      try {
-        // TODO: wire to real endpoint once the API exposes live tracking payloads.
-        const response = await http.get<{ data: TrackingData }>(`/api/v1/orders/${orderId}/tracking`);
-        return response.data.data;
-      } catch (error) {
-        if (axios.isAxiosError(error) && [404, 501].includes(error.response?.status ?? 0)) {
-          return createMockTracking();
-        }
-        throw error;
-      }
+    queryFn: async (): Promise<TrackingData> => {
+      const response = await http.get<{ data: TrackingData }>(`/api/v1/orders/${orderId}/tracking`);
+      return response.data.data;
     },
   });
+
+  // Subscribe to socket driver_location events and immediately patch the cached
+  // TrackingData so the map marker moves without waiting for the next poll.
+  useEffect(() => {
+    if (!driverId || !orderId) return;
+
+    const unsubscribe = subscribeToDriverLocation(driverId, (payload: { lat: number; lng: number }) => {
+      if (!payload?.lat || !payload?.lng) return;
+
+      queryClient.setQueryData<TrackingData>(['tracking', orderId], (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          current_location: {
+            latitude: payload.lat,
+            longitude: payload.lng,
+          },
+        };
+      });
+    });
+
+    return unsubscribe;
+  }, [driverId, orderId, queryClient]);
+
+  return query;
 }

@@ -36,6 +36,12 @@ export class OrderController {
     return success(await this.service.getOrderDetail(userId, id), 'Order fetched');
   };
 
+  getOrderTracking = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.getOrderTracking(userId, id), 'Tracking data fetched');
+  };
+
   getOrderByTrackingCode = async (request: FastifyRequest) => {
     const { code } = request.params as { code: string };
     return success(await this.service.getOrderByTrackingCode(code), 'Order fetched');

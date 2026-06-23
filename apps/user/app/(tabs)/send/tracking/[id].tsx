@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Package, RefreshCw, Share2 } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -30,15 +31,15 @@ function canTrack(status?: OrderStatus | string) {
 
 export default function TrackingScreen() {
   const router = useRouter();
-  const back = useSafeBack('/orders');
+  const back = useSafeBack('/');
   const insets = useSafeAreaInsets();
   const palette = useAppPalette();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderQuery = useOrderDetail(id);
-  const trackingQuery = useLiveTracking(id);
-  const confirmDelivery = useConfirmDelivery();
   const order = orderQuery.data;
+  const trackingQuery = useLiveTracking(id, order?.driver?.id ?? undefined);
+  const confirmDelivery = useConfirmDelivery();
   const tracking = trackingQuery.data;
   const orderCode = order?.trackingCode ?? `#${id ?? ''}`;
 
@@ -130,7 +131,7 @@ export default function TrackingScreen() {
   const showMap = Platform.OS !== 'web' && tracking;
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.bg }]}> 
+    <GestureHandlerRootView style={[styles.screen, { backgroundColor: palette.bg }]}> 
       {showMap ? (
         <DeliveryRouteMap
           driverLocation={tracking.current_location}
@@ -147,14 +148,13 @@ export default function TrackingScreen() {
 
       <LinearGradient colors={[Colors.dark.bg, 'transparent']} style={[styles.headerGradient, { paddingTop: insets.top + Spacing.sm }]}> 
         <View style={styles.headerRow}>
-          <Pressable onPress={() => back()} style={[styles.headerButton, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-            <ChevronLeft size={20} color={palette.text} />
-            <Text style={[styles.backText, { color: palette.text }]}>Back</Text>
-          </Pressable>
+           <Pressable onPressIn={() => void haptics.tap()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={back}>
+                    <ChevronLeft size={18} color={palette.text} />
+                  </Pressable>
           <Text style={[styles.headerTitle, { color: Colors.dark.text }]} numberOfLines={1}>{orderCode}</Text>
           <Pressable
             onPress={() => void Share.share({ message: `Track my Percel order ${orderCode}` })}
-            style={[styles.shareButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+            style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
           >
             <Share2 size={18} color={palette.text} />
           </Pressable>
@@ -172,13 +172,14 @@ export default function TrackingScreen() {
       ) : null}
 
       {tracking ? <OrderTrackingSheet data={tracking} orderCode={orderCode} /> : null}
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm },
+   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   loadingTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
   loadingBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20 },
   headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },

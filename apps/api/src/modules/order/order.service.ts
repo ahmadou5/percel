@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { OrderStatus, PaymentStatus, Prisma, type OrderSize, type PrismaClient } from '@prisma/client';
 
-import { getDistanceAndDuration, geocodeAddress } from '../../lib/googleMaps.js';
+import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute } from '../../lib/googleMaps.js';
 import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext } from '../../lib/hubs.js';
 import { getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { addNotificationJob } from '../../queues/index.js';
@@ -626,6 +626,76 @@ export class OrderService {
     await this.emitStatusUpdate(orderId, status, order.userId, driverId);
     this.logger.info({ orderId, userId: order.userId, driverId, status }, 'order.status.updated');
     return serializeOrder(updated);
+  }
+
+  async getOrderTracking(userId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        driver: {
+          include: {
+            user: {
+              select: { fullName: true, phone: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundError('Order not found');
+
+    const trackableStatuses: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.IN_TRANSIT, OrderStatus.MATCHED];
+    if (!trackableStatuses.includes(order.status)) {
+      throw new ValidationError('Order is not currently trackable');
+    }
+
+    if (!order.driver) throw new NotFoundError('No driver assigned to this order');
+
+    // Read the driver's most recent location from the database
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: order.driverId! },
+      select: { currentLat: true, currentLng: true, lastLocationAt: true },
+    });
+
+    const driverLat = driver?.currentLat != null ? Number(driver.currentLat) : null;
+    const driverLng = driver?.currentLng != null ? Number(driver.currentLng) : null;
+
+    const destLat = Number(order.deliveryLat);
+    const destLng = Number(order.deliveryLng);
+
+    // Fetch road-following route from driver's current position to destination.
+    // Falls back to straight line internally if the Directions API fails.
+    const routeCoordinates =
+      driverLat != null && driverLng != null
+        ? await getDirectionsRoute(driverLat, driverLng, destLat, destLng)
+        : [];
+
+    // Estimated delivery: use order estimate as a proxy.
+    const estimatedMinutes = order.estimatedDurationMin ?? 60;
+    const estimatedDelivery = new Date(Date.now() + estimatedMinutes * 60 * 1000).toISOString();
+
+    return {
+      status: order.status,
+      driver: {
+        id: order.driver.id,
+        name: order.driver.user.fullName,
+        avatar_url: order.driver.user.avatarUrl ?? null,
+        phone: order.driver.user.phone ?? '',
+      },
+      current_location: driverLat != null && driverLng != null
+        ? { latitude: driverLat, longitude: driverLng }
+        : null,
+      destination_location: { latitude: destLat, longitude: destLng },
+      route_coordinates: routeCoordinates,
+      origin_hub: order.pickupFormattedAddress,
+      destination_hub: order.deliveryFormattedAddress,
+      departed_at: order.pickedUpAt?.toISOString() ?? order.createdAt.toISOString(),
+      distance_km: Number(order.distanceKm),
+      weight_kg: await this.prisma.orderItem
+        .aggregate({ where: { orderId }, _sum: { weightKg: true } })
+        .then((r) => Number(r._sum.weightKg ?? 0)),
+      estimated_delivery: estimatedDelivery,
+    };
   }
 
   private async emitStatusUpdate(orderId: string, status: string, userId?: string, driverId?: string) {

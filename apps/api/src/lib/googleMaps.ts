@@ -17,6 +17,41 @@ function wrapError(error: unknown): never {
   throw new AppError('Google Maps request failed', 502, 'GOOGLE_MAPS_ERROR');
 }
 
+/** Decode a Google Maps encoded polyline string into an array of lat/lng coordinate objects. */
+function decodePolyline(encoded: string): Array<{ latitude: number; longitude: number }> {
+  const points: Array<{ latitude: number; longitude: number }> = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let result = 0;
+    let shift = 0;
+    let byte: number;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += deltaLat;
+
+    result = 0;
+    shift = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += deltaLng;
+
+    points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+  }
+
+  return points;
+}
+
 export async function getDistanceAndDuration(
   originLat: number,
   originLng: number,
@@ -67,5 +102,44 @@ export async function geocodeAddress(address: string) {
     };
   } catch (error) {
     wrapError(error);
+  }
+}
+
+/**
+ * Fetch a road-following route between two coordinates via the Google Directions API.
+ * Returns decoded polyline points. Falls back to a straight two-point line on any error.
+ */
+export async function getDirectionsRoute(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number,
+): Promise<Array<{ latitude: number; longitude: number }>> {
+  try {
+    const { data } = await googleMaps.get('/directions/json', {
+      params: {
+        origin: `${originLat},${originLng}`,
+        destination: `${destLat},${destLng}`,
+        key: env.GOOGLE_MAPS_API_KEY,
+        mode: 'driving',
+        alternatives: false,
+      },
+    });
+
+    const route = data?.routes?.[0];
+    const polyline: string | undefined = route?.overview_polyline?.points;
+    if (!polyline) {
+      return [
+        { latitude: originLat, longitude: originLng },
+        { latitude: destLat, longitude: destLng },
+      ];
+    }
+
+    return decodePolyline(polyline);
+  } catch {
+    return [
+      { latitude: originLat, longitude: originLng },
+      { latitude: destLat, longitude: destLng },
+    ];
   }
 }
