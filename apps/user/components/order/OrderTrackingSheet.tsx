@@ -49,7 +49,7 @@ function initials(name: string) {
 export function OrderTrackingSheet({ data, orderCode }: Props) {
   const palette = useAppPalette();
   const user = useAuthStore((state) => state.user);
-  const snapPoints = useMemo(() => ['10%', '56%'], []);
+  const snapPoints = useMemo(() => ['10%','26%', '62%'], []);
   const statusLabel = STATUS_LABELS[data.status] ?? data.status.replace(/_/g, ' ');
 
   const handleCall = () => {
@@ -75,17 +75,28 @@ export function OrderTrackingSheet({ data, orderCode }: Props) {
               <Text style={[styles.statusText, { color: Colors.dark.text }]}>{statusLabel}</Text>
             </View>
           </View>
-
-          <View style={styles.routeRow}>
-            <Text style={[styles.hub, { color: palette.text }]} numberOfLines={1}>
-              {data.origin_hub}
-            </Text>
-            <Text style={[styles.arrow, { color: palette.primary }]}></Text>
-            <Text style={[styles.hub, { color: palette.text }]} numberOfLines={1}>
-              {data.destination_hub}
-            </Text>
+  <Text style={[styles.orderCode, { color: palette.textSecondary }]}>Order ID  {orderCode}</Text>
+          <View style={styles.routeContainer}>
+            <View style={styles.routeConnectorCol}>
+              <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+              <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
+              <View style={[styles.routeDot, { backgroundColor: palette.primary }]} />
+            </View>
+            <View style={styles.routeDetailsCol}>
+              <View style={styles.routeDetailItem}>
+                <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Pickup Location</Text>
+                <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                  {data.origin_hub}
+                </Text>
+              </View>
+              <View style={styles.routeDetailItem}>
+                <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Delivery Location</Text>
+                <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                  {data.destination_hub}
+                </Text>
+              </View>
+            </View>
           </View>
-          <Text style={[styles.orderCode, { color: palette.textSecondary }]}>Order ID  {orderCode}</Text>
 
           <View style={styles.metaGrid}>
             <MetaItem label="Departed" value={formatDateTime(data.departed_at)} />
@@ -129,21 +140,23 @@ export function OrderTrackingSheet({ data, orderCode }: Props) {
                   {data.driver.name}
                 </Text>
               </View>
-              {data.driver.phone ? (
-                <Pressable
-                  accessibilityLabel="Call driver"
-                  onPress={handleCall}
-                  style={({ pressed }) => [
-                    styles.callButton,
-                    { backgroundColor: palette.card, borderColor: palette.border },
-                    pressed ? { opacity: 0.7 } : null,
-                  ]}
-                >
-                  <Phone size={14} color={palette.primary} />
-                </Pressable>
-              ) : null}
+              {}
             </View>
           </View>
+
+          {data.driver.phone ? (
+            <Pressable
+              onPress={handleCall}
+              style={({ pressed }) => [
+                styles.summaryAction,
+                { backgroundColor: palette.primary },
+                pressed ? { opacity: 0.8 } : null,
+              ]}
+            >
+              <Phone size={16} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={styles.summaryActionText}>Call Driver</Text>
+            </Pressable>
+          ) : null}
         </View>
       </BottomSheet>
     </>
@@ -168,9 +181,44 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', justifyContent: 'flex-start' },
   statusBadge: { borderRadius: 999, paddingHorizontal: Spacing.md, paddingVertical: 7 },
   statusText: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
-  routeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  hub: { flex: 1, fontSize: Typography.md, fontFamily: Typography.family.bold },
-  arrow: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  routeContainer: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginVertical: Spacing.xs,
+  },
+  routeConnectorCol: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  routeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  routeLine: {
+    flex: 1,
+    width: 2,
+    marginVertical: 4,
+  },
+  routeDetailsCol: {
+    flex: 1,
+    gap: Spacing.md,
+  },
+  routeDetailItem: {
+    gap: 2,
+  },
+  routeLabel: {
+    fontSize: 9,
+    fontFamily: Typography.family.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  routeValue: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.medium,
+    lineHeight: 18,
+  },
   orderCode: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
   metaGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.md },
   metaItem: { width: '50%', gap: 3 },
@@ -231,5 +279,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  summaryAction: {
+    marginTop: Spacing.md,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  summaryActionText: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.bold,
+    color: '#FFFFFF',
   },
 });

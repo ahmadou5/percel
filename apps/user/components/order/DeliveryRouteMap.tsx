@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { Navigation, Truck, MapPin } from 'lucide-react-native';
 
@@ -11,6 +11,8 @@ import { useAppPalette } from '@/lib/theme';
 
 type Props = {
   driverLocation: TrackingLocation | null;
+  driverName?: string;
+  driverAvatarUrl?: string | null;
   originLocation: TrackingLocation;
   destinationLocation: TrackingLocation;
   routeCoordinates: TrackingLocation[];
@@ -56,6 +58,16 @@ function getRegion(points: TrackingLocation[]): Region {
   };
 }
 
+/** Get initials for fallback driver name display */
+function getInitials(name?: string) {
+  if (!name) return 'D';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase();
+  }
+  return (name[0] ?? '').toUpperCase();
+}
+
 /** Pulsing ring that radiates outward from the driver marker to signal live tracking */
 function PulseRing({ color }: { color: string }) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -97,7 +109,7 @@ function PulseRing({ color }: { color: string }) {
   );
 }
 
-export function DeliveryRouteMap({ driverLocation, originLocation, destinationLocation, routeCoordinates }: Props) {
+export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
   const palette = useAppPalette();
   const mapRef = useRef<MapView>(null);
   // Track whether the user has manually moved the map so we don't fight them
@@ -217,15 +229,21 @@ export function DeliveryRouteMap({ driverLocation, originLocation, destinationLo
           </View>
         </Marker>
 
-        {/* Driver / vehicle marker */}
+        {/* Driver marker displaying profile avatar or initials */}
         {driverLocation ? (
           <Marker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <View style={styles.vehicleMarkerWrap}>
               {/* Pulsing live-location ring */}
               <PulseRing color={palette.primary} />
-              {/* Vehicle icon bubble */}
-              <View style={[styles.vehicleBubble, { backgroundColor: palette.primary, borderColor: palette.card }]}>
-                <Truck size={18} color="#FFFFFF" strokeWidth={2.5} />
+              {/* Profile image / initials bubble */}
+              <View style={[styles.vehicleBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
+                {driverAvatarUrl ? (
+                  <Image source={{ uri: driverAvatarUrl }} style={styles.driverAvatar} />
+                ) : (
+                  <Text style={[styles.driverInitials, { color: palette.primary }]}>
+                    {getInitials(driverName)}
+                  </Text>
+                )}
               </View>
             </View>
           </Marker>
@@ -282,6 +300,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
+    overflow: 'hidden',
+  },
+  driverAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 19,
+  },
+  driverInitials: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.bold,
   },
   // Destination pin
   destinationWrap: {
