@@ -87,7 +87,7 @@ export default function TrackingScreen() {
 
   if (isDelivered(order.status) || !canTrack(order.status)) {
     const canConfirm = order.status === 'DELIVERED';
-    const canRate = isDelivered(order.status);
+    const canRate = order.status === 'COMPLETED';
 
     return (
       <ScrollView style={[styles.fallbackScreen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.fallbackContent}>

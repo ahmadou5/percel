@@ -51,6 +51,7 @@ export type OrderSummary = {
   estimatedDurationMin: number;
   trackingCode: string;
   createdAt: string;
+  cancelReason?: string | null;
   driver?: {
     id: string;
     userId: string;

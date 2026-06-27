@@ -43,6 +43,7 @@ type OrderLike = {
   distanceKm: Prisma.Decimal | number;
   estimatedDurationMin: number;
   createdAt: Date;
+  cancelReason?: string | null;
   driver?: {
     id: string;
     userId: string;
@@ -69,6 +70,7 @@ function serializeOrder(order: OrderLike): OrderSummary {
     distanceKm: asNumber(order.distanceKm),
     estimatedDurationMin: order.estimatedDurationMin,
     createdAt: order.createdAt.toISOString(),
+    cancelReason: order.cancelReason ?? null,
     driver: order.driver
       ? {
           id: order.driver.id,
@@ -475,7 +477,8 @@ export class OrderService {
       });
 
       if (order.driverId) {
-        await this.walletService.creditDriverEarning(order.driverId, order.id, Number(order.price), tx);
+        const payoutAmount = Number(order.price) * 0.8; // 80% payout
+        await this.walletService.creditDriverEarning(order.driverId, order.id, payoutAmount, tx);
       }
 
       return updated;
@@ -608,10 +611,7 @@ export class OrderService {
         },
       });
 
-      if (status === 'DELIVERED') {
-        const payoutAmount = Number(order.price) * 0.8; // 80% payout
-        await this.walletService.creditDriverEarning(driverId, orderId, payoutAmount, tx);
-      }
+
 
       return next;
     });

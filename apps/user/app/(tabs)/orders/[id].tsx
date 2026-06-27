@@ -7,7 +7,7 @@ import { DriverCard } from '@/components/order/DriverCard';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useOrderDetail } from '@/hooks/useOrder';
+import { useCancelOrder, useOrderDetail } from '@/hooks/useOrder';
 import { useAppPalette } from '@/lib/theme';
 
 function getStatusConfig(status: string) {
@@ -30,7 +30,39 @@ export default function OrderDetailScreen() {
   const back = useSafeBack('/orders');
   const palette = useAppPalette();
   const query = useOrderDetail(id);
+  const cancelMutation = useCancelOrder();
   const order = query.data;
+
+  const handleCancel = () => {
+    if (!order) return;
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order? This will refund the payment back to your wallet.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: () => {
+            cancelMutation.mutate(
+              { id: order.id, reason: 'User requested cancellation' },
+              {
+                onSuccess: () => {
+                  Alert.alert('Success', 'Your order has been cancelled and refunded.');
+                },
+                onError: (error) => {
+                  const message = error instanceof Error ? error.message : 'Unable to cancel order';
+                  Alert.alert('Error', message);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const isCancellable = order && ['CREATED', 'PENDING_MATCH', 'MATCHED'].includes(order.status);
 
   if (query.isLoading) {
     return (
@@ -112,6 +144,13 @@ export default function OrderDetailScreen() {
         </View>
       </View>
 
+      {order.status === 'CANCELLED' && order.cancelReason ? (
+        <View style={[styles.cancelReasonCard, { backgroundColor: `${palette.error}0D`, borderColor: `${palette.error}33` }]}>
+          <Text style={[styles.cancelReasonTitle, { color: palette.error }]}>Cancellation Reason</Text>
+          <Text style={[styles.cancelReasonText, { color: palette.text }]}>{order.cancelReason}</Text>
+        </View>
+      ) : null}
+
       {/* Route card */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: Spacing.sm }]}>Route</Text>
@@ -189,7 +228,7 @@ export default function OrderDetailScreen() {
           onPress={() => router.push({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never)}
           style={({ pressed }) => [
             styles.rateButton,
-            { backgroundColor: '#10B981' },
+            { backgroundColor: palette.primary },
             pressed && { opacity: 0.9 },
           ]}
         >
@@ -208,6 +247,23 @@ export default function OrderDetailScreen() {
           ]}
         >
           <Text style={styles.rateButtonText}>{order.rating ? 'View rating' : 'Rate delivery'}</Text>
+        </Pressable>
+      ) : null}
+
+      {/* Cancel CTA — only available if order is in a cancellable state */}
+      {isCancellable ? (
+        <Pressable
+          onPress={handleCancel}
+          disabled={cancelMutation.isPending}
+          style={({ pressed }) => [
+            styles.cancelButton,
+            { borderColor: palette.error },
+            pressed && { opacity: 0.8 },
+          ]}
+        >
+          <Text style={[styles.cancelButtonText, { color: palette.error }]}>
+            {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Order'}
+          </Text>
         </Pressable>
       ) : null}
     </ScrollView>
@@ -284,4 +340,9 @@ const styles = StyleSheet.create({
   trackButtonText: { fontSize: Typography.md, fontFamily: Typography.family.bold, color: '#FFFFFF' },
   rateButton: { borderRadius: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
   rateButtonText: { fontSize: Typography.md, fontFamily: Typography.family.bold, color: '#FFFFFF' },
+  cancelButton: { borderRadius: 16, minHeight: 54, alignItems: 'center', justifyContent: 'center', borderWidth: 1, marginTop: 4 },
+  cancelButtonText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  cancelReasonCard: { borderRadius: 16, borderWidth: 1, padding: Spacing.md, gap: 4 },
+  cancelReasonTitle: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
+  cancelReasonText: { fontSize: Typography.sm, fontFamily: Typography.family.medium, lineHeight: 20 },
 });

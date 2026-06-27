@@ -48,6 +48,7 @@ export interface OrderSummary {
   distanceKm: number;
   estimatedDurationMin: number;
   createdAt: string;
+  cancelReason?: string | null;
   driver?: {
     id: string;
     userId: string;

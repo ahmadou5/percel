@@ -91,8 +91,10 @@ export function useCancelOrder() {
       const response = await http.post<{ data: OrderDetailResponse }>(`/api/v1/orders/${id}/cancel`, { reason });
       return response.data.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['order', variables.id] });
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },
   });
 }
