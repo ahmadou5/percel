@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, CircleArrowRight, MapPin, Package, ShieldCheck } from 'lucide-react-native';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ChevronLeft, CircleArrowRight, MapPin, Package, ShieldCheck, Info, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { DriverCard } from '@/components/order/DriverCard';
@@ -33,33 +34,64 @@ export default function OrderDetailScreen() {
   const cancelMutation = useCancelOrder();
   const order = query.data;
 
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    description: string;
+    type: 'info' | 'error' | 'success' | 'warning';
+    primaryText: string;
+    onPrimaryPress: () => void;
+    secondaryText?: string;
+    onSecondaryPress?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    description: '',
+    type: 'info',
+    primaryText: 'OK',
+    onPrimaryPress: () => {},
+  });
+
   const handleCancel = () => {
     if (!order) return;
-    Alert.alert(
-      'Cancel Order',
-      'Are you sure you want to cancel this order? This will refund the payment back to your wallet.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: () => {
-            cancelMutation.mutate(
-              { id: order.id, reason: 'User requested cancellation' },
-              {
-                onSuccess: () => {
-                  Alert.alert('Success', 'Your order has been cancelled and refunded.');
-                },
-                onError: (error) => {
-                  const message = error instanceof Error ? error.message : 'Unable to cancel order';
-                  Alert.alert('Error', message);
-                },
-              }
-            );
-          },
-        },
-      ]
-    );
+    setModalConfig({
+      visible: true,
+      title: 'Cancel Order',
+      description: 'Are you sure you want to cancel this order? This will refund the payment back to your wallet.',
+      type: 'warning',
+      primaryText: 'Yes, Cancel',
+      secondaryText: 'No',
+      onPrimaryPress: () => {
+        setModalConfig((prev) => ({ ...prev, visible: false }));
+        cancelMutation.mutate(
+          { id: order.id, reason: 'User requested cancellation' },
+          {
+            onSuccess: () => {
+              setModalConfig({
+                visible: true,
+                title: 'Success',
+                description: 'Your order has been cancelled and refunded.',
+                type: 'success',
+                primaryText: 'OK',
+                onPrimaryPress: () => setModalConfig((prev) => ({ ...prev, visible: false })),
+              });
+            },
+            onError: (error) => {
+              const message = error instanceof Error ? error.message : 'Unable to cancel order';
+              setModalConfig({
+                visible: true,
+                title: 'Error',
+                description: message,
+                type: 'error',
+                primaryText: 'OK',
+                onPrimaryPress: () => setModalConfig((prev) => ({ ...prev, visible: false })),
+              });
+            },
+          }
+        );
+      },
+      onSecondaryPress: () => setModalConfig((prev) => ({ ...prev, visible: false })),
+    });
   };
 
   const isCancellable = order && ['CREATED', 'PENDING_MATCH', 'MATCHED'].includes(order.status);
@@ -95,11 +127,12 @@ export default function OrderDetailScreen() {
   const statusConfig = getStatusConfig(order.status);
 
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: palette.bg }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Hero card */}
       <View style={[styles.heroCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <View style={styles.heroTop}>
@@ -182,7 +215,14 @@ export default function OrderDetailScreen() {
       {order.driver ? (
         <DriverCard
           driver={order.driver}
-          onCall={() => Alert.alert('Call driver', 'Driver calling is wired in the tracking prompt.')}
+          onCall={() => setModalConfig({
+            visible: true,
+            title: 'Call Driver',
+            description: 'Driver calling will be available through the live tracking screen while your order is in transit.',
+            type: 'info',
+            primaryText: 'OK',
+            onPrimaryPress: () => setModalConfig((prev) => ({ ...prev, visible: false })),
+          })}
         />
       ) : null}
 
@@ -267,12 +307,61 @@ export default function OrderDetailScreen() {
         </Pressable>
       ) : null}
     </ScrollView>
+
+    <Modal transparent visible={modalConfig.visible} animationType="fade" onRequestClose={() => setModalConfig((prev) => ({ ...prev, visible: false }))}>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalConfig((prev) => ({ ...prev, visible: false }))} />
+        <View style={[styles.modalSheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={[styles.modalIcon, {
+            backgroundColor:
+              modalConfig.type === 'error' ? `${palette.error}1A` :
+              modalConfig.type === 'success' ? `${palette.success}1A` :
+              modalConfig.type === 'warning' ? `${palette.warning}1A` :
+              `${palette.primary}1A`,
+          }]}>
+            {modalConfig.type === 'error' ? (
+              <XCircle size={20} color={palette.error} />
+            ) : modalConfig.type === 'success' ? (
+              <CheckCircle2 size={20} color={palette.success} />
+            ) : modalConfig.type === 'warning' ? (
+              <AlertTriangle size={20} color={palette.warning} />
+            ) : (
+              <Info size={20} color={palette.primary} />
+            )}
+          </View>
+          <Text style={[styles.modalTitle, { color: palette.text }]}>{modalConfig.title}</Text>
+          <Text style={[styles.modalBody, { color: palette.textSecondary }]}>{modalConfig.description}</Text>
+          <View style={styles.modalActions}>
+            {modalConfig.secondaryText ? (
+              <Pressable
+                onPress={modalConfig.onSecondaryPress}
+                style={[styles.modalSecondaryBtn, { backgroundColor: palette.bg, borderColor: palette.border }]}
+              >
+                <Text style={[styles.modalSecondaryBtnText, { color: palette.text }]}>{modalConfig.secondaryText}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={modalConfig.onPrimaryPress}
+              style={[styles.modalPrimaryBtn, {
+                backgroundColor:
+                  modalConfig.type === 'error' ? palette.error :
+                  modalConfig.type === 'warning' ? palette.error :
+                  palette.primary,
+              }]}
+            >
+              <Text style={styles.modalPrimaryBtnText}>{modalConfig.primaryText}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg, gap: 10 },
   loading: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
   emptyBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20 },
@@ -345,4 +434,14 @@ const styles = StyleSheet.create({
   cancelReasonCard: { borderRadius: 16, borderWidth: 1, padding: Spacing.md, gap: 4 },
   cancelReasonTitle: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   cancelReasonText: { fontSize: Typography.sm, fontFamily: Typography.family.medium, lineHeight: 20 },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.48)' },
+  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.xxxl, gap: 12 },
+  modalIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  modalSecondaryBtn: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  modalSecondaryBtnText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  modalPrimaryBtn: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  modalPrimaryBtnText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { useEffect, useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { PriceBreakdown } from '@/components/order/PriceBreakdown';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -39,6 +40,7 @@ export default function QuoteScreen() {
   const walletQuery = useWallet();
   const quoteQuery = useGetQuote();
   const createOrder = useCreateOrder();
+  const { config: modalConfig, hide: hideModal, alert: showAlert } = useAppModal();
 
   const originHub = getHubById(params.originHubId);
   const destinationHub = getHubById(params.destinationHubId);
@@ -88,7 +90,7 @@ export default function QuoteScreen() {
         deliveryAddress,
       });
     } catch (error) {
-      Alert.alert('Quote failed', error instanceof Error ? error.message : 'Unable to generate quote.');
+      showAlert('Quote failed', error instanceof Error ? error.message : 'Unable to generate quote.', 'error');
     }
   };
 
@@ -116,7 +118,7 @@ export default function QuoteScreen() {
       });
       router.replace({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never);
     } catch (error) {
-      Alert.alert('Order failed', error instanceof Error ? error.message : 'Unable to create order.');
+      showAlert('Order failed', error instanceof Error ? error.message : 'Unable to create order.', 'error');
     }
   };
 
@@ -124,7 +126,8 @@ export default function QuoteScreen() {
   const routeUnavailable = Boolean(originHub && destinationHub && !route);
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <Pressable onPress={() => back()} style={({ pressed }) => [styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? { opacity: 0.85 } : null]}>
           <ChevronLeft size={18} color={palette.text} />
@@ -209,6 +212,8 @@ export default function QuoteScreen() {
         </>
       )}
     </ScrollView>
+    <AppModal config={modalConfig} onClose={hideModal} />
+  </View>
   );
 }
 

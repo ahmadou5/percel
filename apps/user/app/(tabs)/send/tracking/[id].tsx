@@ -2,8 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Package, RefreshCw, Share2 } from 'lucide-react-native';
-import { useEffect } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +11,7 @@ import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { DeliveryRouteMap } from '@/components/order/DeliveryRouteMap';
 import { OrderTrackingSheet } from '@/components/order/OrderTrackingSheet';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -40,6 +41,7 @@ export default function TrackingScreen() {
   const order = orderQuery.data;
   const trackingQuery = useLiveTracking(id, order?.driver?.id ?? undefined);
   const confirmDelivery = useConfirmDelivery();
+  const { config: modalConfig, hide: hideModal, alert: showAlert } = useAppModal();
   const tracking = trackingQuery.data;
   const orderCode = order?.trackingCode ?? `#${id ?? ''}`;
 
@@ -90,7 +92,8 @@ export default function TrackingScreen() {
     const canRate = order.status === 'COMPLETED';
 
     return (
-      <ScrollView style={[styles.fallbackScreen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.fallbackContent}>
+      <View style={[styles.fallbackScreen, { backgroundColor: palette.bg }]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.fallbackContent}>
         <Pressable onPress={() => back()} style={[styles.fallbackBack, { backgroundColor: palette.card, borderColor: palette.border }]}> 
           <ChevronLeft size={20} color={palette.text} />
         </Pressable>
@@ -111,7 +114,7 @@ export default function TrackingScreen() {
                 router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never);
               } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unable to confirm delivery';
-                Alert.alert('Confirm delivery', message);
+                showAlert('Confirm delivery', message, 'error');
               }
             }}
             style={[styles.primaryButton, { backgroundColor: palette.primary }]}
@@ -120,11 +123,13 @@ export default function TrackingScreen() {
           </Pressable>
         ) : null}
         {canRate ? (
-          <Pressable onPress={() => router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never)} style={[styles.secondaryButton, { borderColor: palette.primary }]}> 
+          <Pressable onPress={() => router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never)} style={[styles.secondaryButton, { borderColor: palette.primary }]}>
             <Text style={[styles.secondaryText, { color: palette.primary }]}>{order.rating ? 'View Rating' : 'Rate Delivery'}</Text>
           </Pressable>
         ) : null}
       </ScrollView>
+      <AppModal config={modalConfig} onClose={hideModal} />
+    </View>
     );
   }
 
