@@ -77,7 +77,8 @@ function getFocusKey(pathname: string) {
 }
 
 function shouldShowDock(pathname: string) {
-  return pathname === '/' || pathname === '/index' || pathname.startsWith('/orders');
+  const clean = pathname.replace(/\/$/, '');
+  return clean === '' || clean === '/index' || clean === '/orders';
 }
 
 function useThemeTokens() {

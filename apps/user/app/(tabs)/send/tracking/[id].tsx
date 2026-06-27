@@ -101,7 +101,7 @@ export default function TrackingScreen() {
         </View>
         <View style={[styles.fallbackCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
           <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Status timeline</Text>
-          <StatusTimeline items={order.statusHistory} />
+          <StatusTimeline items={order.statusHistory} orderStatus={order.status} />
         </View>
         {canConfirm ? (
           <Pressable

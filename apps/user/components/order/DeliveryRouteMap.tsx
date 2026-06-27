@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { Navigation, Truck, MapPin } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView, { Circle, Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import type { TrackingLocation } from '@/hooks/useLiveTracking';
-import { useAppPalette } from '@/lib/theme';
+import { isLight, useAppPalette } from '@/lib/theme';
 
 type Props = {
   driverLocation: TrackingLocation | null;
@@ -42,6 +42,30 @@ const DARK_MAP_STYLE = [
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.border }] },
 ];
 
+const LIGHT_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: Colors.light.bg }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.bg }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.text }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#D2F1D2' }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.bg }] },
+  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#A9C4EB' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.border }] },
+];
+
 function getRegion(points: TrackingLocation[]): Region {
   const latitudes = points.map((point) => point.latitude);
   const longitudes = points.map((point) => point.longitude);
@@ -68,49 +92,79 @@ function getInitials(name?: string) {
   return (name[0] ?? '').toUpperCase();
 }
 
-/** Pulsing ring that radiates outward from the driver marker to signal live tracking */
-function PulseRing({ color }: { color: string }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.6)).current;
+/**
+ * Converts a 6-digit hex color + alpha into an rgba() string suitable for
+ * react-native-maps Circle fill/stroke colors.
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6) return `rgba(124,58,237,${alpha})`;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/**
+ * Drives a 0-99 phase counter at ~50 fps (20 ms tick).
+ * Two full ring cycles complete every ~2 s.
+ * Consumers stagger ring offsets to get the ripple effect.
+ */
+function usePulsePhase() {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPhase((p) => (p + 1) % 100), 20);
+    return () => clearInterval(id);
+  }, []);
+  return phase;
+}
+
+/** Compute radius (meters) and fill-opacity for one ripple ring at a given phase offset. */
+function ringProps(phase: number, offset: number, maxRadius = 130) {
+  const t = ((phase + offset) % 100) / 100; // 0 → 1
+  return {
+    radius: 15 + t * maxRadius,
+    opacity: 0.55 * (1 - t),
+  };
+}
+
+/**
+ * Wrapper that keeps tracksViewChanges=true for an initial settle period then
+ * switches to false to stop unnecessary re-renders. This prevents the "frozen
+ * at 0 size" bug where a marker with tracksViewChanges=false is snapshotted
+ * before layout has completed.
+ */
+function SettledMarker({
+  coordinate,
+  anchor,
+  children,
+  alwaysTrack = false,
+}: {
+  coordinate: { latitude: number; longitude: number };
+  anchor: { x: number; y: number };
+  children: React.ReactNode;
+  alwaysTrack?: boolean;
+}) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.parallel([
-        Animated.timing(scale, {
-          toValue: 2.4,
-          duration: 1800,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 1800,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [opacity, scale]);
+    if (alwaysTrack) return;
+    const timer = setTimeout(() => setTracksViewChanges(false), 600);
+    return () => clearTimeout(timer);
+  }, [alwaysTrack]);
 
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.pulseRing,
-        {
-          borderColor: color,
-          transform: [{ scale }],
-          opacity,
-        },
-      ]}
-    />
+    <Marker coordinate={coordinate} anchor={anchor} tracksViewChanges={alwaysTrack || tracksViewChanges}>
+      {children}
+    </Marker>
   );
 }
 
 export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
   const palette = useAppPalette();
+  const isLightTheme = isLight(palette.bg);
+  // Phase counter that drives the native Circle pulse overlays (0-99, cycles ~every 2s)
+  const pulsePhase = usePulsePhase();
   const mapRef = useRef<MapView>(null);
   // Track whether the user has manually moved the map so we don't fight them
   const userInteracted = useRef(false);
@@ -188,7 +242,7 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
-        customMapStyle={DARK_MAP_STYLE}
+        customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
         mapType="standard"
         showsCompass={false}
         showsUserLocation={false}
@@ -209,35 +263,82 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
           />
         ) : null}
 
+        {/* ── Pulse rings – rendered as native Circle overlays so they actually animate ── */}
+        {/* Origin ripples (green, 2 staggered rings) */}
+        {[0, 50].map((offset, i) => {
+          const rp = ringProps(pulsePhase, offset, 110);
+          return (
+            <Circle
+              key={`origin-ring-${i}`}
+              center={originLocation}
+              radius={rp.radius}
+              fillColor={hexToRgba('#10B981', rp.opacity)}
+              strokeWidth={0}
+            />
+          );
+        })}
+
+        {/* Destination ripples (primary color, 2 staggered rings) */}
+        {[0, 50].map((offset, i) => {
+          const rp = ringProps(pulsePhase, offset, 110);
+          return (
+            <Circle
+              key={`dest-ring-${i}`}
+              center={destinationLocation}
+              radius={rp.radius}
+              fillColor={hexToRgba(palette.primary, rp.opacity)}
+              strokeWidth={0}
+            />
+          );
+        })}
+
+        {/* Driver ripples (primary color, 3 staggered rings for stronger effect) */}
+        {driverLocation
+          ? [0, 33, 66].map((offset, i) => {
+              const rp = ringProps(pulsePhase, offset, 140);
+              return (
+                <Circle
+                  key={`driver-ring-${i}`}
+                  center={driverLocation}
+                  radius={rp.radius}
+                  fillColor={hexToRgba(palette.primary, rp.opacity)}
+                  strokeWidth={0}
+                />
+              );
+            })
+          : null}
+
         {/* Origin Pin */}
-        <Marker coordinate={originLocation} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
-          <View style={styles.destinationWrap}>
-            <View style={[styles.originBubble, { backgroundColor: palette.card, borderColor: '#10B981' }]}>
+        <SettledMarker coordinate={originLocation} anchor={{ x: 0.5, y: 1 }}>
+          <View style={styles.pinWrap}>
+            <View style={styles.pinBubble_origin}>
               <MapPin size={14} color="#10B981" strokeWidth={2.5} />
             </View>
-            <View style={[styles.destinationStem, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.pinStem, { backgroundColor: '#10B981' }]} />
           </View>
-        </Marker>
+        </SettledMarker>
 
         {/* Destination pin */}
-        <Marker coordinate={destinationLocation} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
-          <View style={styles.destinationWrap}>
-            <View style={[styles.destinationBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
+        <SettledMarker coordinate={destinationLocation} anchor={{ x: 0.5, y: 1 }}>
+          <View style={styles.pinWrap}>
+            <View style={[styles.pinBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
               <MapPin size={14} color={palette.primary} strokeWidth={2.5} />
             </View>
-            <View style={[styles.destinationStem, { backgroundColor: palette.primary }]} />
+            <View style={[styles.pinStem, { backgroundColor: palette.primary }]} />
           </View>
-        </Marker>
+        </SettledMarker>
 
-        {/* Driver marker displaying profile avatar or initials */}
+        {/* Driver marker – no animation inside the marker; rings are Circle overlays above */}
         {driverLocation ? (
-          <Marker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+          <SettledMarker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }} alwaysTrack>
             <View style={styles.vehicleMarkerWrap}>
-              {/* Pulsing live-location ring */}
-              <PulseRing color={palette.primary} />
-              {/* Profile image / initials bubble */}
               <View style={[styles.vehicleBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
-                {driverAvatarUrl ? (
+                {driverAvatarUrl &&
+                driverAvatarUrl.trim() !== '' &&
+                driverAvatarUrl !== 'null' &&
+                (driverAvatarUrl.startsWith('http://') ||
+                  driverAvatarUrl.startsWith('https://') ||
+                  driverAvatarUrl.startsWith('data:')) ? (
                   <Image source={{ uri: driverAvatarUrl }} style={styles.driverAvatar} />
                 ) : (
                   <Text style={[styles.driverInitials, { color: palette.primary }]}>
@@ -246,7 +347,7 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
                 )}
               </View>
             </View>
-          </Marker>
+          </SettledMarker>
         ) : null}
       </MapView>
 
@@ -281,13 +382,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulseRing: {
-    position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-  },
+  pulseRing: {}, // kept for reference; no longer rendered — pulse is handled by Circle overlays
+  bubbleContainer: {}, // no longer used
+
   vehicleBubble: {
     width: 44,
     height: 44,
@@ -310,12 +407,28 @@ const styles = StyleSheet.create({
   driverInitials: {
     fontSize: Typography.sm,
     fontFamily: Typography.family.bold,
+    textAlign: 'center',
   },
-  // Destination pin
-  destinationWrap: {
+  // Pin markers (origin & destination share the same shape)
+  pinWrap: {
     alignItems: 'center',
   },
-  originBubble: {
+  pinBubble_origin: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#10B981',
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  pinBubble: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -328,21 +441,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  destinationBubble: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  destinationStem: {
-    width: 3,
+  pinStem: {
+    width: 10,
     height: 10,
     borderRadius: 2,
     marginTop: -1,

@@ -867,8 +867,23 @@ export class WalletService {
     const client = this.getClient(tx);
     const driver = await client.driver.findUnique({ where: { id: driverId }, select: { userId: true } });
     if (!driver) throw new NotFoundError('Driver not found');
-    const wallet = await client.wallet.findUnique({ where: { userId: driver.userId } });
-    if (!wallet) throw new NotFoundError('Driver wallet not found');
+
+    // Ensure driver wallet exists — create it if missing rather than throwing
+    let wallet = await client.wallet.findUnique({ where: { userId: driver.userId } });
+    if (!wallet) {
+      wallet = await client.wallet.create({
+        data: { userId: driver.userId, balance: 0, ledgerBalance: 0 },
+      });
+      this.logger.warn({ driverId, userId: driver.userId }, 'creditDriverEarning: driver wallet was missing — created automatically');
+    }
+
+    // Idempotency: skip if this earning was already recorded
+    const reference = `EARNING_ORDER_${orderId}`;
+    const existing = await client.walletTransaction.findUnique({ where: { reference } });
+    if (existing) {
+      this.logger.warn({ driverId, orderId, reference }, 'creditDriverEarning: earning already recorded, skipping duplicate');
+      return { updated: false, skipped: true };
+    }
 
     const before = Number(wallet.balance ?? 0);
     const after = before + amount;
@@ -881,7 +896,7 @@ export class WalletService {
         type: WalletTransactionType.CREDIT,
         category: WalletTransactionCategory.ORDER_EARNING,
         status: WalletTransactionStatus.COMPLETED,
-        reference: `EARNING_ORDER_${orderId}`,
+        reference,
         description: 'Driver order earning',
         metadata: { orderId, driverId },
         balanceBefore: before,

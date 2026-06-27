@@ -107,7 +107,15 @@ export async function geocodeAddress(address: string) {
 
 /**
  * Fetch a road-following route between two coordinates via the Google Directions API.
- * Returns decoded polyline points. Falls back to a straight two-point line on any error.
+ *
+ * Strategy:
+ *  1. Validate inputs — guard against NaN/Infinity from upstream DB reads.
+ *  2. Call Directions API (driving mode).
+ *  3. Decode step-level polylines from every leg for maximum road accuracy,
+ *     falling back to the lower-resolution overview_polyline if steps are absent.
+ *  4. On ANY failure, log the exact API status + error_message so the caller
+ *     can diagnose permission issues (REQUEST_DENIED = Directions API not enabled
+ *     for the key) vs quota/network errors, then return a straight-line fallback.
  */
 export async function getDirectionsRoute(
   originLat: number,
@@ -115,6 +123,20 @@ export async function getDirectionsRoute(
   destLat: number,
   destLng: number,
 ): Promise<Array<{ latitude: number; longitude: number }>> {
+  const straight = [
+    { latitude: originLat, longitude: originLng },
+    { latitude: destLat, longitude: destLng },
+  ];
+
+  // Guard: NaN or Infinity coordinates produce a useless API call.
+  if (
+    !Number.isFinite(originLat) || !Number.isFinite(originLng) ||
+    !Number.isFinite(destLat)   || !Number.isFinite(destLng)
+  ) {
+    console.error('[googleMaps] getDirectionsRoute: non-finite coordinates', { originLat, originLng, destLat, destLng });
+    return straight;
+  }
+
   try {
     const { data } = await googleMaps.get('/directions/json', {
       params: {
@@ -126,20 +148,47 @@ export async function getDirectionsRoute(
       },
     });
 
-    const route = data?.routes?.[0];
-    const polyline: string | undefined = route?.overview_polyline?.points;
-    if (!polyline) {
-      return [
-        { latitude: originLat, longitude: originLng },
-        { latitude: destLat, longitude: destLng },
-      ];
+    // ── Diagnose failures immediately ────────────────────────────────────────
+    if (data?.status !== 'OK') {
+      console.warn(
+        '[googleMaps] getDirectionsRoute: Directions API did not return OK.',
+        `\n  status        : ${data?.status ?? 'unknown'}`,
+        `\n  error_message : ${data?.error_message ?? '(none)'}`,
+        '\n  Possible causes:',
+        '\n    REQUEST_DENIED  → Directions API not enabled for this key in Google Cloud Console',
+        '\n    ZERO_RESULTS    → No drivable route between these coordinates',
+        '\n    OVER_QUERY_LIMIT → Daily quota exhausted',
+        `\n  origin      : ${originLat},${originLng}`,
+        `\n  destination : ${destLat},${destLng}`,
+      );
+      return straight;
     }
 
-    return decodePolyline(polyline);
-  } catch {
-    return [
-      { latitude: originLat, longitude: originLng },
-      { latitude: destLat, longitude: destLng },
-    ];
+    const route = data.routes[0];
+
+    // ── Prefer step-level polylines (highest resolution) ────────────────────
+    const legs: Array<{ steps?: Array<{ polyline?: { points?: string } }> }> = route?.legs ?? [];
+    const stepPoints: Array<{ latitude: number; longitude: number }> = [];
+
+    for (const leg of legs) {
+      for (const step of leg.steps ?? []) {
+        const encoded = step?.polyline?.points;
+        if (encoded) {
+          stepPoints.push(...decodePolyline(encoded));
+        }
+      }
+    }
+
+    if (stepPoints.length > 1) return stepPoints;
+
+    // ── Fallback: overview_polyline (lower resolution but always present) ───
+    const overviewPolyline: string | undefined = route?.overview_polyline?.points;
+    if (overviewPolyline) return decodePolyline(overviewPolyline);
+
+    console.warn('[googleMaps] getDirectionsRoute: route present but no polyline data found');
+    return straight;
+  } catch (err) {
+    console.error('[googleMaps] getDirectionsRoute: network/unexpected error', err);
+    return straight;
   }
 }

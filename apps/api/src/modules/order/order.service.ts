@@ -460,6 +460,8 @@ export class OrderService {
   async confirmDelivery(userId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundError('Order not found');
+    // Idempotency: already confirmed → return without re-running the transaction
+    if (order.status === OrderStatus.COMPLETED) return serializeOrder(order);
     if (order.status !== OrderStatus.DELIVERED) throw new ValidationError('Order must be delivered before confirmation');
 
     const completed = await this.prisma.$transaction(async (tx) => {

@@ -114,38 +114,38 @@ export default function OrderDetailScreen() {
 
       {/* Route card */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionTitle, { color: palette.text }]}>Route</Text>
+        <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: Spacing.sm }]}>Route</Text>
 
-        <View style={styles.routeRow}>
-          <View style={[styles.routeIcon, { backgroundColor: `${palette.primary}1A` }]}>
-            <MapPin size={16} color={palette.primary} />
+        <View style={styles.routeContainer}>
+          <View style={styles.routeConnectorCol}>
+            <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
+            <View style={[styles.routeDot, { backgroundColor: palette.primary }]} />
           </View>
-          <View style={styles.routeBody}>
-            <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Pickup</Text>
-            <Text style={[styles.routeText, { color: palette.text }]}>{order.pickupFormattedAddress}</Text>
-          </View>
-        </View>
-
-        <View style={styles.routeDivider}>
-          <CircleArrowRight size={18} color={palette.primary} />
-        </View>
-
-        <View style={styles.routeRow}>
-          <View style={[styles.routeIcon, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-            <ShieldCheck size={16} color="#10B981" />
-          </View>
-          <View style={styles.routeBody}>
-            <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Drop off</Text>
-            <Text style={[styles.routeText, { color: palette.text }]}>{order.deliveryFormattedAddress}</Text>
+          <View style={styles.routeDetailsCol}>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Pickup Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {order.pickupFormattedAddress}
+              </Text>
+            </View>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Delivery Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {order.deliveryFormattedAddress}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
-      {/* Driver card */}
-      <DriverCard
-        driver={order.driver}
-        onCall={() => Alert.alert('Call driver', 'Driver calling is wired in the tracking prompt.')}
-      />
+      {/* Driver card - show if driver is assigned */}
+      {order.driver ? (
+        <DriverCard
+          driver={order.driver}
+          onCall={() => Alert.alert('Call driver', 'Driver calling is wired in the tracking prompt.')}
+        />
+      ) : null}
 
       {/* Items card */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -167,7 +167,7 @@ export default function OrderDetailScreen() {
       {/* Status history */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.sectionTitle, { color: palette.text }]}>Status history</Text>
-        <StatusTimeline items={order.statusHistory} />
+        <StatusTimeline items={order.statusHistory} orderStatus={order.status} />
       </View>
 
       {isActiveDelivery ? (
@@ -183,8 +183,22 @@ export default function OrderDetailScreen() {
         </Pressable>
       ) : null}
 
-      {/* Rate CTA */}
-      {isDone ? (
+      {/* Confirm delivery CTA — shown when driver has marked delivered but user hasn't confirmed yet */}
+      {order.status === 'DELIVERED' ? (
+        <Pressable
+          onPress={() => router.push({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never)}
+          style={({ pressed }) => [
+            styles.rateButton,
+            { backgroundColor: '#10B981' },
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          <Text style={styles.rateButtonText}>Confirm Delivery</Text>
+        </Pressable>
+      ) : null}
+
+      {/* Rate CTA — only available after order is fully COMPLETED */}
+      {order.status === 'COMPLETED' ? (
         <Pressable
           onPress={() => router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never)}
           style={({ pressed }) => [
@@ -225,12 +239,44 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   card: { borderRadius: 16, borderWidth: 1, padding: Spacing.lg, gap: 12 },
   sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  routeRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  routeIcon: { width: 36, height: 36, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  routeBody: { flex: 1, gap: 3 },
-  routeLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
-  routeText: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
-  routeDivider: { alignItems: 'center', paddingVertical: 2 },
+  routeContainer: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginVertical: Spacing.xs,
+  },
+  routeConnectorCol: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  routeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  routeLine: {
+    flex: 1,
+    width: 2,
+    marginVertical: 4,
+  },
+  routeDetailsCol: {
+    flex: 1,
+    gap: Spacing.md,
+  },
+  routeDetailItem: {
+    gap: 2,
+  },
+  routeLabel: {
+    fontSize: 9,
+    fontFamily: Typography.family.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  routeValue: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.medium,
+    lineHeight: 18,
+  },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 8, borderTopWidth: 1 },
   itemText: { fontSize: Typography.md, fontFamily: Typography.family.medium, flex: 1 },
   itemQty: { fontSize: Typography.md, fontFamily: Typography.family.bold },

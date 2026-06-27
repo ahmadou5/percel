@@ -1,5 +1,6 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, TextInput, Text, View } from 'react-native';
 
@@ -52,12 +53,44 @@ export default function OrderRatingScreen() {
     );
   }
 
+  if (order.status !== 'COMPLETED') {
+    return (
+      <View style={[styles.center, { backgroundColor: palette.bg }]}>
+        <Text style={[styles.loading, { color: palette.text }]}>Confirm delivery first</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary, textAlign: 'center' }]}>
+          You can only rate after confirming the delivery is complete.
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.heroBackButton, { backgroundColor: palette.primary, borderColor: palette.primary, marginTop: 12, paddingHorizontal: 24, width: 'auto', height: 46, borderRadius: 14 }]}
+        >
+          <Text style={{ color: '#fff', fontFamily: Typography.family.bold, fontSize: Typography.md }}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content}>
-      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Delivery complete</Text>
-        <Text style={styles.title}>{order.trackingCode}</Text>
-        <Text style={[styles.subtitle, { color: 'rgba(255,255,255,0.85)' }]}>{alreadyRated ? 'You already left feedback for this delivery.' : 'Tell us how the driver performed.'}</Text>
+      <View style={[styles.hero, { backgroundColor: `${palette.primary}0D`, borderColor: `${palette.primary}26`, borderWidth: 1 }]}>
+        <View style={styles.heroHeader}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.heroBackButton,
+              { backgroundColor: palette.card, borderColor: palette.border },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <ChevronLeft size={16} color={palette.text} />
+          </Pressable>
+          <View style={styles.heroMeta}>
+            <Text style={[styles.eyebrow, { color: palette.primary }]}>Delivery complete</Text>
+            <Text style={[styles.title, { color: palette.text }]}>{order.trackingCode}</Text>
+          </View>
+          
+        </View>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{alreadyRated ? 'You already left feedback for this delivery.' : 'Tell us how the driver performed.'}</Text>
       </View>
 
       <DriverCard driver={driver} onCall={undefined} />
@@ -112,18 +145,18 @@ export default function OrderRatingScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxxl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loading: { fontSize: Typography.lg, fontWeight: Typography.bold },
+  loading: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   hero: { gap: 6, borderRadius: 28, padding: Spacing.lg },
-  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.4, fontSize: Typography.xs, fontWeight: Typography.bold },
-  title: { color: '#fff', fontSize: 26, fontWeight: Typography.bold },
-  subtitle: { fontSize: Typography.sm, lineHeight: 21 },
+  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.4, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  title: { fontSize: 26, fontFamily: Typography.family.bold },
+  subtitle: { fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular, textAlign: 'center' },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
-  sectionTitle: { fontSize: Typography.md, fontWeight: Typography.bold },
+  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   starsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
   starPressable: { padding: 4 },
-  helper: { textAlign: 'center', fontSize: Typography.sm },
+  helper: { textAlign: 'center', fontSize: Typography.sm, fontFamily: Typography.family.medium },
   commentInput: {
     minHeight: 120,
     borderRadius: 18,
@@ -131,15 +164,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: Typography.md,
+    fontFamily: Typography.family.regular,
     textAlignVertical: 'top',
   },
   summaryCard: { borderRadius: 20, padding: Spacing.lg, gap: 4 },
-  summaryTitle: { fontSize: Typography.md, fontWeight: Typography.bold },
-  summaryBody: { fontSize: Typography.sm },
+  summaryTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  summaryBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
   actionRow: { flexDirection: 'row', gap: Spacing.sm },
   secondaryButton: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { fontSize: Typography.md, fontWeight: Typography.bold },
+  secondaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   primaryButton: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primaryButtonDisabled: { opacity: 0.65 },
-  primaryText: { color: '#fff', fontSize: Typography.md, fontWeight: Typography.bold },
+  primaryText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  heroHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  heroMeta: { flex: 1, gap: 4, alignItems: 'flex-end' },
+  heroBackButton: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });
