@@ -123,7 +123,7 @@ export default function TvScreen() {
   const executePayment = async () => {
     if (!selectedService || !selectedVariation) return;
 
-    const response = await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.name, variationCode: selectedVariation.variation_code });
+    const response = await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.serviceID, variationCode: selectedVariation.variation_code });
     setResultModal({
       visible: true,
       type: "success",
@@ -283,7 +283,11 @@ export default function TvScreen() {
                 </View>
               </View>
             ) : (
-              <StateCard title="Enter a smartcard number" description="The subscriber details will appear before the bouquet step." icon={<Search size={24} color={palette.textSecondary} />} />
+              <StateCard
+                title={smartcardNumber.trim().length >= 6 ? "Provider changed — re-validating" : "Enter a smartcard number"}
+                description={smartcardNumber.trim().length >= 6 ? `Checking ${smartcardNumber.trim()} against the new provider. This will complete automatically.` : "The subscriber details will appear before the bouquet step."}
+                icon={<Search size={24} color={palette.textSecondary} />}
+              />
             )}
           </View>
         ) : null}
@@ -432,6 +436,9 @@ export default function TvScreen() {
                         setValidation(null);
                         setValidationStatus('idle');
                         setValidationError('');
+                        // Return to step 1 so the smartcard is re-validated
+                        // against the newly selected provider
+                        setStep(1);
                         setProviderPickerOpen(false);
                       }}
                       style={[styles.providerRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}

@@ -1,31 +1,41 @@
-type ExpoLocalAuth = {
-  hasHardwareAsync?: () => Promise<boolean>;
-  isEnrolledAsync?: () => Promise<boolean>;
-  authenticateAsync?: (options?: { promptMessage?: string; cancelLabel?: string; disableDeviceFallback?: boolean; fallbackLabel?: string }) => Promise<{ success: boolean; error?: string }>;
-  supportedAuthenticationTypesAsync?: () => Promise<number[]>;
-};
+import * as ExpoLocalAuthentication from 'expo-local-authentication';
 
 export type BiometricPromptResult =
   | { success: true }
   | { success: false; reason: 'unavailable' | 'cancelled' | 'failed'; message: string };
 
-function loadModule(): ExpoLocalAuth | null {
-  try {
-    return (0, eval)("require")("expo-local-authentication") as ExpoLocalAuth;
-  } catch {
-    return null;
-  }
-}
-
-const moduleRef = loadModule();
-
 export const LocalAuthentication = {
-  hasHardwareAsync: async () => (moduleRef?.hasHardwareAsync ? moduleRef.hasHardwareAsync() : false),
-  isEnrolledAsync: async () => (moduleRef?.isEnrolledAsync ? moduleRef.isEnrolledAsync() : false),
-  authenticateAsync: async (options?: { promptMessage?: string; cancelLabel?: string; disableDeviceFallback?: boolean; fallbackLabel?: string }) =>
-    (moduleRef?.authenticateAsync ? moduleRef.authenticateAsync(options) : { success: false, error: undefined }),
-  supportedAuthenticationTypesAsync: async () => (moduleRef?.supportedAuthenticationTypesAsync ? moduleRef.supportedAuthenticationTypesAsync() : []),
+  hasHardwareAsync: async () => {
+    try {
+      return await ExpoLocalAuthentication.hasHardwareAsync();
+    } catch {
+      return false;
+    }
+  },
+  isEnrolledAsync: async () => {
+    try {
+      return await ExpoLocalAuthentication.isEnrolledAsync();
+    } catch {
+      return false;
+    }
+  },
+  authenticateAsync: async (options?: ExpoLocalAuthentication.LocalAuthenticationOptions) => {
+    try {
+      return await ExpoLocalAuthentication.authenticateAsync(options);
+    } catch (err) {
+      return { success: false, error: 'failed' };
+    }
+  },
+  supportedAuthenticationTypesAsync: async () => {
+    try {
+      return await ExpoLocalAuthentication.supportedAuthenticationTypesAsync();
+    } catch {
+      return [];
+    }
+  },
 };
+
+
 
 const BIOMETRIC_TYPE = {
   FINGERPRINT: 1,

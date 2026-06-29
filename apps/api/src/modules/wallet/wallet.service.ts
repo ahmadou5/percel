@@ -701,8 +701,16 @@ export class WalletService {
   }
 
   async buyAirtime(userId: string, phone: string, amount: number, network: string) {
+    let resolvedServiceId = 'mtn-airtime';
+    const lower = network.toLowerCase();
+    if (lower.includes('mtn')) resolvedServiceId = 'mtn-airtime';
+    else if (lower.includes('glo')) resolvedServiceId = 'glo-airtime';
+    else if (lower.includes('airtel')) resolvedServiceId = 'airtel-airtime';
+    else if (lower.includes('9mobile') || lower.includes('etisalat')) resolvedServiceId = '9mobile-airtime';
+    else resolvedServiceId = lower.endsWith('-airtime') ? lower : `${lower}-airtime`;
+
     return this.buyUtility(userId, {
-      serviceID: 'airtime',
+      serviceID: resolvedServiceId,
       billersCode: normalizeNigerianPhone(phone),
       amount,
       phone,
@@ -711,20 +719,31 @@ export class WalletService {
     });
   }
 
-  async buyData(userId: string, phone: string, plan: string, network: string, amount: number) {
+  async buyData(userId: string, phone: string, plan: string, network: string, amount: number, variationCode?: string, serviceID?: string) {
+    let resolvedServiceId = serviceID;
+    if (!resolvedServiceId) {
+      const lower = network.toLowerCase();
+      if (lower.includes('mtn')) resolvedServiceId = 'mtn-data';
+      else if (lower.includes('glo')) resolvedServiceId = 'glo-data';
+      else if (lower.includes('airtel')) resolvedServiceId = 'airtel-data';
+      else if (lower.includes('9mobile') || lower.includes('etisalat')) resolvedServiceId = '9mobile-data';
+      else resolvedServiceId = lower.endsWith('-data') ? lower : `${lower}-data`;
+    }
+
     return this.buyUtility(userId, {
-      serviceID: 'data',
+      serviceID: resolvedServiceId,
       billersCode: normalizeNigerianPhone(phone),
       amount,
       phone,
       description: `${network} data plan: ${plan}`,
       category: WalletTransactionCategory.DATA,
+      variation_code: variationCode,
     });
   }
 
   async buyElectricity(userId: string, meterNumber: string, amount: number, disco: string, type?: 'prepaid' | 'postpaid') {
     return this.buyUtility(userId, {
-      serviceID: 'electricity-bill',
+      serviceID: disco,
       billersCode: meterNumber,
       amount,
       phone: meterNumber,
@@ -735,13 +754,23 @@ export class WalletService {
   }
 
   async buyTv(userId: string, smartcardNumber: string, amount: number, provider: string, variationCode: string, phone?: string) {
+    let resolvedServiceId = provider;
+    if (!resolvedServiceId.match(/^[a-z0-9-]+$/) || resolvedServiceId.includes(' ')) {
+      const lower = provider.toLowerCase();
+      if (lower.includes('dstv')) resolvedServiceId = 'dstv';
+      else if (lower.includes('gotv')) resolvedServiceId = 'gotv';
+      else if (lower.includes('startimes')) resolvedServiceId = 'startimes';
+      else if (lower.includes('showmax')) resolvedServiceId = 'showmax';
+    }
+
     return this.buyUtility(userId, {
-      serviceID: 'tv-subscription',
+      serviceID: resolvedServiceId,
       billersCode: smartcardNumber,
       amount,
       phone: phone ?? smartcardNumber,
       description: `${provider} ${variationCode}`,
       category: WalletTransactionCategory.TV,
+      variation_code: variationCode,
     });
   }
 
@@ -755,6 +784,7 @@ export class WalletService {
       description: string;
       category: WalletTransactionCategory;
       type?: 'prepaid' | 'postpaid';
+      variation_code?: string;
     },
   ) {
     const [wallet, sender] = await Promise.all([
@@ -772,6 +802,7 @@ export class WalletService {
       amount: input.amount,
       phone: normalizeNigerianPhone(input.phone),
       type: input.type,
+      variation_code: input.variation_code,
     });
 
     const reference = `${input.category}_${Date.now()}_${userId.slice(0, 6)}`;

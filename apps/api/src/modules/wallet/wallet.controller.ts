@@ -123,13 +123,15 @@ export class WalletController {
 
   data = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
-    const { phone, plan, network, amount } = request.body as {
+    const { phone, plan, network, amount, variationCode, serviceID } = request.body as {
       phone: string;
       plan: string;
       network: string;
       amount: number;
+      variationCode?: string;
+      serviceID?: string;
     };
-    const result = await this.service.buyData(userId, phone, plan, network, amount);
+    const result = await this.service.buyData(userId, phone, plan, network, amount, variationCode, serviceID);
     return success(result);
   };
 

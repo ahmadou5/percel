@@ -111,6 +111,7 @@ export default function TransferScreen() {
   const [pinError, setPinError] = useState('');
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState('');
+  const [bankConfirmed, setBankConfirmed] = useState(false);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [failureModalOpen, setFailureModalOpen] = useState(false);
@@ -152,7 +153,7 @@ export default function TransferScreen() {
     bankLookup.data && bankLookup.data.bankCode === bankCode && bankLookup.data.accountNumber === accountDigits
       ? bankLookup.data
       : null;
-  const recipientReady = mode === 'BANK' ? Boolean(bankValidation) : Boolean(recipientValidation);
+  const recipientReady = mode === 'BANK' ? Boolean(bankValidation) && bankConfirmed : Boolean(recipientValidation);
   const amountValid = amountValue > 0 && (!wallet || amountValue <= wallet.balance);
   const canContinueToReview = recipientReady && amountValid;
   const transferPending = pinStatus === 'loading' || bankTransfer.isPending || interAppTransfer.isPending || receiptBusy;
@@ -185,6 +186,7 @@ export default function TransferScreen() {
     setRecipientError('');
     setAccountNumber('');
     setBankCode('044');
+    setBankConfirmed(false);
     setPhone('');
     setBankSearch('');
   };
@@ -193,20 +195,17 @@ export default function TransferScreen() {
     resetForm();
   }, [mode]);
 
-  useEffect(() => {
-    if (mode !== 'BANK' || step !== 1 || !bankValidation) return;
-    setStep(2);
-  }, [bankValidation, mode, step]);
 
-  useEffect(() => {
-    if (mode !== 'PHONE' || step !== 1 || !recipientValidation) return;
-    setStep(2);
-  }, [mode, recipientValidation, step]);
 
   useEffect(() => {
     setPinStatus('idle');
     setPinError('');
   }, [amount, mode, recipientValidation, bankValidation]);
+
+  // Reset confirmation when bank lookup result changes
+  useEffect(() => {
+    setBankConfirmed(false);
+  }, [bankValidation]);
 
   useEffect(() => {
     if (!biometricToast) return;
@@ -544,14 +543,26 @@ export default function TransferScreen() {
                   icon={<ShieldCheck size={24} color={palette.textSecondary} />}
                 />
               ) : bankValidation ? (
-                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                  <CheckCircle2 size={18} color={palette.success} />
-                  <View style={styles.statusCopy}>
-                    <Text style={[styles.statusTitle, { color: palette.success }]}>{bankValidation.accountName}</Text>
-                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.bankName}</Text>
-                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.accountNumber}</Text>
+                <>
+                  <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                    <CheckCircle2 size={18} color={palette.success} />
+                    <View style={styles.statusCopy}>
+                      <Text style={[styles.statusTitle, { color: palette.success }]}>{bankValidation.accountName}</Text>
+                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.bankName}</Text>
+                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{bankValidation.accountNumber}</Text>
+                    </View>
                   </View>
-                </View>
+
+                  <Pressable
+                    onPress={() => setBankConfirmed(!bankConfirmed)}
+                    style={[styles.confirmRow, { backgroundColor: bankConfirmed ? 'rgba(48,209,88,0.08)' : palette.bg, borderColor: bankConfirmed ? palette.success : palette.border }]}
+                  >
+                    <View style={[styles.confirmCheck, { backgroundColor: bankConfirmed ? palette.success : 'transparent', borderColor: bankConfirmed ? palette.success : palette.border }]}>
+                      {bankConfirmed ? <CheckCircle2 size={14} color="#fff" /> : null}
+                    </View>
+                    <Text style={[styles.confirmText, { color: palette.text }]}>I confirm this is the correct account</Text>
+                  </Pressable>
+                </>
               ) : (
                 <StateCard
                   title="Enter a complete account number"
@@ -559,6 +570,14 @@ export default function TransferScreen() {
                   icon={<SearchCheck size={24} color={palette.textSecondary} />}
                 />
               )}
+              {recipientReady ? (
+                <Pressable
+                  onPress={() => setStep(2)}
+                  style={[styles.primaryAction, { backgroundColor: palette.primary, marginTop: Spacing.md }]}
+                >
+                  <Text style={styles.primaryActionText}>Continue</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : (
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -607,6 +626,14 @@ export default function TransferScreen() {
                   icon={<SearchCheck size={24} color={palette.textSecondary} />}
                 />
               )}
+              {recipientReady ? (
+                <Pressable
+                  onPress={() => setStep(2)}
+                  style={[styles.primaryAction, { backgroundColor: palette.primary, marginTop: Spacing.md }]}
+                >
+                  <Text style={styles.primaryActionText}>Continue</Text>
+                </Pressable>
+              ) : null}
             </View>
           )
         ) : null}
@@ -945,6 +972,9 @@ const styles = StyleSheet.create({
   statusCopy: { flex: 1, gap: 2 },
   statusTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   statusMeta: { fontSize: Typography.xs, lineHeight: 16 },
+  confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 16, padding: Spacing.md, marginTop: 4 },
+  confirmCheck: { width: 24, height: 24, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  confirmText: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.bold },
   summaryMini: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
   summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },

@@ -76,6 +76,8 @@ export const DataBody = Type.Object({
   plan: Type.String(),
   network: Type.String(),
   amount: Type.Number({ minimum: 1 }),
+  variationCode: Type.Optional(Type.String()),
+  serviceID: Type.Optional(Type.String()),
 });
 
 export const ElectricityBody = Type.Object({

@@ -78,19 +78,76 @@ export default function TopUpScreen() {
         returnAfterClose: false,
       });
 
+      const balanceBefore = wallet?.balance ?? 0;
       const response = await mutation.mutateAsync({ amount: amountValue });
       const completed = response.authResult.type === "success";
-      setResultModal({
-        visible: true,
-        type: completed ? "success" : "failed",
-        title: completed ? "Top-up complete" : "Top-up not completed",
-        message: completed
-          ? "Your wallet top up was confirmed and the balance will refresh shortly."
-          : "The Paystack checkout was closed before payment completed.",
-        amount: formatNaira(amountValue),
-        reference: response.reference,
-        returnAfterClose: false,
-      });
+      const dismissed = response.authResult.type === "dismiss" || response.authResult.type === "cancel";
+
+      if (completed) {
+        setResultModal({
+          visible: true,
+          type: "success",
+          title: "Top-up complete",
+          message: "Your wallet top up was confirmed and the balance will refresh shortly.",
+          amount: formatNaira(amountValue),
+          reference: response.reference,
+          returnAfterClose: false,
+        });
+      } else if (dismissed) {
+        // Browser closed — payment might still have gone through via webhook.
+        // Show pending and poll the wallet balance for up to 30 seconds.
+        setResultModal({
+          visible: true,
+          type: "pending",
+          title: "Checking payment status…",
+          message: "The payment window was closed. We're checking with Paystack to see if your payment went through.",
+          amount: formatNaira(amountValue),
+          reference: response.reference,
+          returnAfterClose: false,
+        });
+
+        let resolved = false;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          const freshWallet = await walletQuery.refetch();
+          const newBalance = freshWallet.data?.balance ?? balanceBefore;
+          if (newBalance > balanceBefore) {
+            resolved = true;
+            setResultModal({
+              visible: true,
+              type: "success",
+              title: "Top-up confirmed!",
+              message: "Paystack confirmed your payment and your balance has been updated.",
+              amount: formatNaira(amountValue),
+              reference: response.reference,
+              returnAfterClose: false,
+            });
+            break;
+          }
+        }
+
+        if (!resolved) {
+          setResultModal({
+            visible: true,
+            type: "pending",
+            title: "Payment not yet confirmed",
+            message: "If you completed the payment, it may take a few minutes for Paystack to confirm. Your balance will update automatically once confirmed.",
+            amount: formatNaira(amountValue),
+            reference: response.reference,
+            returnAfterClose: false,
+          });
+        }
+      } else {
+        setResultModal({
+          visible: true,
+          type: "failed",
+          title: "Top-up not completed",
+          message: "The Paystack checkout was closed before payment completed.",
+          amount: formatNaira(amountValue),
+          reference: response.reference,
+          returnAfterClose: false,
+        });
+      }
     } catch (error) {
       setResultModal({
         visible: true,

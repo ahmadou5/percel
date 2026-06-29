@@ -42,6 +42,7 @@ export default function AirtimeScreen() {
   const [providerValidation, setProviderValidation] = useState<ProviderSelection | null>(null);
   const [providerStatus, setProviderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [providerError, setProviderError] = useState('');
+  const [lowConfidenceBanner, setLowConfidenceBanner] = useState(false);
   const [resultModal, setResultModal] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string; returnAfterClose: boolean }>(null);
   const pinVerify = useVerifyTransferPin();
   const confirmTransactionsBiometricEnabled = usePreferencesStore((state) => state.confirmTransactionsBiometricEnabled);
@@ -78,6 +79,7 @@ export default function AirtimeScreen() {
 
     const timer = setTimeout(() => {
       setProviderStatus('loading');
+      setLowConfidenceBanner(false);
       void providerResolve.mutateAsync({ phone: normalizedPhone }).then((response) => {
         const result = response.data;
         setProviderValidation(result);
@@ -92,6 +94,12 @@ export default function AirtimeScreen() {
                 ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
                 : services.find((service) => service.serviceID.toLowerCase().includes('9mobile') || service.serviceID.toLowerCase().includes('etisalat') || service.name.toLowerCase().includes('9mobile'));
         if (match) setSelectedServiceID(match.serviceID);
+
+        // Low confidence: stay on step 1 and open the picker so user can confirm/fix
+        if (result.confidence === 'low') {
+          setLowConfidenceBanner(true);
+          setProviderPickerOpen(true);
+        }
       }).catch((error) => {
         setProviderValidation(null);
         setProviderStatus('error');
@@ -103,8 +111,9 @@ export default function AirtimeScreen() {
   }, [normalizedPhone, providerResolve, services, step]);
 
   useEffect(() => {
-    if (providerStatus === 'success' && step === 1) setStep(2);
-  }, [providerStatus, step]);
+    // Only auto-advance on high-confidence detections
+    if (providerStatus === 'success' && step === 1 && !lowConfidenceBanner) setStep(2);
+  }, [lowConfidenceBanner, providerStatus, step]);
 
   const headerBack = () => {
     if (step > 1) {
@@ -129,7 +138,10 @@ export default function AirtimeScreen() {
   };
 
   const executePayment = async () => {
-    const response = await mutation.mutateAsync({ phone: normalizedPhone || phone, network: displayNetwork, amount: selectedAmount });
+    // Pass the VTpass serviceID (e.g. "mtn-airtime") as the network so the
+    // backend can use it directly rather than relying on string matching.
+    const networkId = selectedService?.serviceID ?? displayNetwork;
+    const response = await mutation.mutateAsync({ phone: normalizedPhone || phone, network: networkId, amount: selectedAmount });
     setResultModal({
       visible: true,
       type: "success",
@@ -261,13 +273,41 @@ export default function AirtimeScreen() {
             {providerStatus === 'loading' ? (
               <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
             ) : providerStatus === 'success' && providerValidation ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                <CheckCircle2 size={18} color={palette.success} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.success }]}>{providerValidation.providerName}</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerValidation.phone}</Text>
-                </View>
-              </View>
+              <>
+                {lowConfidenceBanner ? (
+                  <View style={[styles.statusCard, { backgroundColor: 'rgba(255,159,10,0.10)', borderColor: '#FF9F0A' }]}>
+                    <ShieldCheck size={18} color="#FF9F0A" />
+                    <View style={styles.statusCopy}>
+                      <Text style={[styles.statusTitle, { color: '#FF9F0A' }]}>Network guessed — please confirm</Text>
+                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>We detected <Text style={{ fontFamily: 'System', fontWeight: '700' }}>{providerValidation.providerName}</Text> with low confidence. Tap to change if incorrect.</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                    <CheckCircle2 size={18} color={palette.success} />
+                    <View style={styles.statusCopy}>
+                      <Text style={[styles.statusTitle, { color: palette.success }]}>{providerValidation.providerName}</Text>
+                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerValidation.phone}</Text>
+                    </View>
+                  </View>
+                )}
+                {lowConfidenceBanner ? (
+                  <>
+                    <Pressable
+                      onPress={() => setProviderPickerOpen(true)}
+                      style={[styles.secondaryAction, { borderColor: palette.border, backgroundColor: palette.card }]}
+                    >
+                      <Text style={[styles.secondaryActionText, { color: palette.text }]}>Change network</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => { setLowConfidenceBanner(false); setStep(2); }}
+                      style={[styles.primaryAction, { backgroundColor: palette.primary }]}
+                    >
+                      <Text style={styles.primaryActionText}>Confirm {displayNetwork} and continue</Text>
+                    </Pressable>
+                  </>
+                ) : null}
+              </>
             ) : providerStatus === 'error' ? (
               <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
                 <ShieldCheck size={18} color={palette.error} />
@@ -450,6 +490,16 @@ export default function AirtimeScreen() {
         canClose={!(pinStatus === "loading" || mutation.isPending)}
         footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
       />
+
+      <TransactionResultModal
+        visible={Boolean(resultModal?.visible)}
+        type={resultModal?.type ?? 'pending'}
+        title={resultModal?.title ?? ''}
+        message={resultModal?.message ?? ''}
+        amount={resultModal?.amount}
+        reference={resultModal?.reference}
+        onClose={handleCloseResult}
+      />
     </ScrollView>
   );
 }
@@ -500,6 +550,8 @@ const styles = StyleSheet.create({
   reviewAmount: { fontSize: 28, fontFamily: Typography.family.bold, marginTop: 2 },
   primaryAction: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  secondaryAction: { minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  secondaryActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },

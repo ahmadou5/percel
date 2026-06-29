@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
 
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Button } from '@/components/ui/Button';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Input } from '@/components/ui/Input';
@@ -16,11 +17,12 @@ import { usePreferencesStore } from '@/store/preferences.store';
 import { describeBiometricTypes, LocalAuthentication } from '@/lib/localAuthentication';
 import { useAppPalette } from '@/lib/theme';
 
-const pinPattern = /^\d{4,6}$/;
+const pinPattern = /^\d{4}$/;
 
 export default function ProfileSecurityScreen() {
   const back = useSafeBack('/profile');
   const palette = useAppPalette();
+  const modal = useAppModal();
   const user = useAuthStore((state) => state.user);
   const mutation = useSetTransferPin();
   const resetMutation = useResetTransferPin();
@@ -55,19 +57,19 @@ export default function ProfileSecurityScreen() {
 
   const currentPinError = useMemo(() => {
     if (!currentPin) return null;
-    return pinPattern.test(currentPin) ? null : 'Use 4 to 6 digits.';
+    return pinPattern.test(currentPin) ? null : 'Use exactly 4 digits.';
   }, [currentPin]);
 
   const newPinError = useMemo(() => {
     if (!newPin) return null;
-    if (!pinPattern.test(newPin)) return 'Use 4 to 6 digits.';
+    if (!pinPattern.test(newPin)) return 'Use exactly 4 digits.';
     if (confirmPin && newPin !== confirmPin) return 'PINs do not match.';
     return null;
   }, [confirmPin, newPin]);
 
   const confirmError = useMemo(() => {
     if (!confirmPin) return null;
-    if (!pinPattern.test(confirmPin)) return 'Use 4 to 6 digits.';
+    if (!pinPattern.test(confirmPin)) return 'Use exactly 4 digits.';
     if (newPin && newPin !== confirmPin) return 'PINs do not match.';
     return null;
   }, [confirmPin, newPin]);
@@ -78,12 +80,15 @@ export default function ProfileSecurityScreen() {
     if (!canSave) return;
     try {
       await mutation.mutateAsync({ currentPin: walletPinSet ? currentPin : undefined, newPin });
+      if (confirmTransactionsBiometricEnabled) {
+        await SecureStore.setItemAsync('percel_transfer_pin', newPin);
+      }
       setCurrentPin('');
       setNewPin('');
       setConfirmPin('');
-      Alert.alert('Transfer PIN saved', walletPinSet ? 'Your transfer PIN has been updated.' : 'Your wallet transfers now require this PIN.');
+      modal.alert('Transfer PIN saved', walletPinSet ? 'Your transfer PIN has been updated.' : 'Your wallet transfers now require this PIN.', 'success');
     } catch (error) {
-      Alert.alert('Could not save PIN', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert('Could not save PIN', error instanceof Error ? error.message : 'Please try again.', 'error');
     }
   };
 
@@ -97,9 +102,9 @@ export default function ProfileSecurityScreen() {
       await setWalletAccessBiometricEnabled(false);
       await SecureStore.deleteItemAsync('percel_transfer_pin');
       await setConfirmTransactionsBiometricEnabled(false);
-      Alert.alert('Transfer PIN removed', 'Transfers will no longer require a PIN until you set one again.');
+      modal.alert('Transfer PIN removed', 'Transfers will no longer require a PIN until you set one again.', 'success');
     } catch (error) {
-      Alert.alert('Could not remove PIN', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert('Could not remove PIN', error instanceof Error ? error.message : 'Please try again.', 'error');
     }
   };
 
@@ -108,12 +113,12 @@ export default function ProfileSecurityScreen() {
     const enrolled = hardware ? await LocalAuthentication.isEnrolledAsync() : false;
 
     if (!hardware) {
-      Alert.alert('Biometrics unavailable', 'This device does not have biometric hardware.');
+      modal.alert('Biometrics unavailable', 'This device does not have biometric hardware.', 'warning');
       return false;
     }
 
     if (!enrolled) {
-      Alert.alert('Biometrics not set up', 'Enable Face ID or fingerprint on this device first.');
+      modal.alert('Biometrics not set up', 'Enable Face ID or fingerprint on this device first.', 'warning');
       return false;
     }
 
@@ -131,7 +136,7 @@ export default function ProfileSecurityScreen() {
     });
 
     if (!result.success) {
-      Alert.alert('Authentication cancelled', 'Biometric authentication is required to enable this setting.');
+      modal.alert('Authentication cancelled', 'Biometric authentication is required to enable this setting.', 'warning');
       return false;
     }
 
@@ -164,7 +169,7 @@ export default function ProfileSecurityScreen() {
 
   const onToggleWalletAccess = async (next: boolean) => {
     if (next && !walletPinSet) {
-      Alert.alert('Set a PIN first', 'Create a transfer PIN above before turning on wallet access protection.');
+      modal.alert('Set a PIN first', 'Create a transfer PIN above before turning on wallet access protection.', 'info');
       return;
     }
 
@@ -184,7 +189,7 @@ export default function ProfileSecurityScreen() {
     }
 
     if (!walletPinSet) {
-      Alert.alert('Set a PIN first', 'Create a transfer PIN above before turning on transaction confirmation.');
+      modal.alert('Set a PIN first', 'Create a transfer PIN above before turning on transaction confirmation.', 'info');
       return;
     }
 
@@ -255,7 +260,7 @@ export default function ProfileSecurityScreen() {
               secureTextEntry
               secureToggle
               error={newPinError ?? undefined}
-              helperText='Use 4 to 6 digits.'
+              helperText='Use exactly 4 digits.'
             />
             <Input
               label='Confirm PIN'
@@ -368,6 +373,7 @@ export default function ProfileSecurityScreen() {
           </View>
         </View>
       </Modal>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </KeyboardView>
   );
 }

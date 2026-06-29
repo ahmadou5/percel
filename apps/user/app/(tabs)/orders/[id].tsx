@@ -8,7 +8,7 @@ import { DriverCard } from '@/components/order/DriverCard';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useCancelOrder, useOrderDetail } from '@/hooks/useOrder';
+import { useCancelOrder, useConfirmDelivery, useOrderDetail } from '@/hooks/useOrder';
 import { useAppPalette } from '@/lib/theme';
 
 function getStatusConfig(status: string) {
@@ -32,7 +32,9 @@ export default function OrderDetailScreen() {
   const palette = useAppPalette();
   const query = useOrderDetail(id);
   const cancelMutation = useCancelOrder();
+  const confirmDeliveryMutation = useConfirmDelivery();
   const order = query.data;
+  const [confirmDeliveryVisible, setConfirmDeliveryVisible] = useState(false);
 
   const [modalConfig, setModalConfig] = useState<{
     visible: boolean;
@@ -265,7 +267,7 @@ export default function OrderDetailScreen() {
       {/* Confirm delivery CTA — shown when driver has marked delivered but user hasn't confirmed yet */}
       {order.status === 'DELIVERED' ? (
         <Pressable
-          onPress={() => router.push({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never)}
+          onPress={() => setConfirmDeliveryVisible(true)}
           style={({ pressed }) => [
             styles.rateButton,
             { backgroundColor: palette.primary },
@@ -307,6 +309,66 @@ export default function OrderDetailScreen() {
         </Pressable>
       ) : null}
     </ScrollView>
+
+    <Modal transparent visible={confirmDeliveryVisible} animationType="fade" onRequestClose={() => setConfirmDeliveryVisible(false)}>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmDeliveryVisible(false)} />
+        <View style={[styles.confirmSheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          {/* Icon */}
+          <View style={[styles.confirmIconWrap, { backgroundColor: `${palette.success}1A` }]}>
+            <CheckCircle2 size={26} color={palette.success} />
+          </View>
+
+          <View style={styles.confirmTextBlock}>
+            <Text style={[styles.confirmTitle, { color: palette.text }]}>Confirm Delivery</Text>
+            <Text style={[styles.confirmBody, { color: palette.textSecondary }]}>
+              Please confirm that you have received your package in good condition. Once confirmed, the driver will receive their earnings.
+            </Text>
+          </View>
+
+          {/* Order meta */}
+          <View style={[styles.confirmMeta, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <Text style={[styles.confirmMetaLabel, { color: palette.textSecondary }]}>Order</Text>
+            <Text style={[styles.confirmMetaValue, { color: palette.text }]}>{order.trackingCode}</Text>
+          </View>
+
+          {/* Actions */}
+          <View style={styles.confirmActions}>
+            <Pressable
+              onPress={() => setConfirmDeliveryVisible(false)}
+              style={[styles.confirmSecondary, { backgroundColor: palette.bg, borderColor: palette.border }]}
+            >
+              <Text style={[styles.confirmSecondaryText, { color: palette.text }]}>Not Yet</Text>
+            </Pressable>
+            <Pressable
+              disabled={confirmDeliveryMutation.isPending}
+              onPress={async () => {
+                try {
+                  await confirmDeliveryMutation.mutateAsync(order.id);
+                  setConfirmDeliveryVisible(false);
+                  router.push({ pathname: '/orders/rate/[id]', params: { id: order.id } } as never);
+                } catch (error) {
+                  setConfirmDeliveryVisible(false);
+                  setModalConfig({
+                    visible: true,
+                    title: 'Confirmation Failed',
+                    description: error instanceof Error ? error.message : 'Unable to confirm delivery. Please try again.',
+                    type: 'error',
+                    primaryText: 'OK',
+                    onPrimaryPress: () => setModalConfig((prev) => ({ ...prev, visible: false })),
+                  });
+                }
+              }}
+              style={[styles.confirmPrimary, { backgroundColor: palette.success, opacity: confirmDeliveryMutation.isPending ? 0.7 : 1 }]}
+            >
+              <Text style={styles.confirmPrimaryText}>
+                {confirmDeliveryMutation.isPending ? 'Confirming…' : 'Yes, Confirm'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
 
     <Modal transparent visible={modalConfig.visible} animationType="fade" onRequestClose={() => setModalConfig((prev) => ({ ...prev, visible: false }))}>
       <View style={styles.modalBackdrop}>
@@ -434,6 +496,20 @@ const styles = StyleSheet.create({
   cancelReasonCard: { borderRadius: 16, borderWidth: 1, padding: Spacing.md, gap: 4 },
   cancelReasonTitle: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   cancelReasonText: { fontSize: Typography.sm, fontFamily: Typography.family.medium, lineHeight: 20 },
+  // ── Confirm delivery bottom sheet ────────────────────────────────────────────
+  confirmSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.xxxl, gap: Spacing.md },
+  confirmIconWrap: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  confirmTextBlock: { gap: 6 },
+  confirmTitle: { fontSize: Typography.xl, fontFamily: Typography.family.bold },
+  confirmBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+  confirmMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 12 },
+  confirmMetaLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
+  confirmMetaValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  confirmActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  confirmSecondary: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  confirmSecondaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  confirmPrimary: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  confirmPrimaryText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.48)' },
   modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.xxxl, gap: 12 },
   modalIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
