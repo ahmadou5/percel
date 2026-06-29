@@ -11,6 +11,7 @@ export const RegisterUserSchema = z.object({
     .string()
     .regex(passwordRule, 'Password must be 8+ chars with at least 1 uppercase and 1 number'),
   fullName: z.string().min(2),
+  referralCode: z.string().optional(),
 });
 
 export const LoginSchema = z.object({
@@ -57,6 +58,7 @@ export const RegisterUserBody = Type.Object({
   phone: Type.String(),
   password: Type.String({ minLength: 8 }),
   fullName: Type.String({ minLength: 2 }),
+  referralCode: Type.Optional(Type.String()),
 });
 
 export const RegisterDriverBody = Type.Object({

@@ -44,6 +44,8 @@ function buildTitle(type: NotificationJobType) {
       return 'KYC approved';
     case 'KYC_REJECTED':
       return 'KYC rejected';
+    case 'REFERRAL_BONUS':
+      return 'Referral reward';
     default:
       return 'Percel update';
   }
@@ -115,6 +117,12 @@ export function buildNotificationPayload(type: NotificationJobType, payload: Rec
       return {
         title: buildTitle(type),
         body: `KYC rejected: ${String(payload.reason ?? 'Please resubmit.')}`,
+        data: payload,
+      };
+    case 'REFERRAL_BONUS':
+      return {
+        title: buildTitle(type),
+        body: `${formatAmount(payload.amount)} added to your wallet for inviting a friend!`,
         data: payload,
       };
     default:

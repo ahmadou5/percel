@@ -37,7 +37,7 @@ export function useRegister(
   options?: UseMutationOptions<
     AuthResponse,
     Error,
-    { email: string; phone: string; password: string; fullName: string }
+    { email: string; phone: string; password: string; fullName: string; referralCode?: string }
   >,
 ) {
   const { onSuccess: userOnSuccess, ...mutationOptions } = options ?? {};
@@ -48,6 +48,7 @@ export function useRegister(
       phone: string;
       password: string;
       fullName: string;
+      referralCode?: string;
     }) => {
       const response = await http.post<AuthResponse>('/api/v1/auth/register', payload);
       return response.data;

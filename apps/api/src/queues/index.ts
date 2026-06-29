@@ -17,7 +17,8 @@ export type NotificationJobType =
   | 'PAYMENT_RECEIVED'
   | 'TRANSFER_RECEIVED'
   | 'KYC_APPROVED'
-  | 'KYC_REJECTED';
+  | 'KYC_REJECTED'
+  | 'REFERRAL_BONUS';
 
 export type NotificationJobData = {
   userId: string;

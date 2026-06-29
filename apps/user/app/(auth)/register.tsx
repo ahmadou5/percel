@@ -19,7 +19,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 export default function RegisterScreen() {
   const theme = useAppPalette();
@@ -30,6 +30,7 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,14 +62,16 @@ export default function RegisterScreen() {
       case 4:
         return passRegex.test(password);
       case 5:
+        return referralCode.trim() === '' || referralCode.trim().length >= 4;
+      case 6:
         return pin.length === 4;
       default:
         return false;
     }
-  }, [step, fullName, acceptedTerms, phoneValue, email, password, pin]);
+  }, [step, fullName, acceptedTerms, phoneValue, email, password, referralCode, pin]);
 
   const handleNext = () => {
-    if (stepValid && step < 5) {
+    if (stepValid && step < 6) {
       setStep((current) => (current + 1) as Step);
     }
   };
@@ -89,6 +92,7 @@ export default function RegisterScreen() {
       email,
       phone: `+234${phoneValue}`,
       password,
+      referralCode: referralCode.trim() || undefined,
     });
   };
 
@@ -106,7 +110,7 @@ export default function RegisterScreen() {
           </Pressable>
           
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${(step / 5) * 100}%`, backgroundColor: theme.primary }]} />
+            <View style={[styles.progressFill, { width: `${(step / 6) * 100}%`, backgroundColor: theme.primary }]} />
           </View>
 
           <Link href="/(auth)/login" asChild>
@@ -241,6 +245,27 @@ export default function RegisterScreen() {
 
             {step === 5 && (
               <Animated.View key="step-5" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: theme.text }]}>REFERRAL CODE</Text>
+                <Text style={[styles.subheading, { color: theme.textSecondary }]}>Enter an invite code (optional) to unlock rewards for you and your friend.</Text>
+
+                <Input
+                  label="Referral code (Optional)"
+                  placeholder="e.g. ABCDEF"
+                  autoCapitalize="characters"
+                  value={referralCode}
+                  onChangeText={(val) => setReferralCode(val.toUpperCase())}
+                  error={referralCode && referralCode.trim().length < 4 ? 'Invalid code length' : undefined}
+                  autoFocus
+                />
+
+                <View style={styles.ctaWrap}>
+                  <Button title="Continue" disabled={!stepValid} onPress={handleNext} size="lg" style={styles.cta} />
+                </View>
+              </Animated.View>
+            )}
+
+            {step === 6 && (
+              <Animated.View key="step-6" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
                 <Text style={[styles.heading, { color: theme.text }]}>SET A SECURE PIN</Text>
                 <Text style={[styles.subheading, { color: theme.textSecondary }]}>Create a 4-digit transfer PIN to secure your wallet transactions.</Text>
 

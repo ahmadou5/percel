@@ -14,6 +14,7 @@ import { haversineDistanceKm } from '../../utils/helpers.js';
 import { cleanText } from '../../utils/sanitize.js';
 import { ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
 import type { WalletService } from '../wallet/wallet.service.js';
+import { ReferralService } from '../referral/referral.service.js';
 import type { OrderQuote, OrderSummary } from './order.types.js';
 
 function asNumber(value: Prisma.Decimal | number | null | undefined) {
@@ -491,6 +492,18 @@ export class OrderService {
     await addNotificationJob(this.app, userId, 'ORDER_COMPLETED', { orderId: order.id });
     this.logger.info({ userId, orderId: order.id, driverId: order.driverId ?? null, status: OrderStatus.COMPLETED }, 'order.completed');
     await this.emitStatusUpdate(order.id, OrderStatus.COMPLETED, userId, order.driverId ?? undefined);
+
+    // Referral qualification: check if this is the user's first completed order
+    const completedCount = await this.prisma.order.count({ where: { userId, status: OrderStatus.COMPLETED } });
+    if (completedCount === 1) {
+      try {
+        const referralService = new ReferralService(this.prisma, this.logger, this.app);
+        await referralService.qualifyReferral(userId);
+      } catch (err) {
+        this.logger.warn({ err, userId }, 'referral.qualify.failed');
+      }
+    }
+
     return serializeOrder(completed);
   }
 

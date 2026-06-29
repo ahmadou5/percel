@@ -96,6 +96,14 @@ enum WalletTransactionCategory {
   TV
   COMMISSION
   REFUND
+  REFERRAL_BONUS
+}
+
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
+  REWARDED
+  EXPIRED
 }
 
 enum NotificationType {
@@ -126,6 +134,8 @@ model User {
   bvnVerified   Boolean    @default(false)
   kycMethod     KycMethod?
   paystackCustomerCode String? @unique
+  referralCode  String?    @unique
+  referredById  String?    @db.Uuid
   deletedAt     DateTime?
   role          UserRole   @default(USER)
   status        UserStatus @default(ACTIVE)
@@ -134,11 +144,15 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  wallet        Wallet?
-  orders        Order[]
-  notifications Notification[]
-  driver        Driver?
-  orderRatings  OrderRating[]
+  wallet            Wallet?
+  orders            Order[]
+  notifications     Notification[]
+  driver            Driver?
+  orderRatings      OrderRating[]
+  referredBy        User?      @relation("UserReferrals", fields: [referredById], references: [id])
+  referredUsers     User[]     @relation("UserReferrals")
+  sentReferrals     Referral[] @relation("ReferralInviter")
+  receivedReferral  Referral?  @relation("ReferralInvitee")
 }
 
 model Driver {
@@ -375,4 +389,23 @@ model DriverEarning {
 
   driver Driver @relation(fields: [driverId], references: [id])
   order  Order  @relation(fields: [orderId], references: [id])
+}
+
+model Referral {
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  inviterId     String         @db.Uuid
+  inviteeId     String         @unique @db.Uuid
+  status        ReferralStatus @default(PENDING)
+  inviterBonus  Decimal        @default(0) @db.Decimal(14, 2)
+  inviteeBonus  Decimal        @default(0) @db.Decimal(14, 2)
+  qualifiedAt   DateTime?
+  rewardedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  inviter User @relation("ReferralInviter", fields: [inviterId], references: [id])
+  invitee User @relation("ReferralInvitee", fields: [inviteeId], references: [id])
+
+  @@index([inviterId])
+  @@index([status])
 }

@@ -26,6 +26,7 @@ type AuthInput = {
   phone: string;
   password: string;
   fullName: string;
+  referralCode?: string;
 };
 
 type DriverInput = AuthInput & {
@@ -106,6 +107,16 @@ export class AuthService {
     if (existing) throw new ValidationError('Email or phone already exists');
 
     const passwordHash = await bcrypt.hash(payload.password, 12);
+    let inviterId: string | null = null;
+    if (payload.referralCode) {
+      const inviter = await this.prisma.user.findUnique({
+        where: { referralCode: payload.referralCode.trim().toUpperCase() },
+        select: { id: true },
+      });
+      if (!inviter) throw new ValidationError('Invalid referral code');
+      inviterId = inviter.id;
+    }
+
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -113,10 +124,22 @@ export class AuthService {
           phone: payload.phone,
           passwordHash,
           fullName: payload.fullName,
+          referredById: inviterId,
         },
       });
 
       await tx.wallet.create({ data: { userId: created.id, nuban: null, bankName: null } });
+
+      if (inviterId) {
+        await tx.referral.create({
+          data: {
+            inviterId,
+            inviteeId: created.id,
+            status: 'PENDING',
+          },
+        });
+      }
+
       return created;
     });
 
