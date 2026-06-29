@@ -44,6 +44,28 @@ function normalizeNigerianPhone(phone: string) {
 }
 
 
+function assertNigerianPhone(phone: string) {
+  const normalized = normalizeNigerianPhone(phone);
+  if (!/^\+234[789]\d{9}$/.test(normalized)) {
+    throw new ValidationError('Enter a valid Nigerian phone number');
+  }
+  return normalized;
+}
+
+function resolveNigerianNetwork(phone: string) {
+  const normalized = assertNigerianPhone(phone);
+  const localPrefix = `0${normalized.slice(4, 7)}`;
+  const networks: Record<string, string> = {
+    '0701': 'Airtel', '0702': 'Airtel', '0703': 'MTN', '0704': 'MTN', '0705': 'Glo', '0706': 'MTN', '0707': 'Glo', '0708': 'Airtel', '0709': '9mobile',
+    '0802': 'Airtel', '0803': 'MTN', '0804': 'MTN', '0805': 'Glo', '0806': 'MTN', '0807': 'Glo', '0808': 'Airtel', '0809': '9mobile',
+    '0810': 'MTN', '0811': 'Glo', '0812': 'Airtel', '0813': 'MTN', '0814': 'MTN', '0815': 'Glo', '0816': 'MTN', '0817': '9mobile', '0818': '9mobile',
+    '0901': 'Airtel', '0902': 'Airtel', '0903': 'MTN', '0904': 'Airtel', '0905': 'Glo', '0906': 'MTN', '0907': 'Airtel', '0908': '9mobile', '0909': '9mobile',
+    '0912': 'Airtel', '0913': 'MTN', '0915': 'Glo', '0916': 'MTN', '0917': '9mobile', '0918': '9mobile',
+  };
+
+  return { normalized, network: networks[localPrefix] ?? null };
+}
+
 function isKycComplete(user: {
   dateOfBirth: Date | null;
   address: string | null;
@@ -567,7 +589,7 @@ export class WalletService {
   }
 
   async resolveTransferRecipient(phone: string) {
-    const normalizedPhone = normalizeNigerianPhone(phone);
+    const normalizedPhone = assertNigerianPhone(phone);
     const recipient = await this.prisma.user.findUnique({
       where: { phone: normalizedPhone },
       select: { id: true, fullName: true, phone: true, avatarUrl: true, wallet: { select: { id: true } } },
@@ -594,16 +616,15 @@ export class WalletService {
   }
 
   async resolveAirtimeProvider(phone: string) {
-    const normalizedPhone = normalizeNigerianPhone(phone);
-    const digits = normalizedPhone.replace(/\D/g, '');
+    const { normalized: normalizedPhone, network } = resolveNigerianNetwork(phone);
     const services = await listServices('airtime');
-    const providerName = digits.startsWith('2348') || digits.startsWith('080') ? 'MTN' : digits.startsWith('2347') || digits.startsWith('070') ? 'Airtel' : digits.startsWith('2349') || digits.startsWith('090') ? '9mobile' : digits.startsWith('2345') || digits.startsWith('050') ? 'Glo' : services[0]?.name ?? 'Network';
-    const service = services.find((item) => item.name.toLowerCase().includes(providerName.toLowerCase())) ?? services[0];
+    const providerName = network ?? services[0]?.name ?? 'Network';
+    const service = network ? services.find((item) => item.name.toLowerCase().includes(network.toLowerCase())) : undefined;
     return {
       phone: normalizedPhone,
-      serviceID: service?.serviceID ?? 'airtime',
+      serviceID: service?.serviceID ?? services[0]?.serviceID ?? 'airtime',
       providerName,
-      confidence: service ? 'high' : 'low',
+      confidence: service && network ? 'high' : 'low',
     };
   }
 

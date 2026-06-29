@@ -71,6 +71,10 @@ export function normalizeNigerianPhone(value: string) {
   return trimmed;
 }
 
+export function isValidNigerianPhone(value: string) {
+  return /^\+234[789]\d{9}$/.test(normalizeNigerianPhone(value));
+}
+
 export function providerLabelFromService(serviceID: string, name: string) {
   const tone = providerTone(serviceID);
   if (tone.label) return tone.label;

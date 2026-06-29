@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { PinInput } from "@/components/ui/PinInput";
 import { StateCard } from "@/components/ui/StateCard";
 import { AmountInput } from "@/components/wallet/AmountInput";
-import { normalizeNigerianPhone } from "@/components/wallet/WalletFlow";
+import { normalizeNigerianPhone, isValidNigerianPhone } from "@/components/wallet/WalletFlow";
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from "@/components/wallet/WalletFlowProgress";
 import { useAppPalette } from "@/lib/theme";
 import { Spacing } from "@/constants/spacing";
@@ -216,8 +216,7 @@ export default function TransferScreen() {
   useEffect(() => {
     if (mode !== 'PHONE') return;
 
-    const digits = normalizedPhone.replace(/\D/g, '');
-    if (digits.length < 10) {
+    if (!isValidNigerianPhone(phone)) {
       lookupAttemptRef.current += 1;
       setRecipientValidation(null);
       setRecipientStatus('idle');

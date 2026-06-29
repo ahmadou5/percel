@@ -52,7 +52,7 @@ export default function ElectricityScreen() {
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
-  const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
+  const selectedService = services.find((service) => service.serviceID === selectedServiceID);
   const amountValue = Number((customAmount || amountPreset || '0').replace(/,/g, ''));
   const displayService = selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Choose a provider';
 
@@ -105,6 +105,7 @@ export default function ElectricityScreen() {
   };
 
   const amountValid = amountValue > 0;
+  const canReview = validationStatus === 'success' && Boolean(selectedService) && amountValid;
 
   const resetPaymentAuthState = () => {
     setPin("");
@@ -157,7 +158,7 @@ export default function ElectricityScreen() {
   };
 
   const openPaymentAuth = async () => {
-    if (!selectedService || biometricBusy || mutation.isPending) return;
+    if (!canReview || biometricBusy || mutation.isPending) return;
 
     if (confirmTransactionsBiometricEnabled) {
       setBiometricBusy(true);
@@ -341,8 +342,37 @@ export default function ElectricityScreen() {
 
             <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected amount: {amountValue ? formatNaira(amountValue) : '₦0'}</Text>
 
-            <Pressable disabled={!amountValid || mutation.isPending || biometricBusy} onPress={() => void openPaymentAuth()} style={[styles.primaryAction, { backgroundColor: amountValid ? palette.primary : palette.border }]}>
+            <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
               <Text style={styles.primaryActionText}>Review electricity payment</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {step === 3 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <CheckCircle2 size={16} color={palette.primary} />
+              </View>
+              <View style={styles.sectionCopy}>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the meter, provider, and amount before payment.</Text>
+              </View>
+            </View>
+
+            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Electricity</Text>
+              <Text style={[styles.reviewTitle, { color: palette.text }]}>{validation?.name ?? 'Validated subscriber'}</Text>
+              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{meterNumber.trim()} • {displayService} • {meterType}</Text>
+              <Text style={[styles.reviewAmount, { color: palette.text }]}>{amountValue ? formatNaira(amountValue) : '₦0'}</Text>
+            </View>
+
+            <Pressable
+              disabled={!canReview || mutation.isPending || biometricBusy}
+              onPress={() => void openPaymentAuth()}
+              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
+            >
+              <Text style={styles.primaryActionText}>{amountValue > 0 ? 'Pay ' + formatNaira(amountValue) : 'Select an amount'}</Text>
             </Pressable>
           </View>
         ) : null}

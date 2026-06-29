@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { normalizeNigerianPhone, providerLabelFromService, ProviderBadge } from '@/components/wallet/WalletFlow';
+import { normalizeNigerianPhone, isValidNigerianPhone, providerLabelFromService, ProviderBadge } from '@/components/wallet/WalletFlow';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -69,8 +69,7 @@ export default function AirtimeScreen() {
 
   useEffect(() => {
     if (step !== 1) return;
-    const digits = normalizedPhone.replace(/\D/g, '');
-    if (digits.length < 10) {
+    if (!isValidNigerianPhone(phone)) {
       setProviderValidation(null);
       setProviderStatus('idle');
       setProviderError('');

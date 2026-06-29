@@ -48,7 +48,7 @@ export default function TvScreen() {
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
-  const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
+  const selectedService = services.find((service) => service.serviceID === selectedServiceID);
   const variationsQuery = useProviderVariations(selectedService?.serviceID);
   const variations = variationsQuery.data ?? [];
   const selectedVariation = variations.find((variation) => variation.variation_code === selectedVariationCode) ?? variations[0];
