@@ -14,6 +14,7 @@ import {
   initiateTransfer,
   listBanks,
   resolveAccountNumber,
+  verifyTransaction,
 } from '../../lib/paystack.js';
 import { emitToUser } from '../../lib/realtime.js';
 import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
@@ -391,6 +392,94 @@ export class WalletService {
     );
   }
 
+  async completeTopUpTransaction(txId: string, reference: string, amount: number, walletId: string) {
+    const tx = await this.prisma.walletTransaction.findUnique({ where: { id: txId } });
+    if (!tx || tx.status === WalletTransactionStatus.COMPLETED) return;
+
+    let walletUserId: string | null = null;
+
+    await this.prisma.$transaction(async (trx) => {
+      await this.ensurePlatformWallet(trx);
+      const wallet = await trx.wallet.findUnique({ where: { id: walletId } });
+      if (!wallet) throw new NotFoundError('Wallet not found');
+      walletUserId = wallet.userId;
+
+      const before = Number(wallet.balance);
+      const after = before + Number(amount);
+
+      await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
+      await trx.walletTransaction.update({
+        where: { id: tx.id },
+        data: {
+          status: WalletTransactionStatus.COMPLETED,
+          balanceBefore: before,
+          balanceAfter: after,
+        },
+      });
+
+      await trx.ledgerEntry.create({
+        data: {
+          debitWalletId: PLATFORM_WALLET_ID,
+          creditWalletId: wallet.id,
+          amount: amount,
+          reference: `LEDGER_${reference}`,
+          description: 'Top up settlement',
+        },
+      });
+    });
+
+    await deleteCache(this.app.redis, `cache:wallet:balance:${walletId}`);
+    if (walletUserId) {
+      try {
+        emitToUser(this.app, walletUserId, 'wallet_updated', { walletId });
+      } catch (err) {
+        this.logger.warn({ err, walletUserId }, 'Failed to emit wallet_updated socket event');
+      }
+
+      await addNotificationJob(this.app, walletUserId, 'PAYMENT_RECEIVED', {
+        amount: Number(amount),
+        reference,
+        kind: 'wallet_topup',
+      });
+      await this.createNotification(
+        walletUserId,
+        PrismaNotificationType.PAYMENT,
+        'Wallet funded',
+        `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(amount))} added to your wallet.`,
+        { amount: Number(amount), reference, kind: 'wallet_topup' },
+      );
+    }
+  }
+
+  async verifyTopUp(userId: string, reference: string) {
+    const tx = await this.prisma.walletTransaction.findUnique({ where: { reference } });
+    if (!tx) throw new NotFoundError('Transaction not found');
+
+    const wallet = await this.prisma.wallet.findUnique({ where: { id: tx.walletId } });
+    if (!wallet || wallet.userId !== userId) {
+      throw new UnauthorizedError('Unauthorized transaction');
+    }
+
+    if (tx.status === WalletTransactionStatus.COMPLETED) {
+      return { status: 'success', amount: tx.amount, reference };
+    }
+
+    const paystackTx = await verifyTransaction(reference);
+    if (paystackTx && paystackTx.status === 'success') {
+      await this.completeTopUpTransaction(tx.id, reference, Number(tx.amount), tx.walletId);
+      return { status: 'success', amount: tx.amount, reference };
+    }
+
+    if (paystackTx && (paystackTx.status === 'failed' || paystackTx.status === 'reversed')) {
+      await this.prisma.walletTransaction.update({
+        where: { id: tx.id },
+        data: { status: WalletTransactionStatus.FAILED },
+      });
+      return { status: 'failed', amount: tx.amount, reference };
+    }
+
+    return { status: 'pending', amount: tx.amount, reference };
+  }
 
   async handlePaystackWebhook(payload: Record<string, unknown>, signature?: string) {
     const secret = env.PAYSTACK_SECRET_KEY;
@@ -426,58 +515,7 @@ export class WalletService {
       const tx = await this.prisma.walletTransaction.findUnique({ where: { reference } });
       if (!tx || tx.status === WalletTransactionStatus.COMPLETED) return { acknowledged: true };
 
-      let walletUserId: string | null = null;
-
-      await this.prisma.$transaction(async (trx) => {
-        await this.ensurePlatformWallet(trx);
-        const wallet = await trx.wallet.findUnique({ where: { id: tx.walletId } });
-        if (!wallet) throw new NotFoundError('Wallet not found');
-        walletUserId = wallet.userId;
-
-        const before = Number(wallet.balance);
-        const after = before + Number(tx.amount);
-
-        await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
-        await trx.walletTransaction.update({
-          where: { id: tx.id },
-          data: {
-            status: WalletTransactionStatus.COMPLETED,
-            balanceBefore: before,
-            balanceAfter: after,
-          },
-        });
-
-        await trx.ledgerEntry.create({
-          data: {
-            debitWalletId: PLATFORM_WALLET_ID,
-            creditWalletId: wallet.id,
-            amount: tx.amount,
-            reference: `LEDGER_${reference}`,
-            description: 'Top up settlement',
-          },
-        });
-      });
-
-      await deleteCache(this.app.redis, `cache:wallet:balance:${tx.walletId}`);
-      if (walletUserId) {
-        try {
-          emitToUser(this.app, walletUserId, 'wallet_updated', { walletId: tx.walletId });
-        } catch (err) {
-          this.logger.warn({ err, walletUserId }, 'Failed to emit wallet_updated socket event');
-        }
-
-        await addNotificationJob(this.app, walletUserId, 'PAYMENT_RECEIVED', {
-          amount: Number(tx.amount),
-          reference,
-        });
-        await this.createNotification(
-          walletUserId,
-          PrismaNotificationType.PAYMENT,
-          'Wallet funded',
-          `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(tx.amount))} added to your wallet.`,
-          { amount: Number(tx.amount), reference, kind: 'wallet_topup' },
-        );
-      }
+      await this.completeTopUpTransaction(tx.id, reference, Number(tx.amount), tx.walletId);
     }
 
     if (event === 'refund.processed') {
@@ -567,6 +605,7 @@ export class WalletService {
       amount,
       reference,
       senderName: sender?.fullName ?? 'another user',
+      kind: 'wallet_transfer_in',
     });
     await this.createNotification(
       recipient.id,

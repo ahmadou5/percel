@@ -60,35 +60,36 @@ export default function ElectricityScreen() {
     if (!selectedServiceID && services.length) setSelectedServiceID(services[0].serviceID);
   }, [selectedServiceID, services]);
 
-  useEffect(() => {
-    if (step !== 1 || !selectedService) return;
+  const handleValidateMeter = async () => {
     const digits = meterNumber.trim();
-    if (digits.length < 8) {
+    if (!selectedService) {
       setValidation(null);
-      setValidationStatus('idle');
-      setValidationError('');
+      setValidationStatus('error');
+      setValidationError('Choose an electricity provider first.');
+      return;
+    }
+    if (digits.length < 8 || validateMutation.isPending) {
+      setValidation(null);
+      setValidationStatus('error');
+      setValidationError('Enter a valid meter number.');
       return;
     }
 
-    const timer = setTimeout(() => {
-      setValidationStatus('loading');
-      void validateMutation.mutateAsync({ serviceID: selectedService.serviceID, billersCode: digits, type: meterType }).then((result) => {
-        setValidation({ name: String(result.Customer_Name ?? result.Meter_Number ?? 'Verified customer'), address: result.Address ? String(result.Address) : undefined });
-        setValidationStatus('success');
-        setValidationError('');
-      }).catch((error) => {
-        setValidation(null);
-        setValidationStatus('error');
-        setValidationError(error instanceof Error ? error.message : 'Please check the meter number and provider.');
-      });
-    }, 300);
+    setValidationStatus('loading');
+    setValidationError('');
 
-    return () => clearTimeout(timer);
-  }, [meterNumber, meterType, selectedService, step, validateMutation]);
-
-  useEffect(() => {
-    if (validationStatus === 'success' && step === 1) setStep(2);
-  }, [step, validationStatus]);
+    try {
+      const result = await validateMutation.mutateAsync({ serviceID: selectedService.serviceID, billersCode: digits, type: meterType });
+      setValidation({ name: String(result.Customer_Name ?? result.Meter_Number ?? 'Verified customer'), address: result.Address ? String(result.Address) : undefined });
+      setValidationStatus('success');
+      setValidationError('');
+      setStep(2);
+    } catch (error) {
+      setValidation(null);
+      setValidationStatus('error');
+      setValidationError(error instanceof Error ? error.message : 'Please check the meter number and provider.');
+    }
+  };
 
   const headerBack = () => {
     if (step > 1) {
@@ -267,6 +268,14 @@ export default function ElectricityScreen() {
               leftElement={<Smartphone size={16} color={palette.textSecondary} />}
               helperText="Validate the meter before payment so the customer name shows first."
             />
+
+            <Pressable
+              disabled={validationStatus === 'loading'}
+              onPress={() => void handleValidateMeter()}
+              style={[styles.primaryAction, { backgroundColor: validationStatus === 'loading' ? palette.border : palette.primary }]}
+            >
+              <Text style={styles.primaryActionText}>{validationStatus === 'loading' ? 'Validating meter...' : 'Validate meter'}</Text>
+            </Pressable>
 
             {validationStatus === 'loading' ? (
               <StateCard loading title="Validating meter" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />

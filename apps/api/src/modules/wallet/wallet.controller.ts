@@ -27,6 +27,13 @@ export class WalletController {
     return success(data);
   };
 
+  verifyTopup = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { reference } = request.params as { reference: string };
+    const data = await this.service.verifyTopUp(userId, reference);
+    return success(data);
+  };
+
   transfer = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const { toPhone, amount, description, pin } = request.body as {

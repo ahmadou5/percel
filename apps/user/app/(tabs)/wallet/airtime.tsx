@@ -2,6 +2,9 @@ import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, Conta
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useBeneficiaryStore } from '@/store/beneficiary.store';
+import { haptics } from '@/utils/haptics';
+
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
@@ -52,6 +55,11 @@ export default function AirtimeScreen() {
   const [pinError, setPinError] = useState("");
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricToast, setBiometricToast] = useState("");
+  const [contactsModalOpen, setContactsModalOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [isAddingContact, setIsAddingContact] = useState(false);
+  const { beneficiaries, addBeneficiary, removeBeneficiary } = useBeneficiaryStore();
+  const airtimeBeneficiaries = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
@@ -67,52 +75,50 @@ export default function AirtimeScreen() {
     if (!selectedServiceID && services.length) setSelectedServiceID(services[0].serviceID);
   }, [selectedServiceID, services]);
 
-  useEffect(() => {
-    if (step !== 1) return;
-    if (!isValidNigerianPhone(phone)) {
+  const handleResolveProvider = async () => {
+    if (!isValidNigerianPhone(phone) || providerResolve.isPending) {
       setProviderValidation(null);
-      setProviderStatus('idle');
-      setProviderError('');
+      setProviderStatus('error');
+      setProviderError('Enter a valid Nigerian phone number.');
       return;
     }
 
-    const timer = setTimeout(() => {
-      setProviderStatus('loading');
-      setLowConfidenceBanner(false);
-      void providerResolve.mutateAsync({ phone: normalizedPhone }).then((response) => {
-        const result = response.data;
-        setProviderValidation(result);
-        setProviderStatus('success');
-        setProviderError('');
-        const match =
-          result.serviceID.toLowerCase().includes('mtn')
-            ? services.find((service) => service.serviceID.toLowerCase().includes('mtn'))
-            : result.serviceID.toLowerCase().includes('airtel')
-              ? services.find((service) => service.serviceID.toLowerCase().includes('airtel'))
-              : result.serviceID.toLowerCase().includes('glo')
-                ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
-                : services.find((service) => service.serviceID.toLowerCase().includes('9mobile') || service.serviceID.toLowerCase().includes('etisalat') || service.name.toLowerCase().includes('9mobile'));
-        if (match) setSelectedServiceID(match.serviceID);
+    setProviderStatus('loading');
+    setProviderError('');
+    setLowConfidenceBanner(false);
 
-        // Low confidence: stay on step 1 and open the picker so user can confirm/fix
-        if (result.confidence === 'low') {
-          setLowConfidenceBanner(true);
-          setProviderPickerOpen(true);
-        }
-      }).catch((error) => {
-        setProviderValidation(null);
-        setProviderStatus('error');
-        setProviderError(error instanceof Error ? error.message : 'Unable to detect the provider.');
-      });
-    }, 300);
+    try {
+      const response = await providerResolve.mutateAsync({ phone: normalizedPhone });
+      const result = response.data;
+      setProviderValidation(result);
+      setProviderStatus('success');
+      setProviderError('');
+      const resolved = result.serviceID.toLowerCase();
+      const match = resolved.includes('mtn')
+        ? services.find((service) => service.serviceID.toLowerCase().includes('mtn'))
+        : resolved.includes('airtel')
+          ? services.find((service) => service.serviceID.toLowerCase().includes('airtel'))
+          : resolved.includes('glo')
+            ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
+            : services.find((service) => {
+                const haystack = `${service.serviceID} ${service.name}`.toLowerCase();
+                return haystack.includes('9mobile') || haystack.includes('etisalat') || haystack.includes('t2');
+              });
+      if (match) setSelectedServiceID(match.serviceID);
 
-    return () => clearTimeout(timer);
-  }, [normalizedPhone, providerResolve, services, step]);
+      if (result.confidence === 'low') {
+        setLowConfidenceBanner(true);
+        setProviderPickerOpen(true);
+        return;
+      }
 
-  useEffect(() => {
-    // Only auto-advance on high-confidence detections
-    if (providerStatus === 'success' && step === 1 && !lowConfidenceBanner) setStep(2);
-  }, [lowConfidenceBanner, providerStatus, step]);
+      setStep(2);
+    } catch (error) {
+      setProviderValidation(null);
+      setProviderStatus('error');
+      setProviderError(error instanceof Error ? error.message : 'Unable to detect the provider.');
+    }
+  };
 
   const headerBack = () => {
     if (step > 1) {
@@ -265,9 +271,21 @@ export default function AirtimeScreen() {
                   <ChevronDown size={14} color={palette.textSecondary} />
                 </Pressable>
               }
-              rightElement={<View style={styles.contactButton}><ContactRound size={18} color={palette.primary} /></View>}
+              rightElement={
+                <Pressable onPress={() => setContactsModalOpen(true)} style={styles.contactButton}>
+                  <ContactRound size={18} color={palette.primary} />
+                </Pressable>
+              }
               helperText="If lookup fails, choose the provider manually."
             />
+
+            <Pressable
+              disabled={providerStatus === 'loading'}
+              onPress={() => void handleResolveProvider()}
+              style={[styles.primaryAction, { backgroundColor: providerStatus === 'loading' ? palette.border : palette.primary }]}
+            >
+              <Text style={styles.primaryActionText}>{providerStatus === 'loading' ? 'Checking provider...' : 'Validate number'}</Text>
+            </Pressable>
 
             {providerStatus === 'loading' ? (
               <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
@@ -499,6 +517,134 @@ export default function AirtimeScreen() {
         reference={resultModal?.reference}
         onClose={handleCloseResult}
       />
+
+      <Modal visible={contactsModalOpen} transparent animationType="slide" onRequestClose={() => { setContactsModalOpen(false); setIsAddingContact(false); setNewContactName(''); }}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => { setContactsModalOpen(false); setIsAddingContact(false); setNewContactName(''); }} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Saved Contacts</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select a saved contact or save the current number.</Text>
+              </View>
+              <Pressable onPress={() => { setContactsModalOpen(false); setIsAddingContact(false); setNewContactName(''); }} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+
+            {isAddingContact ? (
+              <View style={styles.addContactForm}>
+                <Input
+                  label="Contact name"
+                  value={newContactName}
+                  onChangeText={setNewContactName}
+                  placeholder="e.g. Mom, Work Phone"
+                  helperText={`Saving phone number: ${phone}`}
+                />
+                <View style={styles.addContactActions}>
+                  <Pressable
+                    onPress={() => setIsAddingContact(false)}
+                    style={[styles.cancelBtn, { borderColor: palette.border }]}
+                  >
+                    <Text style={{ color: palette.text, fontFamily: Typography.family.bold }}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      if (!newContactName.trim()) {
+                        Alert.alert("Error", "Please enter a contact name.");
+                        return;
+                      }
+                      void haptics.success();
+                      addBeneficiary({
+                        name: newContactName.trim(),
+                        phone: normalizedPhone || phone,
+                        serviceID: selectedServiceID,
+                        bankName: displayNetwork,
+                        type: 'AIRTIME',
+                      });
+                      setIsAddingContact(false);
+                      setNewContactName('');
+                    }}
+                    style={[styles.saveBtn, { backgroundColor: palette.primary }]}
+                  >
+                    <Text style={{ color: '#fff', fontFamily: Typography.family.bold }}>Save Contact</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <>
+                {isValidNigerianPhone(phone) && !airtimeBeneficiaries.some(b => b.phone === (normalizedPhone || phone)) && (
+                  <Pressable
+                    onPress={() => setIsAddingContact(true)}
+                    style={[styles.addCurrentRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
+                  >
+                    <ContactRound size={16} color={palette.primary} />
+                    <Text style={[styles.addCurrentText, { color: palette.primary }]}>
+                      Save "{phone}" to Contacts
+                    </Text>
+                  </Pressable>
+                )}
+
+                <FlatList
+                  data={airtimeBeneficiaries}
+                  keyExtractor={(item) => item.id}
+                  ListEmptyComponent={
+                    <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No saved contacts yet.</Text>
+                  }
+                  renderItem={({ item }) => (
+                    <View style={[styles.contactRow, { borderColor: palette.border }]}>
+                      <Pressable
+                        onPress={() => {
+                          void haptics.tap();
+                          setPhone(item.phone || '');
+                          if (item.serviceID) {
+                            setSelectedServiceID(item.serviceID);
+                            setProviderValidation({
+                              phone: item.phone || '',
+                              serviceID: item.serviceID,
+                              providerName: item.bankName || 'Network',
+                              confidence: 'high',
+                            });
+                            setProviderStatus('success');
+                            setStep(2);
+                          }
+                          setContactsModalOpen(false);
+                        }}
+                        style={styles.contactRowLeft}
+                      >
+                        <View style={[styles.contactAvatarCircle, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                          <Text style={[styles.contactAvatarText, { color: palette.text }]}>
+                            {item.name.slice(0, 2).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text style={[styles.contactName, { color: palette.text }]}>{item.name}</Text>
+                          <Text style={[styles.contactPhone, { color: palette.textSecondary }]}>
+                            {item.phone} • {item.bankName || 'Network'}
+                          </Text>
+                        </View>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          void haptics.warning();
+                          Alert.alert("Remove Contact", `Are you sure you want to remove ${item.name}?`, [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Remove", style: "destructive", onPress: () => removeBeneficiary(item.id) }
+                          ]);
+                        }}
+                        style={styles.deleteBtn}
+                      >
+                        <Text style={{ color: palette.error, fontSize: Typography.xs, fontFamily: Typography.family.bold }}>Remove</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  style={styles.contactsList}
+                />
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -562,4 +708,87 @@ const styles = StyleSheet.create({
   providerRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   providerName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   providerMeta: { fontSize: Typography.xs },
+  addContactForm: {
+    paddingVertical: Spacing.sm,
+    gap: Spacing.md,
+  },
+  addContactActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelBtn: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtn: {
+    flex: 2,
+    minHeight: 50,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCurrentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    marginBottom: Spacing.md,
+  },
+  addCurrentText: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+  },
+  contactsList: {
+    marginTop: 4,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: Spacing.md,
+    marginBottom: 10,
+  },
+  contactRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  contactAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactAvatarText: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+  },
+  contactName: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.bold,
+  },
+  contactPhone: {
+    fontSize: Typography.xs,
+  },
+  deleteBtn: {
+    padding: 6,
+  },
+  emptyText: {
+    fontSize: Typography.sm,
+    textAlign: 'center',
+    paddingVertical: 18,
+  },
 });

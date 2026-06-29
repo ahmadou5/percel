@@ -1,6 +1,9 @@
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Globe, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Globe, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { useBeneficiaryStore } from '@/store/beneficiary.store';
+import { haptics } from '@/utils/haptics';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
@@ -49,6 +52,10 @@ export default function DataScreen() {
   const [pinError, setPinError] = useState("");
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricToast, setBiometricToast] = useState("");
+  const [dataContactsModalOpen, setDataContactsModalOpen] = useState(false);
+  const { beneficiaries, removeBeneficiary } = useBeneficiaryStore();
+  // Reuse AIRTIME type — these are phone-based contacts shared with airtime screen
+  const dataContacts = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
@@ -131,49 +138,47 @@ export default function DataScreen() {
   }, [selectedService, selectedVariationCode, variations]);
 
   useEffect(() => {
-    if (step !== 1) return;
-    if (!isValidNigerianPhone(phone)) {
-      setProviderValidation(null);
-      setProviderStatus('idle');
-      setProviderError('');
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setProviderStatus('loading');
-      void providerResolve.mutateAsync({ phone: normalizedPhone }).then((response) => {
-        const result = response.data;
-        setProviderValidation(result);
-        setProviderStatus('success');
-        setProviderError('');
-        const match =
-          result.serviceID.toLowerCase().includes('mtn')
-            ? services.find((service) => service.serviceID.toLowerCase().includes('mtn'))
-            : result.serviceID.toLowerCase().includes('airtel')
-              ? services.find((service) => service.serviceID.toLowerCase().includes('airtel'))
-              : result.serviceID.toLowerCase().includes('glo')
-                ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
-                : services.find((service) => service.serviceID.toLowerCase().includes('9mobile') || service.serviceID.toLowerCase().includes('etisalat') || service.name.toLowerCase().includes('9mobile'));
-        if (match) setSelectedServiceID(match.serviceID);
-      }).catch((error) => {
-        setProviderValidation(null);
-        setProviderStatus('error');
-        setProviderError(error instanceof Error ? error.message : 'Unable to detect the provider.');
-      });
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [normalizedPhone, providerResolve, services, step]);
-
-  useEffect(() => {
-    if (providerStatus === 'success' && step === 1) setStep(2);
-  }, [providerStatus, step]);
-
-  useEffect(() => {
     if (selectedService && parsedVariations.length && !parsedVariations.find((variation) => variation.variation_code === selectedVariationCode)) {
       setSelectedVariationCode(parsedVariations[0].variation_code);
     }
   }, [selectedService, selectedVariationCode, parsedVariations]);
+
+  const handleResolveProvider = async () => {
+    if (!isValidNigerianPhone(phone) || providerResolve.isPending) {
+      setProviderValidation(null);
+      setProviderStatus('error');
+      setProviderError('Enter a valid Nigerian phone number.');
+      return;
+    }
+
+    setProviderStatus('loading');
+    setProviderError('');
+
+    try {
+      const response = await providerResolve.mutateAsync({ phone: normalizedPhone });
+      const result = response.data;
+      setProviderValidation(result);
+      setProviderStatus('success');
+      setProviderError('');
+      const resolved = result.serviceID.toLowerCase();
+      const match = resolved.includes('mtn')
+        ? services.find((service) => service.serviceID.toLowerCase().includes('mtn'))
+        : resolved.includes('airtel')
+          ? services.find((service) => service.serviceID.toLowerCase().includes('airtel'))
+          : resolved.includes('glo')
+            ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
+            : services.find((service) => {
+                const haystack = `${service.serviceID} ${service.name}`.toLowerCase();
+                return haystack.includes('9mobile') || haystack.includes('etisalat') || haystack.includes('t2');
+              });
+      if (match) setSelectedServiceID(match.serviceID);
+      setStep(2);
+    } catch (error) {
+      setProviderValidation(null);
+      setProviderStatus('error');
+      setProviderError(error instanceof Error ? error.message : 'Unable to detect the provider.');
+    }
+  };
 
   const headerBack = () => {
     if (step > 1) {
@@ -332,7 +337,20 @@ export default function DataScreen() {
                 </Pressable>
               }
               helperText="If lookup fails, you can pick the provider manually."
+              rightElement={
+                <Pressable onPress={() => setDataContactsModalOpen(true)} style={styles.contactButton}>
+                  <ContactRound size={18} color={palette.primary} />
+                </Pressable>
+              }
             />
+
+            <Pressable
+              disabled={providerStatus === 'loading'}
+              onPress={() => void handleResolveProvider()}
+              style={[styles.primaryAction, { backgroundColor: providerStatus === 'loading' ? palette.border : palette.primary }]}
+            >
+              <Text style={styles.primaryActionText}>{providerStatus === 'loading' ? 'Checking provider...' : 'Validate number'}</Text>
+            </Pressable>
 
             {providerStatus === 'loading' ? (
               <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
@@ -492,6 +510,69 @@ export default function DataScreen() {
         reference={resultModal?.reference}
         onClose={handleCloseResult}
       />
+
+      {/* Data Contacts Modal */}
+      <Modal visible={dataContactsModalOpen} transparent animationType="slide" onRequestClose={() => setDataContactsModalOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDataContactsModalOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Saved Contacts</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select a phone number to populate the field.</Text>
+              </View>
+              <Pressable onPress={() => setDataContactsModalOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+            <FlatList
+              data={dataContacts}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={
+                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
+                  No saved contacts yet. Save a number from the Airtime screen first.
+                </Text>
+              }
+              renderItem={({ item }) => (
+                <View style={[styles.dataContactRow, { borderColor: palette.border }]}>
+                  <Pressable
+                    onPress={() => {
+                      void haptics.tap();
+                      setPhone(item.phone || '');
+                      setDataContactsModalOpen(false);
+                    }}
+                    style={styles.dataContactRowLeft}
+                  >
+                    <View style={[styles.dataContactAvatar, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                      <Text style={[styles.dataContactAvatarText, { color: palette.text }]}>
+                        {item.name.slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={[styles.dataContactName, { color: palette.text }]}>{item.name}</Text>
+                      <Text style={[styles.dataContactPhone, { color: palette.textSecondary }]}>
+                        {item.phone} • {item.bankName || 'Network'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      void haptics.warning();
+                      Alert.alert('Remove Contact', `Remove "${item.name}"?`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Remove', style: 'destructive', onPress: () => removeBeneficiary(item.id) },
+                      ]);
+                    }}
+                    style={styles.dataContactDelete}
+                  >
+                    <Text style={{ color: palette.error, fontSize: Typography.xs, fontFamily: Typography.family.bold }}>Remove</Text>
+                  </Pressable>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <PaymentPinModal
         visible={pinModalOpen}
@@ -688,4 +769,13 @@ const styles = StyleSheet.create({
   providerName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   providerMeta: { fontSize: Typography.xs },
   biometricToast: { fontSize: Typography.xs, lineHeight: 16, textAlign: 'center' },
+  contactButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(10,132,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontSize: Typography.sm, textAlign: 'center', paddingVertical: 18, lineHeight: 22 },
+  dataContactRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
+  dataContactRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  dataContactAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  dataContactAvatarText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  dataContactName: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  dataContactPhone: { fontSize: Typography.xs },
+  dataContactDelete: { padding: 6 },
 });

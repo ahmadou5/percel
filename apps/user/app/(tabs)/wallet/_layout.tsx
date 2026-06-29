@@ -17,6 +17,7 @@ export default function WalletLayout() {
       <Stack.Screen name="tv" options={{ title: 'TV Subscription', headerShown: false }} />
       <Stack.Screen name="electricity" options={{ title: 'Electricity',  headerShown: false }} />
       <Stack.Screen name="transactions" options={{ title: 'Transactions',  headerShown: false }} />
+      <Stack.Screen name="callback" options={{ title: 'Payment Status',  headerShown: false }} />
     </Stack>
   );
 }

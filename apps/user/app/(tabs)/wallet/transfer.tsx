@@ -3,7 +3,7 @@ import * as ScreenCapture from "expo-screen-capture";
 import * as SecureStore from "expo-secure-store";
 import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useSafeBack } from "@/components/navigation/useSafeBack";
 import { TransactionResultModal } from "@/components/TransactionResultModal";
@@ -20,6 +20,8 @@ import { useWallet, useAccountLookup, useBankTransfer, useBanks, useResolveTrans
 import { triggerBiometricAuth } from "@/lib/localAuthentication";
 import { formatNaira } from "@/lib/wallet";
 import { usePreferencesStore } from "@/store/preferences.store";
+import { haptics } from "@/utils/haptics";
+import { useBeneficiaryStore } from "@/store/beneficiary.store";
 
 const modes = [
   { key: 'BANK', label: 'Bank transfer', description: 'Send to a bank account' },
@@ -118,6 +120,11 @@ export default function TransferScreen() {
   const [transferError, setTransferError] = useState('');
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricToast, setBiometricToast] = useState<string | null>(null);
+  const [isSavedBeneficiary, setIsSavedBeneficiary] = useState(false);
+  const { beneficiaries, addBeneficiary, removeBeneficiary } = useBeneficiaryStore();
+  const activeBeneficiaries = useMemo(() => {
+    return beneficiaries.filter((b) => b.type === (mode === 'BANK' ? 'BANK' : 'PHONE'));
+  }, [beneficiaries, mode]);
   const [transferReceipt, setTransferReceipt] = useState<{
     reference: string;
     amount: number;
@@ -189,6 +196,7 @@ export default function TransferScreen() {
     setBankConfirmed(false);
     setPhone('');
     setBankSearch('');
+    setIsSavedBeneficiary(false);
   };
 
   useEffect(() => {
@@ -492,6 +500,46 @@ export default function TransferScreen() {
                 </View>
               </View>
 
+              {/* Saved Bank Beneficiaries */}
+              {activeBeneficiaries.length > 0 && (
+                <View style={styles.beneficiariesSection}>
+                  <Text style={[styles.beneficiariesTitle, { color: palette.textSecondary }]}>Saved Beneficiaries</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.beneficiariesScroll}>
+                    {activeBeneficiaries.map((b) => (
+                      <Pressable
+                        key={b.id}
+                        onPress={() => {
+                          void haptics.tap();
+                          setBankCode(b.bankCode || '044');
+                          setAccountNumber(b.accountNumber || '');
+                          setBankConfirmed(true);
+                        }}
+                        onLongPress={() => {
+                          void haptics.warning();
+                          Alert.alert("Remove Beneficiary", `Are you sure you want to remove ${b.name}?`, [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Remove", style: "destructive", onPress: () => removeBeneficiary(b.id) }
+                          ]);
+                        }}
+                        style={styles.beneficiaryAvatarCard}
+                      >
+                        <View style={[styles.beneficiaryAvatarCircle, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                          <Text style={[styles.beneficiaryAvatarText, { color: palette.text }]}>
+                            {initialsFromName(b.name)}
+                          </Text>
+                        </View>
+                        <Text style={[styles.beneficiaryAvatarName, { color: palette.text }]} numberOfLines={1}>
+                          {b.name.split(' ')[0]}
+                        </Text>
+                        <Text style={[styles.beneficiaryBankLabel, { color: palette.textSecondary }]} numberOfLines={1}>
+                          {b.bankName || ''}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
               {stepOneLoading ? (
                 <StateCard loading title="Loading transfer details" description="Fetching wallet and bank data before you continue." icon={<Search size={24} color={palette.textSecondary} />} />
               ) : !wallet?.kycComplete ? (
@@ -589,6 +637,41 @@ export default function TransferScreen() {
                   <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the Percel phone number and we will resolve the recipient automatically.</Text>
                 </View>
               </View>
+
+              {/* Saved Phone Contacts */}
+              {activeBeneficiaries.length > 0 && (
+                <View style={styles.beneficiariesSection}>
+                  <Text style={[styles.beneficiariesTitle, { color: palette.textSecondary }]}>Saved Contacts</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.beneficiariesScroll}>
+                    {activeBeneficiaries.map((b) => (
+                      <Pressable
+                        key={b.id}
+                        onPress={() => {
+                          void haptics.tap();
+                          setPhone(b.phone || '');
+                        }}
+                        onLongPress={() => {
+                          void haptics.warning();
+                          Alert.alert("Remove Contact", `Are you sure you want to remove ${b.name}?`, [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Remove", style: "destructive", onPress: () => removeBeneficiary(b.id) }
+                          ]);
+                        }}
+                        style={styles.beneficiaryAvatarCard}
+                      >
+                        <View style={[styles.beneficiaryAvatarCircle, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                          <Text style={[styles.beneficiaryAvatarText, { color: palette.text }]}>
+                            {initialsFromName(b.name)}
+                          </Text>
+                        </View>
+                        <Text style={[styles.beneficiaryAvatarName, { color: palette.text }]} numberOfLines={1}>
+                          {b.name.split(' ')[0]}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
               <Input
                 label="Recipient phone"
@@ -894,6 +977,32 @@ export default function TransferScreen() {
               <Text style={styles.primaryActionText}>{receiptBusy ? 'Preparing receipt…' : 'Get Receipt'}</Text>
             </Pressable>
 
+            {transferReceipt && !isSavedBeneficiary && (
+              <Pressable
+                onPress={() => {
+                  void haptics.success();
+                  addBeneficiary({
+                    name: transferReceipt.recipientName,
+                    phone: transferReceipt.recipientPhone || undefined,
+                    bankCode: transferReceipt.mode === 'BANK' ? bankCode : undefined,
+                    bankName: transferReceipt.mode === 'BANK' ? transferReceipt.bankName : undefined,
+                    accountNumber: transferReceipt.mode === 'BANK' ? transferReceipt.accountNumber : undefined,
+                    type: transferReceipt.mode === 'BANK' ? 'BANK' : 'PHONE',
+                  });
+                  setIsSavedBeneficiary(true);
+                }}
+                style={[styles.secondaryModalAction, { borderColor: palette.primary, borderWidth: 1, backgroundColor: 'rgba(10,132,255,0.06)' }]}
+              >
+                <Text style={[styles.secondaryModalActionText, { color: palette.primary }]}>Save to Contacts</Text>
+              </Pressable>
+            )}
+
+            {isSavedBeneficiary && (
+              <View style={[styles.secondaryModalAction, { borderColor: palette.success, borderWidth: 1, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
+                <Text style={[styles.secondaryModalActionText, { color: palette.success }]}>✓ Saved to Contacts</Text>
+              </View>
+            )}
+
             <Pressable onPress={handleDismissSuccess} style={[styles.secondaryModalAction, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
               <Text style={[styles.secondaryModalActionText, { color: palette.text }]}>Done</Text>
             </Pressable>
@@ -1017,4 +1126,44 @@ const styles = StyleSheet.create({
   toastWrap: { position: 'absolute', bottom: 100, left: 24, right: 24, alignItems: 'center', zIndex: 9999 },
   toast: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
   toastText: { fontSize: Typography.sm, fontFamily: Typography.family.semibold, textAlign: 'center' },
+  beneficiariesSection: {
+    marginVertical: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  beneficiariesTitle: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  beneficiariesScroll: {
+    paddingVertical: Spacing.xs,
+    gap: Spacing.md,
+  },
+  beneficiaryAvatarCard: {
+    alignItems: 'center',
+    width: 72,
+    gap: 4,
+  },
+  beneficiaryAvatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  beneficiaryAvatarText: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.bold,
+  },
+  beneficiaryAvatarName: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.semibold,
+    textAlign: 'center',
+  },
+  beneficiaryBankLabel: {
+    fontSize: 9,
+    textAlign: 'center',
+  },
 });

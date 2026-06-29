@@ -101,5 +101,43 @@ export function UserRuntime() {
     return () => subscription.remove();
   }, [walletAccessBiometricEnabled, walletPinSet]);
 
+  useEffect(() => {
+    async function checkInitialNotification() {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response) {
+          const data = response.notification.request.content.data;
+          if (data) {
+            if (data.orderId) {
+              router.push(`/orders/${data.orderId}`);
+            } else if (data.kind === 'wallet_topup' || data.kind === 'wallet_transfer_in' || data.kind === 'wallet_transfer_out') {
+              router.push('/wallet/transactions');
+            } else if (data.kind === 'kyc') {
+              router.push('/settings/kyc');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to get initial notification response", err);
+      }
+    }
+    void checkInitialNotification();
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data) {
+        if (data.orderId) {
+          router.push(`/orders/${data.orderId}`);
+        } else if (data.kind === 'wallet_topup' || data.kind === 'wallet_transfer_in' || data.kind === 'wallet_transfer_out') {
+          router.push('/wallet/transactions');
+        } else if (data.kind === 'kyc') {
+          router.push('/settings/kyc');
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   return null;
 }

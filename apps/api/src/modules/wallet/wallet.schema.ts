@@ -100,3 +100,7 @@ export const TxQuery = Type.Object({
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
   category: Type.Optional(Type.String()),
 });
+
+export const VerifyTopUpParams = Type.Object({
+  reference: Type.String({ minLength: 5 }),
+});

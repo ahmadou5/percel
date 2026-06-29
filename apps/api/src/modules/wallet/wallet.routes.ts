@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { WalletController } from './wallet.controller.js';
-import { AirtimeBody, AirtimeResolveBody, BankResolveBody, BankTransferBody, DataBody, ElectricityBody, ProviderServicesQuery, ProviderValidateBody, ProviderVariationsParams, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TransferRecipientResolveBody, TvBody, TxQuery, VerifyTransferPinBody } from './wallet.schema.js';
+import { AirtimeBody, AirtimeResolveBody, BankResolveBody, BankTransferBody, DataBody, ElectricityBody, ProviderServicesQuery, ProviderValidateBody, ProviderVariationsParams, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TransferRecipientResolveBody, TvBody, TxQuery, VerifyTransferPinBody, VerifyTopUpParams } from './wallet.schema.js';
 import { WalletService } from './wallet.service.js';
 
 const walletRoutes: FastifyPluginAsync = async (app) => {
@@ -11,6 +11,7 @@ const walletRoutes: FastifyPluginAsync = async (app) => {
   app.get('/wallet', { preHandler: [app.authenticate] }, controller.getWallet);
   app.get('/wallet/transactions', { preHandler: [app.authenticate], schema: { querystring: TxQuery } }, controller.getTransactions);
   app.post('/wallet/topup', { preHandler: [app.authenticate], schema: { body: TopUpBody } }, controller.topup);
+  app.get('/wallet/topup/verify/:reference', { preHandler: [app.authenticate], schema: { params: VerifyTopUpParams } }, controller.verifyTopup);
   app.post('/wallet/transfer', { preHandler: [app.authenticate], schema: { body: TransferBody } }, controller.transfer);
   app.post('/wallet/transfer/resolve', { preHandler: [app.authenticate], schema: { body: TransferRecipientResolveBody } }, controller.resolveTransferRecipient);
   app.get('/wallet/banks', { preHandler: [app.authenticate] }, controller.bankList);

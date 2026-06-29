@@ -87,13 +87,13 @@ export function useTopUp(options?: MutationOptions<TopUpFlowResult, { amount: nu
     ...options,
     mutationFn: async ({ amount, callbackUrl }) => {
       Sentry.addBreadcrumb({ category: 'wallet', message: 'wallet.topup_requested', level: 'info', data: { amount } });
-      const response = await http.post<TopUpResponse>('/api/v1/wallet/topup', { amount, callbackUrl: callbackUrl ?? Linking.createURL('/wallet') });
+      const response = await http.post<TopUpResponse>('/api/v1/wallet/topup', { amount, callbackUrl: callbackUrl ?? Linking.createURL('/wallet/callback') });
       const authorizationUrl = response.data.data.authorizationUrl;
       if (!authorizationUrl) {
         throw new Error('Paystack checkout URL was not returned.');
       }
 
-      const authResult = await WebBrowser.openAuthSessionAsync(authorizationUrl, callbackUrl ?? Linking.createURL('/wallet'));
+      const authResult = await WebBrowser.openAuthSessionAsync(authorizationUrl, callbackUrl ?? Linking.createURL('/wallet/callback'));
       return {
         authorizationUrl,
         reference: response.data.data.reference,
@@ -105,6 +105,22 @@ export function useTopUp(options?: MutationOptions<TopUpFlowResult, { amount: nu
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateWallet(queryClient);
+      await options?.onSuccess?.(data, variables, onMutateResult, context);
+    },
+  });
+}
+
+export function useVerifyTopUp(options?: MutationOptions<WalletApiResponse<{ status: 'success' | 'failed' | 'pending'; amount: number; reference: string }>, { reference: string }>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...options,
+    mutationFn: async ({ reference }) => {
+      return (await http.get<WalletApiResponse<{ status: 'success' | 'failed' | 'pending'; amount: number; reference: string }>>(`/api/v1/wallet/topup/verify/${reference}`)).data;
+    },
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      if (data.data.status === 'success') {
+        await invalidateWallet(queryClient);
+      }
       await options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });

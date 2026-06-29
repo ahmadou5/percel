@@ -2,6 +2,9 @@ import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Radio, Search, Shie
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useBeneficiaryStore } from '@/store/beneficiary.store';
+import { haptics } from '@/utils/haptics';
+
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
@@ -44,6 +47,12 @@ export default function TvScreen() {
   const [pinError, setPinError] = useState("");
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricToast, setBiometricToast] = useState("");
+  const [isCardSaved, setIsCardSaved] = useState(false);
+  const [saveCardName, setSaveCardName] = useState('');
+  const [saveCardModalOpen, setSaveCardModalOpen] = useState(false);
+  const { beneficiaries, addBeneficiary, removeBeneficiary } = useBeneficiaryStore();
+  // TV smartcards are stored with accountNumber=smartcardNumber and serviceID
+  const tvSmartcards = beneficiaries.filter((b) => b.accountNumber && b.serviceID);
   const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
@@ -64,40 +73,41 @@ export default function TvScreen() {
   }, [selectedService, selectedVariationCode, variations]);
 
   useEffect(() => {
-    if (step !== 1 || !selectedService) return;
-    const digits = smartcardNumber.trim();
-    if (digits.length < 6) {
-      setValidation(null);
-      setValidationStatus('idle');
-      setValidationError('');
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setValidationStatus('loading');
-      void validateMutation.mutateAsync({ serviceID: selectedService.serviceID, billersCode: digits }).then((result) => {
-        setValidation({ name: String(result.Customer_Name ?? result.Account_Number ?? 'Verified customer'), address: result.Address ? String(result.Address) : undefined });
-        setValidationStatus('success');
-        setValidationError('');
-      }).catch((error) => {
-        setValidation(null);
-        setValidationStatus('error');
-        setValidationError(error instanceof Error ? error.message : 'Please check the provider and smartcard number.');
-      });
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [selectedService, smartcardNumber, step, validateMutation]);
-
-  useEffect(() => {
-    if (validationStatus === 'success' && step === 1) setStep(2);
-  }, [step, validationStatus]);
-
-  useEffect(() => {
     if (selectedService && variations.length && !variations.find((variation) => variation.variation_code === selectedVariationCode)) {
       setSelectedVariationCode(variations[0].variation_code);
     }
   }, [selectedService, selectedVariationCode, variations]);
+
+  const handleValidateSmartcard = async () => {
+    const digits = smartcardNumber.trim();
+    if (!selectedService) {
+      setValidation(null);
+      setValidationStatus('error');
+      setValidationError('Choose a TV provider first.');
+      return;
+    }
+    if (digits.length < 6 || validateMutation.isPending) {
+      setValidation(null);
+      setValidationStatus('error');
+      setValidationError('Enter a valid smartcard number.');
+      return;
+    }
+
+    setValidationStatus('loading');
+    setValidationError('');
+
+    try {
+      const result = await validateMutation.mutateAsync({ serviceID: selectedService.serviceID, billersCode: digits });
+      setValidation({ name: String(result.Customer_Name ?? result.Account_Number ?? 'Verified customer'), address: result.Address ? String(result.Address) : undefined });
+      setValidationStatus('success');
+      setValidationError('');
+      setStep(2);
+    } catch (error) {
+      setValidation(null);
+      setValidationStatus('error');
+      setValidationError(error instanceof Error ? error.message : 'Please check the provider and smartcard number.');
+    }
+  };
 
   const headerBack = () => {
     if (step > 1) {
@@ -236,6 +246,43 @@ export default function TvScreen() {
               </View>
             </View>
 
+            {/* Saved Smartcards */}
+            {tvSmartcards.length > 0 && (
+              <View style={styles.savedCardsSection}>
+                <Text style={[styles.savedCardsTitle, { color: palette.textSecondary }]}>Saved Smartcards</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedCardsScroll}>
+                  {tvSmartcards.map((b) => (
+                    <Pressable
+                      key={b.id}
+                      onPress={() => {
+                        void haptics.tap();
+                        setSmartcardNumber(b.accountNumber || '');
+                        if (b.serviceID) setSelectedServiceID(b.serviceID);
+                        setValidation(null);
+                        setValidationStatus('idle');
+                      }}
+                      onLongPress={() => {
+                        void haptics.warning();
+                        Alert.alert('Remove Card', `Remove "${b.name}" from saved cards?`, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => removeBeneficiary(b.id) },
+                        ]);
+                      }}
+                      style={styles.savedCardChip}
+                    >
+                      <View style={[styles.savedCardAvatar, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                        <Tv2 size={18} color={palette.primary} />
+                      </View>
+                      <Text style={[styles.savedCardName, { color: palette.text }]} numberOfLines={1}>{b.name}</Text>
+                      <Text style={[styles.savedCardNumber, { color: palette.textSecondary }]} numberOfLines={1}>
+                        ···{(b.accountNumber || '').slice(-4)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.selectRow, { backgroundColor: palette.bg, borderColor: palette.border }]}>
               <View style={styles.selectCopy}>
                 <Text style={[styles.selectLabel, { color: palette.textSecondary }]}>Provider</Text>
@@ -264,6 +311,14 @@ export default function TvScreen() {
               helperText="Validate the card before paying so the subscriber details are visible."
             />
 
+            <Pressable
+              disabled={validationStatus === 'loading'}
+              onPress={() => void handleValidateSmartcard()}
+              style={[styles.primaryAction, { backgroundColor: validationStatus === 'loading' ? palette.border : palette.primary }]}
+            >
+              <Text style={styles.primaryActionText}>{validationStatus === 'loading' ? 'Validating smartcard...' : 'Validate smartcard'}</Text>
+            </Pressable>
+
             {validationStatus === 'loading' ? (
               <StateCard loading title="Validating smartcard" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
             ) : validationStatus === 'success' && validation ? (
@@ -284,10 +339,27 @@ export default function TvScreen() {
               </View>
             ) : (
               <StateCard
-                title={smartcardNumber.trim().length >= 6 ? "Provider changed — re-validating" : "Enter a smartcard number"}
-                description={smartcardNumber.trim().length >= 6 ? `Checking ${smartcardNumber.trim()} against the new provider. This will complete automatically.` : "The subscriber details will appear before the bouquet step."}
+                title="Enter a smartcard number"
+                description="Press validate after choosing the provider and entering the smartcard number."
                 icon={<Search size={24} color={palette.textSecondary} />}
               />
+            )}
+
+            {/* Save this smartcard after validation */}
+            {validationStatus === 'success' && !isCardSaved && !tvSmartcards.some(b => b.accountNumber === smartcardNumber.trim()) && (
+              <Pressable
+                onPress={() => setSaveCardModalOpen(true)}
+                style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
+              >
+                <Tv2 size={16} color={palette.primary} />
+                <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this smartcard</Text>
+              </Pressable>
+            )}
+            {isCardSaved && (
+              <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
+                <CheckCircle2 size={16} color={palette.success} />
+                <Text style={[styles.saveCardText, { color: palette.success }]}>Smartcard saved</Text>
+              </View>
             )}
           </View>
         ) : null}
@@ -381,6 +453,53 @@ export default function TvScreen() {
         reference={resultModal?.reference}
         onClose={handleCloseResult}
       />
+
+      {/* Save Smartcard Modal */}
+      <Modal visible={saveCardModalOpen} transparent animationType="fade" onRequestClose={() => { setSaveCardModalOpen(false); setSaveCardName(''); }}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => { setSaveCardModalOpen(false); setSaveCardName(''); }} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Save Smartcard</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Give this card a name so you can reuse it.</Text>
+              </View>
+              <Pressable onPress={() => { setSaveCardModalOpen(false); setSaveCardName(''); }} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Cancel</Text>
+              </Pressable>
+            </View>
+            <Input
+              label="Card name"
+              value={saveCardName}
+              onChangeText={setSaveCardName}
+              placeholder={`e.g. ${validation?.name || 'Living Room TV'}`}
+              helperText={`Smartcard: ${smartcardNumber.trim()} · ${displayService}`}
+            />
+            <Pressable
+              onPress={() => {
+                if (!saveCardName.trim()) {
+                  Alert.alert('Error', 'Please enter a name for this smartcard.');
+                  return;
+                }
+                void haptics.success();
+                addBeneficiary({
+                  name: saveCardName.trim(),
+                  accountNumber: smartcardNumber.trim(),
+                  serviceID: selectedServiceID,
+                  bankName: displayService,
+                  type: 'PHONE',
+                });
+                setSaveCardModalOpen(false);
+                setSaveCardName('');
+                setIsCardSaved(true);
+              }}
+              style={[styles.saveBtnFull, { backgroundColor: palette.primary }]}
+            >
+              <Text style={{ color: '#fff', fontFamily: Typography.family.bold, fontSize: Typography.md }}>Save</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <PaymentPinModal
         visible={pinModalOpen}
@@ -525,4 +644,14 @@ const styles = StyleSheet.create({
   providerRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   providerRowMeta: { fontSize: Typography.xs },
   biometricToast: { fontSize: Typography.xs, lineHeight: 16, textAlign: 'center' },
+  savedCardsSection: { gap: Spacing.xs },
+  savedCardsTitle: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
+  savedCardsScroll: { gap: Spacing.md, paddingVertical: Spacing.xs },
+  savedCardChip: { alignItems: 'center', width: 72, gap: 4 },
+  savedCardAvatar: { width: 48, height: 48, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  savedCardName: { fontSize: Typography.xs, fontFamily: Typography.family.semibold, textAlign: 'center' },
+  savedCardNumber: { fontSize: 9, textAlign: 'center' },
+  saveCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingVertical: 12 },
+  saveCardText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  saveBtnFull: { minHeight: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });
