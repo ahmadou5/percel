@@ -2,7 +2,6 @@ import type { Driver } from '@percel/shared';
 import { useMutation } from '@tanstack/react-query';
 
 import { http } from '@/lib/api';
-import { demoLocation } from '@/lib/demo-data';
 import type { ApiResponse, AuthResponse, DriverProfile } from '@/lib/types';
 import { useDriverStore } from '@/store/driver.store';
 
@@ -19,8 +18,8 @@ function driverFromProfile(profile: DriverProfile): Driver {
     totalDeliveries: profile.totalDeliveries,
     isOnline: profile.isOnline,
     currentLocation: {
-      lat: profile.currentLat ?? demoLocation.lat,
-      lng: profile.currentLng ?? demoLocation.lng,
+      lat: profile.currentLat ?? 0,
+      lng: profile.currentLng ?? 0,
     },
     createdAt: profile.memberSince,
   };

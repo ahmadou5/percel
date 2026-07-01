@@ -1,93 +1,162 @@
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet } from 'react-native';
 
-import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
+import { ActionButton, Card, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text, View } from '@/components/Themed';
 import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
+type UploadKey = 'license' | 'selfie' | 'vehicle';
+
 type UploadSlot = {
-  key: 'license' | 'selfie' | 'vehicle';
+  key: UploadKey;
   label: string;
   helper: string;
+  preferCamera?: boolean;
+};
+
+type UploadedDocument = {
+  localUri: string;
+  remoteUrl: string;
 };
 
 const slots: UploadSlot[] = [
-  { key: 'license', label: 'License photo', helper: 'Front side of your driver license.' },
-  { key: 'selfie', label: 'Selfie', helper: 'Face photo captured from the camera.' },
-  { key: 'vehicle', label: 'Vehicle photo', helper: 'A clear photo of the delivery vehicle.' },
+  { key: 'license', label: 'License photo', helper: 'Capture or select the front side of your driver license.' },
+  { key: 'selfie', label: 'Selfie', helper: 'Take a clear face photo from the camera.', preferCamera: true },
+  { key: 'vehicle', label: 'Vehicle photo', helper: 'Capture the delivery vehicle clearly.' },
 ];
 
+function filenameFor(uri: string, type: UploadKey) {
+  const fallback = `${type}.jpg`;
+  return uri.split('/').pop()?.split('?')[0] || fallback;
+}
+
+function mimeFor(uri: string) {
+  const lower = uri.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
 export default function KycDocumentsScreen() {
-  const [licenseUrl, setLicenseUrl] = useState('');
-  const [selfieUrl, setSelfieUrl] = useState('');
-  const [vehicleUrl, setVehicleUrl] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [documents, setDocuments] = useState<Partial<Record<UploadKey, UploadedDocument>>>({});
+  const [uploading, setUploading] = useState<UploadKey | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const driver = useDriverStore((state) => state.driver);
   const setDriver = useDriverStore((state) => state.setDriver);
 
   const completed = useMemo(
-    () => [licenseUrl, selfieUrl, vehicleUrl].filter(Boolean).length,
-    [licenseUrl, selfieUrl, vehicleUrl],
+    () => slots.filter((slot) => Boolean(documents[slot.key]?.remoteUrl)).length,
+    [documents],
   );
 
-  const submit = async () => {
-    setLoading(true);
+  const uploadDocument = async (slot: UploadSlot, asset: ImagePicker.ImagePickerAsset) => {
+    const form = new FormData();
+    form.append('type', slot.key);
+    form.append('file', {
+      uri: asset.uri,
+      name: asset.fileName ?? filenameFor(asset.uri, slot.key),
+      type: asset.mimeType ?? mimeFor(asset.uri),
+    } as unknown as Blob);
+
+    const response = await http.post<{ data: { secure_url: string; type: UploadKey } }>('/api/v1/driver/kyc/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    setDocuments((current) => ({
+      ...current,
+      [slot.key]: {
+        localUri: asset.uri,
+        remoteUrl: response.data.data.secure_url,
+      },
+    }));
+  };
+
+  const pickDocument = async (slot: UploadSlot, source: 'camera' | 'library') => {
     try {
-      await http.post('/api/v1/driver/kyc/submit', {
-        licenseImageUrl: licenseUrl,
-        selfieUrl,
-        vehicleImageUrl: vehicleUrl,
-      });
-      if (driver) {
-        await setDriver({ ...driver, status: 'ACTIVE' });
+      setUploading(slot.key);
+      const permission = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        Alert.alert('Permission required', source === 'camera' ? 'Allow camera access to capture this document.' : 'Allow photo access to select this document.');
+        return;
       }
-      Alert.alert('KYC submitted', 'Your documents are now under review.');
-      router.replace('/(tabs)/home');
-    } catch {
-      if (driver) {
-        await setDriver({ ...driver, status: 'ACTIVE' });
-      }
-      Alert.alert('Preview mode', 'The backend endpoint is not wired yet, so the documents are marked submitted locally.');
-      router.replace('/(tabs)/home');
+
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true });
+
+      if (result.canceled || !result.assets[0]) return;
+      await uploadDocument(slot, result.assets[0]);
+    } catch (error) {
+      Alert.alert('Upload failed', error instanceof Error ? error.message : 'Please try again.');
     } finally {
-      setLoading(false);
+      setUploading(null);
+    }
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      await http.post('/api/v1/driver/kyc/submit');
+      if (driver) {
+        setDriver({ ...driver, status: 'KYC_SUBMITTED' });
+      }
+      Alert.alert('KYC submitted', 'Your documents are now under review. We will notify you after approval.');
+      router.replace('/(kyc)');
+    } catch (error) {
+      Alert.alert('Could not submit KYC', error instanceof Error ? error.message : 'Please check every requirement and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <Screen>
       <Card>
-        <SectionHeader title="Document upload" caption={`${completed}/${slots.length} attached`} />
-        <Text style={styles.copy}>Native pickers are not wired in this workspace yet, so paste a file URL or use the sample buttons below.</Text>
-        <InputField label="License image URL" value={licenseUrl} onChangeText={setLicenseUrl} placeholder="https://..." />
-        <InputField label="Selfie URL" value={selfieUrl} onChangeText={setSelfieUrl} placeholder="https://..." />
-        <InputField label="Vehicle photo URL" value={vehicleUrl} onChangeText={setVehicleUrl} placeholder="https://..." />
+        <SectionHeader title="Document upload" caption={`${completed}/${slots.length} uploaded`} />
+        <Text style={styles.copy}>Upload the required photos. Each document is sent securely before final submission.</Text>
 
-        <View style={styles.sampleGrid}>
-          {slots.map((slot) => (
-            <Pressable
-              key={slot.key}
-              onPress={() => {
-                const sample = `https://images.percel.dev/demo/${slot.key}.jpg`;
-                if (slot.key === 'license') setLicenseUrl(sample);
-                if (slot.key === 'selfie') setSelfieUrl(sample);
-                if (slot.key === 'vehicle') setVehicleUrl(sample);
-              }}
-              style={styles.sampleCard}
-            >
-              <Text style={styles.sampleTitle}>{slot.label}</Text>
-              <Text style={styles.sampleCopy}>{slot.helper}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.documentList}>
+          {slots.map((slot) => {
+            const item = documents[slot.key];
+            const busy = uploading === slot.key;
+            return (
+              <View key={slot.key} style={styles.documentCard}>
+                {item?.localUri ? (
+                  <Image source={{ uri: item.localUri }} style={styles.preview} />
+                ) : (
+                  <View style={styles.previewPlaceholder}>
+                    <Text style={styles.previewPlaceholderText}>{slot.label[0]}</Text>
+                  </View>
+                )}
+
+                <View style={styles.documentCopy}>
+                  <Text style={styles.documentTitle}>{slot.label}</Text>
+                  <Text style={styles.documentHelper}>{item ? 'Uploaded successfully.' : slot.helper}</Text>
+                  <View style={styles.actionRow}>
+                    <Pressable disabled={busy} onPress={() => void pickDocument(slot, 'camera')} style={[styles.smallButton, busy ? styles.disabled : null]}>
+                      <Text style={styles.smallButtonText}>{busy ? 'Uploading...' : 'Camera'}</Text>
+                    </Pressable>
+                    <Pressable disabled={busy} onPress={() => void pickDocument(slot, 'library')} style={[styles.smallButtonSecondary, busy ? styles.disabled : null]}>
+                      <Text style={styles.smallButtonSecondaryText}>Gallery</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
-        <ActionButton title={loading ? 'Submitting…' : 'Submit KYC'} onPress={submit} disabled={loading || completed < 3} />
-        <ActionButton title="Back to overview" variant="ghost" onPress={() => router.replace('/(tabs)/home')} />
+        <ActionButton title={submitting ? 'Submitting...' : 'Submit KYC'} onPress={submit} disabled={submitting || uploading !== null || completed < slots.length} />
+        <ActionButton title="Back to overview" variant="ghost" onPress={() => router.replace('/(kyc)')} />
       </Card>
     </Screen>
   );
@@ -95,15 +164,26 @@ export default function KycDocumentsScreen() {
 
 const styles = StyleSheet.create({
   copy: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular },
-  sampleGrid: { gap: 10 },
-  sampleCard: {
+  documentList: { gap: 12 },
+  documentCard: {
     borderRadius: 18,
-    padding: 14,
+    padding: 12,
     backgroundColor: Colors.light.card,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    gap: 4,
+    flexDirection: 'row',
+    gap: 12,
   },
-  sampleTitle: { color: Colors.light.text, fontSize: Typography.sm, fontWeight: Typography.bold, fontFamily: Typography.family.bold },
-  sampleCopy: { color: Colors.light.textSecondary, fontSize: Typography.xs, lineHeight: 17, fontFamily: Typography.family.regular },
+  preview: { width: 76, height: 76, borderRadius: 14, backgroundColor: Colors.light.border },
+  previewPlaceholder: { width: 76, height: 76, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.bg },
+  previewPlaceholderText: { color: Colors.light.textSecondary, fontSize: Typography.xl, fontFamily: Typography.family.bold },
+  documentCopy: { flex: 1, gap: 6 },
+  documentTitle: { color: Colors.light.text, fontSize: Typography.sm, fontWeight: Typography.bold, fontFamily: Typography.family.bold },
+  documentHelper: { color: Colors.light.textSecondary, fontSize: Typography.xs, lineHeight: 17, fontFamily: Typography.family.regular },
+  actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  smallButton: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.light.primary },
+  smallButtonText: { color: '#fff', fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  smallButtonSecondary: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.light.bg, borderWidth: 1, borderColor: Colors.light.border },
+  smallButtonSecondaryText: { color: Colors.light.text, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  disabled: { opacity: 0.6 },
 });

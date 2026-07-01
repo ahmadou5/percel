@@ -5,7 +5,6 @@ import { CreditCard, TrendingUp, Download, Eye, EyeOff, Bell, Car } from 'lucide
 
 import { Text } from '@/components/Themed';
 import { useWallet } from '@/hooks/useWallet';
-import { demoWallet } from '@/lib/demo-data';
 import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { useDriverStore } from '@/store/driver.store';
@@ -30,7 +29,8 @@ export default function EarningsScreen() {
   const [balanceHidden, setBalanceHidden] = useState(false);
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
   const walletQuery = useWallet();
-  const wallet = walletQuery.data ?? demoWallet;
+  const wallet = walletQuery.data;
+  const transactions = wallet?.transactions ?? [];
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
   const driver = useDriverStore((s) => s.driver);
@@ -58,25 +58,25 @@ export default function EarningsScreen() {
       return true;
     };
 
-    const earned = wallet.transactions
+    const earned = transactions
       .filter((tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT' && isWithinPeriod(tx.createdAt))
       .reduce((sum, tx) => sum + Number(tx.amount), 0);
-    const commission = wallet.transactions
+    const commission = transactions
       .filter((tx) => tx.category === 'COMMISSION' && tx.type === 'DEBIT' && isWithinPeriod(tx.createdAt))
       .reduce((sum, tx) => sum + Number(tx.amount), 0);
-    const trips = wallet.transactions.filter(
+    const trips = transactions.filter(
       (tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT' && isWithinPeriod(tx.createdAt)
     ).length;
 
     return { earned, commission, net: earned - commission, trips };
-  }, [wallet.transactions, period]);
+  }, [transactions, period]);
 
   // Build last-7-days bar data from real transactions
   const earningsByDay = useMemo(() => {
     const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     // Build a map: dateString -> total earned that day
     const map = new Map<string, number>();
-    wallet.transactions
+    transactions
       .filter((tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT')
       .forEach((tx) => {
         const d = new Date(tx.createdAt);
@@ -96,7 +96,7 @@ export default function EarningsScreen() {
 
     // If there's genuinely no data at all (wallet not loaded / no transactions), keep zeros visible
     return bars;
-  }, [wallet.transactions]);
+  }, [transactions]);
 
   const chartMax = Math.max(...earningsByDay.map((b) => b.value), 1);
 
@@ -128,7 +128,7 @@ export default function EarningsScreen() {
             <View style={styles.balanceBlock}>
               <Text style={styles.balanceLabel}>Available balance</Text>
               <Text style={styles.balanceValue}>
-                {balanceHidden ? '••••••••' : formatCurrency(wallet.balance)}
+                {balanceHidden ? '••••••••' : wallet ? formatCurrency(wallet.balance) : '---'}
               </Text>
             </View>
             <Pressable style={[styles.cashOutBtn, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
@@ -291,12 +291,12 @@ export default function EarningsScreen() {
         <Text style={[styles.sectionTitle, { color: palette.text, paddingHorizontal: 4 }]}>Recent Activity</Text>
 
         <View style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          {wallet.transactions.slice(0, 5).map((tx, index) => (
+          {transactions.slice(0, 5).map((tx, index) => (
             <View
               key={tx.id}
               style={[
                 styles.transactionRow,
-                index < Math.min(4, wallet.transactions.length - 1) && {
+                index < Math.min(4, transactions.length - 1) && {
                   borderBottomWidth: 1,
                   borderBottomColor: palette.border,
                 },
@@ -327,7 +327,7 @@ export default function EarningsScreen() {
               </Text>
             </View>
           ))}
-          {wallet.transactions.length === 0 && (
+          {transactions.length === 0 && (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyStateText, { color: palette.textSecondary }]}>No recent transactions</Text>
             </View>

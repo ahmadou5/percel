@@ -609,6 +609,32 @@ export default function TransferScreen() {
                     </View>
                     <Text style={[styles.confirmText, { color: palette.text }]}>I confirm this is the correct account</Text>
                   </Pressable>
+
+                  {!isSavedBeneficiary && !beneficiaries.some(b => b.type === 'BANK' && b.accountNumber === bankValidation.accountNumber) && (
+                    <Pressable
+                      onPress={() => {
+                        void haptics.success();
+                        addBeneficiary({
+                          name: bankValidation.accountName,
+                          accountNumber: bankValidation.accountNumber,
+                          bankCode: bankValidation.bankCode,
+                          bankName: bankValidation.bankName,
+                          type: 'BANK',
+                        });
+                        setIsSavedBeneficiary(true);
+                      }}
+                      style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
+                    >
+                      <CreditCard size={16} color={palette.primary} />
+                      <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this account</Text>
+                    </Pressable>
+                  )}
+                  {isSavedBeneficiary && (
+                    <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
+                      <CheckCircle2 size={16} color={palette.success} />
+                      <Text style={[styles.saveCardText, { color: palette.success }]}>Account saved</Text>
+                    </View>
+                  )}
                 </>
               ) : (
                 <StateCard
@@ -698,6 +724,30 @@ export default function TransferScreen() {
                     <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{recipientValidation.phone}</Text>
                   </View>
                 </View>
+
+                {!isSavedBeneficiary && !beneficiaries.some(b => b.type === 'PHONE' && b.phone === recipientValidation.phone) && (
+                  <Pressable
+                    onPress={() => {
+                      void haptics.success();
+                      addBeneficiary({
+                        name: recipientValidation.fullName,
+                        phone: recipientValidation.phone,
+                        type: 'PHONE',
+                      });
+                      setIsSavedBeneficiary(true);
+                    }}
+                    style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
+                  >
+                    <Smartphone size={16} color={palette.primary} />
+                    <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this contact</Text>
+                  </Pressable>
+                )}
+                {isSavedBeneficiary && (
+                  <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
+                    <CheckCircle2 size={16} color={palette.success} />
+                    <Text style={[styles.saveCardText, { color: palette.success }]}>Contact saved</Text>
+                  </View>
+                )}
               ) : recipientStatus === 'error' ? (
                 <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
                   <ShieldCheck size={18} color={palette.error} />
@@ -1175,4 +1225,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     textAlign: 'center',
   },
+  saveCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingVertical: 12, marginTop: 12 },
+  saveCardText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
 });

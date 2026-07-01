@@ -20,6 +20,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Percel uses your location to match deliveries near you and keep customers updated.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Percel uses your location in the background to keep trip tracking active while you are online.",
+        "NSCameraUsageDescription": "Percel uses your camera to capture KYC documents and delivery verification photos.",
+        "NSPhotoLibraryUsageDescription": "Percel uses your photo library when you choose existing KYC documents or delivery photos.",
         "UIBackgroundModes": [
           "location"
         ]

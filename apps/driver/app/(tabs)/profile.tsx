@@ -9,7 +9,6 @@ import { Typography } from '@/constants/typography';
 import { useLogout } from '@/hooks/useAuth';
 import { useDriverProfile } from '@/hooks/useDriverProfile';
 import { useWallet } from '@/hooks/useWallet';
-import { demoWallet } from '@/lib/demo-data';
 import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
 
@@ -26,7 +25,7 @@ export default function ProfileScreen() {
   const walletQuery = useWallet();
   const profileQuery = useDriverProfile();
   const profile = profileQuery.data;
-  const wallet = walletQuery.data ?? demoWallet;
+  const wallet = walletQuery.data;
   const displayName = profile?.fullName ?? user?.fullName ?? 'Driver account';
   const email = profile?.email ?? user?.email ?? 'No email attached';
   const phone = profile?.phone ?? user?.phone ?? 'No phone attached';
@@ -83,8 +82,8 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.metricRow}>
-          <StatChip label="Deliveries" value={String(profile?.totalDeliveries ?? 128)} />
-          <StatChip label="Rating" value={`${profile?.rating?.toFixed(1) ?? '4.9'} ★`} />
+          <StatChip label="Deliveries" value={profile ? String(profile.totalDeliveries) : '---'} />
+          <StatChip label="Rating" value={profile?.rating != null ? `${profile.rating.toFixed(1)} ★` : '---'} />
         </View>
 
         <Card>
@@ -92,9 +91,9 @@ export default function ProfileScreen() {
           <View style={styles.infoRow}>
             <Truck size={18} color={palette.primary} />
             <View style={styles.infoCopy}>
-              <Text style={[styles.value, { color: palette.text }]}>{profile?.vehicleType ?? 'BIKE'} · {profile?.vehicleModel ?? 'Bajaj Boxer'}</Text>
-              <Text style={[styles.meta, { color: palette.textSecondary }]}>Plate number: {profile?.vehiclePlate ?? 'LAG-482XY'}</Text>
-              <Text style={[styles.meta, { color: palette.textSecondary }]}>License: {profile?.licenseNumber ?? 'LIC-004200'}</Text>
+              <Text style={[styles.value, { color: palette.text }]}>{profile?.vehicleType ?? 'Vehicle'} · {profile?.vehicleModel ?? 'Not set'}</Text>
+              <Text style={[styles.meta, { color: palette.textSecondary }]}>Plate number: {profile?.vehiclePlate ?? 'Not set'}</Text>
+              <Text style={[styles.meta, { color: palette.textSecondary }]}>License: {profile?.licenseNumber ?? 'Not set'}</Text>
             </View>
           </View>
         </Card>
@@ -118,8 +117,8 @@ export default function ProfileScreen() {
           <View style={styles.infoRow}>
             <Wallet size={18} color={palette.primary} />
             <View style={styles.infoCopy}>
-              <Text style={[styles.value, { color: palette.text }]}>{wallet.balance.toLocaleString('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 })}</Text>
-              <Text style={[styles.meta, { color: palette.textSecondary }]}>{wallet.transactions.length} transaction records linked to this driver account.</Text>
+              <Text style={[styles.value, { color: palette.text }]}>{wallet ? wallet.balance.toLocaleString('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }) : '---'}</Text>
+              <Text style={[styles.meta, { color: palette.textSecondary }]}>{wallet ? `${wallet.transactions.length} transaction records linked to this driver account.` : 'Wallet data is not available yet.'}</Text>
             </View>
           </View>
         </Card>

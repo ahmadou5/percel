@@ -24,9 +24,7 @@ import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
 import { useToggleOnlineStatus } from '@/hooks/useDriverProfile';
 import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
-import { demoOrders, demoWallet } from '@/lib/demo-data';
 import type { DriverOrder } from '@/lib/types';
-import { DriverWalletCard } from '@/components/DriverWalletCard';
 
 function formatNaira(value: number) {
   return `₦${Math.max(0, value).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
@@ -139,15 +137,15 @@ export default function DriverHomeScreen() {
   const ordersQuery = useAvailableOrders();
   const queryClient = useQueryClient();
 
-  const wallet = walletQuery.data ?? demoWallet;
+  const wallet = walletQuery.data;
+  const walletTransactions = wallet?.transactions ?? [];
 
   const todayDateStr = new Date().toDateString();
-  const todaysTx = wallet.transactions.filter(
+  const todaysTx = walletTransactions.filter(
     (tx) => tx.category === 'ORDER_EARNING' && tx.type === 'CREDIT' && new Date(tx.createdAt).toDateString() === todayDateStr
   );
 
   const earningsToday = todaysTx.reduce((sum, tx) => sum + Number(tx.amount), 0);
-  const deliveriesToday = todaysTx.length;
 
   const [incomingOrder, setIncomingOrder] = useState<DriverOrder | null>(null);
   const [countdown, setCountdown] = useState(30);
@@ -161,20 +159,26 @@ export default function DriverHomeScreen() {
 
     const unsub1 = subscribeDriverSocket('new_order_available', (payload: Partial<DriverOrder> & { orderId?: string }) => {
       invalidate();
+      const id = payload.orderId ?? payload.id;
+      if (!id || !payload.trackingCode || payload.price == null || !payload.pickupFormattedAddress || !payload.deliveryFormattedAddress || payload.distanceKm == null || payload.estimatedDurationMin == null) {
+        return;
+      }
+
       const order: DriverOrder = {
-        id: payload.orderId ?? payload.id ?? demoOrders[0].id,
-        trackingCode: payload.trackingCode ?? 'TRK-NEW',
+        id,
+        trackingCode: payload.trackingCode,
         status: payload.status ?? 'MATCHED',
         paymentStatus: payload.paymentStatus ?? 'PAID',
-        price: payload.price ?? demoOrders[0].price,
+        price: payload.price,
         currency: payload.currency ?? 'NGN',
         size: payload.size ?? 'SMALL',
-        pickupFormattedAddress: payload.pickupFormattedAddress ?? demoOrders[0].pickupFormattedAddress,
-        deliveryFormattedAddress: payload.deliveryFormattedAddress ?? demoOrders[0].deliveryFormattedAddress,
-        distanceKm: payload.distanceKm ?? demoOrders[0].distanceKm,
-        estimatedDurationMin: payload.estimatedDurationMin ?? demoOrders[0].estimatedDurationMin,
+        pickupFormattedAddress: payload.pickupFormattedAddress,
+        deliveryFormattedAddress: payload.deliveryFormattedAddress,
+        distanceKm: payload.distanceKm,
+        estimatedDurationMin: payload.estimatedDurationMin,
         createdAt: payload.createdAt ?? new Date().toISOString(),
         driver: payload.driver ?? null,
+        customer: payload.customer ?? null,
       };
       setIncomingOrder(order);
       setSheetVisible(true);
@@ -214,22 +218,28 @@ export default function DriverHomeScreen() {
       return;
     }
 
-    const lat = driver?.currentLocation?.lat ?? 6.5244;
-    const lng = driver?.currentLocation?.lng ?? 3.3792;
+    const lat = driver?.currentLocation?.lat;
+    const lng = driver?.currentLocation?.lng;
+
+    if (next && (lat == null || lng == null || (lat === 0 && lng === 0))) {
+      Alert.alert('Location required', 'Please allow location access before going online.');
+      return;
+    }
 
     await setOnlineStatus(next);
 
     try {
-      await toggleOnlineStatus.mutateAsync({ isOnline: next, lat, lng });
+      await toggleOnlineStatus.mutateAsync({ isOnline: next, lat: lat ?? undefined, lng: lng ?? undefined });
     } catch (error: unknown) {
       const msg = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'Failed to update online status.';
       Alert.alert('Status Update Failed', msg);
+      return;
     }
 
     emitDriverEvent(next ? 'driver_online' : 'driver_offline', {
-      driverId: driver?.id ?? 'demo',
-      lat,
-      lng,
+      driverId: driver?.id ?? '',
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
     });
   };
 
@@ -509,7 +519,7 @@ export default function DriverHomeScreen() {
               <Zap size={14} color="#FFD60A" />
               <Text style={styles.sheetBadgeText}>New order available</Text>
             </View>
-            <Text style={[styles.sheetCode, { color: palette.text }]}>{incomingOrder?.trackingCode ?? 'TRK-NEW'}</Text>
+            <Text style={[styles.sheetCode, { color: palette.text }]}>{incomingOrder?.trackingCode ?? 'New order'}</Text>
             <View style={styles.sheetMetaRow}>
               <MapPin size={13} color={palette.textSecondary} />
               <Text style={[styles.sheetRoute, { color: palette.textSecondary }]} numberOfLines={2}>

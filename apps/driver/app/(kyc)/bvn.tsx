@@ -20,15 +20,19 @@ export default function BvnScreen() {
   const verify = async () => {
     setLoading(true);
     try {
-      await http.post('/api/v1/driver/kyc/verify-bvn', { bvn });
+      const response = await http.post<{ data: { verified: boolean; message?: string } }>('/api/v1/driver/kyc/verify-bvn', { bvn });
+      if (!response.data.data.verified) {
+        Alert.alert('BVN verification failed', response.data.data.message ?? 'Please review the number and try again.');
+        return;
+      }
+
       setVerified(true);
       if (driver) {
         await setDriver({ ...driver, status: 'KYC_SUBMITTED' });
       }
       Alert.alert('BVN verified', 'Your banking identity check has been submitted.');
-    } catch {
-      setVerified(true);
-      Alert.alert('Preview mode', 'The backend endpoint is not wired yet, so this step is marked complete locally.');
+    } catch (error) {
+      Alert.alert('Could not verify BVN', error instanceof Error ? error.message : 'Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

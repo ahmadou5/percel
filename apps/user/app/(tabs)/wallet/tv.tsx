@@ -438,7 +438,7 @@ export default function TvScreen() {
               onPress={() => void openPaymentAuth()}
               style={[styles.primaryAction, { backgroundColor: selectedService && selectedVariation ? palette.primary : palette.border }]}
             >
-              {mutation.isPending ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : "Select a bouquet"}</Text>}
+              {mutation.isPending || biometricBusy ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : "Select a bouquet"}</Text>}
             </Pressable>
           </View>
         ) : null}

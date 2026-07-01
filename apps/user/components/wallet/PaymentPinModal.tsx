@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 
 import { PinInput } from '@/components/ui/PinInput';
 import { useAppPalette } from '@/lib/theme';
@@ -109,7 +109,11 @@ export function PaymentPinModal({
               { backgroundColor: canSubmit ? palette.primary : palette.border, opacity: pressed ? 0.92 : 1 },
             ]}
           >
-            <Text style={[styles.confirmText, { color: palette.card }]}>{loading ? 'Processing…' : confirmLabel}</Text>
+            {loading ? (
+              <ActivityIndicator color={palette.card} />
+            ) : (
+              <Text style={[styles.confirmText, { color: palette.card }]}>{confirmLabel}</Text>
+            )}
           </Pressable>
         </View>
       </View>

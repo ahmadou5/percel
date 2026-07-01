@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Bell, ChevronLeft, Check } from 'lucide-react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { http } from '@/lib/api';
 import { usePreferencesStore } from '@/store/preferences.store';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 
 async function registerPushToken() {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
@@ -26,6 +27,7 @@ export default function DriverNotificationsSettingsScreen() {
   const setNotificationsEnabled = usePreferencesStore((state) => state.setNotificationsEnabled);
   const [permissionStatus, setPermissionStatus] = useState<Notifications.PermissionStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const modal = useAppModal();
 
   useEffect(() => {
     let cancelled = false;
@@ -52,15 +54,38 @@ export default function DriverNotificationsSettingsScreen() {
       setPermissionStatus(next.status);
 
       if (next.status !== 'granted') {
-        Alert.alert('Notifications disabled', 'You can enable them later from your device settings.');
+        modal.show({
+          title: 'Notifications disabled',
+          description: 'Notifications are blocked on your device. Open Settings to allow them.',
+          type: 'warning',
+          primaryText: 'Open Settings',
+          onPrimaryPress: () => {
+            modal.hide();
+            void Linking.openSettings();
+          },
+          secondaryText: 'Not now',
+          onSecondaryPress: modal.hide,
+        });
         return;
       }
 
       await setNotificationsEnabled(true);
       await registerPushToken();
-      Alert.alert('Notifications enabled', 'You will receive delivery offers, chat updates, and payment alerts.');
+      modal.show({
+        title: 'Notifications enabled',
+        description: 'You will receive delivery offers, chat updates, and payment alerts.',
+        type: 'success',
+        primaryText: 'Great',
+        onPrimaryPress: modal.hide,
+      });
     } catch (error) {
-      Alert.alert('Could not enable notifications', error instanceof Error ? error.message : 'Please try again.');
+      modal.show({
+        title: 'Could not enable notifications',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        type: 'error',
+        primaryText: 'OK',
+        onPrimaryPress: modal.hide,
+      });
     } finally {
       setBusy(false);
     }
@@ -71,7 +96,13 @@ export default function DriverNotificationsSettingsScreen() {
     try {
       await setNotificationsEnabled(false);
       await refreshPermissions();
-      Alert.alert('Notifications disabled', 'You can turn them back on whenever you want.');
+      modal.show({
+        title: 'Notifications disabled',
+        description: 'You can turn them back on whenever you want.',
+        type: 'info',
+        primaryText: 'OK',
+        onPrimaryPress: modal.hide,
+      });
     } finally {
       setBusy(false);
     }
@@ -87,13 +118,20 @@ export default function DriverNotificationsSettingsScreen() {
         trigger: null,
       });
     } catch (error) {
-      Alert.alert('Could not send test notification', error instanceof Error ? error.message : 'Please try again.');
+      modal.show({
+        title: 'Could not send test notification',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        type: 'error',
+        primaryText: 'OK',
+        onPrimaryPress: modal.hide,
+      });
     }
   };
 
   const enabled = notificationsEnabled && permissionStatus === 'granted';
 
   return (
+    <>
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -156,6 +194,8 @@ export default function DriverNotificationsSettingsScreen() {
         </Text>
       </View>
     </ScrollView>
+    <AppModal config={modal.config} onClose={modal.hide} />
+    </>
   );
 }
 
