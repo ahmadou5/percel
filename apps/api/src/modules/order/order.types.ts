@@ -59,6 +59,12 @@ export interface OrderSummary {
     vehiclePlate: string;
     isOnline: boolean;
   } | null;
+  customer?: {
+    id: string;
+    fullName: string;
+    phone: string;
+    avatarUrl: string | null;
+  } | null;
 }
 
 export interface OrderRatingResponse {

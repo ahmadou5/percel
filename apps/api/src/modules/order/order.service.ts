@@ -55,6 +55,12 @@ type OrderLike = {
     vehiclePlate: string;
     isOnline: boolean;
   } | null;
+  user?: {
+    id: string;
+    fullName: string;
+    phone: string;
+    avatarUrl?: string | null;
+  } | null;
 };
 
 function serializeOrder(order: OrderLike): OrderSummary {
@@ -82,6 +88,14 @@ function serializeOrder(order: OrderLike): OrderSummary {
           vehicleModel: order.driver.vehicleModel,
           vehiclePlate: order.driver.vehiclePlate,
           isOnline: order.driver.isOnline,
+        }
+      : null,
+    customer: order.user
+      ? {
+          id: order.user.id,
+          fullName: order.user.fullName,
+          phone: order.user.phone,
+          avatarUrl: order.user.avatarUrl ?? null,
         }
       : null,
   };
@@ -516,7 +530,7 @@ export class OrderService {
 
     const orders = await this.prisma.order.findMany({
       where: { status: OrderStatus.PENDING_MATCH, driverId: null },
-      include: { driver: { include: { user: true } } },
+      include: { driver: { include: { user: true } }, user: true },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -554,7 +568,7 @@ export class OrderService {
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { driverId, status: OrderStatus.ACCEPTED },
-      include: { driver: { include: { user: true } } },
+      include: { driver: { include: { user: true } }, user: true },
     });
 
     await this.prisma.orderStatusHistory.create({
@@ -601,7 +615,7 @@ export class OrderService {
           pickedUpAt: status === 'IN_TRANSIT' ? new Date() : order.pickedUpAt,
           deliveredAt: status === 'DELIVERED' ? new Date() : order.deliveredAt,
         },
-        include: { driver: { include: { user: true } } },
+        include: { driver: { include: { user: true } }, user: true },
       });
 
       await tx.orderStatusHistory.create({
@@ -846,7 +860,7 @@ export class OrderService {
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({
         where,
-        include: { driver: { include: { user: true } } },
+        include: { driver: { include: { user: true } }, user: true },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,

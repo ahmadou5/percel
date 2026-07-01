@@ -70,7 +70,7 @@ export function useUpdateOrderStatus() {
     },
     onSuccess: async (order) => {
       emitDriverEvent('order_status_update', { orderId: order.id, status: order.status });
-      await setCurrentOrder(order.status === 'DELIVERED' ? null : order);
+      await setCurrentOrder(order.status === 'COMPLETED' ? null : order);
       await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
     },
   });

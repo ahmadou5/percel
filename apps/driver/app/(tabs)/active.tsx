@@ -11,11 +11,7 @@ import { useDriverStore } from '@/store/driver.store';
 import type { DriverOrder } from '@/lib/types';
 
 function formatNaira(value: number) {
-  return new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    maximumFractionDigits: 0,
-  }).format(value);
+  return `₦${Math.max(0, value).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 }
 
 function InfoRow({
@@ -84,18 +80,23 @@ export default function ActiveOrderScreen() {
   const [feedbackRating, setFeedbackRating] = useState<1 | 5>(5);
   const [feedbackComment, setFeedbackComment] = useState('');
 
-  // If the order is cancelled externally, reflect it
+  // Reflect external order status changes (cancellation, completion)
   useEffect(() => {
     const unsub = subscribeDriverSocket('order_status_update', (payload: { orderId?: string; status?: string }) => {
       if (payload.orderId && payload.orderId === currentOrder?.id) {
         if (payload.status === 'CANCELLED') {
           void setCurrentOrder(null);
           Alert.alert('Order cancelled', 'This order was cancelled.');
+        } else if (payload.status === 'COMPLETED') {
+          void setCurrentOrder(null);
+          Alert.alert('Order completed', 'The customer has confirmed delivery. Earnings credited to your wallet.');
+        } else if (payload.status && currentOrder) {
+          void setCurrentOrder({ ...currentOrder, status: payload.status as typeof currentOrder.status });
         }
       }
     });
     return unsub;
-  }, [currentOrder?.id, setCurrentOrder]);
+  }, [currentOrder, setCurrentOrder]);
 
   if (!currentOrder) {
     return (
@@ -186,14 +187,14 @@ export default function ActiveOrderScreen() {
           <InfoRow label="Created" value={new Date(order.createdAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })} palette={palette} />
         </View>
 
-        {/* Driver info (if assigned) */}
-        {order.driver && (
+        {/* Customer contact */}
+        {order.customer && (
           <View style={[styles.detailCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.cardSectionLabel, { color: palette.textSecondary }]}>CUSTOMER CONTACT</Text>
-            <Text style={[styles.customerName, { color: palette.text }]}>{order.driver.fullName}</Text>
+            <Text style={[styles.customerName, { color: palette.text }]}>{order.customer.fullName}</Text>
             <Pressable
               style={[styles.callBtn, { backgroundColor: hexToRgba('#30D158', 0.14), borderColor: hexToRgba('#30D158', 0.24) }]}
-              onPress={() => void Linking.openURL(`tel:${order.driver?.vehiclePlate ?? ''}`)}
+              onPress={() => void Linking.openURL(`tel:${order.customer?.phone ?? ''}`)}
             >
               <Phone size={15} color="#30D158" />
               <Text style={styles.callBtnText}>Call customer</Text>
@@ -276,7 +277,10 @@ export default function ActiveOrderScreen() {
 
             <View style={styles.modalActions}>
               <Pressable
-                onPress={() => setFeedbackVisible(false)}
+                onPress={() => {
+                  setFeedbackVisible(false);
+                  void setCurrentOrder(null);
+                }}
                 style={[styles.modalBtn, { backgroundColor: palette.bg, borderColor: palette.border }]}
               >
                 <Text style={[styles.modalBtnText, { color: palette.text }]}>Skip</Text>
@@ -291,9 +295,13 @@ export default function ActiveOrderScreen() {
                       driverComment: feedbackComment.trim() || undefined,
                     });
                     setFeedbackVisible(false);
+                    void setCurrentOrder(null);
                     Alert.alert('Feedback sent', 'Thank you for rating this customer.');
                   } catch (err) {
-                    Alert.alert('Rating failed', err instanceof Error ? err.message : 'Please try again.');
+                    // Rating API requires customer to rate first — still clear the order
+                    setFeedbackVisible(false);
+                    void setCurrentOrder(null);
+                    Alert.alert('Feedback skipped', 'Your delivery is complete. Rating will be available once the customer confirms.');
                   }
                 }}
                 disabled={rateCustomer.isPending}

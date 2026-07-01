@@ -381,7 +381,11 @@ export default function ElectricityScreen() {
               onPress={() => void openPaymentAuth()}
               style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
             >
-              <Text style={styles.primaryActionText}>{amountValue > 0 ? 'Pay ' + formatNaira(amountValue) : 'Select an amount'}</Text>
+              {mutation.isPending || biometricBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryActionText}>{amountValue > 0 ? 'Pay ' + formatNaira(amountValue) : 'Select an amount'}</Text>
+              )}
             </Pressable>
           </View>
         ) : null}

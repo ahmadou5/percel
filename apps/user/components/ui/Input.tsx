@@ -73,5 +73,5 @@ const styles = StyleSheet.create({
   trailing: { marginLeft: Spacing.sm },
   toggle: { fontFamily: Typography.family.semibold },
   error: { fontSize: Typography.xs, marginTop: Spacing.xs },
-  helper: { fontSize: Typography.xs, marginTop: Spacing.xs },
+  helper: { fontSize: Typography.xs, marginTop: Spacing.xs, fontFamily: Typography.family.regular },
 });

@@ -426,7 +426,11 @@ export default function AirtimeScreen() {
               onPress={() => void openPaymentAuth()}
               style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
             >
-              <Text style={styles.primaryActionText}>{selectedAmount > 0 ? `Pay ${formatNaira(selectedAmount)}` : "Select an amount"}</Text>
+              {mutation.isPending || biometricBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryActionText}>{selectedAmount > 0 ? `Pay ${formatNaira(selectedAmount)}` : 'Select an amount'}</Text>
+              )}
             </Pressable>
           </View>
         ) : null}

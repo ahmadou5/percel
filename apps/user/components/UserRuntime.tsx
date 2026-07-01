@@ -102,38 +102,71 @@ export function UserRuntime() {
   }, [walletAccessBiometricEnabled, walletPinSet]);
 
   useEffect(() => {
+    const WALLET_TX_KINDS = new Set([
+      'wallet_topup',
+      'wallet_transfer_in',
+      'wallet_transfer_out',
+      'airtime',
+      'data',
+      'tv',
+      'electricity',
+      'bill_payment',
+    ]);
+
+    function handleNotificationData(data: Record<string, unknown>) {
+      const auth = useAuthStore.getState();
+      if (!auth.isAuthenticated) return;
+
+      // Support both `kind` and `type` fields from the backend
+      const kind = (data.kind ?? data.type) as string | undefined;
+
+      if (data.orderId) {
+        router.push(`/(tabs)/orders/${String(data.orderId)}`);
+        return;
+      }
+
+      if (kind && WALLET_TX_KINDS.has(kind)) {
+        router.push('/(tabs)/wallet/transactions');
+        return;
+      }
+
+      if (kind === 'kyc') {
+        router.push('/settings/kyc');
+        return;
+      }
+
+      if (kind === 'referral' || kind === 'referral_reward') {
+        router.push('/referrals');
+        return;
+      }
+
+      if (kind === 'delivery_update' || kind === 'order_status') {
+        router.push('/(tabs)/orders');
+        return;
+      }
+
+      // Generic `screen` fallback — backend can specify an exact path
+      if (typeof data.screen === 'string' && data.screen.startsWith('/')) {
+        router.push(data.screen as never);
+      }
+    }
+
     async function checkInitialNotification() {
       try {
         const response = await Notifications.getLastNotificationResponseAsync();
         if (response) {
           const data = response.notification.request.content.data;
-          if (data) {
-            if (data.orderId) {
-              router.push(`/orders/${data.orderId}`);
-            } else if (data.kind === 'wallet_topup' || data.kind === 'wallet_transfer_in' || data.kind === 'wallet_transfer_out') {
-              router.push('/wallet/transactions');
-            } else if (data.kind === 'kyc') {
-              router.push('/settings/kyc');
-            }
-          }
+          if (data) handleNotificationData(data as Record<string, unknown>);
         }
       } catch (err) {
-        console.warn("Failed to get initial notification response", err);
+        console.warn('Failed to get initial notification response', err);
       }
     }
     void checkInitialNotification();
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
-      if (data) {
-        if (data.orderId) {
-          router.push(`/orders/${data.orderId}`);
-        } else if (data.kind === 'wallet_topup' || data.kind === 'wallet_transfer_in' || data.kind === 'wallet_transfer_out') {
-          router.push('/wallet/transactions');
-        } else if (data.kind === 'kyc') {
-          router.push('/settings/kyc');
-        }
-      }
+      if (data) handleNotificationData(data as Record<string, unknown>);
     });
 
     return () => subscription.remove();

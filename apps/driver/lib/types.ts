@@ -57,6 +57,13 @@ export type DriverOrderDriver = {
   isOnline: boolean;
 };
 
+export type DriverOrderCustomer = {
+  id: string;
+  fullName: string;
+  phone: string;
+  avatarUrl: string | null;
+};
+
 export type DriverOrder = {
   id: string;
   trackingCode: string;
@@ -71,6 +78,7 @@ export type DriverOrder = {
   estimatedDurationMin: number;
   createdAt: string;
   driver?: DriverOrderDriver | null;
+  customer?: DriverOrderCustomer | null;
 };
 
 export type WalletTransaction = {

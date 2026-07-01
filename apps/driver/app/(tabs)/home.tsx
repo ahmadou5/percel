@@ -29,7 +29,7 @@ import type { DriverOrder } from '@/lib/types';
 import { DriverWalletCard } from '@/components/DriverWalletCard';
 
 function formatNaira(value: number) {
-  return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value);
+  return `₦${Math.max(0, value).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 }
 
 function initialsFrom(name: string) {

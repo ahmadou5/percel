@@ -495,7 +495,11 @@ export default function DataScreen() {
               onPress={() => void openPaymentAuth()}
               style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
             >
-              <Text style={styles.primaryActionText}>{selectedVariation ? `Buy for ${formatNaira(selectedPrice)}` : "Select a bundle"}</Text>
+              {mutation.isPending || biometricBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryActionText}>{selectedVariation ? `Buy for ${formatNaira(selectedPrice)}` : 'Select a bundle'}</Text>
+              )}
             </Pressable>
           </View>
         ) : null}

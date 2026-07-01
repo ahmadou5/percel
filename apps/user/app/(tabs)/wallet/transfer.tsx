@@ -3,7 +3,7 @@ import * as ScreenCapture from "expo-screen-capture";
 import * as SecureStore from "expo-secure-store";
 import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, CreditCard, Search, SearchCheck, ShieldCheck, Smartphone } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useSafeBack } from "@/components/navigation/useSafeBack";
 import { TransactionResultModal } from "@/components/TransactionResultModal";
@@ -674,19 +674,24 @@ export default function TransferScreen() {
               )}
 
               <Input
-                label="Recipient phone"
+                label="Recipient"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 placeholder="+2348012345678"
                 leftElement={<Smartphone size={16} color={palette.textSecondary} />}
-                helperText="The next step unlocks when the recipient is found."
+                helperText=".."
               />
 
               {recipientStatus === 'loading' ? (
-                <StateCard loading title="Looking up recipient" description="Checking the phone number in Percel's database." icon={<Search size={24} color={palette.textSecondary} />} />
+                <StateCard loading title="Looking up recipient" description="Checking the user account..." icon={<Search size={24} color={palette.textSecondary} />} />
               ) : recipientStatus === 'success' && recipientValidation ? (
                 <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                  {mode === 'PHONE' && reviewRecipientAvatarUrl ? (
+                    <Image source={{ uri: reviewRecipientAvatarUrl }} style={styles.reviewAvatarImage} />
+                  ) : (
+                    <Text style={styles.reviewAvatarText}>{mode === 'PHONE' ? initialsFromName(currentRecipient) : '₦'}</Text>
+                  )}
                   <CheckCircle2 size={18} color={palette.success} />
                   <View style={styles.statusCopy}>
                     <Text style={[styles.statusTitle, { color: palette.success }]}>{recipientValidation.fullName}</Text>
@@ -801,10 +806,14 @@ export default function TransferScreen() {
 
             <Pressable
               onPress={handleOpenPinModal}
-              disabled={!canContinueToReview || transferPending}
-              style={[styles.primaryAction, { backgroundColor: canContinueToReview && !transferPending ? palette.primary : palette.border }]}
+              disabled={!canContinueToReview || transferPending || biometricBusy}
+              style={[styles.primaryAction, { backgroundColor: canContinueToReview && !transferPending && !biometricBusy ? palette.primary : palette.border }]}
             >
-              <Text style={styles.primaryActionText}>{transferPending ? 'Preparing…' : 'Send money'}</Text>
+              {transferPending || biometricBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryActionText}>Send money</Text>
+              )}
             </Pressable>
           </View>
         ) : null}

@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Bell, ChevronLeft, Check } from 'lucide-react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { http } from '@/lib/api';
 import { usePreferencesStore } from '@/store/preferences.store';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 
 async function registerPushToken() {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
@@ -26,6 +27,7 @@ export default function NotificationsSettingsScreen() {
   const setNotificationsEnabled = usePreferencesStore((state) => state.setNotificationsEnabled);
   const [permissionStatus, setPermissionStatus] = useState<Notifications.PermissionStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const modal = useAppModal();
 
   useEffect(() => {
     let cancelled = false;
@@ -52,15 +54,38 @@ export default function NotificationsSettingsScreen() {
       setPermissionStatus(next.status);
 
       if (next.status !== 'granted') {
-        Alert.alert('Notifications disabled', 'You can enable them later from your device settings.');
+        modal.show({
+          title: 'Notifications disabled',
+          description: 'Notifications are blocked on your device. Open Settings to allow them.',
+          type: 'warning',
+          primaryText: 'Open Settings',
+          onPrimaryPress: () => {
+            modal.hide();
+            void Linking.openSettings();
+          },
+          secondaryText: 'Not now',
+          onSecondaryPress: modal.hide,
+        });
         return;
       }
 
       await setNotificationsEnabled(true);
       await registerPushToken();
-      Alert.alert('Notifications enabled', 'You will receive delivery updates and payment alerts.');
+      modal.show({
+        title: 'Notifications enabled',
+        description: 'You will receive delivery updates and payment alerts.',
+        type: 'success',
+        primaryText: 'Great',
+        onPrimaryPress: modal.hide,
+      });
     } catch (error) {
-      Alert.alert('Could not enable notifications', error instanceof Error ? error.message : 'Please try again.');
+      modal.show({
+        title: 'Could not enable notifications',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        type: 'error',
+        primaryText: 'OK',
+        onPrimaryPress: modal.hide,
+      });
     } finally {
       setBusy(false);
     }
@@ -71,7 +96,13 @@ export default function NotificationsSettingsScreen() {
     try {
       await setNotificationsEnabled(false);
       await refreshPermissions();
-      Alert.alert('Notifications disabled', 'You can turn them back on whenever you want.');
+      modal.show({
+        title: 'Notifications disabled',
+        description: 'You can turn them back on whenever you want.',
+        type: 'info',
+        primaryText: 'OK',
+        onPrimaryPress: modal.hide,
+      });
     } finally {
       setBusy(false);
     }
@@ -87,75 +118,85 @@ export default function NotificationsSettingsScreen() {
         trigger: null,
       });
     } catch (error) {
-      Alert.alert('Could not send test notification', error instanceof Error ? error.message : 'Please try again.');
+      modal.show({
+        title: 'Could not send test notification',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        type: 'error',
+        primaryText: 'OK',
+        onPrimaryPress: modal.hide,
+      });
     }
   };
 
   const enabled = notificationsEnabled && permissionStatus === 'granted';
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <ChevronLeft size={18} color={palette.text} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Notifications</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <>
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <ChevronLeft size={18} color={palette.text} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: palette.text }]}>Notifications</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      <View style={[styles.heroCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Alerts</Text>
-        <Text style={[styles.heroTitle, { color: palette.text }]}>Choose when the app should ping you about important activity.</Text>
-      </View>
+        <View style={[styles.heroCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Alerts</Text>
+          <Text style={[styles.heroTitle, { color: palette.text }]}>Choose when the app should ping you about important activity.</Text>
+        </View>
 
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <View style={styles.rowTop}>
-          <View style={[styles.iconWrap, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.10)' }]}>
-            <Bell size={22} color={enabled ? palette.primary : palette.textSecondary} />
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <View style={styles.rowTop}>
+            <View style={[styles.iconWrap, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.10)' }]}>
+              <Bell size={22} color={enabled ? palette.primary : palette.textSecondary} />
+            </View>
+            <View style={[styles.badge, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.16)' }]}>
+              <View style={[styles.badgeDot, { backgroundColor: enabled ? '#14B8A6' : palette.textSecondary }]} />
+              <Text style={[styles.badgeText, { color: enabled ? '#14B8A6' : palette.textSecondary }]}>{enabled ? 'Enabled' : 'Disabled'}</Text>
+            </View>
           </View>
-          <View style={[styles.badge, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.16)' }]}>
-            <View style={[styles.badgeDot, { backgroundColor: enabled ? '#14B8A6' : palette.textSecondary }]} />
-            <Text style={[styles.badgeText, { color: enabled ? '#14B8A6' : palette.textSecondary }]}>{enabled ? 'Enabled' : 'Disabled'}</Text>
+
+          <View style={styles.copyBlock}>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>Push Notifications</Text>
+            <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Get delivery updates, payment alerts, and important security reminders the moment they happen.</Text>
+          </View>
+
+          <View style={styles.actions}>
+            {enabled ? (
+              <Pressable onPress={() => void testNotification()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
+                <Check size={16} color={palette.card} />
+                <Text style={[styles.primaryText, { color: palette.card }]}>Test Notification</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => void enableNotifications()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
+                <Check size={16} color={palette.card} />
+                <Text style={[styles.primaryText, { color: palette.card }]}>Enable Notifications</Text>
+              </Pressable>
+            )}
+
+            {enabled ? (
+              <Pressable onPress={() => void disableNotifications()} disabled={busy} style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}>
+                <Text style={[styles.linkText, { color: palette.textSecondary }]}>Disable</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
-        <View style={styles.copyBlock}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Push Notifications</Text>
-          <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Get delivery updates, payment alerts, and important security reminders the moment they happen.</Text>
+        <View style={[styles.noteCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Text style={[styles.noteTitle, { color: palette.text }]}>Permission state</Text>
+          <Text style={[styles.noteText, { color: palette.textSecondary }]}>
+            {permissionStatus == null
+              ? 'Checking permission state…'
+              : permissionStatus === 'granted'
+                ? 'Notifications are allowed on this device.'
+                : 'Notifications are blocked or not yet granted on this device.'}
+          </Text>
         </View>
+      </ScrollView>
 
-        <View style={styles.actions}>
-          {enabled ? (
-            <Pressable onPress={() => void testNotification()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
-              <Check size={16} color={palette.card} />
-              <Text style={[styles.primaryText, { color: palette.card }]}>Test Notification</Text>
-            </Pressable>
-          ) : (
-            <Pressable onPress={() => void enableNotifications()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
-              <Check size={16} color={palette.card} />
-              <Text style={[styles.primaryText, { color: palette.card }]}>Enable Notifications</Text>
-            </Pressable>
-          )}
-
-          {enabled ? (
-            <Pressable onPress={() => void disableNotifications()} disabled={busy} style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}>
-              <Text style={[styles.linkText, { color: palette.textSecondary }]}>Disable</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={[styles.noteCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <Text style={[styles.noteTitle, { color: palette.text }]}>Permission state</Text>
-        <Text style={[styles.noteText, { color: palette.textSecondary }]}>
-          {permissionStatus == null
-            ? 'Checking permission state…'
-            : permissionStatus === 'granted'
-              ? 'Notifications are allowed on this device.'
-              : 'Notifications are blocked or not yet granted on this device.'}
-        </Text>
-      </View>
-    </ScrollView>
+      <AppModal config={modal.config} onClose={modal.hide} />
+    </>
   );
 }
 
