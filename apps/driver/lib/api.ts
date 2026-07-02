@@ -2,9 +2,11 @@ import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequ
 
 import { useDriverStore } from '@/store/driver.store';
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL ?? '';
+const DEFAULT_API_URL = 'https://percel-production.up.railway.app';
+const configuredBaseURL = process.env.EXPO_PUBLIC_API_URL?.trim();
+export const baseURL = configuredBaseURL && /^https?:\/\//.test(configuredBaseURL) ? configuredBaseURL : DEFAULT_API_URL;
 
-export const api = axios.create({ baseURL });
+export const api = axios.create({ baseURL, timeout: 15000 });
 
 let refreshing: Promise<string | null> | null = null;
 
@@ -20,6 +22,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as AxiosRequestConfig & { _retried?: boolean };
+
+    if (!error.response && error.message === 'Network Error') {
+      const detail = __DEV__ ? ` API: ${baseURL}` : ' Please check your connection.';
+      error.message = `Could not reach Percel server.${detail}`;
+    }
 
     if (error.response?.status !== 401 || original?._retried) {
       return Promise.reject(error);

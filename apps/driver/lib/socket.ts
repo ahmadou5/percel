@@ -25,8 +25,11 @@ function requireNetInfo() {
   }
 }
 
+const DEFAULT_SOCKET_URL = 'https://percel-production.up.railway.app';
+
 function getSocketUrl() {
-  return process.env.EXPO_PUBLIC_SOCKET_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
+  const configured = process.env.EXPO_PUBLIC_SOCKET_URL ?? process.env.EXPO_PUBLIC_API_URL;
+  return configured && /^https?:\/\//.test(configured) ? configured : DEFAULT_SOCKET_URL;
 }
 
 function emitLocal(event: string, payload: any) {
