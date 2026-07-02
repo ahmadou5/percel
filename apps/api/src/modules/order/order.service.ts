@@ -598,6 +598,30 @@ export class OrderService {
     return { accepted: true, order: serializeOrder(updated) };
   }
 
+  async declineOrder(driverId: string, orderId: string, reason = 'Driver declined order') {
+    const driver = await this.prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver) throw new NotFoundError('Driver not found');
+
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundError('Order not found');
+    if (order.status !== OrderStatus.MATCHED && order.status !== OrderStatus.PENDING_MATCH) {
+      throw new ValidationError('Order is not available for decline');
+    }
+
+    const offerDriverId = await this.app.redis.get(`order:offer:${orderId}`);
+    if (offerDriverId && offerDriverId !== driverId) {
+      throw new ForbiddenError('This order has not been offered to this driver');
+    }
+
+    await this.app.redis.del(`order:offer:${orderId}`);
+    await this.prisma.orderStatusHistory.create({
+      data: { orderId, status: order.status, note: reason },
+    });
+    this.logger.info({ orderId, driverId }, 'order.declined');
+
+    return { declined: true, orderId };
+  }
+
   async updateOrderStatus(driverId: string, orderId: string, status: 'IN_TRANSIT' | 'DELIVERED', lat?: number, lng?: number) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, driverId } });
     if (!order) throw new NotFoundError('Order not found');

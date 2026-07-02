@@ -13,14 +13,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX, TrendingUp, DollarSign, Navigation, Pin } from 'lucide-react-native';
+import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
-import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
+import { useAcceptOrder, useDeclineOrder } from '@/hooks/useDriverOrders';
 import { useToggleOnlineStatus } from '@/hooks/useDriverProfile';
 import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
@@ -134,7 +134,7 @@ export default function DriverHomeScreen() {
 
   const walletQuery = useWallet();
   const acceptOrder = useAcceptOrder();
-  const ordersQuery = useAvailableOrders();
+  const declineOrderMutation = useDeclineOrder();
   const queryClient = useQueryClient();
 
   const wallet = walletQuery.data;
@@ -201,7 +201,7 @@ export default function DriverHomeScreen() {
     if (!sheetVisible) return;
     const t = setInterval(() => {
       setCountdown((v) => {
-        if (v <= 1) { void declineOrder(); return 0; }
+        if (v <= 1) { void declineOrder('Offer timed out'); return 0; }
         return v - 1;
       });
     }, 1000);
@@ -255,11 +255,18 @@ export default function DriverHomeScreen() {
     }
   };
 
-  const declineOrder = async () => {
-    if (incomingOrder) emitDriverEvent('order_status_update', { orderId: incomingOrder.id, status: 'CANCELLED' });
+  const declineOrder = async (reason = 'Driver declined incoming offer') => {
+    const orderId = incomingOrder?.id;
     setIncomingOrder(null);
     setSheetVisible(false);
     setCountdown(30);
+    if (!orderId) return;
+
+    try {
+      await declineOrderMutation.mutateAsync({ orderId, reason });
+    } catch (error) {
+      console.error('[declineOrder] failed:', error);
+    }
   };
 
   const isLoading = walletQuery.isLoading && !wallet;
@@ -381,10 +388,10 @@ export default function DriverHomeScreen() {
           </View>
         </View>
 
-        {/* ── Current / Available orders ──────────────────────── */}
+        {/* ── Current order / dispatch entry ──────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>
-            {currentOrder ? 'Current order' : 'Available jobs'}
+            {currentOrder ? 'Current order' : 'Dispatch'}
           </Text>
           {currentOrder && (
             <View style={[styles.activeBadge, { backgroundColor: hexToRgba(palette.primary, 0.14) }]}>
@@ -395,7 +402,6 @@ export default function DriverHomeScreen() {
         </View>
 
         {currentOrder ? (
-          // Confirmed order — solid border, chevron to navigate
           <Pressable
             onPress={() => router.push('/(tabs)/active')}
             style={[styles.orderCard, { backgroundColor: palette.card, borderColor: palette.border }]}
@@ -418,100 +424,39 @@ export default function DriverHomeScreen() {
                 <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
                   <Text style={[styles.tagText, { color: palette.primary }]}>{currentOrder.distanceKm.toFixed(1)} km</Text>
                 </View>
-               
               </View>
             </View>
             <ChevronRight size={18} color={palette.textSecondary} />
           </Pressable>
         ) : (
-          <View style={styles.availableSection}>
-            {ordersQuery.data && ordersQuery.data.length > 0 ? (
-              <View style={styles.list}>
-                {ordersQuery.data.map((item) => (
-                  // Concept change: dashed border signals "pending/available, not yet accepted"
-                  // Concept change: inline accept/decline buttons — no modal needed for browsing
-                  <View
-                    key={item.id}
-                    style={[styles.orderCard, styles.orderCardDashed, { backgroundColor: palette.card, borderColor: palette.border }]}
-                  >
-                    <View style={styles.orderCardTop}>
-                      <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
-                        <Package size={22} color={palette.primary} />
-                      </View>
-                      <View style={styles.orderBody}>
-                        <View style={styles.orderTopRow}>
-                          <Text style={[styles.orderCode, { color: palette.text }]}>{item.trackingCode}</Text>
-                          {/* Concept change: distance badge floats right, visually detached */}
-                          <View style={[styles.distanceBadge, { backgroundColor: palette.primary }]}>
-                            <Text style={styles.distanceBadgeText}>{item.distanceKm.toFixed(1)} KM</Text>
-                          </View>
-                        </View>
-                        <View style={styles.orderMeta}>
-                          <MapPin size={12} color={palette.textSecondary} />
-                          <Text style={[styles.orderRoute, { color: palette.textSecondary }]} numberOfLines={1}>
-                            {item.pickupFormattedAddress} → {item.deliveryFormattedAddress}
-                          </Text>
-                        </View>
-                        <View style={[styles.tag, { backgroundColor: hexToRgba('#FFD60A', 0.14), alignSelf: 'flex-start' }]}>
-                          <Text style={[styles.tagText, { color: '#FFD60A' }]}>{formatNaira(item.price)}</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Concept change: inline actions directly on the card */}
-                    <View style={[styles.inlineActions, { borderTopColor: palette.border }]}>
-                      <Pressable
-                        onPress={() => {
-                          emitDriverEvent('order_status_update', { orderId: item.id, status: 'CANCELLED' });
-                          void queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
-                        }}
-                        style={[styles.inlineBtn, { borderColor: palette.border, borderBottomLeftRadius: 23 }]}
-                      >
-                        <Text style={[styles.inlineBtnText, { color: palette.textSecondary }]}>Decline</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => void acceptIncoming(item.id)}
-                        disabled={acceptOrder.isPending}
-                        style={[styles.inlineBtn, styles.inlineBtnPrimary, { backgroundColor: palette.primary, borderBottomRightRadius: 23 }]}
-                      >
-                        {acceptOrder.isPending ? (
-                          <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                          <Text style={[styles.inlineBtnText, { color: '#fff' }]}>Accept</Text>
-                        )}
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={[styles.emptyStateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                <View style={styles.emptyStateIconWrap}>
-                  {isOnline ? (
-                    <Radar size={32} color={palette.primary} />
-                  ) : (
-                    <SearchX size={32} color={palette.textSecondary} />
-                  )}
-                  {isOnline && (
-                    <Animated.View style={[styles.radarPing, { borderColor: palette.primary }]} />
-                  )}
-                </View>
-                <Text style={[styles.emptyStateTitle, { color: palette.text }]}>
-                  {isOnline ? 'Scanning for orders...' : 'You are offline'}
-                </Text>
-                <Text style={[styles.emptyStateBody, { color: palette.textSecondary }]}>
-                  {isOnline
-                    ? 'Stay in high-demand areas to get matched with delivery requests faster.'
-                    : 'Go online to start receiving and accepting delivery requests.'}
-                </Text>
-              </View>
-            )}
-          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/two')}
+            style={[styles.emptyStateCard, { backgroundColor: palette.card, borderColor: palette.border }]}
+          >
+            <View style={styles.emptyStateIconWrap}>
+              {isOnline ? (
+                <Radar size={32} color={palette.primary} />
+              ) : (
+                <SearchX size={32} color={palette.textSecondary} />
+              )}
+              {isOnline && (
+                <Animated.View style={[styles.radarPing, { borderColor: palette.primary }]} />
+              )}
+            </View>
+            <Text style={[styles.emptyStateTitle, { color: palette.text }]}>
+              {isOnline ? 'Open dispatch board' : 'Go online for dispatch'}
+            </Text>
+            <Text style={[styles.emptyStateBody, { color: palette.textSecondary }]}>
+              {isOnline
+                ? 'Review, accept, or decline available jobs from the Dispatch tab.'
+                : 'Turn on availability, then use Dispatch to manage incoming jobs.'}
+            </Text>
+          </Pressable>
         )}
       </ScrollView>
 
       {/* ── Incoming order bottom sheet (socket push only) ───── */}
-      <Modal visible={sheetVisible} transparent animationType="fade" onRequestClose={declineOrder}>
+      <Modal visible={sheetVisible} transparent animationType="fade" onRequestClose={() => void declineOrder()}>
         <View style={styles.backdrop}>
           <Animated.View style={[styles.sheet, { backgroundColor: palette.card, transform: [{ translateY }] }]}>
             <View style={[styles.sheetHandle, { backgroundColor: palette.border }]} />
@@ -542,14 +487,15 @@ export default function DriverHomeScreen() {
 
             <View style={styles.sheetActions}>
               <Pressable
-                onPress={declineOrder}
+                onPress={() => void declineOrder()}
+                disabled={declineOrderMutation.isPending}
                 style={[styles.sheetBtn, { backgroundColor: palette.bg, borderColor: palette.border, borderWidth: 1 }]}
               >
                 <Text style={[styles.sheetBtnText, { color: palette.text }]}>Decline</Text>
               </Pressable>
               <Pressable
                 onPress={() => void acceptIncoming()}
-                disabled={acceptOrder.isPending}
+                disabled={acceptOrder.isPending || declineOrderMutation.isPending}
                 style={[styles.sheetBtn, styles.sheetBtnPrimary, { backgroundColor: palette.primary }]}
               >
                 {acceptOrder.isPending ? (
@@ -573,7 +519,6 @@ const styles = StyleSheet.create({
   // header
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  locationDot: { width: 8, height: 8, borderRadius: 4 },
   locationEye: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0, fontFamily: Typography.family.semibold },
   locationText: { fontSize: 13, fontFamily: Typography.family.bold },
   headerRight: { flexDirection: 'row', gap: 10, alignItems: 'center' },
@@ -597,10 +542,6 @@ const styles = StyleSheet.create({
   driverName: { fontSize: 15, fontFamily: Typography.family.semibold, marginTop: 2 },
 
   // sub-stats row
-  heroStatRow: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 16, zIndex: 1 },
-  heroStat: { flex: 1, alignItems: 'center', gap: 3 },
-  heroStatValue: { fontSize: 18, fontFamily: Typography.family.bold },
-  heroStatLabel: { fontSize: 11, fontFamily: Typography.family.semibold, textTransform: 'uppercase', letterSpacing: 0 },
 
   heroPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, alignSelf: 'flex-start', zIndex: 1 },
   heroPillText: { fontSize: 13, fontFamily: Typography.family.semibold },
@@ -619,10 +560,6 @@ const styles = StyleSheet.create({
 
   // order card — solid (confirmed)
   orderCard: { borderRadius: 24, borderWidth: 1, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 16, overflow: 'hidden' },
-  // dashed variant for available/pending orders
-  orderCardDashed: { flexDirection: 'column', borderStyle: 'dashed', padding: 0, gap: 0, overflow: 'hidden' },
-  orderCardTop: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 10 },
-  orderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
 
   orderIconWrap: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   orderBody: { flex: 1, gap: 6 },
@@ -633,15 +570,7 @@ const styles = StyleSheet.create({
   tag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   tagText: { fontSize: 12, fontFamily: Typography.family.bold },
 
-  // detached distance badge — floats right in card header
-  distanceBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  distanceBadgeText: { color: '#fff', fontSize: 12, fontFamily: Typography.family.bold },
 
-  // inline accept/decline actions (replaces modal for list browsing)
-  inlineActions: { flexDirection: 'row', borderTopWidth: 1, gap: 0 },
-  inlineBtn: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 0 },
-  inlineBtnPrimary: {},
-  inlineBtnText: { fontSize: 14, fontFamily: Typography.family.bold },
 
   // empty state
   emptyStateCard: { borderRadius: 24, borderWidth: 1, padding: 32, alignItems: 'center', gap: 12, overflow: 'hidden' },
@@ -667,6 +596,4 @@ const styles = StyleSheet.create({
   sheetBtn: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   sheetBtnPrimary: { shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
   sheetBtnText: { fontSize: 16, fontFamily: Typography.family.bold },
-  list: { gap: 12 },
-  availableSection: { gap: 12 },
 });

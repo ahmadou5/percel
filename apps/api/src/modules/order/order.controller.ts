@@ -85,6 +85,13 @@ export class OrderController {
     return success(await this.service.acceptOrder(driverId, id), 'Order accepted');
   };
 
+  declineOrder = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body ?? {}) as { reason?: string };
+    return success(await this.service.declineOrder(driverId, id, reason), 'Order declined');
+  };
+
   driverRateOrder = async (request: FastifyRequest) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
     const { id } = request.params as { id: string };

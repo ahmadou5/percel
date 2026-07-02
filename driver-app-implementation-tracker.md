@@ -6,7 +6,7 @@ Created: 2026-07-01
 
 - [x] Finish driver KYC properly
 - [x] Remove demo data leaks in real screens
-- [ ] Clean up dispatch/order acceptance flow
+- [x] Clean up dispatch/order acceptance flow
 
 ## Full Audit List
 
@@ -19,7 +19,7 @@ Created: 2026-07-01
    - Current issue: earnings/profile/home fall back to `demoWallet`, fake delivery counts, fake rating, and sample vehicle/license data.
    - Needed: loading, empty, and error states instead of fake production-looking values.
 
-3. [ ] Clean up dispatch/order acceptance flow
+3. [x] Clean up dispatch/order acceptance flow
    - Current issue: Home and `two.tsx` both present job surfaces, but `two.tsx` is not exposed in tabs.
    - Current issue: decline/timeout behavior emits a socket status update instead of using a backend decline endpoint.
    - Needed: one clear dispatch surface, exposed consistently, with proper accept/decline/timeout behavior.
@@ -39,3 +39,8 @@ Created: 2026-07-01
 - Created tracker.
 - Completed KYC mobile wiring: removed preview-mode bypasses, added real NIN/BVN verification handling, added camera/gallery document upload to `/api/v1/driver/kyc/upload`, and submit-for-review flow.
 - Removed demo-data fallbacks from driver Home, Earnings, Profile, and login location hydration. Missing wallet/profile/location data now renders as empty/loading values instead of fake production values.
+
+### 2026-07-02
+
+- Cleaned up dispatch/order acceptance flow: exposed Dispatch tab, kept Home focused on status/current order plus dispatch entry, routed decline/timeout through `/api/v1/driver/orders/:id/decline`, and updated dispatch accept/decline actions.
+- Fixed user transfer page JSX parse error in the resolved recipient branch.

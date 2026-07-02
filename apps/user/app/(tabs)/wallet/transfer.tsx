@@ -712,42 +712,44 @@ export default function TransferScreen() {
               {recipientStatus === 'loading' ? (
                 <StateCard loading title="Looking up recipient" description="Checking the user account..." icon={<Search size={24} color={palette.textSecondary} />} />
               ) : recipientStatus === 'success' && recipientValidation ? (
-                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                  {mode === 'PHONE' && reviewRecipientAvatarUrl ? (
-                    <Image source={{ uri: reviewRecipientAvatarUrl }} style={styles.reviewAvatarImage} />
-                  ) : (
-                    <Text style={styles.reviewAvatarText}>{mode === 'PHONE' ? initialsFromName(currentRecipient) : '₦'}</Text>
-                  )}
-                  <CheckCircle2 size={18} color={palette.success} />
-                  <View style={styles.statusCopy}>
-                    <Text style={[styles.statusTitle, { color: palette.success }]}>{recipientValidation.fullName}</Text>
-                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{recipientValidation.phone}</Text>
+                <>
+                  <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                    {mode === 'PHONE' && reviewRecipientAvatarUrl ? (
+                      <Image source={{ uri: reviewRecipientAvatarUrl }} style={styles.reviewAvatarImage} />
+                    ) : (
+                      <Text style={styles.reviewAvatarText}>{mode === 'PHONE' ? initialsFromName(currentRecipient) : '₦'}</Text>
+                    )}
+                    <CheckCircle2 size={18} color={palette.success} />
+                    <View style={styles.statusCopy}>
+                      <Text style={[styles.statusTitle, { color: palette.success }]}>{recipientValidation.fullName}</Text>
+                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{recipientValidation.phone}</Text>
+                    </View>
                   </View>
-                </View>
 
-                {!isSavedBeneficiary && !beneficiaries.some(b => b.type === 'PHONE' && b.phone === recipientValidation.phone) && (
-                  <Pressable
-                    onPress={() => {
-                      void haptics.success();
-                      addBeneficiary({
-                        name: recipientValidation.fullName,
-                        phone: recipientValidation.phone,
-                        type: 'PHONE',
-                      });
-                      setIsSavedBeneficiary(true);
-                    }}
-                    style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
-                  >
-                    <Smartphone size={16} color={palette.primary} />
-                    <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this contact</Text>
-                  </Pressable>
-                )}
-                {isSavedBeneficiary && (
-                  <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
-                    <CheckCircle2 size={16} color={palette.success} />
-                    <Text style={[styles.saveCardText, { color: palette.success }]}>Contact saved</Text>
-                  </View>
-                )}
+                  {!isSavedBeneficiary && !beneficiaries.some((b) => b.type === 'PHONE' && b.phone === recipientValidation.phone) && (
+                    <Pressable
+                      onPress={() => {
+                        void haptics.success();
+                        addBeneficiary({
+                          name: recipientValidation.fullName,
+                          phone: recipientValidation.phone,
+                          type: 'PHONE',
+                        });
+                        setIsSavedBeneficiary(true);
+                      }}
+                      style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
+                    >
+                      <Smartphone size={16} color={palette.primary} />
+                      <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this contact</Text>
+                    </Pressable>
+                  )}
+                  {isSavedBeneficiary && (
+                    <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
+                      <CheckCircle2 size={16} color={palette.success} />
+                      <Text style={[styles.saveCardText, { color: palette.success }]}>Contact saved</Text>
+                    </View>
+                  )}
+                </>
               ) : recipientStatus === 'error' ? (
                 <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
                   <ShieldCheck size={18} color={palette.error} />

@@ -54,6 +54,25 @@ export function useAcceptOrder() {
   });
 }
 
+export function useDeclineOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { orderId: string; reason?: string }) => {
+      Sentry.addBreadcrumb({ category: 'dispatch', message: 'driver.order_decline_requested', level: 'info', data: { orderId: payload.orderId } });
+      const response = await http.post<ApiResponse<{ declined: boolean; orderId: string }>>(
+        `/api/v1/driver/orders/${payload.orderId}/decline`,
+        { reason: payload.reason },
+      );
+      return response.data.data;
+    },
+    onSuccess: async (data) => {
+      emitDriverEvent('order_status_update', { orderId: data.orderId, status: 'DECLINED' });
+      await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+    },
+  });
+}
+
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
   const setCurrentOrder = useDriverStore((state) => state.setCurrentOrder);

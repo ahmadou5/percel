@@ -13,7 +13,7 @@ import { MapPin, Clock, DollarSign, Zap } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
-import { useAcceptOrder, useAvailableOrders } from '@/hooks/useDriverOrders';
+import { useAcceptOrder, useAvailableOrders, useDeclineOrder } from '@/hooks/useDriverOrders';
 import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import type { DriverOrder } from '@/lib/types';
@@ -48,12 +48,16 @@ function StatusBadge({ status, palette }: { status: string; palette: ReturnType<
 function OrderCard({
   order,
   onAccept,
+  onDecline,
   accepting,
+  declining,
   palette,
 }: {
   order: DriverOrder;
   onAccept: () => void;
+  onDecline: () => void;
   accepting: boolean;
+  declining: boolean;
   palette: ReturnType<typeof useAppPalette>;
 }) {
   const canAccept = order.status === 'PENDING_MATCH' || order.status === 'MATCHED';
@@ -106,22 +110,33 @@ function OrderCard({
         ))}
       </View>
 
-      {/* Accept button — only shown for actionable orders */}
       {canAccept && (
-        <Pressable
-          onPress={onAccept}
-          disabled={accepting}
-          style={({ pressed }) => [
-            styles.acceptBtn,
-            { backgroundColor: palette.primary, opacity: pressed || accepting ? 0.75 : 1 },
-          ]}
-        >
-          {accepting ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.acceptBtnText}>Accept job</Text>
-          )}
-        </Pressable>
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={onDecline}
+            disabled={declining || accepting}
+            style={({ pressed }) => [
+              styles.declineBtn,
+              { borderColor: palette.border, opacity: pressed || declining || accepting ? 0.75 : 1 },
+            ]}
+          >
+            {declining ? <ActivityIndicator color={palette.textSecondary} size="small" /> : <Text style={[styles.declineBtnText, { color: palette.textSecondary }]}>Decline</Text>}
+          </Pressable>
+          <Pressable
+            onPress={onAccept}
+            disabled={accepting || declining}
+            style={({ pressed }) => [
+              styles.acceptBtn,
+              { backgroundColor: palette.primary, opacity: pressed || accepting || declining ? 0.75 : 1 },
+            ]}
+          >
+            {accepting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.acceptBtnText}>Accept job</Text>
+            )}
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -134,6 +149,7 @@ export default function DispatchBoardScreen() {
   const isOnline = useDriverStore((s) => s.isOnline);
   const ordersQuery = useAvailableOrders();
   const acceptOrder = useAcceptOrder();
+  const declineOrder = useDeclineOrder();
   const orders = ordersQuery.data ?? [];
 
   // Live refresh: whenever the socket tells us there's a new order or status change, refetch
@@ -232,7 +248,9 @@ export default function DispatchBoardScreen() {
                 key={order.id}
                 order={order}
                 accepting={acceptOrder.isPending}
+                declining={declineOrder.isPending}
                 onAccept={() => acceptOrder.mutate(order.id)}
+                onDecline={() => declineOrder.mutate({ orderId: order.id, reason: 'Driver declined from dispatch board' })}
                 palette={palette}
               />
             ))}
@@ -295,8 +313,11 @@ const styles = StyleSheet.create({
   statChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7 },
   statText: { fontSize: 12, fontWeight: '700' },
 
-  // accept button
-  acceptBtn: { minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  // accept/decline buttons
+  actionRow: { flexDirection: 'row', gap: 10 },
+  declineBtn: { flex: 1, minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  declineBtnText: { fontSize: 15, fontWeight: '800' },
+  acceptBtn: { flex: 1, minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   acceptBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   // empty
