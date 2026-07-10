@@ -1,9 +1,18 @@
 [build]
-builder = "nixpacks"
+builder = "NIXPACKS"
 buildCommand = "npm run build && npx prisma migrate deploy"
+watchPatterns = ["/apps/api/**"]
+buildEnvironment = "V3"
 
 [deploy]
+runtime = "V2"
+numReplicas = 1
 startCommand = "npm start"
 healthcheckPath = "/api/v1/health"
+sleepApplication = false
+useLegacyStacker = false
+ipv6EgressEnabled = false
+multiRegionConfig = {"sfo":{"numReplicas":1}}
+restartPolicyType = "ON_FAILURE"
 healthcheckTimeout = 30
-restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
