@@ -16,7 +16,7 @@ async function registerPushToken() {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
   const pushToken = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
   if (pushToken) {
-    await http.post('/api/v1/user/push-token', { token: pushToken });
+    await http.post('/api/v1/auth/push-token', { token: pushToken });
   }
 }
 

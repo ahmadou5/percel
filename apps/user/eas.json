@@ -17,7 +17,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://percel-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://percelapi-production.up.railway.app"
       }
     },
     "production": {

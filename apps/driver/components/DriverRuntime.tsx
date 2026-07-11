@@ -68,7 +68,7 @@ export function DriverRuntime() {
       const pushToken = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
       if (cancelled || !pushToken || lastRegisteredToken.current === pushToken) return;
 
-      await http.post('/api/v1/user/push-token', { token: pushToken });
+      await http.post('/api/v1/auth/push-token', { token: pushToken });
       lastRegisteredToken.current = pushToken;
     }
 

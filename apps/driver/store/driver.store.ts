@@ -20,8 +20,8 @@ type DriverState = {
 type DriverActions = {
   hydrate: () => Promise<void>;
   setSession: (session: { user: AuthSessionUser; tokens: AuthTokens; driver?: Driver | null }) => Promise<void>;
-  setUser: (user: AuthSessionUser | null) => void;
-  setDriver: (driver: Driver | null) => void;
+  setUser: (user: AuthSessionUser | null) => Promise<void>;
+  setDriver: (driver: Driver | null) => Promise<void>;
   setTokens: (tokens: AuthTokens | null) => Promise<void>;
   setOnlineStatus: (isOnline: boolean) => Promise<void>;
   setCurrentOrder: (order: DriverOrder | null) => Promise<void>;
@@ -127,13 +127,17 @@ async function setSession(session: { user: AuthSessionUser; tokens: AuthTokens; 
   emit();
 }
 
-function setUser(user: AuthSessionUser | null) {
-  setState({ user, isAuthenticated: Boolean(user && state.tokens) });
+async function setUser(user: AuthSessionUser | null) {
+  state = { ...state, user, isAuthenticated: Boolean(user && state.tokens) };
+  await persist();
   Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+  emit();
 }
 
-function setDriver(driver: Driver | null) {
-  setState({ driver, isOnline: Boolean(driver?.isOnline ?? state.isOnline) });
+async function setDriver(driver: Driver | null) {
+  state = { ...state, driver, isOnline: Boolean(driver?.isOnline ?? state.isOnline) };
+  await persist();
+  emit();
 }
 
 async function setTokens(tokens: AuthTokens | null) {
