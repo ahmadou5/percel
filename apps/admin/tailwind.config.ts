@@ -36,8 +36,8 @@ const config: Config = {
         glow: '0 0 0 1px hsl(var(--border)), 0 24px 60px rgba(2, 8, 23, 0.35)',
       },
       backgroundImage: {
-        'brand-grid': 'radial-gradient(circle at 1px 1px, rgba(91,140,255,0.14) 1px, transparent 0)',
-        'brand-sheen': 'linear-gradient(135deg, rgba(91,140,255,0.12), rgba(240,179,90,0.08))',
+        'brand-grid': 'radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.14) 1px, transparent 0)',
+        'brand-sheen': 'linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.10))',
       },
     },
   },

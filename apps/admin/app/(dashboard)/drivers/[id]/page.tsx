@@ -5,8 +5,9 @@ import { Card } from '@/components/ui/card';
 import { DetailActions } from '@/components/ui/detail-actions';
 import { getDriverDetail } from '@/lib/admin-data';
 
-export default function DriverDetailPage({ params }: { params: { id: string } }) {
-  const driver = getDriverDetail(params.id);
+export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const driver = getDriverDetail(id);
   if (!driver) notFound();
 
   return (

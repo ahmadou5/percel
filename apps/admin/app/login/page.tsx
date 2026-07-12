@@ -1,13 +1,13 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next') ?? '/dashboard';
@@ -99,5 +99,13 @@ export default function LoginPage() {
         </p>
       </Card>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center px-4 py-8"><Card className="w-full max-w-md p-8"><p className="text-sm text-muted-foreground">Loading sign in...</p></Card></main>}>
+      <LoginForm />
+    </Suspense>
   );
 }

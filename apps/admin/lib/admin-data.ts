@@ -1,12 +1,9 @@
-import {
-  driverRows,
-  kpis,
-  notificationRows,
-  orderStatusBreakdown,
-  recentOrders,
-  revenueSeries,
-  walletStats as baseWalletStats,
-} from './mock-data';
+type KpiCard = {
+  label: string;
+  value: string;
+  delta: string;
+  tone: 'primary' | 'success' | 'warning' | 'muted';
+};
 
 export type AdminUser = {
   id: string;
@@ -70,14 +67,14 @@ export type AdminWalletTransaction = {
 };
 
 export type AdminDashboardSnapshot = {
-  kpis: typeof kpis;
-  revenueSeries: typeof revenueSeries;
-  orderStatusBreakdown: typeof orderStatusBreakdown;
+  kpis: KpiCard[];
+  revenueSeries: Array<{ day: string; value: number }>;
+  orderStatusBreakdown: Array<{ label: string; value: number; color: string }>;
   recentOrders: AdminOrder[];
   driverRows: AdminDriver[];
   userRows: AdminUser[];
   notificationRows: AdminNotification[];
-  walletStats: typeof baseWalletStats;
+  walletStats: Array<{ label: string; value: string; delta: string }>;
 };
 
 const users: AdminUser[] = [
@@ -197,18 +194,113 @@ export const adminDrivers = withDetailSummary(drivers);
 export const adminOrders = withDetailSummary(orderMap);
 export const adminNotifications = withDetailSummary(notifications);
 export const adminWalletTransactions = withDetailSummary(walletTransactions);
-export const walletStats = baseWalletStats;
+
+function parseCurrency(value: string) {
+  return Number(value.replace(/[^\d.-]/g, '')) || 0;
+}
+
+function formatNaira(value: number) {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function compactNaira(value: number) {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    notation: 'compact',
+    maximumFractionDigits: value >= 1000000 ? 2 : 0,
+  }).format(value);
+}
+
+function titleCaseStatus(status: string) {
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function buildKpis(): KpiCard[] {
+  const todaysOrders = adminOrders.filter((order) => order.date.startsWith('Today'));
+  const activeDrivers = adminDrivers.filter((driver) => driver.status === 'ACTIVE');
+  const revenueToday = todaysOrders.filter((order) => order.payment === 'PAID').reduce((sum, order) => sum + parseCurrency(order.price), 0);
+  const pendingKyc = adminDrivers.filter((driver) => driver.kyc === 'SUBMITTED');
+
+  return [
+    { label: 'Orders today', value: String(todaysOrders.length), delta: `${adminOrders.length} total`, tone: 'primary' },
+    { label: 'Active drivers', value: String(activeDrivers.length), delta: `${adminDrivers.length} onboarded`, tone: 'success' },
+    { label: 'Paid revenue today', value: compactNaira(revenueToday), delta: `${todaysOrders.length} live orders`, tone: 'warning' },
+    { label: 'Pending KYC', value: String(pendingKyc.length), delta: pendingKyc.length === 0 ? 'clear' : 'needs review', tone: 'muted' },
+  ];
+}
+
+function buildRevenueSeries() {
+  const paidOrders = adminOrders.filter((order) => order.payment === 'PAID');
+  const totals = paidOrders.reduce<Record<string, number>>((acc, order) => {
+    const day = order.date.split(',')[0];
+    acc[day] = (acc[day] ?? 0) + parseCurrency(order.price);
+    return acc;
+  }, {});
+
+  return Object.entries(totals).map(([day, value]) => ({ day, value }));
+}
+
+function buildStatusBreakdown() {
+  const colors: Record<string, string> = {
+    COMPLETED: 'hsl(var(--primary))',
+    IN_TRANSIT: 'hsl(var(--success))',
+    PENDING_MATCH: 'hsl(var(--warning))',
+    DISPUTED: 'hsl(var(--destructive))',
+  };
+  const counts = adminOrders.reduce<Record<string, number>>((acc, order) => {
+    acc[order.status] = (acc[order.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts).map(([status, value]) => ({
+    label: titleCaseStatus(status),
+    value,
+    color: colors[status] ?? 'hsl(var(--muted-foreground))',
+  }));
+}
+
+export const walletStats = [
+  {
+    label: 'Platform balance',
+    value: formatNaira(adminUsers.reduce((sum, user) => sum + parseCurrency(user.wallet), 0)),
+    delta: `${adminUsers.length} wallets`,
+  },
+  {
+    label: 'Commissions earned',
+    value: formatNaira(adminWalletTransactions.filter((tx) => tx.category === 'COMMISSION').reduce((sum, tx) => sum + parseCurrency(tx.amount), 0)),
+    delta: 'completed',
+  },
+  {
+    label: 'Pending settlement',
+    value: formatNaira(adminWalletTransactions.filter((tx) => tx.status === 'PENDING').reduce((sum, tx) => sum + parseCurrency(tx.amount), 0)),
+    delta: 'open batch',
+  },
+  {
+    label: 'Refund reserve',
+    value: formatNaira(adminWalletTransactions.filter((tx) => tx.category === 'REFUND').reduce((sum, tx) => sum + parseCurrency(tx.amount), 0)),
+    delta: 'disputes',
+  },
+];
 
 export async function loadDashboardSnapshot(): Promise<AdminDashboardSnapshot> {
   return {
-    kpis,
-    revenueSeries,
-    orderStatusBreakdown,
+    kpis: buildKpis(),
+    revenueSeries: buildRevenueSeries(),
+    orderStatusBreakdown: buildStatusBreakdown(),
     recentOrders: adminOrders,
     driverRows: adminDrivers,
     userRows: adminUsers,
     notificationRows: adminNotifications,
-    walletStats: baseWalletStats,
+    walletStats,
   };
 }
 
@@ -283,13 +375,13 @@ export function getOrderDetail(id: string) {
 
 export function getDashboardHighlights() {
   return {
-    kpis,
-    revenueSeries,
-    orderStatusBreakdown,
+    kpis: buildKpis(),
+    revenueSeries: buildRevenueSeries(),
+    orderStatusBreakdown: buildStatusBreakdown(),
     recentOrders: adminOrders,
     driverRows: adminDrivers,
     userRows: adminUsers,
     notificationRows: adminNotifications,
-    walletStats: baseWalletStats,
+    walletStats,
   };
 }

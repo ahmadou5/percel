@@ -24,13 +24,13 @@ export function Topbar() {
   }
 
   return (
-    <header className="border-b border-border/70 bg-background/80 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
+    <header className="border-b border-border/70 bg-background/85 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Percel Admin</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Percel Admin</p>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         </div>
-        <Button variant="secondary" onClick={logout} className="shrink-0">
+        <Button variant="secondary" onClick={logout} className="min-h-10 shrink-0">
           Logout
         </Button>
       </div>

@@ -5,8 +5,9 @@ import { Card } from '@/components/ui/card';
 import { DetailActions } from '@/components/ui/detail-actions';
 import { getUserDetail } from '@/lib/admin-data';
 
-export default function UserDetailPage({ params }: { params: { id: string } }) {
-  const user = getUserDetail(params.id);
+export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = getUserDetail(id);
   if (!user) notFound();
 
   return (

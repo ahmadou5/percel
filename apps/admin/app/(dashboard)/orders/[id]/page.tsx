@@ -5,8 +5,9 @@ import { Card } from '@/components/ui/card';
 import { DetailActions } from '@/components/ui/detail-actions';
 import { getOrderDetail } from '@/lib/admin-data';
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const order = getOrderDetail(params.id);
+export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const order = getOrderDetail(id);
   if (!order) notFound();
 
   return (
