@@ -31,6 +31,10 @@ const walletRoutes: FastifyPluginAsync = async (app) => {
   app.post('/wallet/bills/tv', { preHandler: [app.authenticate], schema: { body: TvBody } }, controller.tv);
   app.post('/webhooks/paystack', { config: { rateLimit: false } }, controller.webhook);
   app.post('/wallet/webhooks/paystack', { config: { rateLimit: false } }, controller.webhook);
+  app.post('/webhooks/monnify', { config: { rateLimit: false } }, controller.monnifyWebhook);
+  app.post('/wallet/webhooks/monnify', { config: { rateLimit: false } }, controller.monnifyWebhook);
+  app.post('/webhooks/squad', { config: { rateLimit: false } }, controller.squadWebhook);
+  app.post('/wallet/webhooks/squad', { config: { rateLimit: false } }, controller.squadWebhook);
 };
 
 export default walletRoutes;

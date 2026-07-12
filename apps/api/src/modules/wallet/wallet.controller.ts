@@ -173,4 +173,19 @@ export class WalletController {
     await this.service.handlePaystackWebhook(request.body as Record<string, unknown>, sig);
     return reply.status(200).send({ ok: true });
   };
+
+  monnifyWebhook = async (request: FastifyRequest, reply: FastifyReply) => {
+    const signature = request.headers['monnify-signature'] ?? request.headers['x-monnify-signature'];
+    const sig = Array.isArray(signature) ? signature[0] : signature;
+    await this.service.handleMonnifyWebhook(request.body as Record<string, unknown>, sig);
+    return reply.status(200).send({ ok: true });
+  };
+
+  squadWebhook = async (request: FastifyRequest, reply: FastifyReply) => {
+    const signature = request.headers['x-squad-signature'];
+    const sig = Array.isArray(signature) ? signature[0] : signature;
+    await this.service.handleSquadWebhook(request.body as Record<string, unknown>, sig);
+    return reply.status(200).send({ ok: true });
+  };
+
 }

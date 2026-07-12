@@ -1,6 +1,14 @@
 import { PaymentProvider, type PrismaClient } from '@prisma/client';
 
-import { PaymentError, ValidationError } from '../../utils/errors.js';
+import { env } from '../../config/env.js';
+import {
+  createMonnifyReservedAccount,
+  initializeMonnifyTransaction,
+  initiateMonnifyTransfer,
+  listMonnifyBanks,
+  resolveMonnifyAccount,
+  verifyMonnifyTransaction,
+} from '../../lib/monnify.js';
 import {
   createDedicatedNUBAN,
   createTransferRecipient,
@@ -11,14 +19,28 @@ import {
   resolveAccountNumber,
   verifyTransaction,
 } from '../../lib/paystack.js';
+import {
+  createSquadVirtualAccount,
+  initializeSquadTransaction,
+  initiateSquadTransfer,
+  listSquadBanks,
+  resolveSquadAccount,
+  verifySquadTransaction,
+} from '../../lib/squad.js';
+import { PaymentError, ValidationError } from '../../utils/errors.js';
 
 export const ACTIVE_PAYMENT_PROVIDER_KEY = 'payment.activeProvider';
 
 
 export type VirtualAccountOwner = {
+  id: string;
   email: string;
   fullName: string;
   phone: string;
+  dateOfBirth?: Date | null;
+  address?: string | null;
+  bvn?: string | null;
+  nin?: string | null;
   providerCustomerCode?: string | null;
 };
 
@@ -38,8 +60,16 @@ function normalizeProvider(provider: string): PaymentProvider {
   throw new ValidationError('Unsupported payment provider');
 }
 
-function providerNotImplemented(provider: PaymentProvider): never {
-  throw new PaymentError(`${provider.toLowerCase()} payment provider is configured but its gateway adapter is not implemented yet`);
+function splitName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return { firstName: parts[0] ?? 'Percel', lastName: parts.slice(1).join(' ') || 'User' };
+}
+
+function formatSquadDob(value?: Date | null) {
+  if (!value) throw new PaymentError('Date of birth is required to create a Squad virtual account');
+  const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(value.getUTCDate()).padStart(2, '0');
+  return `${month}/${day}/${value.getUTCFullYear()}`;
 }
 
 export class PaymentProviderService {
@@ -65,21 +95,55 @@ export class PaymentProviderService {
     return { provider: normalized };
   }
 
-  async initializeTopUp(provider: PaymentProvider, data: { email: string; amountKobo: number; reference: string; metadata: Record<string, unknown>; callbackUrl?: string }) {
+  async initializeTopUp(provider: PaymentProvider, data: { email: string; amountKobo: number; amount: number; reference: string; customerName: string; metadata: Record<string, unknown>; callbackUrl?: string }) {
     if (provider === PaymentProvider.PAYSTACK) {
       return initializeTransaction(data.email, data.amountKobo, data.reference, data.metadata, data.callbackUrl);
     }
-    providerNotImplemented(provider);
+    if (provider === PaymentProvider.MONNIFY) {
+      return initializeMonnifyTransaction({
+        email: data.email,
+        amount: data.amount,
+        reference: data.reference,
+        customerName: data.customerName,
+        metadata: data.metadata,
+        callbackUrl: data.callbackUrl,
+      });
+    }
+    return initializeSquadTransaction({
+      email: data.email,
+      amountKobo: data.amountKobo,
+      reference: data.reference,
+      customerName: data.customerName,
+      metadata: data.metadata,
+      callbackUrl: data.callbackUrl,
+    });
   }
 
   async verifyTopUp(provider: PaymentProvider, reference: string) {
     if (provider === PaymentProvider.PAYSTACK) return verifyTransaction(reference);
-    providerNotImplemented(provider);
+    if (provider === PaymentProvider.MONNIFY) return verifyMonnifyTransaction(reference);
+    return verifySquadTransaction(reference);
+  }
+
+  isSuccessfulTopUp(provider: PaymentProvider, gatewayTx: Record<string, unknown>) {
+    if (provider === PaymentProvider.PAYSTACK) return gatewayTx.status === 'success';
+    if (provider === PaymentProvider.MONNIFY) {
+      const status = String(gatewayTx.paymentStatus ?? gatewayTx.status ?? '').toUpperCase();
+      return status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL';
+    }
+    return String(gatewayTx.transaction_status ?? gatewayTx.status ?? '').toLowerCase() === 'success';
+  }
+
+  isFailedTopUp(provider: PaymentProvider, gatewayTx: Record<string, unknown>) {
+    if (provider === PaymentProvider.PAYSTACK) return gatewayTx.status === 'failed' || gatewayTx.status === 'reversed';
+    const status = String(gatewayTx.paymentStatus ?? gatewayTx.transaction_status ?? gatewayTx.status ?? '').toUpperCase();
+    return status === 'FAILED' || status === 'REVERSED' || status === 'ABANDONED';
   }
 
   async listBanks(provider: PaymentProvider) {
     if (provider === PaymentProvider.PAYSTACK) return listBanks();
-    providerNotImplemented(provider);
+    if (provider === PaymentProvider.MONNIFY) return listMonnifyBanks();
+    return listSquadBanks();
   }
 
   async resolveBankAccount(provider: PaymentProvider, accountNumber: string, bankCode: string) {
@@ -87,7 +151,8 @@ export class PaymentProviderService {
       const [account, bank] = await Promise.all([resolveAccountNumber(accountNumber, bankCode), getBank(bankCode)]);
       return { accountName: account.account_name, accountNumber: account.account_number, bankCode, bankName: bank?.name ?? bankCode };
     }
-    providerNotImplemented(provider);
+    if (provider === PaymentProvider.MONNIFY) return resolveMonnifyAccount(accountNumber, bankCode);
+    return resolveSquadAccount(accountNumber, bankCode);
   }
 
   async initiateBankTransfer(provider: PaymentProvider, data: { name: string; accountNumber: string; bankCode: string; amount: number; reference: string; reason?: string }) {
@@ -96,7 +161,24 @@ export class PaymentProviderService {
       await initiateTransfer({ recipient: recipient.recipient_code, amount: data.amount, reference: data.reference, reason: data.reason });
       return { recipientCode: recipient.recipient_code };
     }
-    providerNotImplemented(provider);
+    if (provider === PaymentProvider.MONNIFY) {
+      return initiateMonnifyTransfer({
+        reference: data.reference,
+        amount: data.amount,
+        accountNumber: data.accountNumber,
+        bankCode: data.bankCode,
+        accountName: data.name,
+        reason: data.reason,
+      });
+    }
+    return initiateSquadTransfer({
+      reference: data.reference,
+      amountKobo: Math.round(data.amount * 100),
+      accountNumber: data.accountNumber,
+      bankCode: data.bankCode,
+      accountName: data.name,
+      reason: data.reason,
+    });
   }
 
   async createVirtualAccount(provider: PaymentProvider, owner: VirtualAccountOwner): Promise<VirtualAccountResult> {
@@ -111,6 +193,30 @@ export class PaymentProviderService {
         providerCustomerCode: owner.providerCustomerCode,
       };
     }
-    providerNotImplemented(provider);
+    if (provider === PaymentProvider.MONNIFY) {
+      if (!owner.bvn && !owner.nin) throw new PaymentError('BVN or NIN is required to create a Monnify reserved account');
+      return createMonnifyReservedAccount({
+        accountReference: `PERCEL_${owner.id}`,
+        accountName: owner.fullName,
+        customerEmail: owner.email,
+        customerName: owner.fullName,
+        bvn: owner.bvn,
+        nin: owner.nin,
+      });
+    }
+    if (!owner.bvn) throw new PaymentError('BVN is required to create a Squad virtual account');
+    if (!owner.address) throw new PaymentError('Address is required to create a Squad virtual account');
+    const { firstName, lastName } = splitName(owner.fullName);
+    return createSquadVirtualAccount({
+      customerIdentifier: `PERCEL_${owner.id}`,
+      firstName,
+      lastName,
+      phone: owner.phone,
+      email: owner.email,
+      bvn: owner.bvn,
+      dob: formatSquadDob(owner.dateOfBirth),
+      address: owner.address,
+      gender: env.SQUAD_DEFAULT_CUSTOMER_GENDER,
+    });
   }
 }

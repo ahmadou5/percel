@@ -6,6 +6,8 @@ import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 
 import { env } from '../../config/env.js';
 import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
+import { verifyMonnifyWebhookSignature } from '../../lib/monnify.js';
+import { verifySquadWebhookSignature } from '../../lib/squad.js';
 import { PaymentProviderService } from '../payment/payment.service.js';
 import { emitToUser } from '../../lib/realtime.js';
 import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
@@ -134,22 +136,24 @@ export class WalletService {
   }
 
   private async ensureDepositAccount(
-    wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
-    user: { email: string; fullName: string; phone: string; paystackCustomerCode?: string | null; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
+    wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null; paymentProvider?: PaymentProvider | null },
+    user: { id: string; email: string; fullName: string; phone: string; paystackCustomerCode?: string | null; dateOfBirth: Date | null; address: string | null; ninNumber?: string | null; bvnNumber?: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
   ) {
     const kycComplete = isKycComplete(user);
-    if (!kycComplete || (wallet.nuban && wallet.bankName)) return { ...wallet, kycComplete };
-
     const providers = this.paymentProviders();
     const provider = await providers.getActiveProvider();
-    if (provider !== PaymentProvider.PAYSTACK || !user.paystackCustomerCode) {
-      return { ...wallet, kycComplete, paymentProvider: provider };
-    }
+    if (!kycComplete) return { ...wallet, kycComplete, paymentProvider: provider };
+    if (wallet.nuban && wallet.bankName && wallet.paymentProvider === provider) return { ...wallet, kycComplete };
 
     const account = await providers.createVirtualAccount(provider, {
+      id: user.id,
       email: user.email,
       fullName: user.fullName,
       phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      address: user.address,
+      bvn: user.bvnVerified ? user.bvnNumber : null,
+      nin: user.ninVerified ? user.ninNumber : null,
       providerCustomerCode: user.paystackCustomerCode,
     });
     const updatedWallet = await this.prisma.wallet.update({
@@ -176,11 +180,11 @@ export class WalletService {
         },
       }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, paystackCustomerCode: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, fullName: true, phone: true, paystackCustomerCode: true, dateOfBirth: true, address: true, ninNumber: true, bvnNumber: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Wallet not found');
-    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '', paystackCustomerCode: null, dateOfBirth: null, address: null, ninVerified: false, bvnVerified: false, kycMethod: null });
+    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { id: userId, email: '', fullName: 'Percel User', phone: '', paystackCustomerCode: null, dateOfBirth: null, address: null, ninNumber: null, bvnNumber: null, ninVerified: false, bvnVerified: false, kycMethod: null });
     return {
       ...wallet,
       ...depositAccount,
@@ -249,8 +253,10 @@ export class WalletService {
     const provider = await providers.getActiveProvider();
     const init = await providers.initializeTopUp(provider, {
       email: user.email,
+      amount,
       amountKobo: Math.round(amount * 100),
       reference,
+      customerName: user.fullName,
       metadata: { userId, walletId: wallet.id, provider },
       callbackUrl,
     });
@@ -349,9 +355,10 @@ export class WalletService {
     const providers = this.paymentProviders();
     const provider = PaymentProvider.PAYSTACK;
     const account = await providers.createVirtualAccount(provider, {
+      id: customer.id,
       email: customer.email,
       fullName: customer.fullName,
-      phone: '',
+      phone: customer.phone,
       providerCustomerCode: customerCode,
     });
     const bankName = account.bankName;
@@ -488,12 +495,12 @@ export class WalletService {
     const providers = this.paymentProviders();
     const provider = await providers.getActiveProvider();
     const paystackTx = await providers.verifyTopUp(provider, reference);
-    if (paystackTx && paystackTx.status === 'success') {
+    if (paystackTx && providers.isSuccessfulTopUp(provider, paystackTx as Record<string, unknown>)) {
       await this.completeTopUpTransaction(tx.id, reference, Number(tx.amount), tx.walletId);
       return { status: 'success', amount: tx.amount, reference };
     }
 
-    if (paystackTx && (paystackTx.status === 'failed' || paystackTx.status === 'reversed')) {
+    if (paystackTx && providers.isFailedTopUp(provider, paystackTx as Record<string, unknown>)) {
       await this.prisma.walletTransaction.update({
         where: { id: tx.id },
         data: { status: WalletTransactionStatus.FAILED },
@@ -502,6 +509,42 @@ export class WalletService {
     }
 
     return { status: 'pending', amount: tx.amount, reference };
+  }
+
+
+  async completeExternalWalletFunding(provider: PaymentProvider, data: { reference: string; amount: number; walletId?: string; accountNumber?: string; customerIdentifier?: string }) {
+    const existing = await this.prisma.walletTransaction.findUnique({ where: { reference: data.reference } });
+    if (existing) {
+      if (existing.status !== WalletTransactionStatus.COMPLETED) {
+        await this.completeTopUpTransaction(existing.id, data.reference, Number(existing.amount), existing.walletId);
+      }
+      return;
+    }
+
+    let wallet = data.walletId ? await this.prisma.wallet.findUnique({ where: { id: data.walletId } }) : null;
+    if (!wallet && data.accountNumber) {
+      wallet = await this.prisma.wallet.findFirst({ where: { nuban: data.accountNumber, paymentProvider: provider } });
+    }
+    if (!wallet && data.customerIdentifier?.startsWith('PERCEL_')) {
+      wallet = await this.prisma.wallet.findUnique({ where: { userId: data.customerIdentifier.replace(/^PERCEL_/, '') } });
+    }
+    if (!wallet) throw new NotFoundError('Wallet not found for payment notification');
+
+    const tx = await this.prisma.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount: data.amount,
+        type: WalletTransactionType.CREDIT,
+        category: WalletTransactionCategory.TOP_UP,
+        status: WalletTransactionStatus.PENDING,
+        reference: data.reference,
+        description: `${provider.toLowerCase()} wallet funding`,
+        metadata: { gateway: provider.toLowerCase(), accountNumber: data.accountNumber ?? null, customerIdentifier: data.customerIdentifier ?? null },
+        balanceBefore: 0,
+        balanceAfter: 0,
+      },
+    });
+    await this.completeTopUpTransaction(tx.id, data.reference, data.amount, wallet.id);
   }
 
   async handlePaystackWebhook(payload: Record<string, unknown>, signature?: string) {
@@ -548,6 +591,41 @@ export class WalletService {
       await deleteCache(this.app.redis, `cache:wallet:balance:${tx.walletId}`);
     }
 
+    return { acknowledged: true };
+  }
+
+
+  async handleMonnifyWebhook(payload: Record<string, unknown>, signature?: string) {
+    if (!verifyMonnifyWebhookSignature(payload, signature)) throw new PaymentError('Invalid Monnify signature');
+    const eventType = String(payload.eventType ?? payload.event ?? '');
+    const data = (payload.eventData ?? payload.data ?? payload) as Record<string, unknown>;
+    const reference = String(data.paymentReference ?? data.transactionReference ?? data.reference ?? '');
+    const accountNumber = String(data.accountNumber ?? data.destinationAccountNumber ?? '');
+    const amount = Number(data.amountPaid ?? data.settlementAmount ?? data.amount ?? 0);
+    const status = String(data.paymentStatus ?? data.status ?? '').toUpperCase();
+
+    if ((eventType.includes('SUCCESS') || status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL') && reference && amount > 0) {
+      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber });
+    }
+    return { acknowledged: true };
+  }
+
+  async handleSquadWebhook(payload: Record<string, unknown>, signature?: string) {
+    if (!verifySquadWebhookSignature(payload, signature)) throw new PaymentError('Invalid Squad signature');
+    const body = (payload.Body ?? payload.body ?? payload) as Record<string, unknown>;
+    const reference = String(payload.TransactionRef ?? body.transaction_ref ?? payload.transaction_reference ?? '');
+    const status = String(body.transaction_status ?? '').toLowerCase();
+    const amountKobo = Number(body.amount ?? payload.principal_amount ?? payload.settled_amount ?? 0);
+    const isVirtualAccount = String(payload.channel ?? '').toLowerCase() === 'virtual-account' || Boolean(payload.virtual_account_number);
+
+    if ((status === 'success' || isVirtualAccount) && reference && amountKobo > 0) {
+      await this.completeExternalWalletFunding(PaymentProvider.SQUAD, {
+        reference,
+        amount: isVirtualAccount ? Number(amountKobo) : amountKobo / 100,
+        accountNumber: typeof payload.virtual_account_number === 'string' ? payload.virtual_account_number : undefined,
+        customerIdentifier: typeof payload.customer_identifier === 'string' ? payload.customer_identifier : undefined,
+      });
+    }
     return { acknowledged: true };
   }
 
