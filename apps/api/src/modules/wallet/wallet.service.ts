@@ -204,29 +204,16 @@ export class WalletService {
     const cached = await getCachedJson<{ realBalance: number; ledgerBalance: number }>(this.app.redis, cacheKey);
     if (cached) return cached;
 
-    const [completedCredits, completedDebits, pendingCredits, pendingDebits] = await Promise.all([
-      this.prisma.walletTransaction.aggregate({
-        where: { walletId, status: WalletTransactionStatus.COMPLETED, type: WalletTransactionType.CREDIT },
-        _sum: { amount: true },
-      }),
-      this.prisma.walletTransaction.aggregate({
-        where: { walletId, status: WalletTransactionStatus.COMPLETED, type: WalletTransactionType.DEBIT },
-        _sum: { amount: true },
-      }),
-      this.prisma.walletTransaction.aggregate({
-        where: { walletId, status: { in: [WalletTransactionStatus.PENDING, WalletTransactionStatus.COMPLETED] }, type: WalletTransactionType.CREDIT },
-        _sum: { amount: true },
-      }),
-      this.prisma.walletTransaction.aggregate({
-        where: { walletId, status: { in: [WalletTransactionStatus.PENDING, WalletTransactionStatus.COMPLETED] }, type: WalletTransactionType.DEBIT },
-        _sum: { amount: true },
-      }),
-    ]);
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { id: walletId },
+      select: { balance: true, ledgerBalance: true },
+    });
+    if (!wallet) throw new NotFoundError('Wallet not found');
 
-    const real = Number(completedCredits._sum.amount ?? 0) - Number(completedDebits._sum.amount ?? 0);
-    const ledger = Number(pendingCredits._sum.amount ?? 0) - Number(pendingDebits._sum.amount ?? 0);
-
-    const result = { realBalance: real, ledgerBalance: ledger };
+    const result = {
+      realBalance: Number(wallet.balance ?? 0),
+      ledgerBalance: Number(wallet.ledgerBalance ?? wallet.balance ?? 0),
+    };
     await setCachedJson(this.app.redis, cacheKey, result, 10);
     return result;
   }
@@ -555,6 +542,7 @@ export class WalletService {
     await this.prisma.$transaction(async (trx) => {
       const senderBefore = Number((await trx.wallet.findUnique({ where: { id: fromWallet.id } }))?.balance ?? 0);
       const recipientBefore = Number((await trx.wallet.findUnique({ where: { id: recipient.wallet!.id } }))?.balance ?? 0);
+      if (senderBefore < amount) throw new PaymentError('Insufficient balance');
       const senderAfter = senderBefore - amount;
       const recipientAfter = recipientBefore + amount;
 
@@ -732,6 +720,7 @@ export class WalletService {
 
     await this.prisma.$transaction(async (trx) => {
       const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
+      if (before < data.amount) throw new PaymentError('Insufficient balance');
       const after = before - data.amount;
 
       await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
@@ -868,6 +857,7 @@ export class WalletService {
     const reference = `${input.category}_${Date.now()}_${userId.slice(0, 6)}`;
     await this.prisma.$transaction(async (trx) => {
       const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
+      if (before < input.amount) throw new PaymentError('Insufficient balance');
       const after = before - input.amount;
       await trx.wallet.update({ where: { id: wallet.id }, data: { balance: after, ledgerBalance: after } });
       await trx.walletTransaction.create({
