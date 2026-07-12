@@ -7,7 +7,7 @@ import { getUserDetail } from '@/lib/admin-data';
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = getUserDetail(id);
+  const user = await getUserDetail(id);
   if (!user) notFound();
 
   return (
@@ -36,7 +36,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         <Card className="space-y-3 p-5">
           <h3 className="text-lg font-semibold tracking-tight">Recent activity</h3>
           <div className="space-y-3">
-            {user.recentOrders.map((order) => (
+            {(user.recentOrders ?? []).map((order) => (
               <div key={order.id} className="flex items-center justify-between rounded-2xl border border-border p-4 text-sm">
                 <div>
                   <div className="font-medium">{order.trackingCode}</div>

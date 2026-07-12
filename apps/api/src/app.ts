@@ -20,6 +20,7 @@ import userRoutes from './modules/user/user.routes.js';
 import walletRoutes from './modules/wallet/wallet.routes.js';
 import referralRoutes from './modules/referral/referral.routes.js';
 import paymentProviderRoutes from './modules/payment/payment.routes.js';
+import adminRoutes from './modules/admin/admin.routes.js';
 import corsPlugin from './plugins/cors.js';
 import helmetPlugin from './plugins/helmet.js';
 import jwtPlugin from './plugins/jwt.js';
@@ -123,6 +124,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     await instance.register(orderRoutes, { prefix: '/api/v1' });
     await instance.register(referralRoutes, { prefix: '/api/v1' });
     await instance.register(paymentProviderRoutes, { prefix: '/api/v1' });
+    await instance.register(adminRoutes, { prefix: '/api/v1' });
   });
 
   const orderWorker = createOrderMatchingWorker(app);

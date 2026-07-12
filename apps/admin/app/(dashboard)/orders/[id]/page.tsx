@@ -7,7 +7,7 @@ import { getOrderDetail } from '@/lib/admin-data';
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const order = getOrderDetail(id);
+  const order = await getOrderDetail(id);
   if (!order) notFound();
 
   return (

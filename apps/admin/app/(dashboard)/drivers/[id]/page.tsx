@@ -7,7 +7,7 @@ import { getDriverDetail } from '@/lib/admin-data';
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const driver = getDriverDetail(id);
+  const driver = await getDriverDetail(id);
   if (!driver) notFound();
 
   return (
@@ -31,7 +31,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         <Card className="space-y-3 p-5">
           <h3 className="text-lg font-semibold tracking-tight">KYC review</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {driver.kycDocuments.map((item) => (
+            {(driver.kycDocuments ?? []).map((item) => (
               <div key={item.label} className="rounded-2xl border border-border bg-muted/40 p-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{item.label}</div>
                 <div className="mt-2 font-medium">{item.value}</div>
@@ -42,7 +42,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         </Card>
         <Card className="space-y-3 p-5">
           <h3 className="text-lg font-semibold tracking-tight">Reviews</h3>
-          {driver.reviews.map((review) => (
+          {(driver.reviews ?? []).map((review) => (
             <div key={review.id} className="rounded-2xl border border-border p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="font-medium">{review.user}</div>
@@ -51,7 +51,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               <p className="mt-2 text-sm text-muted-foreground">{review.comment}</p>
             </div>
           ))}
-          <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">Assigned orders: {driver.assignedOrders.length}</div>
+          <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">Assigned orders: {driver.assignedOrders?.length ?? 0}</div>
         </Card>
       </section>
     </div>
