@@ -20,7 +20,7 @@ import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
-import { useAcceptOrder, useDeclineOrder } from '@/hooks/useDriverOrders';
+import { useAcceptOrder, useAvailableOrders, useDeclineOrder } from '@/hooks/useDriverOrders';
 import { useToggleOnlineStatus } from '@/hooks/useDriverProfile';
 import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
@@ -122,6 +122,59 @@ function PulseDot({ isOnline }: { isOnline: boolean }) {
   );
 }
 
+type PendingOrderRowProps = {
+  order: DriverOrder;
+  accepting: boolean;
+  declining: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+};
+
+function PendingOrderRow({ order, accepting, declining, onAccept, onDecline }: PendingOrderRowProps) {
+  const palette = useAppPalette();
+  const busy = accepting || declining;
+
+  return (
+    <View style={[styles.pendingOrderRow, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <View style={styles.pendingOrderMain}>
+        <View style={styles.pendingOrderTop}>
+          <Text style={[styles.pendingOrderCode, { color: palette.text }]} numberOfLines={1}>{order.trackingCode}</Text>
+          <Text style={[styles.pendingOrderPrice, { color: palette.primary }]}>{formatNaira(order.price)}</Text>
+        </View>
+        <View style={styles.pendingRouteRow}>
+          <MapPin size={12} color={palette.textSecondary} />
+          <Text style={[styles.pendingRouteText, { color: palette.textSecondary }]} numberOfLines={1}>
+            {order.pickupFormattedAddress}{' -> '}{order.deliveryFormattedAddress}
+          </Text>
+        </View>
+        <View style={styles.pendingMetaRow}>
+          <Text style={[styles.pendingMetaText, { color: palette.textSecondary }]}>{order.distanceKm.toFixed(1)} km</Text>
+          <Text style={[styles.pendingMetaDot, { color: palette.textSecondary }]}>•</Text>
+          <Text style={[styles.pendingMetaText, { color: palette.textSecondary }]}>{order.estimatedDurationMin} min</Text>
+          <Text style={[styles.pendingMetaDot, { color: palette.textSecondary }]}>•</Text>
+          <Text style={[styles.pendingMetaText, { color: palette.textSecondary }]}>{order.size}</Text>
+        </View>
+      </View>
+      <View style={styles.pendingActions}>
+        <Pressable
+          onPress={onDecline}
+          disabled={busy}
+          style={[styles.pendingActionBtn, { borderColor: palette.border, backgroundColor: palette.bg, opacity: busy ? 0.65 : 1 }]}
+        >
+          <Text style={[styles.pendingActionText, { color: palette.textSecondary }]}>Decline</Text>
+        </Pressable>
+        <Pressable
+          onPress={onAccept}
+          disabled={busy}
+          style={[styles.pendingActionBtn, { borderColor: palette.primary, backgroundColor: palette.primary, opacity: busy ? 0.65 : 1 }]}
+        >
+          {accepting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.pendingActionText, { color: "#fff" }]}>Accept</Text>}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function DriverHomeScreen() {
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -133,11 +186,13 @@ export default function DriverHomeScreen() {
   const setOnlineStatus = useDriverStore((s) => s.setOnlineStatus);
 
   const walletQuery = useWallet();
+  const availableOrdersQuery = useAvailableOrders();
   const acceptOrder = useAcceptOrder();
   const declineOrderMutation = useDeclineOrder();
   const queryClient = useQueryClient();
 
   const wallet = walletQuery.data;
+  const availableOrders = availableOrdersQuery.data ?? [];
   const walletTransactions = wallet?.transactions ?? [];
 
   const todayDateStr = new Date().toDateString();
@@ -148,9 +203,10 @@ export default function DriverHomeScreen() {
   const earningsToday = todaysTx.reduce((sum, tx) => sum + Number(tx.amount), 0);
 
   const [incomingOrder, setIncomingOrder] = useState<DriverOrder | null>(null);
-  const [countdown, setCountdown] = useState(30);
+  const [countdown, setCountdown] = useState(60);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [translateY] = useState(() => new Animated.Value(320));
+  const pendingHomeOrders = availableOrders.filter((order) => order.id !== currentOrder?.id && order.id !== incomingOrder?.id).slice(0, 3);
 
   useEffect(() => {
     const invalidate = () => {
@@ -182,7 +238,7 @@ export default function DriverHomeScreen() {
       };
       setIncomingOrder(order);
       setSheetVisible(true);
-      setCountdown(30);
+      setCountdown(60);
       translateY.setValue(320);
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
     });
@@ -255,11 +311,13 @@ export default function DriverHomeScreen() {
     }
   };
 
-  const declineOrder = async (reason = 'Driver declined incoming offer') => {
-    const orderId = incomingOrder?.id;
-    setIncomingOrder(null);
-    setSheetVisible(false);
-    setCountdown(30);
+  const declineOrder = async (reason = 'Driver declined incoming offer', targetOrderId?: string) => {
+    const orderId = targetOrderId ?? incomingOrder?.id;
+    if (!targetOrderId) {
+      setIncomingOrder(null);
+      setSheetVisible(false);
+      setCountdown(60);
+    }
     if (!orderId) return;
 
     try {
@@ -290,7 +348,7 @@ export default function DriverHomeScreen() {
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={walletQuery.isFetching} onRefresh={() => void walletQuery.refetch()} tintColor={palette.primary} />}
+        refreshControl={<RefreshControl refreshing={walletQuery.isFetching || availableOrdersQuery.isFetching} onRefresh={() => { void walletQuery.refetch(); void availableOrdersQuery.refetch(); }} tintColor={palette.primary} />}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: 100 }]}
       >
         {/* ── Header ─────────────────────────────────────────── */}
@@ -453,6 +511,47 @@ export default function DriverHomeScreen() {
             </Text>
           </Pressable>
         )}
+
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Available orders</Text>
+          <Pressable onPress={() => router.push('/(tabs)/two')} style={styles.sectionLink}>
+            <Text style={[styles.sectionLinkText, { color: palette.primary }]}>View all</Text>
+            <ChevronRight size={14} color={palette.primary} />
+          </Pressable>
+        </View>
+
+        {availableOrdersQuery.isLoading ? (
+          <View style={[styles.pendingListState, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <ActivityIndicator color={palette.primary} size="small" />
+            <Text style={[styles.pendingStateText, { color: palette.textSecondary }]}>Checking open jobs...</Text>
+          </View>
+        ) : availableOrdersQuery.isError ? (
+          <Pressable
+            onPress={() => void availableOrdersQuery.refetch()}
+            style={[styles.pendingListState, { backgroundColor: palette.card, borderColor: palette.border }]}
+          >
+            <Text style={[styles.pendingStateTitle, { color: palette.text }]}>Could not load open jobs</Text>
+            <Text style={[styles.pendingStateText, { color: palette.textSecondary }]}>Tap to retry.</Text>
+          </Pressable>
+        ) : pendingHomeOrders.length > 0 ? (
+          <View style={styles.pendingList}>
+            {pendingHomeOrders.map((order) => (
+              <PendingOrderRow
+                key={order.id}
+                order={order}
+                accepting={acceptOrder.isPending}
+                declining={declineOrderMutation.isPending}
+                onAccept={() => void acceptIncoming(order.id)}
+                onDecline={() => void declineOrder('Driver declined from home list', order.id)}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.pendingListState, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.pendingStateTitle, { color: palette.text }]}>{isOnline ? 'No open jobs waiting' : 'Go online to see open jobs'}</Text>
+            <Text style={[styles.pendingStateText, { color: palette.textSecondary }]}>{isOnline ? 'Matched offers will still pop up here when dispatch assigns one to you.' : 'Open jobs and matched offers appear when your driver status is online.'}</Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── Incoming order bottom sheet (socket push only) ───── */}
@@ -557,6 +656,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontFamily: Typography.family.bold },
   activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   activeBadgeText: { fontSize: 12, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0 },
+  sectionLink: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 10 },
+  sectionLinkText: { fontSize: 13, fontFamily: Typography.family.bold },
 
   // order card — solid (confirmed)
   orderCard: { borderRadius: 24, borderWidth: 1, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 16, overflow: 'hidden' },
@@ -571,6 +672,24 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 12, fontFamily: Typography.family.bold },
 
 
+
+  pendingList: { gap: 10 },
+  pendingOrderRow: { borderRadius: 20, borderWidth: 1, padding: 12, gap: 12 },
+  pendingOrderMain: { gap: 7 },
+  pendingOrderTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  pendingOrderCode: { flex: 1, fontSize: 14, fontFamily: Typography.family.bold },
+  pendingOrderPrice: { fontSize: 14, fontFamily: Typography.family.bold },
+  pendingRouteRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pendingRouteText: { flex: 1, fontSize: 12, fontFamily: Typography.family.regular },
+  pendingMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pendingMetaText: { fontSize: 11, fontFamily: Typography.family.medium, textTransform: 'uppercase' },
+  pendingMetaDot: { fontSize: 11, fontFamily: Typography.family.bold },
+  pendingActions: { flexDirection: 'row', gap: 10 },
+  pendingActionBtn: { flex: 1, minHeight: 44, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pendingActionText: { fontSize: 13, fontFamily: Typography.family.bold },
+  pendingListState: { minHeight: 104, borderRadius: 22, borderWidth: 1, padding: 18, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  pendingStateTitle: { fontSize: 15, fontFamily: Typography.family.bold, textAlign: 'center' },
+  pendingStateText: { fontSize: 13, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 19 },
 
   // empty state
   emptyStateCard: { borderRadius: 24, borderWidth: 1, padding: 32, alignItems: 'center', gap: 12, overflow: 'hidden' },

@@ -8,10 +8,11 @@ import { useDriverStore } from '@/store/driver.store';
 
 export function useAvailableOrders() {
   const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
+  const isOnline = useDriverStore((state) => state.isOnline);
 
   return useQuery({
     queryKey: ['driver-orders'],
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && isOnline,
     queryFn: async () => {
       const response = await http.get<ApiResponse<DriverOrder[]>>('/api/v1/driver/orders');
       return response.data.data;
