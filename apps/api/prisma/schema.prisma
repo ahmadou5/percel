@@ -118,6 +118,12 @@ enum DriverEarningStatus {
   SETTLED
 }
 
+enum PaymentProvider {
+  MONNIFY
+  PAYSTACK
+  SQUAD
+}
+
 model User {
   id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   email         String     @unique
@@ -294,6 +300,7 @@ model Wallet {
   nuban         String?  @unique
   bankName      String?
   bankCode      String?
+  paymentProvider PaymentProvider?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -328,6 +335,13 @@ model WalletTransaction {
   @@index([category])
   @@index([createdAt])
   @@index([reference])
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model LedgerEntry {

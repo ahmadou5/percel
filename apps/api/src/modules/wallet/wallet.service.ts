@@ -1,21 +1,12 @@
 import crypto from 'node:crypto';
 
-import { NotificationType as PrismaNotificationType, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { NotificationType as PrismaNotificationType, PaymentProvider, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 
 import { env } from '../../config/env.js';
 import { deleteCache, getCachedJson, setCachedJson } from '../../lib/cache.js';
-import {
-  createDedicatedNUBAN,
-  createTransferRecipient,
-  getBank,
-  initializeTransaction,
-  initiateTransfer,
-  listBanks,
-  resolveAccountNumber,
-  verifyTransaction,
-} from '../../lib/paystack.js';
+import { PaymentProviderService } from '../payment/payment.service.js';
 import { emitToUser } from '../../lib/realtime.js';
 import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
 import { addNotificationJob } from '../../queues/index.js';
@@ -89,6 +80,10 @@ export class WalletService {
     return client ?? this.prisma;
   }
 
+  private paymentProviders() {
+    return new PaymentProviderService(this.prisma);
+  }
+
   private async createNotification(
     userId: string,
     type: PrismaNotificationType,
@@ -140,10 +135,33 @@ export class WalletService {
 
   private async ensureDepositAccount(
     wallet: { id: string; nuban: string | null; bankName: string | null; bankCode: string | null },
-    user: { email: string; fullName: string; phone: string; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
+    user: { email: string; fullName: string; phone: string; paystackCustomerCode?: string | null; dateOfBirth: Date | null; address: string | null; ninVerified: boolean; bvnVerified: boolean; kycMethod: 'NIN' | 'BVN' | null },
   ) {
     const kycComplete = isKycComplete(user);
-    return { ...wallet, kycComplete };
+    if (!kycComplete || (wallet.nuban && wallet.bankName)) return { ...wallet, kycComplete };
+
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+    if (provider !== PaymentProvider.PAYSTACK || !user.paystackCustomerCode) {
+      return { ...wallet, kycComplete, paymentProvider: provider };
+    }
+
+    const account = await providers.createVirtualAccount(provider, {
+      email: user.email,
+      fullName: user.fullName,
+      phone: user.phone,
+      providerCustomerCode: user.paystackCustomerCode,
+    });
+    const updatedWallet = await this.prisma.wallet.update({
+      where: { id: wallet.id },
+      data: {
+        nuban: account.accountNumber,
+        bankName: account.bankName,
+        bankCode: account.bankCode,
+        paymentProvider: provider,
+      },
+    });
+    return { ...updatedWallet, kycComplete };
 
   }
   async getWallet(userId: string) {
@@ -158,11 +176,11 @@ export class WalletService {
         },
       }),
       this.prisma.user.findUnique({ where: { id: userId }, select: { walletPinHash: true } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, fullName: true, phone: true, paystackCustomerCode: true, dateOfBirth: true, address: true, ninVerified: true, bvnVerified: true, kycMethod: true } }),
     ]);
 
     if (!wallet) throw new NotFoundError('Wallet not found');
-    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '', dateOfBirth: null, address: null, ninVerified: false, bvnVerified: false, kycMethod: null });
+    const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { email: '', fullName: 'Percel User', phone: '', paystackCustomerCode: null, dateOfBirth: null, address: null, ninVerified: false, bvnVerified: false, kycMethod: null });
     return {
       ...wallet,
       ...depositAccount,
@@ -227,7 +245,15 @@ export class WalletService {
 
     const reference = `TOPUP_${Date.now()}_${userId.slice(0, 6)}`;
 
-    const init = await initializeTransaction(user.email, Math.round(amount * 100), reference, { userId, walletId: wallet.id }, callbackUrl);
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+    const init = await providers.initializeTopUp(provider, {
+      email: user.email,
+      amountKobo: Math.round(amount * 100),
+      reference,
+      metadata: { userId, walletId: wallet.id, provider },
+      callbackUrl,
+    });
 
     await this.prisma.walletTransaction.create({
       data: {
@@ -239,7 +265,7 @@ export class WalletService {
         reference,
         paystackReference: reference,
         description: 'Wallet top up initialization',
-        metadata: { gateway: 'paystack', authorizationUrl: init.authorization_url },
+        metadata: { gateway: provider.toLowerCase(), authorizationUrl: init.authorization_url },
         balanceBefore: 0,
         balanceAfter: 0,
       },
@@ -310,7 +336,7 @@ export class WalletService {
   private async createDedicatedVirtualAccount(customerCode: string) {
     const customer = await this.prisma.user.findUnique({
       where: { paystackCustomerCode: customerCode },
-      select: { id: true, fullName: true, wallet: { select: { id: true, nuban: true, bankName: true, bankCode: true } } },
+      select: { id: true, email: true, fullName: true, phone: true, wallet: { select: { id: true, nuban: true, bankName: true, bankCode: true } } },
     });
 
     const wallet = customer?.wallet;
@@ -320,17 +346,25 @@ export class WalletService {
       return;
     }
 
-    const account = await createDedicatedNUBAN(customerCode);
-    const bankName = account.bank?.name ?? 'Percel Wallet';
-    const bankCode = account.bank?.slug ?? null;
+    const providers = this.paymentProviders();
+    const provider = PaymentProvider.PAYSTACK;
+    const account = await providers.createVirtualAccount(provider, {
+      email: customer.email,
+      fullName: customer.fullName,
+      phone: '',
+      providerCustomerCode: customerCode,
+    });
+    const bankName = account.bankName;
+    const bankCode = account.bankCode ?? null;
 
     await this.prisma.$transaction(async (trx) => {
       await trx.wallet.update({
         where: { id: wallet.id },
         data: {
-          nuban: account.account_number,
+          nuban: account.accountNumber,
           bankName,
           bankCode,
+          paymentProvider: provider,
         },
       });
 
@@ -451,7 +485,9 @@ export class WalletService {
       return { status: 'success', amount: tx.amount, reference };
     }
 
-    const paystackTx = await verifyTransaction(reference);
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+    const paystackTx = await providers.verifyTopUp(provider, reference);
     if (paystackTx && paystackTx.status === 'success') {
       await this.completeTopUpTransaction(tx.id, reference, Number(tx.amount), tx.walletId);
       return { status: 'success', amount: tx.amount, reference };
@@ -634,13 +670,9 @@ export class WalletService {
   }
 
   async resolveBankAccount(bankCode: string, accountNumber: string) {
-    const [account, bank] = await Promise.all([resolveAccountNumber(accountNumber, bankCode), getBank(bankCode)]);
-    return {
-      accountName: account.account_name,
-      accountNumber: account.account_number,
-      bankCode,
-      bankName: bank?.name ?? bankCode,
-    };
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+    return providers.resolveBankAccount(provider, accountNumber, bankCode);
   }
 
   async resolveAirtimeProvider(phone: string) {
@@ -657,7 +689,9 @@ export class WalletService {
   }
 
   async listBanks() {
-    return listBanks();
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+    return providers.listBanks(provider);
   }
 
   async getProviderServices(identifier: 'airtime' | 'data' | 'tv-subscription' | 'electricity-bill') {
@@ -704,16 +738,14 @@ export class WalletService {
     if (balance.realBalance < data.amount) throw new PaymentError('Insufficient balance');
 
     const recipient = await this.resolveBankAccount(data.bankCode, data.accountNumber);
-    const transferRecipient = await createTransferRecipient({
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+    const reference = `BANK_${Date.now()}_${userId.slice(0, 6)}`;
+    const reason = cleanText(data.description) ?? 'Bank transfer';
+    const transfer = await providers.initiateBankTransfer(provider, {
       name: recipient.accountName,
       accountNumber: recipient.accountNumber,
       bankCode: data.bankCode,
-    });
-
-    const reference = `BANK_${Date.now()}_${userId.slice(0, 6)}`;
-    const reason = cleanText(data.description) ?? 'Bank transfer';
-    await initiateTransfer({
-      recipient: transferRecipient.recipient_code,
       amount: data.amount,
       reference,
       reason,
@@ -738,7 +770,7 @@ export class WalletService {
             bankCode: data.bankCode,
             accountNumber: data.accountNumber,
             accountName: recipient.accountName,
-            transferRecipientCode: transferRecipient.recipient_code,
+            transferRecipientCode: transfer.recipientCode,
           },
           balanceBefore: before,
           balanceAfter: after,

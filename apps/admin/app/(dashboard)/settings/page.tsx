@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PaymentProviderSettings } from '@/components/payment-provider-settings';
 
 export default function SettingsPage() {
   return (
@@ -20,9 +21,10 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground">Set queue depth, refund, and KYC alert thresholds for the ops team.</p>
         </Card>
       </section>
+      <PaymentProviderSettings />
       <Card className="space-y-3 p-5">
         <h3 className="text-lg font-semibold tracking-tight">Platform configuration</h3>
-        <p className="text-sm text-muted-foreground">This shell is ready for real admin settings, role controls, and deployment configuration.</p>
+        <p className="text-sm text-muted-foreground">Role controls and deployment configuration can sit beside payment routing as those controls become live.</p>
       </Card>
     </div>
   );
