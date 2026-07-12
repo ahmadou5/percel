@@ -116,7 +116,7 @@ export default function QuoteScreen() {
         notes: notes.trim(),
         items: orderItems,
       });
-      router.replace({ pathname: '/(tabs)/send/tracking/[id]', params: { id: order.id } } as never);
+      router.replace({ pathname: '/orders/[id]', params: { id: order.id } } as never);
     } catch (error) {
       showAlert('Order failed', error instanceof Error ? error.message : 'Unable to create order.', 'error');
     }

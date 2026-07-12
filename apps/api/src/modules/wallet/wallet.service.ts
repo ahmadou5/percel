@@ -528,6 +528,7 @@ export class WalletService {
 
     if (!fromWallet) throw new NotFoundError('Sender wallet not found');
     if (!recipient?.wallet) throw new NotFoundError('Recipient not found');
+    if (recipient.id === fromUserId) throw new ValidationError('You cannot send money to yourself');
     if (!sender?.walletPinHash) throw new ValidationError('Set a transfer PIN before sending money');
 
     const pinMatches = await bcrypt.compare(normalizedPin, sender.walletPinHash);

@@ -27,7 +27,7 @@ function isDelivered(status?: OrderStatus | string) {
 }
 
 function canTrack(status?: OrderStatus | string) {
-  return ['IN_TRANSIT', 'ACCEPTED', 'MATCHED'].includes(String(status));
+  return ['IN_TRANSIT', 'ACCEPTED'].includes(String(status));
 }
 
 export default function TrackingScreen() {

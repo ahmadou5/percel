@@ -34,8 +34,14 @@ function getStatusConfig(status: string) {
   if (['CREATED', 'PENDING_MATCH'].includes(s)) {
     return { text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.12)', label: 'Pending' };
   }
-  if (['MATCHED', 'ACCEPTED', 'IN_TRANSIT'].includes(s)) {
-    return { text: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)', label: 'In Transit' };
+  if (s === 'MATCHED') {
+    return { text: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)', label: 'Driver matched' };
+  }
+  if (s === 'ACCEPTED') {
+    return { text: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)', label: 'Driver accepted' };
+  }
+  if (s === 'IN_TRANSIT') {
+    return { text: '#0A84FF', bg: 'rgba(10, 132, 255, 0.12)', label: 'In Transit' };
   }
   if (['DELIVERED', 'COMPLETED'].includes(s)) {
     return { text: '#10B981', bg: 'rgba(16, 185, 129, 0.12)', label: 'Delivered' };

@@ -528,8 +528,20 @@ export class OrderService {
 
     if (driver.currentLat == null || driver.currentLng == null) return [];
 
+    const offerKeys = await this.app.redis.keys('order:offer:*');
+    const offerDriverIds = offerKeys.length ? await this.app.redis.mget(...offerKeys) : [];
+    const offeredOrderIds = offerKeys
+      .map((key, index) => (offerDriverIds[index] === driverId ? key.replace('order:offer:', '') : null))
+      .filter((id): id is string => Boolean(id));
+
     const orders = await this.prisma.order.findMany({
-      where: { status: OrderStatus.PENDING_MATCH, driverId: null },
+      where: {
+        driverId: null,
+        OR: [
+          { status: OrderStatus.PENDING_MATCH },
+          ...(offeredOrderIds.length ? [{ id: { in: offeredOrderIds }, status: OrderStatus.MATCHED }] : []),
+        ],
+      },
       include: { driver: { include: { user: true } }, user: true },
       orderBy: { createdAt: 'desc' },
       take: 50,
