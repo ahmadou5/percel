@@ -288,10 +288,15 @@ export function useBuyElectricity(options?: MutationOptions<BillResponse, { mete
   });
 }
 
-export function useBanks() {
+export function useBanks(provider?: string) {
   return useQuery({
-    queryKey: ['banks'],
-    queryFn: async () => (await http.get<WalletApiResponse<BankDirectoryItem[]>>('/api/v1/wallet/banks')).data.data,
+    queryKey: ['banks', provider],
+    queryFn: async () =>
+      (
+        await http.get<WalletApiResponse<BankDirectoryItem[]>>('/api/v1/wallet/banks', {
+          params: { provider },
+        })
+      ).data.data,
     staleTime: 15 * 60_000,
   });
 }

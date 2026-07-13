@@ -766,9 +766,19 @@ export class WalletService {
     };
   }
 
-  async listBanks() {
+  async listBanks(providerName?: string) {
     const providers = this.paymentProviders();
-    const provider = await providers.getActiveProvider();
+    let provider: PaymentProvider;
+    if (providerName) {
+      const val = providerName.trim().toUpperCase();
+      if (val === PaymentProvider.PAYSTACK || val === PaymentProvider.MONNIFY || val === PaymentProvider.SQUAD) {
+        provider = val as PaymentProvider;
+      } else {
+        throw new ValidationError('Unsupported payment provider');
+      }
+    } else {
+      provider = await providers.getActiveProvider();
+    }
     return providers.listBanks(provider);
   }
 

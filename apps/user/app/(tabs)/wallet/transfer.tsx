@@ -92,7 +92,7 @@ export default function TransferScreen() {
   const palette = useAppPalette();
   const walletQuery = useWallet();
   const wallet = walletQuery.data;
-  const banksQuery = useBanks();
+  const banksQuery = useBanks(wallet?.paymentProvider);
   const bankTransfer = useBankTransfer();
   const interAppTransfer = useTransfer();
   const { mutateAsync: resolveRecipientAsync } = useResolveTransferRecipient();
@@ -176,6 +176,12 @@ export default function TransferScreen() {
       void ScreenCapture.allowScreenCaptureAsync();
     };
   }, [allowScreenshots]);
+
+  useEffect(() => {
+    if (banks.length > 0 && !banks.some((item) => item.code === bankCode)) {
+      setBankCode(banks[0].code);
+    }
+  }, [banks, bankCode]);
 
   const resetForm = () => {
     setStep(1);

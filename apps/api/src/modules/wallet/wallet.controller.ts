@@ -64,8 +64,9 @@ export class WalletController {
     return success(data, 'Airtime provider resolved');
   };
 
-  bankList = async () => {
-    const data = await this.service.listBanks();
+  bankList = async (request: FastifyRequest) => {
+    const { provider } = request.query as { provider?: string };
+    const data = await this.service.listBanks(provider);
     return success(data, 'Supported banks loaded');
   };
 

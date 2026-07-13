@@ -6,7 +6,7 @@ import { CheckCircle2, Clock, XCircle, ArrowRight, Wallet, RefreshCw } from "luc
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
 import { useAppPalette } from "@/lib/theme";
-import { useVerifyTopUp } from "@/hooks/useWallet";
+import { useVerifyTopUp, useWallet } from "@/hooks/useWallet";
 import { formatNaira } from "@/lib/wallet";
 import { haptics } from "@/utils/haptics";
 
@@ -15,6 +15,10 @@ export default function WalletCallbackScreen() {
   const palette = useAppPalette();
   const params = useLocalSearchParams();
   const reference = String(params.reference || params.trxref || "");
+
+  const walletQuery = useWallet();
+  const wallet = walletQuery.data;
+  const providerName = wallet?.paymentProvider ? (wallet.paymentProvider.charAt(0) + wallet.paymentProvider.slice(1).toLowerCase()) : "Paystack";
 
   const verifyMutation = useVerifyTopUp();
   const [status, setStatus] = useState<"loading" | "success" | "failed" | "pending">("loading");
@@ -109,7 +113,7 @@ export default function WalletCallbackScreen() {
       case "pending":
         return {
           title: "Payment Processing",
-          description: "Paystack is still processing your deposit. We will automatically update your balance once confirmed.",
+          description: `${providerName} is still processing your deposit. We will automatically update your balance once confirmed.`,
           icon: <Clock size={54} color={palette.warning} />,
           backgroundColor: "rgba(255,159,10,0.12)",
           accent: palette.warning,
@@ -118,7 +122,7 @@ export default function WalletCallbackScreen() {
       default:
         return {
           title: "Verifying Deposit",
-          description: "Please wait while we confirm your payment status with Paystack…",
+          description: `Please wait while we confirm your payment status with ${providerName}…`,
           icon: <ActivityIndicator size="large" color={palette.primary} />,
           backgroundColor: "rgba(10,132,255,0.06)",
           accent: palette.primary,

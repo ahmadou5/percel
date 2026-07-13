@@ -41,13 +41,15 @@ export default function TopUpScreen() {
   const canSubmit = amountValue >= 100 && kycReady;
   const isBankView = activeMethod === "bank";
 
+  const providerName = wallet?.paymentProvider ? (wallet.paymentProvider.charAt(0) + wallet.paymentProvider.slice(1).toLowerCase()) : "Paystack";
+
   const rows = useMemo(
     () => [
       { label: "Amount", value: formatNaira(amountValue) },
-      { label: "Channel", value: "Paystack checkout" },
+      { label: "Channel", value: `${providerName} checkout` },
       { label: "Status", value: "Card or bank transfer" },
     ],
-    [amountValue],
+    [amountValue, providerName],
   );
 
   const copyText = async (value: string, label: string) => {
@@ -73,7 +75,7 @@ export default function TopUpScreen() {
         visible: true,
         type: "pending",
         title: "Top-up pending",
-        message: "Complete the payment in the browser window. We will refresh your wallet after Paystack confirms the transfer.",
+        message: `Complete the payment in the browser window. We will refresh your wallet after ${providerName} confirms the transfer.`,
         amount: formatNaira(amountValue),
         returnAfterClose: false,
       });

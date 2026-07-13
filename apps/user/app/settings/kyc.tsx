@@ -45,7 +45,7 @@ export default function KycScreen() {
   const profileQuery = useProfile();
   const updateProfile = useUpdateProfile();
   const verifyBvn = useVerifyBvn();
-  const banksQuery = useBanks();
+  const banksQuery = useBanks('PAYSTACK');
   const profile = profileQuery.data;
   const banks = (banksQuery.data ?? []) as BankItem[];
   const [step, setStep] = useState<KycStep>(1);
@@ -112,7 +112,7 @@ export default function KycScreen() {
   const statusDescription = kycComplete
     ? 'Your KYC profile is ready for deposits and bank payouts.'
     : verificationPending || submitted
-      ? 'Paystack is validating your BVN and bank account. Your dedicated account will be created when the webhook confirms success.'
+      ? 'Our verification partner is validating your BVN and bank account. Your dedicated account will be created when the webhook confirms success.'
       : 'Complete the staged form below to validate your identity and unlock dedicated account creation.';
 
   const headerBack = () => {
@@ -191,7 +191,7 @@ export default function KycScreen() {
             <ShieldCheck size={20} color="#fff" />
           </View>
         </View>
-        <Text style={styles.heroBody}>Customer identity verification now uses Paystack bank-account identification for BVN-linked NUBAN setup, while driver verification stays in the driver app.</Text>
+        <Text style={styles.heroBody}>Customer identity verification now uses secure identity verification for BVN-linked NUBAN setup, while driver verification stays in the driver app.</Text>
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
@@ -262,13 +262,13 @@ export default function KycScreen() {
               <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{dateOfBirth || 'DOB pending'}</Text>
             </View>
 
-            <Input
+             <Input
               label="BVN"
               value={bvn}
               onChangeText={setBvn}
               placeholder="11 digit BVN"
               keyboardType="number-pad"
-              helperText="BVN is required for Paystack customer identification."
+              helperText="BVN is required for customer verification."
             />
 
             <Pressable onPress={() => setBankPickerOpen(true)} style={[styles.bankButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
@@ -295,7 +295,7 @@ export default function KycScreen() {
               </View>
               <View style={styles.consentCopy}>
                 <Text style={[styles.consentTitle, { color: palette.text }]}>I consent to identity verification</Text>
-                <Text style={[styles.consentBody, { color: palette.textSecondary }]}>I agree that Percel can send these details to Paystack to verify me and create my dedicated account.</Text>
+                <Text style={[styles.consentBody, { color: palette.textSecondary }]}>I agree that Percel can verify my identity and create my dedicated account.</Text>
               </View>
             </Pressable>
 
@@ -366,7 +366,7 @@ export default function KycScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a bank</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Search the Paystack-supported bank list.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Search the supported bank list.</Text>
               </View>
               <Pressable onPress={() => setBankPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
