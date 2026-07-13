@@ -1,11 +1,14 @@
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { NotificationType, Prisma, type PrismaClient, UserStatus } from '@prisma/client';
+import { NotificationType, Prisma, type PrismaClient, UserStatus, PaymentProvider } from '@prisma/client';
 
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
 import { createCustomer, validateCustomerIdentity } from '../../lib/paystack.js';
-import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError, PaymentError } from '../../utils/errors.js';
 import type { ChangePasswordBody, NotificationsFeedResponse, NotificationResponse, UpdateProfileBody, UserProfileResponse } from './user.types.js';
+import { PaymentProviderService } from '../payment/payment.service.js';
+import { deleteCache } from '../../lib/cache.js';
+import { emitToUser } from '../../lib/realtime.js';
 
 function toIso(value: Date | null | undefined) {
   return value ? value.toISOString() : null;
@@ -299,18 +302,76 @@ export class UserService {
     const accountNumber = input.accountNumber.trim();
     const bankCode = input.bankCode.trim();
 
-    const result = await validateCustomerIdentity(customerCode, {
-      country: 'NG',
-      type: 'bank_account',
-      account_number: accountNumber,
-      bvn,
-      bank_code: bankCode,
-      first_name: firstName,
-      last_name: lastName,
-    });
+    let result;
+    let alreadyValidated = false;
+    try {
+      result = await validateCustomerIdentity(customerCode, {
+        country: 'NG',
+        type: 'bank_account',
+        account_number: accountNumber,
+        bvn,
+        bank_code: bankCode,
+        first_name: firstName,
+        last_name: lastName,
+      });
+    } catch (err) {
+      if (err instanceof PaymentError && err.message.includes('Customer already validated using the same credentials')) {
+        alreadyValidated = true;
+      } else {
+        throw err;
+      }
+    }
 
-    if (!result.status) {
+    if (!alreadyValidated && result && !result.status) {
       throw new ValidationError(result.message || 'Verification could not be started');
+    }
+
+    if (alreadyValidated) {
+      const userWithWallet = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          phone: true,
+          wallet: { select: { id: true, nuban: true, bankName: true } },
+        },
+      });
+
+      const wallet = userWithWallet?.wallet;
+      if (wallet && (!wallet.nuban || !wallet.bankName)) {
+        const providers = new PaymentProviderService(this.prisma);
+        const provider = PaymentProvider.PAYSTACK;
+        try {
+          const account = await providers.createVirtualAccount(provider, {
+            id: userId,
+            email: userWithWallet.email,
+            fullName: firstName + ' ' + lastName,
+            phone: userWithWallet.phone,
+            providerCustomerCode: customerCode,
+          });
+
+          await this.prisma.wallet.update({
+            where: { id: wallet.id },
+            data: {
+              nuban: account.accountNumber,
+              bankName: account.bankName,
+              bankCode: account.bankCode ?? null,
+              paymentProvider: provider,
+            },
+          });
+
+          await deleteCache(this.app.redis, 'cache:wallet:balance:' + wallet.id);
+
+          try {
+            emitToUser(this.app, userId, 'wallet_updated', { walletId: wallet.id });
+          } catch (err) {
+            this.logger.warn({ err, userId }, 'Failed to emit wallet_updated socket event');
+          }
+        } catch (err) {
+          this.logger.error({ err, userId }, 'Failed to create dedicated virtual account during fallback activation');
+        }
+      }
     }
 
     const updated = await this.prisma.user.update({
@@ -318,9 +379,9 @@ export class UserService {
       data: {
         fullName: firstName + ' ' + lastName,
         bvnNumber: bvn,
-        bvnVerified: false,
+        bvnVerified: alreadyValidated ? true : false,
         kycMethod: 'BVN',
-        status: UserStatus.PENDING_VERIFICATION,
+        status: alreadyValidated ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION,
         paystackCustomerCode: customerCode,
       },
       select: {
@@ -343,7 +404,19 @@ export class UserService {
       },
     });
 
-    this.logger.info({ userId, customerCode }, 'user.kyc.bvn_pending');
+    if (alreadyValidated) {
+      await this.createNotification(
+        userId,
+        NotificationType.SYSTEM,
+        'Verification approved',
+        'Your bank verification is complete. Your dedicated account is ready.',
+        { customerCode },
+      );
+      this.logger.info({ userId, customerCode }, 'user.kyc.bvn_active_already_validated');
+    } else {
+      this.logger.info({ userId, customerCode }, 'user.kyc.bvn_pending');
+    }
+
     return {
       id: updated.id,
       fullName: updated.fullName,
