@@ -341,13 +341,14 @@ export class UserService {
       const wallet = userWithWallet?.wallet;
       if (wallet && (!wallet.nuban || !wallet.bankName)) {
         const providers = new PaymentProviderService(this.prisma);
-        const provider = PaymentProvider.PAYSTACK;
         try {
+          const provider = await providers.getActiveProvider();
           const account = await providers.createVirtualAccount(provider, {
             id: userId,
             email: userWithWallet.email,
             fullName: firstName + ' ' + lastName,
             phone: userWithWallet.phone,
+            bvn: bvn,
             providerCustomerCode: customerCode,
           });
 

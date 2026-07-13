@@ -342,23 +342,35 @@ export class WalletService {
   private async createDedicatedVirtualAccount(customerCode: string) {
     const customer = await this.prisma.user.findUnique({
       where: { paystackCustomerCode: customerCode },
-      select: { id: true, email: true, fullName: true, phone: true, wallet: { select: { id: true, nuban: true, bankName: true, bankCode: true } } },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        bvnNumber: true,
+        ninNumber: true,
+        wallet: { select: { id: true, nuban: true, bankName: true, bankCode: true, paymentProvider: true } }
+      },
     });
 
     const wallet = customer?.wallet;
     if (!wallet) return;
-    if (wallet.nuban && wallet.bankName) {
+
+    const providers = this.paymentProviders();
+    const provider = await providers.getActiveProvider();
+
+    if (wallet.nuban && wallet.bankName && wallet.paymentProvider === provider) {
       await this.prisma.user.update({ where: { id: customer.id }, data: { status: 'ACTIVE', bvnVerified: true } });
       return;
     }
 
-    const providers = this.paymentProviders();
-    const provider = PaymentProvider.PAYSTACK;
     const account = await providers.createVirtualAccount(provider, {
       id: customer.id,
       email: customer.email,
       fullName: customer.fullName,
       phone: customer.phone,
+      bvn: customer.bvnNumber,
+      nin: customer.ninNumber,
       providerCustomerCode: customerCode,
     });
     const bankName = account.bankName;

@@ -136,7 +136,7 @@ export async function createMonnifyReservedAccount(data: {
           contractCode: env.MONNIFY_CONTRACT_CODE,
           customerEmail: data.customerEmail,
           customerName: data.customerName,
-          getAllAvailableBanks: false,
+          getAllAvailableBanks: true,
           bvn: data.bvn || undefined,
           nin: data.nin || undefined,
         },
