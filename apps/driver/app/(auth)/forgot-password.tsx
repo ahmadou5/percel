@@ -5,22 +5,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
-import { Button } from '@/components/ui/Button';
-import { ErrorBanner } from '@/components/ui/ErrorBanner';
-import { Input } from '@/components/ui/Input';
-import { PinInput } from '@/components/ui/PinInput';
-import { KeyboardView } from '@/components/ui/KeyboardView';
-import { Typography } from '@/constants/typography';
+import { AuthButton, AuthInput, ErrorBanner, KeyboardView, useAuthPalette } from '@/components/auth/AuthControls';
 import { useForgotPassword, useResetPassword } from '@/hooks/useAuth';
-import { useAppPalette, isLight } from '@/lib/theme';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+?234\d{10}$|^0\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-export default function ForgotPasswordScreen() {
-  const theme = useAppPalette();
-  const lightBg = isLight(theme.bg);
+export default function DriverForgotPasswordScreen() {
+  const { palette, light } = useAuthPalette();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
@@ -31,14 +24,14 @@ export default function ForgotPasswordScreen() {
   const resetPassword = useResetPassword();
 
   const stepOneValid = useMemo(
-    () => emailRegex.test(identifier) || phoneRegex.test(identifier),
+    () => emailRegex.test(identifier.trim()) || phoneRegex.test(identifier.trim()),
     [identifier],
   );
 
   const handleSendCode = async () => {
     setError(null);
     try {
-      await forgotPassword.mutateAsync(identifier);
+      await forgotPassword.mutateAsync(identifier.trim());
       setStep(2);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message;
@@ -53,7 +46,7 @@ export default function ForgotPasswordScreen() {
     }
     setError(null);
     try {
-      await resetPassword.mutateAsync({ token: otp, newPassword });
+      await resetPassword.mutateAsync({ token: otp.trim(), newPassword });
       setStep(3);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message;
@@ -66,30 +59,30 @@ export default function ForgotPasswordScreen() {
 
   return (
     <KeyboardView>
-      <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
         <AuthBackdrop />
-        <View style={[styles.overlay, { backgroundColor: lightBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)' }]} />
+        <View style={[styles.overlay, { backgroundColor: light ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)' }]} />
 
         {/* Top row */}
         <View style={styles.topRow}>
           <Pressable
             accessibilityRole="button"
             onPress={() => (step > 1 && step < 3 ? setStep((s) => (s - 1) as 1 | 2 | 3) : router.back())}
-            style={[styles.backButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+            style={[styles.backButton, { borderColor: palette.border, backgroundColor: palette.card }]}
           >
-            <Ionicons name="arrow-back" size={18} color={theme.text} />
+            <Ionicons name="arrow-back" size={18} color={palette.text} />
           </Pressable>
           <View style={styles.progressTrack}>
             <Animated.View
-              style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.primary }]}
+              style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: palette.primary }]}
             />
           </View>
           <Pressable
             accessibilityRole="button"
             onPress={() => router.replace('/(auth)/login')}
-            style={[styles.topLink, { borderColor: theme.border, backgroundColor: theme.card }]}
+            style={[styles.topLink, { borderColor: palette.border, backgroundColor: palette.card }]}
           >
-            <Text style={[styles.topLinkText, { color: theme.primary }]}>Log In</Text>
+            <Text style={[styles.topLinkText, { color: palette.primary }]}>Log In</Text>
           </Pressable>
         </View>
 
@@ -99,8 +92,8 @@ export default function ForgotPasswordScreen() {
             style={[
               styles.card,
               {
-                backgroundColor: lightBg ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.06)',
-                borderColor: lightBg ? theme.border : 'rgba(255,255,255,0.08)',
+                backgroundColor: light ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.06)',
+                borderColor: light ? palette.border : 'rgba(255,255,255,0.08)',
               },
             ]}
           >
@@ -109,13 +102,13 @@ export default function ForgotPasswordScreen() {
             {/* Step 1 – Enter email / phone */}
             {step === 1 && (
               <Animated.View key="step-1" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
-                <Text style={[styles.heading, { color: theme.text }]}>FORGOT PASSWORD?</Text>
-                <Text style={[styles.subheading, { color: theme.textSecondary }]}>
-                  Enter the email or phone number linked to your account and we'll send you a 6-digit reset code.
+                <Text style={[styles.heading, { color: palette.text }]}>FORGOT PASSWORD?</Text>
+                <Text style={[styles.subheading, { color: palette.textSecondary }]}>
+                  Enter the email or phone number linked to your driver account and we'll send you a 6-digit reset code.
                 </Text>
-                <Input
+                <AuthInput
                   label="Email or Phone"
-                  placeholder="you@example.com or 08012345678"
+                  placeholder="driver@example.com or 08012345678"
                   autoCapitalize="none"
                   keyboardType="email-address"
                   value={identifier}
@@ -123,13 +116,11 @@ export default function ForgotPasswordScreen() {
                   autoFocus
                 />
                 <View style={styles.ctaWrap}>
-                  <Button
+                  <AuthButton
                     title={forgotPassword.isPending ? 'Sending code…' : 'Send Reset Code'}
                     loading={forgotPassword.isPending}
                     disabled={!stepOneValid || forgotPassword.isPending}
                     onPress={handleSendCode}
-                    size="lg"
-                    style={styles.cta}
                   />
                 </View>
               </Animated.View>
@@ -138,22 +129,27 @@ export default function ForgotPasswordScreen() {
             {/* Step 2 – Enter OTP + new password */}
             {step === 2 && (
               <Animated.View key="step-2" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
-                <Text style={[styles.heading, { color: theme.text }]}>ENTER RESET CODE</Text>
-                <Text style={[styles.subheading, { color: theme.textSecondary }]}>
+                <Text style={[styles.heading, { color: palette.text }]}>ENTER RESET CODE</Text>
+                <Text style={[styles.subheading, { color: palette.textSecondary }]}>
                   We sent a 6-digit code to{' '}
-                  <Text style={{ fontFamily: Typography.family.semibold, color: theme.primary }}>
+                  <Text style={{ fontWeight: '600', color: palette.primary }}>
                     {identifier}
                   </Text>
                   . Enter it below with your new password.
                 </Text>
 
-                <PinInput
+                <AuthInput
+                  label="6-Digit Code"
+                  placeholder="Enter 6-digit code"
+                  keyboardType="numeric"
+                  maxLength={6}
                   value={otp}
                   onChangeText={setOtp}
-                  error={error || undefined}
+                  autoFocus
                 />
-                <View style={{ marginTop: 16 }}>
-                  <Input
+
+                <View style={{ marginTop: 12 }}>
+                  <AuthInput
                     label="New Password"
                     placeholder="Min 8 chars, 1 uppercase, 1 number"
                     secureTextEntry
@@ -169,17 +165,15 @@ export default function ForgotPasswordScreen() {
                 </View>
 
                 <View style={styles.ctaWrap}>
-                  <Button
+                  <AuthButton
                     title={resetPassword.isPending ? 'Resetting…' : 'Reset Password'}
                     loading={resetPassword.isPending}
-                    disabled={otp.length < 6 || !passRegex.test(newPassword) || resetPassword.isPending}
+                    disabled={otp.trim().length < 6 || !passRegex.test(newPassword) || resetPassword.isPending}
                     onPress={handleReset}
-                    size="lg"
-                    style={styles.cta}
                   />
                 </View>
-                <Pressable onPress={handleSendCode} style={{ marginTop: 12, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: theme.primary, fontFamily: Typography.family.semibold }}>
+                <Pressable onPress={handleSendCode} style={{ marginTop: 16, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: palette.primary, fontWeight: '600' }}>
                     Didn&apos;t get a code? Resend
                   </Text>
                 </Pressable>
@@ -189,19 +183,17 @@ export default function ForgotPasswordScreen() {
             {/* Step 3 – Success */}
             {step === 3 && (
               <Animated.View key="step-3" entering={FadeInDown.duration(400)} style={{ alignItems: 'center', gap: 12 }}>
-                <View style={[styles.successIcon, { backgroundColor: `${theme.primary}18` }]}>
-                  <Ionicons name="checkmark-circle" size={48} color={theme.primary} />
+                <View style={[styles.successIcon, { backgroundColor: `${palette.primary}18` }]}>
+                  <Ionicons name="checkmark-circle" size={48} color={palette.primary} />
                 </View>
-                <Text style={[styles.heading, { color: theme.text }]}>PASSWORD RESET!</Text>
-                <Text style={[styles.subheading, { color: theme.textSecondary }]}>
-                  Your password has been updated. You can now log in with your new password.
+                <Text style={[styles.heading, { color: palette.text }]}>PASSWORD RESET!</Text>
+                <Text style={[styles.subheading, { color: palette.textSecondary }]}>
+                  Your password has been updated. You can now log in to your driver account.
                 </Text>
                 <View style={styles.ctaWrap}>
-                  <Button
+                  <AuthButton
                     title="Back to Login"
                     onPress={() => router.replace('/(auth)/login')}
-                    size="lg"
-                    style={styles.cta}
                   />
                 </View>
               </Animated.View>
@@ -234,9 +226,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -253,14 +245,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   topLink: {
+    minHeight: 40,
+    justifyContent: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
   },
   topLinkText: {
     fontSize: 13,
-    fontFamily: Typography.family.semibold,
+    fontWeight: '700',
   },
   cardWrap: {
     flex: 1,
@@ -279,7 +272,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 24,
     lineHeight: 28,
-    fontFamily: Typography.family.bold,
+    fontWeight: '700',
     letterSpacing: -0.8,
     marginBottom: 4,
     textAlign: 'center',
@@ -288,14 +281,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 14,
-    fontFamily: Typography.family.regular,
+    fontWeight: '400',
     textAlign: 'center',
   },
   ctaWrap: {
-    marginTop: 6,
-    width: '100%',
-  },
-  cta: {
+    marginTop: 12,
     width: '100%',
   },
   successIcon: {

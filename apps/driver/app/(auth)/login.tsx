@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { AuthButton, AuthInput, CountryPill, ErrorBanner, KeyboardView, useAuthPalette } from '@/components/auth/AuthControls';
 import { useLogin } from '@/hooks/useAuth';
+import { useDriverStore } from '@/store/driver.store';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
@@ -31,7 +32,21 @@ export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const login = useLogin();
+  const driver = useDriverStore((s) => s.driver);
+  const login = useLogin({
+    onSuccess: () => {
+      // Driver profile is stored in the store by persistDriverSession
+      // Read status from store after login
+      const storedDriver = useDriverStore.getState().driver;
+      router.replace(routeForStatus(storedDriver?.status));
+    },
+    onRequiresVerification: (phone) => {
+      router.replace({
+        pathname: '/(auth)/register',
+        params: { phone, step: '6' }
+      });
+    }
+  });
 
   const isEmail = useMemo(() => identifier.includes('@') || /[a-zA-Z]/.test(identifier), [identifier]);
   const phoneValue = useMemo(() => normalizePhone(identifier), [identifier]);
@@ -45,13 +60,15 @@ export default function LoginScreen() {
     setError(null);
     try {
       const formattedIdentifier = isEmail ? identifier.trim().toLowerCase() : `+234${phoneValue}`;
-      const session = await login.mutateAsync({ identifier: formattedIdentifier, password });
-      router.replace(routeForStatus(session.driver.status));
+      await login.mutateAsync({ identifier: formattedIdentifier, password });
+      // Navigation is handled inside the onSuccess callback above
     } catch (err: any) {
       const serverMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
       setError(serverMessage || err.message || 'Invalid driver credentials.');
     }
   };
+
+  void driver; // suppress unused-var warning
 
   const back = () => {
     if (step === 2) {
@@ -118,6 +135,10 @@ export default function LoginScreen() {
                   secureToggle
                   autoFocus
                 />
+
+                <Pressable onPress={() => router.push('/(auth)/forgot-password' as any)} style={{ alignSelf: 'flex-start', marginVertical: 8 }}>
+                  <Text style={{ fontSize: 13, color: palette.primary, fontWeight: '600' }}>Forgot password?</Text>
+                </Pressable>
 
                 <AuthButton title={login.isPending ? 'Opening dashboard...' : 'Log In'} loading={login.isPending} disabled={!password || login.isPending} onPress={submit} />
               </Animated.View>

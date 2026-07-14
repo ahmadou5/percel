@@ -18,8 +18,11 @@ export interface SafeUser {
 }
 
 export interface AuthResponse {
-  user: SafeUser;
-  tokens: AuthTokens;
+  user?: SafeUser;
+  tokens?: AuthTokens;
+  requiresVerification?: boolean;
+  phone?: string;
+  message?: string;
 }
 
 export interface PushTokenResponse {

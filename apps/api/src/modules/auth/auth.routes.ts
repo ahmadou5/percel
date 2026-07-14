@@ -17,6 +17,8 @@ import {
   RegisterUserSchema,
   ResetPasswordBody,
   ResetPasswordSchema,
+  VerifyOTPBody,
+  VerifyOTPSchema,
 } from './auth.schema.js';
 
 const authRoutes: FastifyPluginAsync = async (app) => {
@@ -56,12 +58,17 @@ const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/forgot-password', { schema: { body: ForgotPasswordBody }, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request) => {
     ForgotPasswordSchema.parse(request.body);
-    return controller.forgotPassword();
+    return controller.forgotPassword(request);
   });
 
   app.post('/reset-password', { schema: { body: ResetPasswordBody }, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request) => {
     ResetPasswordSchema.parse(request.body);
-    return controller.resetPassword();
+    return controller.resetPassword(request);
+  });
+
+  app.post('/verify-otp', { schema: { body: VerifyOTPBody }, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request) => {
+    VerifyOTPSchema.parse(request.body);
+    return controller.verifyOTP(request);
   });
 };
 

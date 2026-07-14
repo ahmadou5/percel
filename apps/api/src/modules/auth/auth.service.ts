@@ -5,6 +5,8 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { PrismaClient, User, UserRole } from '@prisma/client';
 
 import { ForbiddenError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
+import { sendEmail } from '../../utils/mailer.js';
+import { sendSMS } from '../../utils/sms.js';
 import type { AuthResponse, AuthTokens, SafeUser } from './auth.types.js';
 
 const ACCESS_EXPIRES = '2h';
@@ -117,6 +119,9 @@ export class AuthService {
       inviterId = inviter.id;
     }
 
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -125,6 +130,9 @@ export class AuthService {
           passwordHash,
           fullName: payload.fullName,
           referredById: inviterId,
+          status: 'PENDING_VERIFICATION',
+          phoneVerificationCode: otpCode,
+          phoneVerificationExpiry: expiry,
         },
       });
 
@@ -143,12 +151,17 @@ export class AuthService {
       return created;
     });
 
-    const driverId = await this.resolveDriverId(user.id);
-    const tokens = await this.generateTokens({ userId: user.id, role: user.role, driverId });
-    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
+    await sendSMS({
+      to: user.phone,
+      message: `Your Percel verification code is: ${otpCode}. Valid for 15 minutes.`,
+    });
 
-    this.logger.info({ userId: user.id }, 'auth.register.success');
-    return { user: redactUser(user), tokens };
+    this.logger.info({ userId: user.id }, 'auth.register.initiated');
+    return {
+      requiresVerification: true,
+      phone: user.phone,
+      message: 'Verification OTP sent to your phone number.',
+    };
   }
 
   async registerDriver(data: Record<string, unknown>): Promise<AuthResponse> {
@@ -159,6 +172,10 @@ export class AuthService {
     if (existing) throw new ValidationError('Email or phone already exists');
 
     const passwordHash = await bcrypt.hash(payload.password, 12);
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -166,6 +183,9 @@ export class AuthService {
           phone: payload.phone,
           passwordHash,
           fullName: payload.fullName,
+          status: 'PENDING_VERIFICATION',
+          phoneVerificationCode: otpCode,
+          phoneVerificationExpiry: expiry,
         },
       });
 
@@ -184,12 +204,17 @@ export class AuthService {
       return created;
     });
 
-    const driverId = await this.resolveDriverId(user.id);
-    const tokens = await this.generateTokens({ userId: user.id, role: user.role, driverId });
-    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
+    await sendSMS({
+      to: user.phone,
+      message: `Your Percel verification code is: ${otpCode}. Valid for 15 minutes.`,
+    });
 
-    this.logger.info({ userId: user.id }, 'auth.register_driver.success');
-    return { user: redactUser(user), tokens };
+    this.logger.info({ userId: user.id }, 'auth.register_driver.initiated');
+    return {
+      requiresVerification: true,
+      phone: user.phone,
+      message: 'Verification OTP sent to your phone number.',
+    };
   }
 
   async login(identifier: string, password: string, ip?: string): Promise<AuthResponse> {
@@ -207,12 +232,110 @@ export class AuthService {
 
     if (user.status === 'SUSPENDED') throw new ForbiddenError('Account is suspended');
 
+    if (user.status === 'PENDING_VERIFICATION') {
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          phoneVerificationCode: otpCode,
+          phoneVerificationExpiry: expiry,
+        },
+      });
+      await sendSMS({ to: user.phone, message: `Your Percel verification code is: ${otpCode}. Valid for 15 minutes.` });
+      return { requiresVerification: true, phone: user.phone, message: 'Please verify your phone number' };
+    }
+
     const driverId = await this.resolveDriverId(user.id);
     const tokens = await this.generateTokens({ userId: user.id, role: user.role, driverId });
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
 
     this.logger.info({ userId: user.id, ip }, 'auth.login.success');
     return { user: redactUser(user), tokens };
+  }
+
+  async verifyOTP(phone: string, otp: string, ip?: string): Promise<AuthResponse> {
+    const user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user) throw new ValidationError('User not found');
+    if (!user.phoneVerificationCode || !user.phoneVerificationExpiry) {
+      throw new ValidationError('No active verification request found');
+    }
+    if (user.phoneVerificationExpiry < new Date()) {
+      throw new ValidationError('Verification code has expired');
+    }
+    if (user.phoneVerificationCode !== otp) {
+      throw new ValidationError('Invalid verification code');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        status: 'ACTIVE',
+        phoneVerificationCode: null,
+        phoneVerificationExpiry: null,
+      },
+    });
+
+    const driverId = await this.resolveDriverId(updated.id);
+    const tokens = await this.generateTokens({ userId: updated.id, role: updated.role, driverId });
+    await this.prisma.user.update({ where: { id: updated.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
+
+    this.logger.info({ userId: updated.id, ip }, 'auth.verify_otp.success');
+    return { user: redactUser(updated), tokens };
+  }
+
+  async forgotPassword(identifier: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email: identifier }, { phone: identifier }] },
+    });
+    if (!user) {
+      this.logger.warn({ identifier }, 'auth.forgot_password.user_not_found');
+      return;
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: otpCode,
+        passwordResetExpiry: expiry,
+      },
+    });
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Reset your Percel Password',
+      text: `Your password reset code is: ${otpCode}. It is valid for 15 minutes.`,
+      html: `<p>Your password reset code is: <strong>${otpCode}</strong>.</p><p>It is valid for 15 minutes.</p>`,
+    });
+
+    this.logger.info({ userId: user.id }, 'auth.forgot_password.sent');
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpiry: { gt: new Date() },
+      },
+    });
+    if (!user) {
+      throw new ValidationError('Invalid or expired reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+      },
+    });
+
+    this.logger.info({ userId: user.id }, 'auth.reset_password.success');
   }
 
   async refreshTokens(refreshToken: string, ip?: string): Promise<AuthTokens> {

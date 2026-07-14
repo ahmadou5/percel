@@ -1,5 +1,5 @@
 import type { Driver } from '@percel/shared';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 
 import { http } from '@/lib/api';
 import type { ApiResponse, AuthResponse, DriverProfile } from '@/lib/types';
@@ -32,24 +32,55 @@ async function fetchAndStoreDriverProfile() {
   return driver;
 }
 
-export function useLogin() {
-  const setSession = useDriverStore((state) => state.setSession);
+async function persistDriverSession(session: AuthResponse) {
+  if (session.tokens && session.user) {
+    const setSession = useDriverStore.getState().setSession;
+    await setSession({ user: session.user, tokens: session.tokens });
+    await fetchAndStoreDriverProfile();
+  }
+}
 
+export function useLogin(
+  options?: UseMutationOptions<ApiResponse<AuthResponse>, Error, { identifier: string; password: string }> & {
+    onRequiresVerification?: (phone: string) => void;
+  }
+) {
+  const { onSuccess, onRequiresVerification, ...mutationOptions } = options ?? {};
   return useMutation({
+    ...mutationOptions,
     mutationFn: async (payload: { identifier: string; password: string }) => {
       const response = await http.post<ApiResponse<AuthResponse>>('/api/v1/auth/login', payload);
-      const session = response.data.data;
-      await setSession(session);
-      const driver = await fetchAndStoreDriverProfile();
-      return { ...session, driver };
+      return response.data;
     },
+    onSuccess: async (data, vars, onMutateResult, ctx) => {
+      const session = data.data;
+      if (session.requiresVerification && session.phone) {
+        onRequiresVerification?.(session.phone);
+        return;
+      }
+      await persistDriverSession(session);
+      await onSuccess?.(data, vars, onMutateResult, ctx);
+    }
   });
 }
 
-export function useRegisterDriver() {
-  const setSession = useDriverStore((state) => state.setSession);
-
+export function useRegisterDriver(
+  options?: UseMutationOptions<ApiResponse<AuthResponse>, Error, {
+    email: string;
+    phone: string;
+    password: string;
+    fullName: string;
+    vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK';
+    vehiclePlate: string;
+    vehicleModel: string;
+    licenseNumber: string;
+  }> & {
+    onRequiresVerification?: (phone: string) => void;
+  }
+) {
+  const { onSuccess, onRequiresVerification, ...mutationOptions } = options ?? {};
   return useMutation({
+    ...mutationOptions,
     mutationFn: async (payload: {
       email: string;
       phone: string;
@@ -61,11 +92,51 @@ export function useRegisterDriver() {
       licenseNumber: string;
     }) => {
       const response = await http.post<ApiResponse<AuthResponse>>('/api/v1/auth/register/driver', payload);
-      const session = response.data.data;
-      await setSession(session);
-      const driver = await fetchAndStoreDriverProfile();
-      return { ...session, driver };
+      return response.data;
     },
+    onSuccess: async (data, vars, onMutateResult, ctx) => {
+      const session = data.data;
+      if (session.requiresVerification && session.phone) {
+        onRequiresVerification?.(session.phone);
+        return;
+      }
+      await persistDriverSession(session);
+      await onSuccess?.(data, vars, onMutateResult, ctx);
+    }
+  });
+}
+
+export function useVerifyOTP(
+  options?: UseMutationOptions<ApiResponse<AuthResponse>, Error, { phone: string; otp: string }> & {
+    onVerified?: () => void;
+  }
+) {
+  const { onSuccess, onVerified, ...mutationOptions } = options ?? {};
+  return useMutation({
+    ...mutationOptions,
+    mutationFn: async (payload: { phone: string; otp: string }) => {
+      const response = await http.post<ApiResponse<AuthResponse>>('/api/v1/auth/verify-otp', payload);
+      return response.data;
+    },
+    onSuccess: async (data, vars, onMutateResult, ctx) => {
+      await persistDriverSession(data.data);
+      onVerified?.();
+      await onSuccess?.(data, vars, onMutateResult, ctx);
+    }
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (identifier: string) =>
+      http.post<ApiResponse<{ accepted: boolean }>>('/api/v1/auth/forgot-password', { identifier }),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (payload: { token: string; newPassword: string }) =>
+      http.post<ApiResponse<{ accepted: boolean }>>('/api/v1/auth/reset-password', payload),
   });
 }
 

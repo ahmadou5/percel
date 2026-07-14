@@ -29,8 +29,11 @@ export type AuthTokens = {
 };
 
 export type AuthResponse = {
-  user: AuthSessionUser;
-  tokens: AuthTokens;
+  user?: AuthSessionUser;
+  tokens?: AuthTokens;
+  requiresVerification?: boolean;
+  phone?: string;
+  message?: string;
 };
 
 export type DriverOrderStatus =

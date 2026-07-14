@@ -95,6 +95,11 @@ export const ResetPasswordBody = Type.Object({
   newPassword: Type.String({ minLength: 8 }),
 });
 
+export const VerifyOTPBody = Type.Object({
+  phone: Type.String(),
+  otp: Type.String({ minLength: 6, maxLength: 6 }),
+});
+
 
 export const PushTokenSchema = z.object({
   token: z.string().min(1),

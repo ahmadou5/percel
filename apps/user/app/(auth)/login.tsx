@@ -26,6 +26,12 @@ export default function LoginScreen() {
 
   const login = useLogin({
     onSuccess: () => router.replace('/'),
+    onRequiresVerification: (phone) => {
+      router.replace({
+        pathname: '/(auth)/register',
+        params: { phone, step: '7' }
+      });
+    },
     onError: () => setError('Invalid phone number/email or password.'),
   });
 

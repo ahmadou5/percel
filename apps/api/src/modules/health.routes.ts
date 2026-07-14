@@ -42,6 +42,23 @@ const healthRoutes: FastifyPluginAsync = async (app) => {
       'API is healthy',
     );
   });
+
+  app.get('/health/config', async () => {
+    const config = await app.prisma.appConfig.findUnique({
+      where: { key: 'maintenance' },
+    });
+
+    let maintenance = { enabled: false, message: '', estimatedMinutes: null };
+    if (config) {
+      try {
+        maintenance = JSON.parse(config.value);
+      } catch (err) {
+        app.log.error(err, 'Failed to parse maintenance configuration');
+      }
+    }
+
+    return success({ maintenance }, 'App config fetched');
+  });
 };
 
 export default healthRoutes;

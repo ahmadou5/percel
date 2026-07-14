@@ -372,6 +372,8 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
               status: WalletTransactionStatus.COMPLETED,
               reference: `REF-${order.trackingCode}`,
               description: `Refund for cancelled order ${order.trackingCode}`,
+              balanceBefore: wallet.balance,
+              balanceAfter: wallet.balance.add(order.price),
             },
           });
         }
@@ -427,6 +429,8 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
             status: WalletTransactionStatus.COMPLETED,
             reference: `REF-${order.trackingCode}`,
             description: `Refund for order ${order.trackingCode}`,
+            balanceBefore: wallet.balance,
+            balanceAfter: wallet.balance.add(order.price),
           },
         });
       }
@@ -491,6 +495,53 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
     app.log.info({ audience, recipients: recipients.length, sent, failed }, 'admin.broadcast.sent');
     return success({ sent, failed, total: recipients.length }, 'Broadcast sent');
+  });
+
+  app.post('/admin/config/maintenance', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['enabled'],
+        properties: {
+          enabled: { type: 'boolean' },
+          message: { type: 'string' },
+          estimatedMinutes: { type: 'number' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { enabled, message = '', estimatedMinutes = null } = request.body as {
+      enabled: boolean;
+      message?: string;
+      estimatedMinutes?: number | null;
+    };
+
+    const configValue = JSON.stringify({ enabled, message, estimatedMinutes });
+
+    await app.prisma.appConfig.upsert({
+      where: { key: 'maintenance' },
+      update: { value: configValue },
+      create: { key: 'maintenance', value: configValue },
+    });
+
+    return success({ success: true }, 'Maintenance mode updated');
+  });
+
+  app.get('/admin/config/maintenance', async () => {
+    const config = await app.prisma.appConfig.findUnique({
+      where: { key: 'maintenance' },
+    });
+
+    let maintenance = { enabled: false, message: '', estimatedMinutes: null };
+    if (config) {
+      try {
+        maintenance = JSON.parse(config.value);
+      } catch (err) {
+        app.log.error(err, 'Failed to parse maintenance configuration');
+      }
+    }
+
+    return success(maintenance, 'Maintenance mode config retrieved');
   });
 };
 

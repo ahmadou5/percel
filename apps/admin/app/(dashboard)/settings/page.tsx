@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { PaymentProviderSettings } from '@/components/payment-provider-settings';
 import { ThemeCustomizer } from '@/components/theme-customizer';
 import { AdminProfileEditor } from '@/components/admin-profile-editor';
-import { Palette, UserCircle2 } from 'lucide-react';
+import { MaintenanceModeControl } from '@/components/maintenance-mode-control';
+import { AlertTriangle, Palette, UserCircle2 } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -45,6 +46,20 @@ export default function SettingsPage() {
 
       {/* Payment routing */}
       <PaymentProviderSettings />
+
+      {/* Platform Operations / Maintenance Mode */}
+      <Card className="p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-2 border-b border-border">
+          <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle size={16} className="text-destructive" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold tracking-tight">Platform Operations</h3>
+            <p className="text-xs text-muted-foreground">Control maintenance mode and broadcast system-wide messages to all users and drivers.</p>
+          </div>
+        </div>
+        <MaintenanceModeControl />
+      </Card>
 
       {/* Misc cards */}
       <section className="grid gap-4 md:grid-cols-2">

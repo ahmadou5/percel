@@ -1,19 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { AuthButton, AuthInput, CountryPill, ErrorBanner, KeyboardView, useAuthPalette } from '@/components/auth/AuthControls';
-import { useRegisterDriver } from '@/hooks/useAuth';
+import { useRegisterDriver, useVerifyOTP } from '@/hooks/useAuth';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 const vehicleTypes = ['BIKE', 'CAR', 'VAN', 'TRUCK'] as const;
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type VehicleType = (typeof vehicleTypes)[number];
 
 function normalizePhone(value: string) {
@@ -26,7 +26,9 @@ function normalizePhone(value: string) {
 
 export default function DriverRegisterScreen() {
   const { palette, light } = useAuthPalette();
-  const [step, setStep] = useState<Step>(1);
+  const params = useLocalSearchParams<{ phone?: string; step?: string }>();
+  const initialStep = params.step ? parseInt(params.step, 10) as Step : 1;
+  const [step, setStep] = useState<Step>(initialStep);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,7 +39,29 @@ export default function DriverRegisterScreen() {
   const [licenseNumber, setLicenseNumber] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const register = useRegisterDriver();
+
+  const [otp, setOtp] = useState('');
+  const [pendingPhone, setPendingPhone] = useState(params.phone ?? '');
+
+  const verifyOTP = useVerifyOTP({
+    onVerified: () => {
+      router.replace('/(kyc)');
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Invalid or expired code.');
+    },
+  });
+
+  const register = useRegisterDriver({
+    onRequiresVerification: (phone) => {
+      setPendingPhone(phone);
+      setStep(6);
+    },
+    onError: (err) => {
+      const serverMessage = err instanceof Error ? err.message : 'Unable to create a driver account.';
+      setError(serverMessage);
+    },
+  });
 
   const phoneValue = useMemo(() => normalizePhone(phone), [phone]);
   const stepValid = useMemo(() => {
@@ -52,16 +76,19 @@ export default function DriverRegisterScreen() {
         return Boolean(vehicleType) && vehiclePlate.trim().length >= 5 && vehicleModel.trim().length >= 2;
       case 5:
         return licenseNumber.trim().length >= 4;
+      case 6:
+        return otp.trim().length === 6;
       default:
         return false;
     }
-  }, [acceptedTerms, email, fullName, licenseNumber, password, phoneValue, step, vehicleModel, vehiclePlate, vehicleType]);
+  }, [acceptedTerms, email, fullName, licenseNumber, password, phoneValue, step, vehicleModel, vehiclePlate, vehicleType, otp]);
 
   const next = () => {
     if (stepValid && step < 5) setStep((current) => (current + 1) as Step);
   };
 
   const back = () => {
+    if (step === 6) return; // can't go back from OTP step
     if (step > 1) {
       setStep((current) => (current - 1) as Step);
       return;
@@ -72,22 +99,22 @@ export default function DriverRegisterScreen() {
   const submit = async () => {
     if (!stepValid || register.isPending) return;
     setError(null);
-    try {
-      await register.mutateAsync({
-        fullName: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        phone: `+234${phoneValue}`,
-        password,
-        vehicleType,
-        vehiclePlate: vehiclePlate.trim().toUpperCase(),
-        vehicleModel: vehicleModel.trim(),
-        licenseNumber: licenseNumber.trim().toUpperCase(),
-      });
-      router.replace('/(kyc)');
-    } catch (err: any) {
-      const serverMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.message;
-      setError(serverMessage || err.message || 'Unable to create a driver account.');
-    }
+    register.mutate({
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: `+234${phoneValue}`,
+      password,
+      vehicleType,
+      vehiclePlate: vehiclePlate.trim().toUpperCase(),
+      vehicleModel: vehicleModel.trim(),
+      licenseNumber: licenseNumber.trim().toUpperCase(),
+    });
+  };
+
+  const handleVerifyOTP = () => {
+    if (otp.trim().length < 6 || verifyOTP.isPending) return;
+    setError(null);
+    verifyOTP.mutate({ phone: pendingPhone, otp: otp.trim() });
   };
 
   return (
@@ -102,7 +129,7 @@ export default function DriverRegisterScreen() {
           </Pressable>
 
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${(step / 5) * 100}%`, backgroundColor: palette.primary }]} />
+            <View style={[styles.progressFill, { width: `${(Math.min(step, 5) / 5) * 100}%`, backgroundColor: palette.primary }]} />
           </View>
 
           <Pressable accessibilityRole="button" onPress={() => router.replace('/(auth)/login')} style={[styles.topLink, { borderColor: palette.border, backgroundColor: palette.card }]}>
@@ -252,6 +279,31 @@ export default function DriverRegisterScreen() {
                 />
 
                 <AuthButton title={register.isPending ? 'Creating account...' : 'Create driver account'} loading={register.isPending} disabled={!stepValid || register.isPending} onPress={submit} />
+              </Animated.View>
+            ) : null}
+
+            {step === 6 ? (
+              <Animated.View key="step-6" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
+                <Text style={[styles.heading, { color: palette.text }]}>VERIFY YOUR PHONE</Text>
+                <Text style={[styles.subheading, { color: palette.textSecondary }]}>
+                  We sent a 6-digit verification code to{' '}
+                  <Text style={{ fontWeight: '600', color: palette.primary }}>
+                    {pendingPhone}
+                  </Text>
+                  . Enter it below to activate your driver account.
+                </Text>
+
+                <AuthInput
+                  label="Verification Code"
+                  placeholder="Enter 6-digit code"
+                  keyboardType="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChangeText={setOtp}
+                  autoFocus
+                />
+
+                <AuthButton title={verifyOTP.isPending ? 'Verifying...' : 'Verify Phone'} loading={verifyOTP.isPending} disabled={otp.trim().length < 6 || verifyOTP.isPending} onPress={handleVerifyOTP} />
               </Animated.View>
             ) : null}
           </Animated.View>

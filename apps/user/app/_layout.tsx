@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
 import { UserRuntime } from "@/components/UserRuntime";
+import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
 import { useAppPalette, buildNavigationTheme } from "@/lib/theme";
 import { initSentry } from "@/lib/sentry";
 import { useAuthStore } from "@/store/auth.store";
@@ -26,6 +27,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -95,6 +98,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={buildNavigationTheme(palette)}>
+      <MaintenanceOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

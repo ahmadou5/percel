@@ -34,13 +34,26 @@ export class AuthController {
     return success({ loggedOut: true }, 'Logout successful');
   };
 
-  forgotPassword = async () =>
-    success(
+  forgotPassword = async (request: FastifyRequest) => {
+    const { identifier } = request.body as { identifier: string };
+    await this.service.forgotPassword(identifier);
+    return success(
       { accepted: true },
       'If the account exists, password reset instructions have been sent.',
     );
+  };
 
-  resetPassword = async () => success({ accepted: true }, 'Password reset request accepted.');
+  resetPassword = async (request: FastifyRequest) => {
+    const { token, newPassword } = request.body as { token: string; newPassword: string };
+    await this.service.resetPassword(token, newPassword);
+    return success({ accepted: true }, 'Password reset request accepted.');
+  };
+
+  verifyOTP = async (request: FastifyRequest) => {
+    const { phone, otp } = request.body as { phone: string; otp: string };
+    const result = await this.service.verifyOTP(phone, otp, request.ip);
+    return success(result, 'Phone verified successfully');
+  };
 
   registerPushToken = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');

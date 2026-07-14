@@ -24,7 +24,7 @@ export function AdminProfileEditor() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
-  const savedTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const savedTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     fetch('/api/admin/profile')

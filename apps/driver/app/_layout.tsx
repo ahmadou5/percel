@@ -10,6 +10,7 @@ import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { DriverRuntime } from '@/components/DriverRuntime';
+import { MaintenanceOverlay } from '@/components/MaintenanceOverlay';
 import { Sentry, initSentry, isSentryInitialized } from '@/lib/sentry';
 import { useDriverStore } from '@/store/driver.store';
 import { usePreferencesStore } from '@/store/preferences.store';
@@ -91,6 +92,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={buildNavigationTheme(palette)}>
+      <MaintenanceOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(kyc)" />
