@@ -163,6 +163,10 @@ function BankLogo({
   const [logoFailed, setLogoFailed] = useState(false);
   const url = getBankLogoUrl(bankCode || undefined, name, slug);
 
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [url]);
+
   if (url && !logoFailed) {
     return (
       <View

@@ -66,7 +66,7 @@ function LoginForm() {
               spellCheck={false}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@percel.app"
+              placeholder="Enter Email"
             />
           </div>
 
@@ -79,7 +79,7 @@ function LoginForm() {
               spellCheck={false}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
+              placeholder="Enter Password"
             />
           </div>
 
@@ -95,7 +95,7 @@ function LoginForm() {
         </form>
 
         <p className="mt-6 text-xs leading-5 text-muted-foreground">
-          This login is wired to a local httpOnly session cookie and proxies to the Percel API auth endpoint.
+
         </p>
       </Card>
     </main>

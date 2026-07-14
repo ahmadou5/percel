@@ -65,6 +65,9 @@ function BankAvatar({ name, size = 38 }: { name: string; size?: number }) {
 function BankLogo({ name, slug, size = 38 }: { name: string; slug?: string | null; size?: number }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const url = getBankLogoUrl(undefined, name, slug);
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [url]);
   if (url && !logoFailed) {
     return (
       <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>

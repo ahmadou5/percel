@@ -1,6 +1,9 @@
+import dns from 'node:dns';
 import { NextResponse } from 'next/server';
 
 import { SESSION_COOKIE, SESSION_USER_COOKIE } from '@/lib/session';
+
+dns.setDefaultResultOrder('ipv4first');
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { email?: string; password?: string } | null;

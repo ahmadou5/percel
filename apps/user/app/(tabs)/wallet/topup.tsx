@@ -164,7 +164,7 @@ export default function TopUpScreen() {
   };
 
   const headerSubtitle = isBankView
-    ? "Use the NUBAN details below for direct bank transfers."
+    ? "Use the bank account details below for direct bank transfers."
     : "Use Paystack for card or browser-based payment.";
 
   return (
@@ -182,24 +182,24 @@ export default function TopUpScreen() {
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{headerSubtitle}</Text>
       </View>
 
-      <View style={[styles.toggleRow, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <Pressable onPressIn={() => void haptics.tap()} onPress={() => setActiveMethod("bank")} style={[styles.toggleButton, { backgroundColor: isBankView ? palette.primary : "transparent" }]}> 
+      <View style={[styles.toggleRow, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable onPressIn={() => void haptics.tap()} onPress={() => setActiveMethod("bank")} style={[styles.toggleButton, { backgroundColor: isBankView ? palette.primary : "transparent" }]}>
           <Text style={[styles.toggleText, { color: isBankView ? palette.card : palette.text }]}>Bank</Text>
         </Pressable>
-        <Pressable onPressIn={() => void haptics.tap()} onPress={() => setActiveMethod("paystack")} style={[styles.toggleButton, { backgroundColor: !isBankView ? palette.primary : "transparent" }]}> 
+        <Pressable onPressIn={() => void haptics.tap()} onPress={() => setActiveMethod("paystack")} style={[styles.toggleButton, { backgroundColor: !isBankView ? palette.primary : "transparent" }]}>
           <Text style={[styles.toggleText, { color: !isBankView ? palette.card : palette.text }]}>Paystack</Text>
         </Pressable>
       </View>
 
       {isBankView ? (
         <>
-          <View style={[styles.depositHero, { backgroundColor: palette.primaryDark }]}> 
+          <View style={[styles.depositHero, { backgroundColor: palette.primaryDark }]}>
             <View style={styles.heroTop}>
               <View>
                 <Text style={styles.heroLabel}>Account name</Text>
                 <Text style={styles.heroValue}>{user?.fullName ?? "Percel User"}</Text>
               </View>
-              <View style={[styles.heroIcon, { backgroundColor: "rgba(255,255,255,0.14)" }]}> 
+              <View style={[styles.heroIcon, { backgroundColor: "rgba(255,255,255,0.14)" }]}>
                 <Landmark size={20} color="#fff" />
               </View>
             </View>
@@ -225,7 +225,7 @@ export default function TopUpScreen() {
               onActionPress={() => void walletQuery.refetch()}
             />
           ) : (
-            <View style={[styles.accountCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+            <View style={[styles.accountCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.accountRow}>
                 {wallet?.bankName ? (
                   <View
@@ -246,7 +246,7 @@ export default function TopUpScreen() {
                     />
                   </View>
                 ) : (
-                  <View style={[styles.accountIcon, { backgroundColor: palette.primary }]}> 
+                  <View style={[styles.accountIcon, { backgroundColor: palette.primary }]}>
                     <CreditCard size={20} color={palette.card} />
                   </View>
                 )}
@@ -254,7 +254,7 @@ export default function TopUpScreen() {
                   <Text style={[styles.accountLabel, { color: palette.textSecondary }]}>Bank name</Text>
                   <Text style={[styles.accountValue, { color: palette.text }]}>{wallet?.bankName ?? "Generating account…"}</Text>
                 </View>
-                <Pressable onPressIn={() => void haptics.tap()} onPress={() => void copyText(wallet?.bankName ?? "", "Bank name")} style={[styles.copyButton, { backgroundColor: palette.bg, borderColor: palette.border }]}> 
+                <Pressable onPressIn={() => void haptics.tap()} onPress={() => void copyText(wallet?.bankName ?? "", "Bank name")} style={[styles.copyButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
                   <Copy size={14} color={palette.text} />
                 </Pressable>
               </View>
@@ -262,7 +262,7 @@ export default function TopUpScreen() {
               <View style={[styles.divider, { backgroundColor: palette.border }]} />
 
               <Pressable onPressIn={() => void haptics.tap()} onPress={() => void copyText(wallet?.nuban ?? "", "Account number")} style={styles.accountRow}>
-                <View style={[styles.accountIcon, { backgroundColor: "rgba(10,132,255,0.12)" }]}> 
+                <View style={[styles.accountIcon, { backgroundColor: "rgba(10,132,255,0.12)" }]}>
                   <PlusCircle size={20} color={palette.primary} />
                 </View>
                 <View style={styles.accountCopy}>
@@ -275,7 +275,7 @@ export default function TopUpScreen() {
               <View style={[styles.divider, { backgroundColor: palette.border }]} />
 
               <Pressable onPressIn={() => void haptics.tap()} onPress={() => void copyText(user?.fullName ?? "Percel User", "Account name")} style={styles.accountRow}>
-                <View style={[styles.accountIcon, { backgroundColor: "rgba(48,209,88,0.12)" }]}> 
+                <View style={[styles.accountIcon, { backgroundColor: "rgba(48,209,88,0.12)" }]}>
                   <Landmark size={20} color={palette.success} />
                 </View>
                 <View style={styles.accountCopy}>
@@ -314,7 +314,7 @@ export default function TopUpScreen() {
                 </View>
               </View>
 
-              <View style={[styles.paystackCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+              <View style={[styles.paystackCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
                 <View style={styles.paystackRow}>
                   <View>
                     <Text style={[styles.sectionTitle, { color: palette.text }]}>Paystack checkout</Text>
@@ -335,7 +335,7 @@ export default function TopUpScreen() {
                   <Text style={[styles.summaryValue, { color: palette.text }]}>{formatNaira(amountValue || 0)}</Text>
                 </View>
 
-                <Pressable onPressIn={() => void haptics.press()} onPress={() => setPreviewOpen(true)} disabled={!canSubmit} style={[styles.primary, { backgroundColor: canSubmit ? palette.primary : palette.border }]}> 
+                <Pressable onPressIn={() => void haptics.press()} onPress={() => setPreviewOpen(true)} disabled={!canSubmit} style={[styles.primary, { backgroundColor: canSubmit ? palette.primary : palette.border }]}>
                   <Text style={styles.primaryText}>{mutation.isPending ? 'Preparing checkout…' : 'Continue to Paystack'}</Text>
                 </Pressable>
               </View>
@@ -344,7 +344,7 @@ export default function TopUpScreen() {
         </>
       )}
 
-      <Pressable onPressIn={() => void haptics.tap()} onPress={back} style={[styles.secondary, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+      <Pressable onPressIn={() => void haptics.tap()} onPress={back} style={[styles.secondary, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.secondaryText, { color: palette.text }]}>Cancel</Text>
       </Pressable>
 
