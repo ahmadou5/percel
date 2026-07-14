@@ -97,6 +97,21 @@ const driverRoutes: FastifyPluginAsync = async (app) => {
     const { reason } = request.body as { reason: string };
     return success(await service.rejectKYC(id, reason), 'KYC rejected');
   });
+
+  app.post('/admin/drivers/:id/suspend', { preHandler: [app.authenticateAdmin] }, async (request) => {
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body ?? {}) as { reason?: string };
+    return success(await service.suspendDriver(id, reason || 'Account suspended by administrator.'), 'Driver suspended');
+  });
+
+  app.post('/admin/drivers/:id/reactivate', { preHandler: [app.authenticateAdmin] }, async (request) => {
+    const { id } = request.params as { id: string };
+    await app.prisma.driver.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+    });
+    return success({ reactivated: true }, 'Driver reactivated');
+  });
 };
 
 export default driverRoutes;

@@ -35,8 +35,16 @@ function mapOrder(order: any) {
     trackingCode: order.trackingCode,
     user: order.user?.fullName ?? 'Unknown user',
     userId: order.userId,
+    userEmail: order.user?.email ?? '',
+    userPhone: order.user?.phone ?? '',
+    userAvatarUrl: order.user?.avatarUrl ?? null,
     driver: order.driver?.user?.fullName ?? 'Unassigned',
     driverId: order.driverId ?? '',
+    driverEmail: order.driver?.user?.email ?? '',
+    driverPhone: order.driver?.user?.phone ?? '',
+    driverAvatarUrl: order.driver?.user?.avatarUrl ?? null,
+    driverVehicle: order.driver ? vehicle(order.driver) : '',
+    driverRating: order.driver ? Number(order.driver.rating ?? 0).toFixed(1) : '',
     status: order.status,
     price: money(order.price),
     date: when(order.createdAt),
@@ -63,8 +71,10 @@ function mapUser(user: any) {
     walletBalance: money(user.wallet?.balance ?? 0),
     city: user.address ?? 'Not set',
     avatarInitial: initials(user.fullName),
+    avatarUrl: user.avatarUrl ?? null,
     supportNote: user.status === 'SUSPENDED' ? 'Account is paused pending review.' : 'Account is active.',
     recentOrders: (user.orders ?? []).map(mapOrder),
+    walletTransactions: (user.wallet?.transactions ?? []).map(mapWalletTransaction),
     segments: ['Profile', 'Orders', 'Wallet'],
   };
 }
@@ -79,6 +89,7 @@ function mapDriver(driver: any) {
     vehicle: vehicle(driver),
     email: driver.user?.email ?? 'Not available',
     phone: driver.user?.phone ?? 'Not available',
+    avatarUrl: driver.user?.avatarUrl ?? null,
     kycReason: driver.kyc?.rejectionReason ?? undefined,
     assignedOrders: (driver.orders ?? []).map(mapOrder),
     reviews: (driver.ratings ?? []).map((rating: any) => ({
@@ -128,7 +139,11 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const user = await app.prisma.user.findUnique({
       where: { id },
       include: {
-        wallet: true,
+        wallet: {
+          include: {
+            transactions: { orderBy: { createdAt: 'desc' }, take: 20 }
+          }
+        },
         orders: { orderBy: { createdAt: 'desc' }, take: 10, include: { user: true, driver: { include: { user: true } }, items: true, statusHistory: { orderBy: { createdAt: 'asc' } } } },
         _count: { select: { orders: true } },
       },
@@ -245,6 +260,181 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       ],
     }, 'Admin dashboard fetched');
   });
+
+  app.put('/admin/users/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+
+    const updated = await app.prisma.user.update({
+      where: { id },
+      data: {
+        fullName: body.fullName,
+        email: body.email,
+        phone: body.phone,
+        address: body.address,
+        status: body.status,
+      },
+      include: {
+        wallet: {
+          include: {
+            transactions: { orderBy: { createdAt: 'desc' }, take: 20 }
+          }
+        },
+        orders: { orderBy: { createdAt: 'desc' }, take: 10, include: { user: true, driver: { include: { user: true } }, items: true, statusHistory: { orderBy: { createdAt: 'asc' } } } },
+        _count: { select: { orders: true } },
+      },
+    });
+
+    return success(mapUser(updated), 'User updated successfully');
+  });
+
+  app.post('/admin/users/:id/suspend', async (request) => {
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body ?? {}) as { reason?: string };
+
+    await app.prisma.user.update({
+      where: { id },
+      data: { status: 'SUSPENDED' },
+    });
+
+    await app.prisma.notification.create({
+      data: {
+        userId: id,
+        type: NotificationType.SYSTEM,
+        title: 'Account suspended',
+        body: reason || 'Your account has been suspended by an administrator.',
+        data: { status: 'SUSPENDED', reason: reason || '' },
+      },
+    });
+
+    return success({ suspended: true }, 'User suspended successfully');
+  });
+
+  app.post('/admin/users/:id/reactivate', async (request) => {
+    const { id } = request.params as { id: string };
+
+    await app.prisma.user.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+    });
+
+    await app.prisma.notification.create({
+      data: {
+        userId: id,
+        type: NotificationType.SYSTEM,
+        title: 'Account reactivated',
+        body: 'Your account has been reactivated. You can now use the app.',
+        data: { status: 'ACTIVE' },
+      },
+    });
+
+    return success({ reactivated: true }, 'User reactivated successfully');
+  });
+
+  app.post('/admin/orders/:id/cancel', async (request) => {
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body ?? {}) as { reason?: string };
+
+    const order = await app.prisma.order.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!order) throw new Error('Order not found');
+
+    await app.prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: 'CANCELLED',
+          note: reason || 'Order cancelled by administrator.',
+        },
+      });
+
+      if (order.paymentStatus === 'PAID') {
+        const wallet = await tx.wallet.findUnique({ where: { userId: order.userId } });
+        if (wallet) {
+          await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { balance: { increment: order.price } },
+          });
+
+          await tx.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              type: 'CREDIT',
+              category: WalletTransactionCategory.REFUND,
+              amount: order.price,
+              status: WalletTransactionStatus.COMPLETED,
+              reference: `REF-${order.trackingCode}`,
+              description: `Refund for cancelled order ${order.trackingCode}`,
+            },
+          });
+        }
+      }
+    });
+
+    return success({ cancelled: true }, 'Order cancelled and refunded if paid');
+  });
+
+  app.post('/admin/orders/:id/resolve-dispute', async (request) => {
+    const { id } = request.params as { id: string };
+
+    await app.prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id },
+        data: { status: 'COMPLETED' },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: 'COMPLETED',
+          note: 'Dispute resolved by administrator.',
+        },
+      });
+    });
+
+    return success({ resolved: true }, 'Dispute resolved');
+  });
+
+  app.post('/admin/orders/:id/refund', async (request) => {
+    const { id } = request.params as { id: string };
+
+    const order = await app.prisma.order.findUnique({
+      where: { id },
+    });
+    if (!order) throw new Error('Order not found');
+
+    await app.prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.findUnique({ where: { userId: order.userId } });
+      if (wallet) {
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: { increment: order.price } },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            type: 'CREDIT',
+            category: WalletTransactionCategory.REFUND,
+            amount: order.price,
+            status: WalletTransactionStatus.COMPLETED,
+            reference: `REF-${order.trackingCode}`,
+            description: `Refund for order ${order.trackingCode}`,
+          },
+        });
+      }
+    });
+
+    return success({ refunded: true }, 'Order payment refunded');
+  });
+
   app.post('/admin/broadcast', {
     schema: {
       body: {

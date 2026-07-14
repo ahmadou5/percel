@@ -7,7 +7,7 @@ import type { PrismaClient, User, UserRole } from '@prisma/client';
 import { ForbiddenError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
 import type { AuthResponse, AuthTokens, SafeUser } from './auth.types.js';
 
-const ACCESS_EXPIRES = '15m';
+const ACCESS_EXPIRES = '2h';
 const REFRESH_EXPIRES = '7d';
 
 type JwtSigner = {

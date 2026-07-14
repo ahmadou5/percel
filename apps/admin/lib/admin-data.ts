@@ -21,7 +21,9 @@ export type AdminUser = {
   walletBalance?: string;
   city: string;
   avatarInitial: string;
+  avatarUrl?: string;
   recentOrders?: AdminOrder[];
+  walletTransactions?: AdminWalletTransaction[];
   supportNote?: string;
   segments?: string[];
 };
@@ -35,6 +37,7 @@ export type AdminDriver = {
   vehicle: string;
   email: string;
   phone: string;
+  avatarUrl?: string;
   kycReason?: string;
   assignedOrders?: AdminOrder[];
   reviews?: Array<{ id: string; user: string; rating: string; comment: string }>;
@@ -46,8 +49,16 @@ export type AdminOrder = {
   trackingCode: string;
   user: string;
   userId: string;
+  userEmail?: string;
+  userPhone?: string;
+  userAvatarUrl?: string;
   driver: string;
   driverId: string;
+  driverEmail?: string;
+  driverPhone?: string;
+  driverAvatarUrl?: string;
+  driverVehicle?: string;
+  driverRating?: string;
   status: string;
   price: string;
   date: string;
