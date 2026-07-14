@@ -12,6 +12,7 @@ import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateProfile, useVerifyBvn } from '@/hooks/useProfile';
 import { useBanks } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
+import { getBankLogoUrl } from '@percel/shared';
 
 function isValidDateInput(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
@@ -63,7 +64,7 @@ function BankAvatar({ name, size = 38 }: { name: string; size?: number }) {
 
 function BankLogo({ name, slug, size = 38 }: { name: string; slug?: string | null; size?: number }) {
   const [logoFailed, setLogoFailed] = useState(false);
-  const url = slug ? `https://nigerianbanks.xyz/logo/${slug}.png` : null;
+  const url = getBankLogoUrl(undefined, name, slug);
   if (url && !logoFailed) {
     return (
       <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>

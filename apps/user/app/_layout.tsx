@@ -13,7 +13,8 @@ import "react-native-reanimated";
 
 import { UserRuntime } from "@/components/UserRuntime";
 import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
-import { useAppPalette, buildNavigationTheme } from "@/lib/theme";
+import { useAppPalette, buildNavigationTheme, isLight } from "@/lib/theme";
+import { StatusBar } from "expo-status-bar";
 import { initSentry } from "@/lib/sentry";
 import { useAuthStore } from "@/store/auth.store";
 import { usePreferencesStore } from "@/store/preferences.store";
@@ -81,6 +82,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
+        <StatusBar style={isLight(palette.bg) ? "dark" : "light"} />
         <UserRuntime />
         <RootLayoutNav />
       </QueryClientProvider>

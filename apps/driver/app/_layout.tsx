@@ -14,7 +14,8 @@ import { MaintenanceOverlay } from '@/components/MaintenanceOverlay';
 import { Sentry, initSentry, isSentryInitialized } from '@/lib/sentry';
 import { useDriverStore } from '@/store/driver.store';
 import { usePreferencesStore } from '@/store/preferences.store';
-import { useAppPalette, buildNavigationTheme } from '@/lib/theme';
+import { useAppPalette, buildNavigationTheme, isLight } from '@/lib/theme';
+import { StatusBar } from 'expo-status-bar';
 
 export { ErrorBoundary } from '@/components/AppErrorBoundary';
 
@@ -72,6 +73,7 @@ function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <StatusBar style={isLight(palette.bg) ? 'dark' : 'light'} />
       <DriverRuntime />
       <RootLayoutNav />
     </QueryClientProvider>

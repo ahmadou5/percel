@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Landmark,
   CreditCard,
   Search,
   SearchCheck,
@@ -18,7 +19,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   FlatList,
   Image,
   Modal,
@@ -42,9 +42,9 @@ import {
 } from "@/components/wallet/WalletFlow";
 import {
   FlowProgressDots,
-  useSlideStepTransition,
   useStepBackHandler,
 } from "@/components/wallet/WalletFlowProgress";
+
 import { useAppPalette } from "@/lib/theme";
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
@@ -152,14 +152,16 @@ function BankAvatar({ name, size = 40 }: { name: string; size?: number }) {
 function BankLogo({
   name,
   bankCode,
+  slug,
   size = 40,
 }: {
   name: string;
   bankCode?: string | null;
+  slug?: string | null;
   size?: number;
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
-  const url = getBankLogoUrl(bankCode || undefined, name);
+  const url = getBankLogoUrl(bankCode || undefined, name, slug);
 
   if (url && !logoFailed) {
     return (
@@ -298,7 +300,7 @@ export default function TransferScreen() {
   const submissionAttemptRef = useRef(false);
   const accountDigits = accountNumber.replace(/\D/g, "");
   const bankLookup = useAccountLookup(accountDigits, bankCode);
-  const { translateX } = useSlideStepTransition(step);
+
   const back = useSafeBack("/wallet");
   useStepBackHandler(step, () => {
     if (step > 1) {
@@ -325,8 +327,8 @@ export default function TransferScreen() {
 
   const bankValidation: BankValidation | null =
     bankLookup.data &&
-    bankLookup.data.bankCode === bankCode &&
-    bankLookup.data.accountNumber === accountDigits
+      bankLookup.data.bankCode === bankCode &&
+      bankLookup.data.accountNumber === accountDigits
       ? bankLookup.data
       : null;
   const recipientReady =
@@ -668,8 +670,8 @@ export default function TransferScreen() {
   const reviewRecipientPhone =
     mode === "PHONE"
       ? formatNigerianPhoneDisplay(
-          recipientValidation?.phone ?? normalizedPhone,
-        )
+        recipientValidation?.phone ?? normalizedPhone,
+      )
       : accountDigits || "Account pending";
 
   return (
@@ -766,7 +768,7 @@ export default function TransferScreen() {
           })}
         </View>
 
-        <Animated.View style={{ transform: [{ translateX }] }}>
+        <View>
           {step === 1 ? (
             mode === "BANK" ? (
               <View
@@ -788,7 +790,7 @@ export default function TransferScreen() {
                       },
                     ]}
                   >
-                    <CreditCard size={16} color={palette.primary} />
+                    <Landmark size={16} color={palette.primary} />
                   </View>
                   <View style={styles.sectionCopy}>
                     <Text
@@ -796,15 +798,7 @@ export default function TransferScreen() {
                     >
                       Bank lookup
                     </Text>
-                    <Text
-                      style={[
-                        styles.sectionSubtitle,
-                        { color: palette.textSecondary },
-                      ]}
-                    >
-                      Choose a bank and enter the account number. The lookup
-                      runs automatically after a short pause.
-                    </Text>
+
                   </View>
                 </View>
 
@@ -927,16 +921,9 @@ export default function TransferScreen() {
                     },
                   ]}
                 >
-                  <BankLogo name={selectedBank.name} bankCode={selectedBank.code} size={40} />
+                  <BankLogo name={selectedBank.name} bankCode={selectedBank.code} slug={selectedBank.slug} size={40} />
                   <View style={[styles.selectCopy, { marginLeft: 12 }]}>
-                    <Text
-                      style={[
-                        styles.selectLabel,
-                        { color: palette.textSecondary },
-                      ]}
-                    >
-                      Bank
-                    </Text>
+
                     <Text style={[styles.selectValue, { color: palette.text }]}>
                       {selectedBank.name}
                     </Text>
@@ -953,11 +940,11 @@ export default function TransferScreen() {
                     setPinError("");
                   }}
                   keyboardType="number-pad"
-                  placeholder="0123456789"
+                  placeholder="Enter Account Number"
                   leftElement={
-                    <CreditCard size={16} color={palette.textSecondary} />
+                    <Landmark size={16} color={palette.textSecondary} />
                   }
-                  helperText="The next step unlocks when the account resolves successfully."
+                  helperText=""
                 />
 
                 {!wallet?.kycComplete ? null : bankLookup.isFetching ? (
@@ -1164,15 +1151,7 @@ export default function TransferScreen() {
                     >
                       Recipient lookup
                     </Text>
-                    <Text
-                      style={[
-                        styles.sectionSubtitle,
-                        { color: palette.textSecondary },
-                      ]}
-                    >
-                      Enter the Percel phone number and we will resolve the
-                      recipient automatically.
-                    </Text>
+
                   </View>
                 </View>
 
@@ -1254,11 +1233,11 @@ export default function TransferScreen() {
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
-                  placeholder="+2348012345678"
+                  placeholder="Enter Percel Phone number"
                   leftElement={
                     <Smartphone size={16} color={palette.textSecondary} />
                   }
-                  helperText=".."
+                  helperText=""
                 />
 
                 {recipientStatus === "loading" ? (
@@ -1595,6 +1574,7 @@ export default function TransferScreen() {
                     <BankLogo
                       name={bankValidation?.bankName ?? selectedBank.name}
                       bankCode={bankCode || selectedBank.code}
+                      slug={selectedBank?.slug}
                       size={52}
                     />
                   ) : (
@@ -1688,7 +1668,7 @@ export default function TransferScreen() {
               </Pressable>
             </View>
           ) : null}
-        </Animated.View>
+        </View>
 
         <Modal
           visible={bankPickerOpen}
@@ -1797,7 +1777,7 @@ export default function TransferScreen() {
                         },
                       ]}
                     >
-                      <BankLogo name={item.name} bankCode={item.code} size={40} />
+                      <BankLogo name={item.name} bankCode={item.code} slug={item.slug} size={40} />
                       <View style={[styles.bankRowCopy, { marginLeft: 12 }]}>
                         <Text
                           style={[styles.bankRowName, { color: palette.text }]}
@@ -2063,8 +2043,8 @@ export default function TransferScreen() {
                     {transferReceipt.mode === "BANK"
                       ? `${transferReceipt.bankName ?? "Bank transfer"} • ${transferReceipt.accountNumber ?? ""}`
                       : formatNigerianPhoneDisplay(
-                          transferReceipt.recipientPhone ?? "",
-                        )}
+                        transferReceipt.recipientPhone ?? "",
+                      )}
                   </Text>
                 </View>
               ) : null}
@@ -2296,6 +2276,7 @@ const styles = StyleSheet.create({
   heroLabel: {
     color: "rgba(255,255,255,0.68)",
     fontSize: Typography.xs,
+    fontFamily: Typography.family.regular,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
@@ -2316,6 +2297,7 @@ const styles = StyleSheet.create({
   heroBody: {
     color: "rgba(255,255,255,0.82)",
     fontSize: Typography.sm,
+    fontFamily: Typography.family.medium,
     lineHeight: 20,
   },
   modeRow: { flexDirection: "row", gap: 10 },
@@ -2327,7 +2309,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   modeLabel: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  modeMeta: { fontSize: Typography.xs, lineHeight: 16 },
+  modeMeta: { fontSize: Typography.xs, lineHeight: 13, fontFamily: Typography.family.regular, },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
   sectionHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   stepPill: {
@@ -2339,8 +2321,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sectionCopy: { flex: 1, gap: 3 },
-  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17 },
+  sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 15, fontFamily: Typography.family.bold, },
   selectRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2425,7 +2407,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  reviewAvatarImage: { width: "100%", height: "100%" },
+  reviewAvatarImage: { width: 60, height: 60 },
   reviewAvatarText: {
     color: "#fff",
     fontSize: Typography.md,

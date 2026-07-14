@@ -101,9 +101,9 @@ export default function AirtimeScreen() {
           : resolved.includes('glo')
             ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
             : services.find((service) => {
-                const haystack = `${service.serviceID} ${service.name}`.toLowerCase();
-                return haystack.includes('9mobile') || haystack.includes('etisalat') || haystack.includes('t2');
-              });
+              const haystack = `${service.serviceID} ${service.name}`.toLowerCase();
+              return haystack.includes('9mobile') || haystack.includes('etisalat') || haystack.includes('t2');
+            });
       if (match) setSelectedServiceID(match.serviceID);
 
       if (result.confidence === 'low') {
@@ -228,7 +228,7 @@ export default function AirtimeScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Airtime</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Resolve the network first, then choose the amount, then review.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Choose amount.</Text>
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
