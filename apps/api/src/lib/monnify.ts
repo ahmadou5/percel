@@ -218,6 +218,9 @@ export async function initiateMonnifyTransfer(data: {
 
 export function verifyMonnifyWebhookSignature(payload: Record<string, unknown>, signature?: string) {
   if (!env.MONNIFY_WEBHOOK_SECRET) throw new PaymentError('MONNIFY_WEBHOOK_SECRET is not configured');
-  const hash = crypto.createHash('sha512').update(JSON.stringify(payload) + env.MONNIFY_WEBHOOK_SECRET).digest('hex');
+  const hash = crypto
+    .createHmac('sha512', env.MONNIFY_WEBHOOK_SECRET)
+    .update(JSON.stringify(payload))
+    .digest('hex');
   return Boolean(signature && hash === signature);
 }
