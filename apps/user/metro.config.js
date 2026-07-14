@@ -6,8 +6,11 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// Watch the monorepo packages folder so Metro can resolve workspace packages
-config.watchFolders = [workspaceRoot];
+// Only watch the shared package source — NOT the entire workspace root
+// Watching workspaceRoot causes ENOSPC (too many inotify watchers) on Linux
+config.watchFolders = [
+  path.resolve(workspaceRoot, 'packages/shared/src'),
+];
 
 // Tell Metro where to find modules — project node_modules first, then workspace root
 config.resolver.nodeModulesPaths = [
