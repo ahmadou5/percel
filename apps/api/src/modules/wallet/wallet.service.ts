@@ -612,12 +612,16 @@ export class WalletService {
     const eventType = String(payload.eventType ?? payload.event ?? '');
     const data = (payload.eventData ?? payload.data ?? payload) as Record<string, unknown>;
     const reference = String(data.paymentReference ?? data.transactionReference ?? data.reference ?? '');
-    const accountNumber = String(data.accountNumber ?? data.destinationAccountNumber ?? '');
+    // destinationAccountNumber = the reserved NUBAN the customer paid into
+    const accountNumber = String(data.destinationAccountNumber ?? '');
     const amount = Number(data.amountPaid ?? data.settlementAmount ?? data.amount ?? 0);
     const status = String(data.paymentStatus ?? data.status ?? '').toUpperCase();
+    // product.reference = the accountReference we set when creating the reserved account ("PERCEL_<userId>")
+    const product = data.product as Record<string, unknown> | undefined;
+    const customerIdentifier = String(product?.reference ?? data.accountReference ?? '');
 
     if ((eventType.includes('SUCCESS') || status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL') && reference && amount > 0) {
-      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber });
+      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber, customerIdentifier });
     }
     return { acknowledged: true };
   }
