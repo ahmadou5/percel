@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useState } from 'react';
 
 import { Colors } from '@/constants/palette';
@@ -6,6 +6,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { formatNaira, safeBalance, type WalletDetails } from '@/lib/wallet';
 import { Button } from '@/components/ui/Button';
+import { getBankLogoUrl } from '@percel/shared';
 
 type Props = {
   wallet: WalletDetails;
@@ -41,7 +42,16 @@ export function BalanceCard({ wallet, userName, onTopUp, onTransfer, onRefresh, 
         </View>
         <View style={styles.metaItem}>
           <Text style={styles.metaLabel}>Bank</Text>
-          <Text style={styles.metaValue}>{wallet.bankName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {wallet.bankName ? (
+              <Image
+                source={{ uri: getBankLogoUrl(wallet.bankCode || undefined, wallet.bankName) }}
+                style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.9)' }}
+                resizeMode="contain"
+              />
+            ) : null}
+            <Text style={styles.metaValue} numberOfLines={1}>{wallet.bankName}</Text>
+          </View>
         </View>
       </View>
 

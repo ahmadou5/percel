@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Image } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { BadgeCheck, Bell, Building2, CreditCard, HandCoins, Landmark, Phone, Shield, Trash2, Tv2, Users, ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useAppPalette, isLight } from '@/lib/theme';
 import { useBeneficiaryStore, type Beneficiary } from '@/store/beneficiary.store';
 import { haptics } from '@/utils/haptics';
+import { getBankLogoUrl } from '@percel/shared';
 
 const SLUGS = {
   kyc: { title: 'KYC', description: 'Verify your identity so your account stays compliant and ready for higher limits.', Icon: BadgeCheck },
@@ -112,9 +113,15 @@ function BeneficiariesScreen() {
               <View style={[styles.bAvatar, { backgroundColor: lightBg ? 'rgba(10,132,255,0.08)' : 'rgba(10,132,255,0.14)' }]}>
                 {activeTab === 'TV'
                   ? <Tv2 size={18} color={palette.primary} />
-                  : activeTab === 'Bank'
-                    ? <Building2 size={18} color={palette.primary} />
-                    : <Text style={[styles.bAvatarText, { color: palette.primary }]}>{b.name.slice(0, 2).toUpperCase()}</Text>}
+                  : activeTab === 'Bank' && b.bankName
+                    ? <Image
+                        source={{ uri: getBankLogoUrl(b.bankCode || undefined, b.bankName) }}
+                        style={{ width: 28, height: 28 }}
+                        resizeMode="contain"
+                      />
+                    : activeTab === 'Bank'
+                      ? <Building2 size={18} color={palette.primary} />
+                      : <Text style={[styles.bAvatarText, { color: palette.primary }]}>{b.name.slice(0, 2).toUpperCase()}</Text>}
               </View>
 
               <View style={styles.bRowInfo}>

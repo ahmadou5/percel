@@ -62,6 +62,7 @@ import { formatNaira } from "@/lib/wallet";
 import { usePreferencesStore } from "@/store/preferences.store";
 import { haptics } from "@/utils/haptics";
 import { useBeneficiaryStore } from "@/store/beneficiary.store";
+import { getBankLogoUrl } from "@percel/shared";
 
 const modes = [
   {
@@ -119,10 +120,7 @@ function bankInitialColor(name: string): string {
   return BANK_PALETTE[Math.abs(hash) % BANK_PALETTE.length];
 }
 
-function bankLogoUrl(slug?: string | null): string | null {
-  if (!slug) return null;
-  return `https://nigerianbanks.xyz/logo/${slug}.png`;
-}
+// Removed local bankLogoUrl in favor of getBankLogoUrl from @percel/shared
 
 function BankAvatar({ name, size = 40 }: { name: string; size?: number }) {
   const color = bankInitialColor(name);
@@ -153,15 +151,15 @@ function BankAvatar({ name, size = 40 }: { name: string; size?: number }) {
 
 function BankLogo({
   name,
-  slug,
+  bankCode,
   size = 40,
 }: {
   name: string;
-  slug?: string | null;
+  bankCode?: string | null;
   size?: number;
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
-  const url = bankLogoUrl(slug);
+  const url = getBankLogoUrl(bankCode || undefined, name);
 
   if (url && !logoFailed) {
     return (
@@ -852,24 +850,28 @@ export default function TransferScreen() {
                           }}
                           style={styles.beneficiaryAvatarCard}
                         >
-                          <View
-                            style={[
-                              styles.beneficiaryAvatarCircle,
-                              {
-                                backgroundColor: palette.bg,
-                                borderColor: palette.border,
-                              },
-                            ]}
-                          >
-                            <Text
+                          {b.bankName ? (
+                            <BankLogo name={b.bankName} bankCode={b.bankCode} size={44} />
+                          ) : (
+                            <View
                               style={[
-                                styles.beneficiaryAvatarText,
-                                { color: palette.text },
+                                styles.beneficiaryAvatarCircle,
+                                {
+                                  backgroundColor: palette.bg,
+                                  borderColor: palette.border,
+                                },
                               ]}
                             >
-                              {initialsFromName(b.name)}
-                            </Text>
-                          </View>
+                              <Text
+                                style={[
+                                  styles.beneficiaryAvatarText,
+                                  { color: palette.text },
+                                ]}
+                              >
+                                {initialsFromName(b.name)}
+                              </Text>
+                            </View>
+                          )}
                           <Text
                             style={[
                               styles.beneficiaryAvatarName,
@@ -925,7 +927,7 @@ export default function TransferScreen() {
                     },
                   ]}
                 >
-                  <BankLogo name={selectedBank.name} slug={selectedBank.slug} size={40} />
+                  <BankLogo name={selectedBank.name} bankCode={selectedBank.code} size={40} />
                   <View style={[styles.selectCopy, { marginLeft: 12 }]}>
                     <Text
                       style={[
@@ -1592,7 +1594,7 @@ export default function TransferScreen() {
                   {mode === "BANK" ? (
                     <BankLogo
                       name={bankValidation?.bankName ?? selectedBank.name}
-                      slug={selectedBank.slug}
+                      bankCode={bankCode || selectedBank.code}
                       size={52}
                     />
                   ) : (
@@ -1795,7 +1797,7 @@ export default function TransferScreen() {
                         },
                       ]}
                     >
-                      <BankLogo name={item.name} slug={item.slug} size={40} />
+                      <BankLogo name={item.name} bankCode={item.code} size={40} />
                       <View style={[styles.bankRowCopy, { marginLeft: 12 }]}>
                         <Text
                           style={[styles.bankRowName, { color: palette.text }]}

@@ -1,7 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ArrowLeft, Banknote, Copy, CreditCard, ExternalLink, Landmark, PlusCircle } from "lucide-react-native";
 
 import { AmountInput } from "@/components/wallet/AmountInput";
@@ -16,6 +16,7 @@ import { useTopUp, useWallet } from "@/hooks/useWallet";
 import { useAuthStore } from "@/store/auth.store";
 import { useSafeBack } from "@/components/navigation/useSafeBack";
 import { useAppPalette } from "@/lib/theme";
+import { getBankLogoUrl } from "@percel/shared";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -226,9 +227,29 @@ export default function TopUpScreen() {
           ) : (
             <View style={[styles.accountCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
               <View style={styles.accountRow}>
-                <View style={[styles.accountIcon, { backgroundColor: palette.primary }]}> 
-                  <CreditCard size={20} color={palette.card} />
-                </View>
+                {wallet?.bankName ? (
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(255,255,255,0.06)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Image
+                      source={{ uri: getBankLogoUrl(wallet.bankCode || undefined, wallet.bankName) }}
+                      style={{ width: 32, height: 32 }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : (
+                  <View style={[styles.accountIcon, { backgroundColor: palette.primary }]}> 
+                    <CreditCard size={20} color={palette.card} />
+                  </View>
+                )}
                 <View style={styles.accountCopy}>
                   <Text style={[styles.accountLabel, { color: palette.textSecondary }]}>Bank name</Text>
                   <Text style={[styles.accountValue, { color: palette.text }]}>{wallet?.bankName ?? "Generating account…"}</Text>
