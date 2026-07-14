@@ -37,9 +37,9 @@ function buildTitle(type: NotificationJobType) {
     case 'ORDER_CANCELLED':
       return 'Order cancelled';
     case 'PAYMENT_RECEIVED':
-      return 'Wallet funded';
+      return 'Deposit received';
     case 'TRANSFER_RECEIVED':
-      return 'Money received';
+      return 'Transfer received';
     case 'KYC_APPROVED':
       return 'KYC approved';
     case 'KYC_REJECTED':
@@ -56,13 +56,13 @@ export function buildNotificationPayload(type: NotificationJobType, payload: Rec
     case 'ORDER_CREATED':
       return {
         title: buildTitle(type),
-        body: 'Your order has been placed. Finding a driver...',
+        body: 'Your order has been placed. Looking for the nearest driver...',
         data: payload,
       };
     case 'ORDER_MATCHED':
       return {
         title: buildTitle(type),
-        body: `Driver found. ${String(payload.driverName ?? 'A driver')} is on the way.`,
+        body: `Driver found. ${String(payload.driverName ?? 'A driver')} is on the way 🕖🕖.`,
         data: payload,
       };
     case 'ORDER_ACCEPTED':
@@ -74,7 +74,7 @@ export function buildNotificationPayload(type: NotificationJobType, payload: Rec
     case 'ORDER_PICKED_UP':
       return {
         title: buildTitle(type),
-        body: `${String(payload.driverName ?? 'Your driver')} has picked up your package.`,
+        body: `${String(payload.driverName ?? 'Your driver')} has picked up your package 🎉🎉.`,
         data: payload,
       };
     case 'ORDER_DELIVERED':
@@ -98,7 +98,7 @@ export function buildNotificationPayload(type: NotificationJobType, payload: Rec
     case 'PAYMENT_RECEIVED':
       return {
         title: buildTitle(type),
-        body: `${formatAmount(payload.amount)} added to your wallet.`,
+        body: `${formatAmount(payload.amount)} has been deposited to your wallet 🎉🎉.`,
         data: payload,
       };
     case 'TRANSFER_RECEIVED':

@@ -20,6 +20,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarHideOnKeyboard: true,
       }}
+
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
       <Tabs.Screen
