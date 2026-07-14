@@ -54,6 +54,9 @@ importers:
       '@percel/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      lucide-react:
+        specifier: ^1.24.0
+        version: 1.24.0(react@19.1.0)
       next:
         specifier: ^15.4.10
         version: 15.5.18(react-dom@19.1.0)(react@19.1.0)
@@ -9782,6 +9785,14 @@ packages:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
       react-native-svg: 15.12.1(react-native@0.81.5)(react@19.1.0)
+    dev: false
+
+  /lucide-react@1.24.0(react@19.1.0):
+    resolution: {integrity: sha512-YT6mBD8lGKkg4nM39enlm94/sfJIiW0YKUT60fBy4YK8tai31ylg1VhGNWxkpSKHo9UagfnZqwIff3HTDQwXeA==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      react: 19.1.0
     dev: false
 
   /luxon@3.7.2:

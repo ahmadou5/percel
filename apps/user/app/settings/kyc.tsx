@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, ChevronDown, ChevronLeft, CreditCard, Search, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
@@ -38,6 +38,41 @@ type BankItem = {
   slug?: string | null;
   longcode?: string | null;
 };
+
+const BANK_PALETTE = [
+  "#0A84FF", "#30D158", "#FF9F0A", "#FF375F", "#BF5AF2",
+  "#32ADE6", "#FF6961", "#5AC8FA", "#AC8E68", "#34C759",
+];
+
+function bankInitialColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++)
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return BANK_PALETTE[Math.abs(hash) % BANK_PALETTE.length];
+}
+
+function BankAvatar({ name, size = 38 }: { name: string; size?: number }) {
+  const color = bankInitialColor(name);
+  const initial = name.trim().charAt(0).toUpperCase() || 'B';
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color, fontSize: size * 0.4, fontFamily: 'System', fontWeight: '700' }}>{initial}</Text>
+    </View>
+  );
+}
+
+function BankLogo({ name, slug, size = 38 }: { name: string; slug?: string | null; size?: number }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const url = slug ? `https://nigerianbanks.xyz/logo/${slug}.png` : null;
+  if (url && !logoFailed) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <Image source={{ uri: url }} style={{ width: size * 0.82, height: size * 0.82 }} resizeMode="contain" onError={() => setLogoFailed(true)} />
+      </View>
+    );
+  }
+  return <BankAvatar name={name} size={size} />;
+}
 
 export default function KycScreen() {
   const queryClient = useQueryClient();
@@ -272,10 +307,11 @@ export default function KycScreen() {
             />
 
             <Pressable onPress={() => setBankPickerOpen(true)} style={[styles.bankButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <BankLogo name={selectedBank?.name ?? 'Bank'} slug={selectedBank?.slug} size={40} />
               <View style={styles.bankButtonCopy}>
                 <Text style={[styles.bankButtonLabel, { color: palette.textSecondary }]}>Bank</Text>
                 <Text style={[styles.bankButtonValue, { color: palette.text }]}>{selectedBank?.name ?? 'Choose a bank'}</Text>
-                <Text style={[styles.bankButtonMeta, { color: palette.textSecondary }]}>{selectedBank?.code ?? 'Search and pick your bank'}</Text>
+                {!selectedBank && <Text style={[styles.bankButtonMeta, { color: palette.textSecondary }]}>Search and pick your bank</Text>}
               </View>
               <ChevronDown size={18} color={palette.textSecondary} />
             </Pressable>
@@ -401,10 +437,8 @@ export default function KycScreen() {
                       }}
                       style={[styles.bankRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
                     >
-                      <View>
-                        <Text style={[styles.bankRowName, { color: palette.text }]}>{item.name}</Text>
-                        <Text style={[styles.bankRowCode, { color: palette.textSecondary }]}>{item.code}</Text>
-                      </View>
+                      <BankLogo name={item.name} slug={item.slug} size={38} />
+                      <Text style={[styles.bankRowName, { color: palette.text, flex: 1, marginLeft: 10 }]}>{item.name}</Text>
                       {active ? <CheckCircle2 size={16} color={palette.primary} /> : null}
                     </Pressable>
                   );
@@ -466,7 +500,7 @@ const styles = StyleSheet.create({
   summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   summaryMiniMeta: { fontSize: Typography.xs },
-  bankButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
+  bankButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64, gap: 10 },
   bankButtonCopy: { flex: 1, gap: 4 },
   bankButtonLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   bankButtonValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { DriverEarningStatus, Prisma, WalletTransactionCategory, WalletTransactionStatus } from '@prisma/client';
+import { DriverEarningStatus, NotificationType, Prisma, WalletTransactionCategory, WalletTransactionStatus } from '@prisma/client';
 
+import { sendPushNotification } from '../../lib/notifications.js';
 import { success } from '../../utils/response.js';
 
 const currency = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
@@ -243,6 +244,63 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         { label: 'Platform balance', value: money(wallet._sum.balance), delta: 'wallet sum' },
       ],
     }, 'Admin dashboard fetched');
+  });
+  app.post('/admin/broadcast', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['title', 'body'],
+        properties: {
+          title: { type: 'string', minLength: 1, maxLength: 200 },
+          body: { type: 'string', minLength: 1, maxLength: 600 },
+          audience: { type: 'string', enum: ['all', 'users', 'drivers'], default: 'all' },
+          data: { type: 'object', additionalProperties: true },
+        },
+      },
+    },
+  }, async (request) => {
+    const { title, body, audience = 'all', data: extraData } = request.body as {
+      title: string;
+      body: string;
+      audience?: 'all' | 'users' | 'drivers';
+      data?: Record<string, unknown>;
+    };
+
+    // Resolve the audience to a list of users with push tokens
+    const whereClause = audience === 'drivers'
+      ? { deletedAt: null, driver: { isNot: null }, expoPushToken: { not: null } }
+      : audience === 'users'
+        ? { deletedAt: null, driver: null, expoPushToken: { not: null } }
+        : { deletedAt: null, expoPushToken: { not: null } };
+
+    const recipients = await app.prisma.user.findMany({
+      where: whereClause as any,
+      select: { id: true, expoPushToken: true },
+    });
+
+    const notificationPayload = { title, body, data: { kind: 'broadcast', ...extraData } };
+
+    // Send push + write DB record for each recipient in parallel batches
+    const results = await Promise.allSettled(
+      recipients.map(async (recipient) => {
+        await sendPushNotification(app, recipient.id, notificationPayload);
+        await app.prisma.notification.create({
+          data: {
+            userId: recipient.id,
+            type: NotificationType.SYSTEM,
+            title,
+            body,
+            data: notificationPayload.data,
+          },
+        });
+      }),
+    );
+
+    const sent = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    app.log.info({ audience, recipients: recipients.length, sent, failed }, 'admin.broadcast.sent');
+    return success({ sent, failed, total: recipients.length }, 'Broadcast sent');
   });
 };
 

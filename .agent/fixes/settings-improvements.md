@@ -1,10 +1,10 @@
 # Settings Improvements
 
 ## Status
-Pending.
+Complete.
 
 ## Context
-The user settings area is split across a generic settings hub, a generic slug-based detail route, the profile security screen, and the runtime bootstrap. The requested fintech-style polish needs three separate feature completions:
+The user settings area is split across a generic settings hub, a generic slug-based detail route, the profile security screen, and the runtime bootstrap. The requested fintech-style polish needed three separate feature completions:
 - a real theme/preferences screen with persisted theme selection and custom palette support,
 - a user-controlled notifications permission flow with a home-screen reminder,
 - and biometric toggles that actually call into `expo-local-authentication`.
@@ -34,15 +34,15 @@ Ship the three settings improvements with the same polished fintech treatment us
 3. Working biometric authentication toggles
 
 ## Tasks
-- [ ] Theme preferences screen
-- [ ] Theme persistence and app-wide theme context
-- [ ] Custom theme modal with accent/background swatches and preview
-- [ ] Notifications settings screen
-- [ ] Remove auto permission request on app launch
-- [ ] Home-screen notification reminder modal with 24-hour dismissal cooldown
-- [ ] Security screen biometric wiring
-- [ ] Separate `Access Wallet` and `Confirm Transactions` toggles
-- [ ] Dynamic biometric type label
+- [x] Theme preferences screen
+- [x] Theme persistence and app-wide theme context
+- [x] Custom theme modal with accent/background swatches and preview
+- [x] Notifications settings screen
+- [x] Remove auto permission request on app launch
+- [x] Home-screen notification reminder modal with 24-hour dismissal cooldown
+- [x] Security screen biometric wiring
+- [x] Separate `Access Wallet` and `Confirm Transactions` toggles
+- [x] Dynamic biometric type label
 
 ## Decisions Made
 - Implement the features in this order: Theme, Notifications, Biometrics.
@@ -50,12 +50,11 @@ Ship the three settings improvements with the same polished fintech treatment us
 - Keep the visual style aligned with the Equify-style reference: rounded cards, clear status pills, and right-aligned active indicators.
 
 ## Blocked By
-- The theme flow needs a dedicated persisted preference, not just the device color scheme, before the new preferences screen can be considered complete.
-- Notification permission handling must move out of runtime bootstrap before the reminder modal can behave correctly.
-- Biometric state should be split into separate capabilities before the security screen can reflect the requested two-toggle design.
+Nothing — all three features are complete.
 
 ## Next Agent Instructions
-- Start with theme because it is the foundation for the rest of the settings polish.
-- Then remove the startup push-permission request and add the settings-driven notification flow.
-- Finish by wiring biometric enablement to `expo-local-authentication` and separating wallet access from transaction confirmation.
-- Update these checkboxes as each subtask is completed.
+- All settings improvements are done. The next task was to:
+  1. Add a `Notifications.setNotificationHandler()` call in `apps/user/app/_layout.tsx` — **done**.
+  2. Add `POST /admin/broadcast` endpoint in `apps/api/src/modules/admin/admin.routes.ts` — **done**.
+  3. Add `BroadcastForm` UI in the admin app — **done**.
+- Push notifications will only deliver reliably from a development build (`npx expo run:android`), not Expo Go.

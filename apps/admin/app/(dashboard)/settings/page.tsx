@@ -1,14 +1,52 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PaymentProviderSettings } from '@/components/payment-provider-settings';
+import { ThemeCustomizer } from '@/components/theme-customizer';
+import { AdminProfileEditor } from '@/components/admin-profile-editor';
+import { Palette, UserCircle2 } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Operational preferences, roles, alert thresholds, and deployment controls.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your profile, appearance preferences, payment routing, and operational controls.
+        </p>
       </div>
+
+      {/* Profile section */}
+      <Card className="p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-2 border-b border-border">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <UserCircle2 size={16} className="text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold tracking-tight">Admin profile</h3>
+            <p className="text-xs text-muted-foreground">Update your name, contact info, and password.</p>
+          </div>
+        </div>
+        <AdminProfileEditor />
+      </Card>
+
+      {/* Theme customizer section */}
+      <Card className="p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-2 border-b border-border">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Palette size={16} className="text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold tracking-tight">Appearance</h3>
+            <p className="text-xs text-muted-foreground">Personalize your accent color and light/dark mode preference.</p>
+          </div>
+        </div>
+        <ThemeCustomizer />
+      </Card>
+
+      {/* Payment routing */}
+      <PaymentProviderSettings />
+
+      {/* Misc cards */}
       <section className="grid gap-4 md:grid-cols-2">
         <Card className="space-y-3 p-5">
           <Badge>Roles</Badge>
@@ -21,11 +59,14 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground">Set queue depth, refund, and KYC alert thresholds for the ops team.</p>
         </Card>
       </section>
-      <PaymentProviderSettings />
+
       <Card className="space-y-3 p-5">
         <h3 className="text-lg font-semibold tracking-tight">Platform configuration</h3>
-        <p className="text-sm text-muted-foreground">Role controls and deployment configuration can sit beside payment routing as those controls become live.</p>
+        <p className="text-sm text-muted-foreground">
+          Role controls and deployment configuration can sit beside payment routing as those controls become live.
+        </p>
       </Card>
     </div>
   );
 }
+

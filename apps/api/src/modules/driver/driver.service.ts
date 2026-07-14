@@ -582,4 +582,38 @@ export class DriverService {
       },
     };
   }
+
+  async suspendDriver(driverId: string, reason: string) {
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: driverId },
+      include: { user: true },
+    });
+
+    if (!driver) throw new NotFoundError('Driver not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.driver.update({
+        where: { id: driverId },
+        data: { status: DriverStatus.SUSPENDED, isOnline: false },
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: driver.userId,
+          type: 'SYSTEM',
+          title: 'Account suspended',
+          body: reason,
+          data: {
+            driverId,
+            status: 'SUSPENDED',
+            reason,
+          },
+        },
+      });
+    });
+
+    this.logger.info({ driverId, reason }, 'driver.suspended');
+    return { suspended: true };
+  }
 }
+

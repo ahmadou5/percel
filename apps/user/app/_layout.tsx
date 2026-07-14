@@ -3,6 +3,7 @@ import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBo
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
+import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -17,6 +18,16 @@ import { useAuthStore } from "@/store/auth.store";
 import { usePreferencesStore } from "@/store/preferences.store";
 
 export { ErrorBoundary } from "@/components/AppErrorBoundary";
+
+// Show notifications as banners even when the app is in the foreground.
+// Without this handler, Expo silently discards foreground notifications.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
