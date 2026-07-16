@@ -41,7 +41,37 @@ export function getPriceQuote(
   distanceKm: number,
   durationMin = 0,
   onlineDriverCount = 3,
+  deliveryType: 'INTERSTATE' | 'INTRASTATE' = 'INTERSTATE',
+  serviceArea?: { baseFareNgn: any; perKmNgn: any } | null,
 ): PriceQuote {
+  if (deliveryType === 'INTRASTATE' && serviceArea) {
+    const baseFare = Number(serviceArea.baseFareNgn);
+    const perKmRate = Number(serviceArea.perKmNgn);
+
+    const sizeMultiplier = size === 'SMALL' ? 1.0 : size === 'MEDIUM' ? 1.5 : 2.2;
+    const basePrice = baseFare * sizeMultiplier;
+
+    const surgeMultiplier = onlineDriverCount < 2 ? 1.25 : 1;
+    const calculatedPrice = (basePrice + distanceKm * perKmRate) * surgeMultiplier;
+    const totalPrice = Math.max(1200, Number(calculatedPrice.toFixed(2)));
+
+    return {
+      size,
+      distanceKm: Number(distanceKm.toFixed(2)),
+      durationMin: Number(durationMin.toFixed(0)),
+      basePrice: Number(basePrice.toFixed(2)),
+      distanceMultiplier: 1,
+      surgeMultiplier,
+      totalPrice,
+      currency: 'NGN',
+      breakdown: {
+        sizeLabel: size,
+        distanceBand: 'Local delivery',
+        surgeApplied: surgeMultiplier > 1,
+      },
+    };
+  }
+
   const basePrice = basePrices[size];
   const dm = distanceMultiplier(distanceKm);
   const surgeMultiplier = onlineDriverCount < 3 ? 1.3 : 1;

@@ -88,3 +88,10 @@ export const DriverRateOrderBody = Type.Object({
   driverComment: Type.Optional(Type.String({ minLength: 1 })),
 });
 
+export const CourierLocationBody = Type.Object({
+  lat: Type.Number(),
+  lng: Type.Number(),
+  heading: Type.Optional(Type.Number()),
+  speed: Type.Optional(Type.Number()),
+});
+

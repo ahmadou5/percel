@@ -13,6 +13,7 @@ import { KeyboardView } from '@/components/ui/KeyboardView';
 import { useRegister } from '@/hooks/useAuth';
 import { useSetTransferPin } from '@/hooks/useWallet';
 import { useAppPalette, isLight } from '@/lib/theme';
+import { Typography } from '@/constants/typography';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
@@ -60,7 +61,7 @@ export default function RegisterScreen() {
       case 1:
         return fullName.trim().length >= 2 && acceptedTerms;
       case 2:
-        return phoneRegex.test(`+234${phoneValue}`);
+        return phoneRegex.test(`+234${phone}`);
       case 3:
         return emailRegex.test(email);
       case 4:
@@ -72,7 +73,7 @@ export default function RegisterScreen() {
       default:
         return false;
     }
-  }, [step, fullName, acceptedTerms, phoneValue, email, password, referralCode, pin]);
+  }, [step, fullName, acceptedTerms, phone, email, password, referralCode, pin]);
 
   const handleNext = () => {
     if (stepValid && step < 6) {
@@ -94,7 +95,7 @@ export default function RegisterScreen() {
     register.mutate({
       fullName,
       email,
-      phone: `+234${phoneValue}`,
+      phone: `+234${phone}`,
       password,
       referralCode: referralCode.trim() || undefined,
     });
@@ -187,7 +188,7 @@ export default function RegisterScreen() {
                       setPhone(cleaned.replace(/\D/g, ''));
                     }
                   }}
-                  error={phone && !phoneRegex.test(`+234${phoneValue}`) ? 'Enter a valid Nigerian phone number' : undefined}
+                  error={phone && !phoneRegex.test(`+234${phone}`) ? 'Enter a valid Nigerian phone number' : undefined}
                   leftElement={(
                     <View style={[styles.countryPill, { backgroundColor: lightBg ? '#f0f5ff' : '#202025', borderColor: theme.border }]}>
                       <Text style={[styles.countryFlag, { color: theme.text }]}>🇳🇬</Text>

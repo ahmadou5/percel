@@ -36,6 +36,9 @@ export default function QuoteScreen() {
     fragile?: string;
     notes?: string;
     items?: string;
+    // Intrastate passthrough
+    pickupAddress?: string;
+    deliveryAddress?: string;
   }>();
   const walletQuery = useWallet();
   const quoteQuery = useGetQuote();
@@ -45,8 +48,13 @@ export default function QuoteScreen() {
   const originHub = getHubById(params.originHubId);
   const destinationHub = getHubById(params.destinationHubId);
   const route = getRouteById(params.routeId);
-  const pickupAddress = originHub ? composePickupAddress(originHub, params.localPickupAddress ?? '') : params.localPickupAddress ?? '';
-  const deliveryAddress = destinationHub ? composeDeliveryAddress(destinationHub) : '';
+  const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
+  const pickupAddress = isIntrastate
+    ? (params.pickupAddress ?? '')
+    : (originHub ? composePickupAddress(originHub, params.localPickupAddress ?? '') : params.localPickupAddress ?? '');
+  const deliveryAddress = isIntrastate
+    ? (params.deliveryAddress ?? '')
+    : (destinationHub ? composeDeliveryAddress(destinationHub) : '');
   const size = params.size ?? 'SMALL';
   const fragile = params.fragile === 'true';
   const notes = params.notes ?? '';
@@ -54,6 +62,7 @@ export default function QuoteScreen() {
   const contactName = params.contactName ?? '';
   const contactPhone = params.contactPhone ?? '';
   const walletBalance = Number(walletQuery.data?.balance ?? 0);
+  const deliveryType = quoteQuery.data?.deliveryType ?? (isIntrastate ? 'INTRASTATE' : 'INTERSTATE');
 
   const packageItems = useMemo<PackageItem[]>(() => {
     if (!params.items) return [];
@@ -78,17 +87,25 @@ export default function QuoteScreen() {
   const quote = quoteQuery.data;
 
   const loadQuote = async () => {
-    if (!originHub || !destinationHub || !route) return;
     try {
-      await quoteQuery.mutateAsync({
-        size,
-        originHubId: originHub.id,
-        destinationHubId: destinationHub.id,
-        routeId: route.id,
-        localPickupAddress: params.localPickupAddress ?? '',
-        pickupAddress,
-        deliveryAddress,
-      });
+      if (isIntrastate) {
+        await quoteQuery.mutateAsync({
+          size,
+          pickupAddress,
+          deliveryAddress,
+        });
+      } else {
+        if (!originHub || !destinationHub || !route) return;
+        await quoteQuery.mutateAsync({
+          size,
+          originHubId: originHub.id,
+          destinationHubId: destinationHub.id,
+          routeId: route.id,
+          localPickupAddress: params.localPickupAddress ?? '',
+          pickupAddress,
+          deliveryAddress,
+        });
+      }
     } catch (error) {
       showAlert('Quote failed', error instanceof Error ? error.message : 'Unable to generate quote.', 'error');
     }
@@ -96,19 +113,19 @@ export default function QuoteScreen() {
 
   useEffect(() => {
     loadQuote();
-  }, [params.originHubId, params.destinationHubId, params.routeId, size]);
+  }, [params.originHubId, params.destinationHubId, params.routeId, params.pickupAddress, params.deliveryAddress, size]);
 
   const submitOrder = async () => {
     if (!quote) return;
     try {
       const order = await createOrder.mutateAsync({
         size,
-        originHubId: originHub?.id,
-        destinationHubId: destinationHub?.id,
-        routeId: route?.id,
-        localPickupAddress: params.localPickupAddress ?? '',
-        pickupAddress,
-        deliveryAddress,
+        originHubId: isIntrastate ? undefined : originHub?.id,
+        destinationHubId: isIntrastate ? undefined : destinationHub?.id,
+        routeId: isIntrastate ? undefined : route?.id,
+        localPickupAddress: isIntrastate ? undefined : (params.localPickupAddress ?? ''),
+        pickupAddress: isIntrastate ? pickupAddress : undefined,
+        deliveryAddress: isIntrastate ? deliveryAddress : undefined,
         contactName,
         contactPhone,
         pickupNote,
@@ -123,7 +140,7 @@ export default function QuoteScreen() {
   };
 
   const canProceed = Boolean(quote) && walletBalance >= Number(quote?.totalPrice ?? 0) && !createOrder.isPending;
-  const routeUnavailable = Boolean(originHub && destinationHub && !route);
+  const routeUnavailable = !isIntrastate && Boolean(originHub && destinationHub && !route);
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
@@ -145,23 +162,39 @@ export default function QuoteScreen() {
 
       <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Route summary</Text>
-        <Text style={[styles.routeTitle, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub missing'}</Text>
-        <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
-        <Text style={styles.arrow}>↓</Text>
-        <Text style={[styles.routeTitle, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub missing'}</Text>
-        <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
-        {route ? (
-          <View style={styles.routeStats}>
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Base route fare</Text>
-              <Text style={[styles.statValue, { color: palette.text }]}>{formatMoney(route.baseFare)}</Text>
+        {isIntrastate ? (
+          <>
+            <Text style={[styles.routeTitle, { color: palette.text }]} numberOfLines={2}>{pickupAddress}</Text>
+            <Text style={styles.arrow}>↓</Text>
+            <Text style={[styles.routeTitle, { color: palette.text }]} numberOfLines={2}>{deliveryAddress}</Text>
+            <View style={styles.routeStats}>
+              <View style={styles.statRow}>
+                <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Estimated delivery</Text>
+                <Text style={[styles.statValue, { color: palette.text }]}>~2–4 hours today</Text>
+              </View>
             </View>
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Estimated transit</Text>
-              <Text style={[styles.statValue, { color: palette.text }]}>{route.estimatedDays} day{route.estimatedDays === 1 ? '' : 's'}</Text>
-            </View>
-          </View>
-        ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={[styles.routeTitle, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub missing'}</Text>
+            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
+            <Text style={styles.arrow}>↓</Text>
+            <Text style={[styles.routeTitle, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub missing'}</Text>
+            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
+            {route ? (
+              <View style={styles.routeStats}>
+                <View style={styles.statRow}>
+                  <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Base route fare</Text>
+                  <Text style={[styles.statValue, { color: palette.text }]}>{formatMoney(route.baseFare)}</Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Estimated transit</Text>
+                  <Text style={[styles.statValue, { color: palette.text }]}>{route.estimatedDays} day{route.estimatedDays === 1 ? '' : 's'}</Text>
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
       </View>
 
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -190,7 +223,9 @@ export default function QuoteScreen() {
 
           <View style={[styles.metaCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.metaTitle, { color: palette.textSecondary }]}>Estimated delivery time</Text>
-            <Text style={[styles.metaValue, { color: palette.text }]}>{formatDuration(quote.durationMin)}</Text>
+            <Text style={[styles.metaValue, { color: palette.text }]}>
+              {deliveryType === 'INTRASTATE' ? '~2–4 hours today' : formatDuration(quote.durationMin)}
+            </Text>
             <Text style={[styles.metaSub, { color: palette.textSecondary }]}>{formatDistance(quote.distanceKm)}</Text>
           </View>
 

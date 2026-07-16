@@ -12,6 +12,7 @@ const nav = [
   { href: '/drivers', label: 'Drivers' },
   { href: '/orders', label: 'Orders' },
   { href: '/wallet', label: 'Wallet' },
+  { href: '/service-areas', label: 'Service Areas' },
   { href: '/notifications', label: 'Notifications' },
   { href: '/settings', label: 'Settings' },
 ];

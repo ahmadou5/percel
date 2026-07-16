@@ -92,9 +92,9 @@ export default function EditProfileScreen() {
 
   const vehicleChanged = Boolean(
     profile &&
-      (vehicleType !== profile.vehicleType ||
-        vehiclePlate.trim() !== profile.vehiclePlate ||
-        vehicleModel.trim() !== profile.vehicleModel),
+    (vehicleType !== profile.vehicleType ||
+      vehiclePlate.trim() !== profile.vehiclePlate ||
+      vehicleModel.trim() !== profile.vehicleModel),
   );
   const canSaveVehicle = vehicleChanged && vehiclePlate.trim().length >= 2 && vehicleModel.trim().length >= 2;
   const canChangePassword = currentPassword.length > 0 && newPassword.length >= 8 && newPassword === confirmPassword;
@@ -311,7 +311,7 @@ export default function EditProfileScreen() {
               label="Verification Code"
               placeholder="e.g. 123456"
               keyboardType="number-pad"
-              maxLength={6}
+
               value={verifyOtp}
               onChangeText={setVerifyOtp}
             />
@@ -320,12 +320,12 @@ export default function EditProfileScreen() {
               <ActionButton
                 title="Cancel"
                 variant="secondary"
-                style={styles.modalBtn}
+
                 onPress={() => setVerifyType(null)}
               />
               <ActionButton
                 title="Confirm"
-                style={styles.modalBtn}
+
                 disabled={verifyOtp.length < 6 || confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
                 onPress={handleConfirmVerify}
               />

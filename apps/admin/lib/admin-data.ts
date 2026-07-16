@@ -101,6 +101,17 @@ export type AdminDashboardSnapshot = {
   walletStats: Array<{ label: string; value: string; delta: string }>;
 };
 
+export type AdminServiceArea = {
+  id: string;
+  city: string;
+  state: string;
+  active: boolean;
+  baseFareNgn: number;
+  perKmNgn: number;
+  driverCount: number;
+};
+
+
 type ApiEnvelope<T> = { success: boolean; data: T; message?: string };
 
 const apiUrl = process.env.PERCEL_API_URL ?? 'http://localhost:3000';
@@ -154,10 +165,15 @@ export async function getDriverDetail(id: string) {
   return adminFetch<AdminDriver | null>(`/drivers/${id}`);
 }
 
+
 export async function getOrderDetail(id: string) {
   return adminFetch<AdminOrder | null>(`/orders/${id}`);
 }
 
 export async function getDashboardHighlights() {
   return loadDashboardSnapshot();
+}
+
+export async function loadServiceAreas() {
+  return adminFetch<AdminServiceArea[]>('/service-areas');
 }

@@ -37,6 +37,14 @@ export async function GET(
   return proxy(request, 'GET', slug);
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ slug: string[] }> }
+) {
+  const { slug } = await params;
+  return proxy(request, 'DELETE', slug);
+}
+
 async function proxy(request: Request, method: string, slug: string[]) {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });

@@ -22,6 +22,9 @@ export default function PackageDetailsScreen() {
     contactName?: string;
     contactPhone?: string;
     pickupNote?: string;
+    // Intrastate passthrough
+    pickupAddress?: string;
+    deliveryAddress?: string;
   }>();
 
   const originHub = getHubById(params.originHubId);
@@ -33,9 +36,11 @@ export default function PackageDetailsScreen() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState([{ description: 'Documents', quantity: 1 }]);
 
-  const pickupPreview = originHub ? composePickupAddress(originHub, params.localPickupAddress ?? '') : params.localPickupAddress ?? '';
-  const deliveryPreview = destinationHub ? composeDeliveryAddress(destinationHub) : '';
-  const routeUnavailable = Boolean(originHub && destinationHub && !route);
+  const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
+
+  const pickupPreview = isIntrastate ? params.pickupAddress ?? '' : (originHub ? composePickupAddress(originHub, params.localPickupAddress ?? '') : params.localPickupAddress ?? '');
+  const deliveryPreview = isIntrastate ? params.deliveryAddress ?? '' : (destinationHub ? composeDeliveryAddress(destinationHub) : '');
+  const routeUnavailable = !isIntrastate && Boolean(originHub && destinationHub && !route);
 
   const addItem = () => setItems((current) => [...current, { description: '', quantity: 1 }]);
   const updateItem = (index: number, key: 'description' | 'quantity', value: string) => {
@@ -175,6 +180,8 @@ export default function PackageDetailsScreen() {
               destinationHubId: params.destinationHubId ?? '',
               routeId: params.routeId ?? '',
               localPickupAddress: params.localPickupAddress ?? '',
+              pickupAddress: params.pickupAddress ?? '',
+              deliveryAddress: params.deliveryAddress ?? '',
               contactName: params.contactName ?? '',
               contactPhone: params.contactPhone ?? '',
               pickupNote: params.pickupNote ?? '',

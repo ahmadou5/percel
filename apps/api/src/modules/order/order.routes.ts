@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 
 import { OrderController } from './order.controller.js';
 import { OrderService } from './order.service.js';
-import { CancelBody, CreateOrderBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema.js';
+import { CancelBody, CreateOrderBody, CourierLocationBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema.js';
 import { WalletService } from '../wallet/wallet.service.js';
 
 const orderRoutes: FastifyPluginAsync = async (app) => {
@@ -26,6 +26,13 @@ const orderRoutes: FastifyPluginAsync = async (app) => {
   app.post('/driver/orders/:id/decline', { preHandler: [app.authenticateDriver] }, controller.declineOrder);
   app.post('/driver/orders/:id/rate', { preHandler: [app.authenticateDriver], schema: { body: DriverRateOrderBody } }, controller.driverRateOrder);
   app.patch('/driver/orders/:id/status', { preHandler: [app.authenticateDriver], schema: { body: StatusBody } }, controller.updateOrderStatus);
+
+  // Service Areas
+  app.get('/service-areas', controller.getServiceAreas);
+
+  // Courier Location
+  app.patch('/orders/:id/courier-location', { preHandler: [app.authenticateDriver], schema: { body: CourierLocationBody } }, controller.updateCourierLocation);
+  app.get('/orders/:id/courier-location', { preHandler: [app.authenticate] }, controller.getCourierLocation);
 };
 
 export default orderRoutes;

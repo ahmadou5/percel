@@ -543,6 +543,97 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
     return success(maintenance, 'Maintenance mode config retrieved');
   });
+
+  app.get('/admin/service-areas', async () => {
+    const areas = await app.prisma.localServiceArea.findMany({
+      orderBy: { city: 'asc' },
+    });
+    const areasWithDriverCount = await Promise.all(
+      areas.map(async (area) => {
+        const driverCount = await app.prisma.driver.count({
+          where: {
+            serviceCity: { equals: area.city, mode: 'insensitive' },
+            status: 'ACTIVE',
+          },
+        });
+        return {
+          id: area.id,
+          city: area.city,
+          state: area.state,
+          active: area.active,
+          baseFareNgn: Number(area.baseFareNgn),
+          perKmNgn: Number(area.perKmNgn),
+          driverCount,
+        };
+      })
+    );
+    return success(areasWithDriverCount, 'Admin service areas fetched');
+  });
+
+  app.post('/admin/service-areas', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['city', 'state', 'baseFareNgn', 'perKmNgn'],
+        properties: {
+          city: { type: 'string', minLength: 1 },
+          state: { type: 'string', minLength: 1 },
+          baseFareNgn: { type: 'number', minimum: 0 },
+          perKmNgn: { type: 'number', minimum: 0 },
+          active: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request) => {
+    const body = request.body as { city: string; state: string; baseFareNgn: number; perKmNgn: number; active?: boolean };
+    const created = await app.prisma.localServiceArea.create({
+      data: {
+        city: body.city,
+        state: body.state,
+        baseFareNgn: body.baseFareNgn,
+        perKmNgn: body.perKmNgn,
+        active: body.active ?? false,
+      },
+    });
+    return success(created, 'Service area created');
+  });
+
+  app.patch('/admin/service-areas/:id', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          city: { type: 'string' },
+          state: { type: 'string' },
+          baseFareNgn: { type: 'number', minimum: 0 },
+          perKmNgn: { type: 'number', minimum: 0 },
+          active: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { city?: string; state?: string; baseFareNgn?: number; perKmNgn?: number; active?: boolean };
+    const updated = await app.prisma.localServiceArea.update({
+      where: { id },
+      data: {
+        ...(body.city ? { city: body.city } : {}),
+        ...(body.state ? { state: body.state } : {}),
+        ...(body.baseFareNgn !== undefined ? { baseFareNgn: body.baseFareNgn } : {}),
+        ...(body.perKmNgn !== undefined ? { perKmNgn: body.perKmNgn } : {}),
+        ...(body.active !== undefined ? { active: body.active } : {}),
+      },
+    });
+    return success(updated, 'Service area updated');
+  });
+
+  app.delete('/admin/service-areas/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    await app.prisma.localServiceArea.delete({
+      where: { id },
+    });
+    return success({ deleted: true }, 'Service area deleted');
+  });
 };
 
 export default adminRoutes;

@@ -191,6 +191,9 @@ model Driver {
   lastLocationAt  DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  driverMode      DriverMode   @default(INTERSTATE)
+  serviceCity     String?
+  serviceState    String?
 
   user     User            @relation(fields: [userId], references: [id])
   kyc      DriverKYC?
@@ -231,6 +234,10 @@ model Order {
   driverId     String?     @db.Uuid
   status       OrderStatus @default(CREATED)
   size         OrderSize
+  deliveryType DeliveryType @default(INTERSTATE)
+  courierLat   Decimal?     @db.Decimal(10, 7)
+  courierLng   Decimal?     @db.Decimal(10, 7)
+  etaMinutes   Int?
 
   pickupStreet           String
   pickupCity             String
@@ -436,4 +443,26 @@ model Referral {
 
   @@index([inviterId])
   @@index([status])
+}
+
+enum DeliveryType {
+  INTERSTATE
+  INTRASTATE
+}
+
+enum DriverMode {
+  INTERSTATE
+  LOCAL
+  BOTH
+}
+
+model LocalServiceArea {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  city        String   @unique
+  state       String
+  active      Boolean  @default(false)
+  baseFareNgn Decimal  @db.Decimal(10, 2)
+  perKmNgn    Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

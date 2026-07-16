@@ -45,6 +45,10 @@ type OrderLike = {
   estimatedDurationMin: number;
   createdAt: Date;
   cancelReason?: string | null;
+  deliveryType?: 'INTERSTATE' | 'INTRASTATE';
+  courierLat?: Prisma.Decimal | number | null;
+  courierLng?: Prisma.Decimal | number | null;
+  etaMinutes?: number | null;
   driver?: {
     id: string;
     userId: string;
@@ -72,6 +76,10 @@ function serializeOrder(order: OrderLike): OrderSummary {
     price: asNumber(order.price),
     currency: order.currency,
     size: order.size,
+    deliveryType: order.deliveryType ?? 'INTERSTATE',
+    courierLat: order.courierLat ? asNumber(order.courierLat) : null,
+    courierLng: order.courierLng ? asNumber(order.courierLng) : null,
+    etaMinutes: order.etaMinutes ?? null,
     pickupFormattedAddress: order.pickupFormattedAddress,
     deliveryFormattedAddress: order.deliveryFormattedAddress,
     distanceKm: asNumber(order.distanceKm),
@@ -133,7 +141,8 @@ export class OrderService {
       const cached = await getCachedJson<OrderQuote>(this.app.redis, quoteKey);
       if (cached) return cached;
 
-      const quote = getPriceQuote(payload.size, routeContext.distanceKm, routeContext.durationMin, onlineDrivers);
+      const quote = getPriceQuote(payload.size, routeContext.distanceKm, routeContext.durationMin, onlineDrivers, 'INTERSTATE');
+      quote.deliveryType = 'INTERSTATE';
       await setCachedJson(this.app.redis, quoteKey, quote, 300);
       return quote;
     }
@@ -154,11 +163,36 @@ export class OrderService {
       await setCachedJson(this.app.redis, onlineDriversCacheKey, onlineDrivers, 30);
     }
 
-    const quoteKey = `cache:quote:${payload.size}:${route.distanceKm.toFixed(1)}:${Math.round(route.durationMin)}:${onlineDrivers}`;
+    const sameState = pickup.state.toLowerCase() === delivery.state.toLowerCase();
+    const isIntrastate = sameState && route.distanceKm <= 200;
+
+    let serviceArea = null;
+    if (isIntrastate) {
+      serviceArea = await this.prisma.localServiceArea.findFirst({
+        where: {
+          city: { equals: pickup.city, mode: 'insensitive' },
+          active: true,
+        },
+      });
+      if (!serviceArea) {
+        throw new ValidationError(`Intra-state delivery is not yet available in ${pickup.city}.`);
+      }
+    }
+
+    const quoteKey = `cache:quote:${payload.size}:${route.distanceKm.toFixed(1)}:${Math.round(route.durationMin)}:${onlineDrivers}:${isIntrastate ? 'INTRASTATE' : 'INTERSTATE'}`;
     const cached = await getCachedJson<OrderQuote>(this.app.redis, quoteKey);
     if (cached) return cached;
 
-    const quote = getPriceQuote(payload.size, route.distanceKm, route.durationMin, onlineDrivers);
+    const quote = getPriceQuote(
+      payload.size,
+      route.distanceKm,
+      route.durationMin,
+      onlineDrivers,
+      isIntrastate ? 'INTRASTATE' : 'INTERSTATE',
+      serviceArea,
+    );
+    quote.deliveryType = isIntrastate ? 'INTRASTATE' : 'INTERSTATE';
+
     await setCachedJson(this.app.redis, quoteKey, quote, 300);
     return quote;
   }
@@ -229,8 +263,31 @@ export class OrderService {
         }
       : await getDistanceAndDuration(pickup.lat, pickup.lng, delivery.lat, delivery.lng);
 
+    const sameState = pickup.state.toLowerCase() === delivery.state.toLowerCase();
+    const isIntrastate = !routeContext && sameState && route.distanceKm <= 200;
+
+    let serviceArea = null;
+    if (isIntrastate) {
+      serviceArea = await this.prisma.localServiceArea.findFirst({
+        where: {
+          city: { equals: pickup.city, mode: 'insensitive' },
+          active: true,
+        },
+      });
+      if (!serviceArea) {
+        throw new ValidationError(`Intra-state delivery is not yet available in ${pickup.city}.`);
+      }
+    }
+
     const onlineDrivers = await this.prisma.driver.count({ where: { isOnline: true, status: 'ACTIVE' } });
-    const quote = getPriceQuote(data.size, route.distanceKm, route.durationMin, onlineDrivers);
+    const quote = getPriceQuote(
+      data.size,
+      route.distanceKm,
+      route.durationMin,
+      onlineDrivers,
+      isIntrastate ? 'INTRASTATE' : 'INTERSTATE',
+      serviceArea,
+    );
 
     const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
     if (!wallet) throw new NotFoundError('Wallet not found');
@@ -244,6 +301,7 @@ export class OrderService {
           trackingCode: makeTrackingCode(),
           userId,
           size: data.size,
+          deliveryType: isIntrastate ? 'INTRASTATE' : 'INTERSTATE',
           pickupStreet: pickup.street,
           pickupCity: pickup.city,
           pickupState: pickup.state,
@@ -906,6 +964,79 @@ export class OrderService {
     return {
       data: orders.map(serializeOrder),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async getServiceAreas() {
+    return this.prisma.localServiceArea.findMany({
+      where: { active: true },
+      orderBy: { city: 'asc' },
+    });
+  }
+
+  async updateCourierLocation(
+    driverId: string,
+    orderId: string,
+    payload: { lat: number; lng: number; heading?: number; speed?: number },
+  ) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, driverId },
+    });
+    if (!order) throw new NotFoundError('Order not found');
+    if (order.status !== OrderStatus.IN_TRANSIT) {
+      throw new ValidationError('Courier location can only be updated while in transit');
+    }
+
+    const distToDest = haversineDistanceKm(
+      payload.lat,
+      payload.lng,
+      Number(order.deliveryLat),
+      Number(order.deliveryLng),
+    );
+    const etaMinutes = Math.max(1, Math.round(distToDest * 2 + 3));
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        courierLat: payload.lat,
+        courierLng: payload.lng,
+        etaMinutes,
+      },
+    });
+
+    broadcastDriverLocation(this.app as RealtimeApp, {
+      driverId,
+      orderId,
+      lat: payload.lat,
+      lng: payload.lng,
+      heading: payload.heading,
+      speed: payload.speed,
+      userId: order.userId,
+    });
+
+    return {
+      lat: Number(updated.courierLat),
+      lng: Number(updated.courierLng),
+      etaMinutes: updated.etaMinutes,
+    };
+  }
+
+  async getCourierLocation(userId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      select: {
+        courierLat: true,
+        courierLng: true,
+        etaMinutes: true,
+        status: true,
+      },
+    });
+    if (!order) throw new NotFoundError('Order not found');
+    return {
+      lat: order.courierLat ? Number(order.courierLat) : null,
+      lng: order.courierLng ? Number(order.courierLng) : null,
+      etaMinutes: order.etaMinutes,
+      status: order.status,
     };
   }
 }

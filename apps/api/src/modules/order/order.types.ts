@@ -28,6 +28,7 @@ export interface OrderQuote {
   surgeMultiplier: number;
   totalPrice: number;
   currency: 'NGN';
+  deliveryType?: 'INTERSTATE' | 'INTRASTATE';
   breakdown: {
     sizeLabel: string;
     distanceBand: string;
@@ -43,6 +44,10 @@ export interface OrderSummary {
   price: number;
   currency: string;
   size: OrderSize;
+  deliveryType?: 'INTERSTATE' | 'INTRASTATE';
+  courierLat?: number | null;
+  courierLng?: number | null;
+  etaMinutes?: number | null;
   pickupFormattedAddress: string;
   deliveryFormattedAddress: string;
   distanceKm: number;

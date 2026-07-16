@@ -111,4 +111,21 @@ export class OrderController {
     const query = request.query as { page?: number; limit?: number };
     return success(await this.service.getDriverOrdersHistory(driverId, query), 'Driver orders history fetched');
   };
+
+  getServiceAreas = async (request: FastifyRequest) => {
+    return success(await this.service.getServiceAreas(), 'Service areas fetched');
+  };
+
+  updateCourierLocation = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const { id } = request.params as { id: string };
+    const body = request.body as { lat: number; lng: number; heading?: number; speed?: number };
+    return success(await this.service.updateCourierLocation(driverId, id, body), 'Location updated');
+  };
+
+  getCourierLocation = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.getCourierLocation(userId, id), 'Location fetched');
+  };
 }

@@ -50,6 +50,10 @@ export type OrderSummary = {
   distanceKm: number;
   estimatedDurationMin: number;
   trackingCode: string;
+  deliveryType?: 'INTERSTATE' | 'INTRASTATE';
+  courierLat?: number | null;
+  courierLng?: number | null;
+  etaMinutes?: number | null;
   createdAt: string;
   cancelReason?: string | null;
   driver?: {
@@ -75,6 +79,7 @@ export type OrderQuoteResponse = {
   surgeMultiplier: number;
   totalPrice: number;
   currency: 'NGN';
+  deliveryType?: 'INTERSTATE' | 'INTRASTATE';
   breakdown: {
     sizeLabel: string;
     distanceBand: string;

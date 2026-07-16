@@ -22,12 +22,21 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
       // Helper: fetch the top-3 scored nearby drivers for this order
       // ─────────────────────────────────────────────────────────────────────
       const findCandidates = async () => {
+        const isLocal = order.deliveryType === 'INTRASTATE';
         const drivers = await app.prisma.driver.findMany({
           where: {
             isOnline: true,
             status: 'ACTIVE',
             currentLat: { not: null },
             currentLng: { not: null },
+            ...(isLocal
+              ? {
+                  driverMode: { in: ['LOCAL', 'BOTH'] },
+                  serviceCity: { equals: order.pickupCity, mode: 'insensitive' },
+                }
+              : {
+                  driverMode: { in: ['INTERSTATE', 'BOTH'] },
+                }),
           },
         });
         return drivers
