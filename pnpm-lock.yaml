@@ -369,6 +369,9 @@ importers:
       expo-constants:
         specifier: ~18.0.13
         version: 18.0.13(expo@54.0.35)(react-native@0.81.5)
+      expo-contacts:
+        specifier: ^57.0.1
+        version: 57.0.1(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)
       expo-dev-client:
         specifier: ~6.0.21
         version: 6.0.21(expo@54.0.35)
@@ -7435,6 +7438,18 @@ packages:
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
     transitivePeerDependencies:
       - supports-color
+    dev: false
+
+  /expo-contacts@57.0.1(expo@54.0.35)(react-native@0.81.5)(react@19.1.0):
+    resolution: {integrity: sha512-hmNgmmEMYHmwr4i/kfZIQ98PpZFhhNAPftKxVeDWZ9jW3+1A/S5fgPIllt8P8bCRj32Sm8KOGmx2a9LWsAfELA==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+    dependencies:
+      expo: 54.0.35(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5)(react@19.1.0)(typescript@5.9.3)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
     dev: false
 
   /expo-dev-client@6.0.21(expo@54.0.35):

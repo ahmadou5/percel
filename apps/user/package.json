@@ -15,10 +15,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@percel/shared": "workspace:*",
     "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.14",
+    "@percel/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-navigation/native": "^7.1.8",
@@ -29,6 +29,7 @@
     "expo": "~54.0.35",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
+    "expo-contacts": "^57.0.1",
     "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
     "expo-font": "~14.0.12",

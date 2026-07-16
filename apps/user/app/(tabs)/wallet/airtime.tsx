@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useBeneficiaryStore } from '@/store/beneficiary.store';
@@ -10,6 +10,7 @@ import { StateCard } from '@/components/ui/StateCard';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { normalizeNigerianPhone, isValidNigerianPhone, providerLabelFromService, ProviderBadge } from '@/components/wallet/WalletFlow';
+import { AirtimeContactsSheet, type AirtimeContactsSheetRef } from '@/components/wallet/AirtimeContactsSheet';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -19,6 +20,8 @@ import { triggerBiometricAuth } from '@/lib/localAuthentication';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { useAppPalette } from '@/lib/theme';
+import { Colors } from '@percel/shared';
+
 
 const presetAmounts = [100, 500, 1000, 2000, 5000, 10000] as const;
 
@@ -55,14 +58,29 @@ export default function AirtimeScreen() {
   const [pinError, setPinError] = useState("");
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricToast, setBiometricToast] = useState("");
-  const [contactsModalOpen, setContactsModalOpen] = useState(false);
-  const [newContactName, setNewContactName] = useState('');
-  const [isAddingContact, setIsAddingContact] = useState(false);
   const { beneficiaries, addBeneficiary, removeBeneficiary } = useBeneficiaryStore();
   const airtimeBeneficiaries = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
+  const contactsSheetRef = useRef<AirtimeContactsSheetRef>(null);
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
+
+  // When user picks from the contacts sheet, pre-fill phone + provider and advance to step 2
+  const handleContactSelect = (selection: { phone: string; serviceID?: string; providerName?: string }) => {
+    setPhone(selection.phone.replace(/^\+234/, '0'));
+    if (selection.serviceID && selection.providerName) {
+      const match = services.find((s) => s.serviceID === selection.serviceID);
+      if (match) setSelectedServiceID(match.serviceID);
+      setProviderValidation({
+        phone: selection.phone,
+        serviceID: selection.serviceID,
+        providerName: selection.providerName,
+        confidence: 'high',
+      });
+      setProviderStatus('success');
+      setStep(2);
+    }
+  };
 
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
   const normalizedPhone = normalizeNigerianPhone(phone);
@@ -218,438 +236,322 @@ export default function AirtimeScreen() {
   };
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
-          <ArrowLeft size={18} color={palette.text} />
-        </Pressable>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.headerCopy}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Airtime</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Choose amount.</Text>
-      </View>
-
-      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
-        <View style={styles.heroTop}>
-          <View>
-            <Text style={styles.heroLabel}>Active provider</Text>
-            <Text style={styles.heroValue}>{displayNetwork}</Text>
-          </View>
-          <View style={styles.heroIcon}>
-            <ArrowUpRight size={20} color="#fff" />
-          </View>
+    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
+            <ArrowLeft size={18} color={palette.text} />
+          </Pressable>
+          <View style={styles.headerSpacer} />
         </View>
-        <Text style={styles.heroBody}>The provider is resolved from the phone number first, keeping the flow progressive and compact.</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
-      </View>
 
-      <Animated.View style={{ opacity, transform: [{ translateX }] }}>
-        {step === 1 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <Smartphone size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider detection</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number and we will auto-detect the operator.</Text>
-              </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Airtime</Text>
+          <Text style={[styles.title, { color: palette.text }]}>Choose amount.</Text>
+        </View>
+
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroLabel}>Operator</Text>
+              <Text style={styles.heroValue}>{displayNetwork}</Text>
             </View>
+            <View style={styles.heroIcon}>
+              <ArrowUpRight size={20} color="#fff" />
+            </View>
+          </View>
 
-            <Input
-              label="Phone number"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              placeholder="08012345678"
-              leftElement={
-                <Pressable onPress={() => setProviderPickerOpen(true)} style={styles.networkPill}>
-                  {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={22} /> : null}
-                  <Text style={[styles.networkText, { color: palette.text }]}>{displayNetwork}</Text>
-                  <ChevronDown size={14} color={palette.textSecondary} />
-                </Pressable>
-              }
-              rightElement={
-                <Pressable onPress={() => setContactsModalOpen(true)} style={styles.contactButton}>
-                  <ContactRound size={18} color={palette.primary} />
-                </Pressable>
-              }
-              helperText="If lookup fails, choose the provider manually."
-            />
+          <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
+        </View>
 
-            <Pressable
-              disabled={providerStatus === 'loading'}
-              onPress={() => void handleResolveProvider()}
-              style={[styles.primaryAction, { backgroundColor: providerStatus === 'loading' ? palette.border : palette.primary }]}
-            >
-              <Text style={styles.primaryActionText}>{providerStatus === 'loading' ? 'Checking provider...' : 'Validate number'}</Text>
-            </Pressable>
+        <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+          {step === 1 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Smartphone size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
 
-            {providerStatus === 'loading' ? (
-              <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
-            ) : providerStatus === 'success' && providerValidation ? (
-              <>
-                {lowConfidenceBanner ? (
-                  <View style={[styles.statusCard, { backgroundColor: 'rgba(255,159,10,0.10)', borderColor: '#FF9F0A' }]}>
-                    <ShieldCheck size={18} color="#FF9F0A" />
-                    <View style={styles.statusCopy}>
-                      <Text style={[styles.statusTitle, { color: '#FF9F0A' }]}>Network guessed — please confirm</Text>
-                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>We detected <Text style={{ fontFamily: 'System', fontWeight: '700' }}>{providerValidation.providerName}</Text> with low confidence. Tap to change if incorrect.</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                    <CheckCircle2 size={18} color={palette.success} />
-                    <View style={styles.statusCopy}>
-                      <Text style={[styles.statusTitle, { color: palette.success }]}>{providerValidation.providerName}</Text>
-                      <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerValidation.phone}</Text>
-                    </View>
-                  </View>
-                )}
-                {lowConfidenceBanner ? (
-                  <>
-                    <Pressable
-                      onPress={() => setProviderPickerOpen(true)}
-                      style={[styles.secondaryAction, { borderColor: palette.border, backgroundColor: palette.card }]}
-                    >
-                      <Text style={[styles.secondaryActionText, { color: palette.text }]}>Change network</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => { setLowConfidenceBanner(false); setStep(2); }}
-                      style={[styles.primaryAction, { backgroundColor: palette.primary }]}
-                    >
-                      <Text style={styles.primaryActionText}>Confirm {displayNetwork} and continue</Text>
-                    </Pressable>
-                  </>
-                ) : null}
-              </>
-            ) : providerStatus === 'error' ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
-                <ShieldCheck size={18} color={palette.error} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.error }]}>Provider lookup failed</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerError || 'Choose a provider manually.'}</Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number and we will auto-detect the operator.</Text>
                 </View>
               </View>
-            ) : (
-              <StateCard title="Enter a phone number" description="The network will be detected before the amount step appears." icon={<Search size={24} color={palette.textSecondary} />} />
-            )}
-          </View>
-        ) : null}
 
-        {step === 2 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <ArrowUpRight size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Amount</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a quick amount or enter a custom value.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
-              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{normalizedPhone || 'No phone entered'}</Text>
-              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{title}</Text>
-            </View>
-
-            <View style={styles.amountGrid}>
-              {presetAmounts.map((value) => {
-                const active = amountPreset === String(value) && !customAmount;
-                return (
-                  <Pressable
-                    key={value}
-                    onPress={() => {
-                      setAmountPreset(String(value));
-                      setCustomAmount('');
-                    }}
-                    style={({ pressed }) => [
-                      styles.amountChip,
-                      { backgroundColor: active ? palette.text : palette.card, borderColor: active ? palette.text : palette.border, transform: [{ scale: pressed ? 0.96 : active ? 1.03 : 1 }] },
-                    ]}
-                  >
-                    <Text style={[styles.amountChipText, { color: active ? palette.card : palette.text }]}>{formatNaira(value)}</Text>
+              <Input
+                label="Phone number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="Enter number"
+                leftElement={
+                  <Pressable onPress={() => setProviderPickerOpen(true)} style={styles.networkPill}>
+                    {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={22} /> : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: '2' }}>
+                      <Text style={[styles.networkText, { color: palette.text }]}>{displayNetwork}</Text>
+                      <ChevronDown size={16} color={palette.textSecondary} />
+                    </View>
                   </Pressable>
-                );
-              })}
-            </View>
+                }
+                rightElement={
+                  <Pressable onPress={() => contactsSheetRef.current?.open()} style={styles.contactButton}>
+                    <ContactRound size={18} color={palette.primary} />
+                  </Pressable>
+                }
 
-            <Input
-              label="Custom amount"
-              value={customAmount}
-              onChangeText={(value) => {
-                setCustomAmount(value.replace(/[^0-9]/g, ''));
-                if (value) setAmountPreset('');
-              }}
-              keyboardType="number-pad"
-              placeholder="50 - 50,000"
-              leftElement={<Text style={[styles.prefix, { color: palette.textSecondary }]}>₦</Text>}
-              helperText={amountValid ? `Wallet balance covers ${formatNaira(selectedAmount)}.` : wallet ? 'Amount must not exceed the available wallet balance.' : undefined}
-            />
-
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected amount: {selectedAmount ? formatNaira(selectedAmount) : '₦0'}</Text>
-
-            <Pressable
-              disabled={!canReview}
-              onPress={() => setStep(3)}
-              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
-            >
-              <Text style={styles.primaryActionText}>Review airtime purchase</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {step === 3 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <CheckCircle2 size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the phone number and amount before you pay.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Airtime</Text>
-              <Text style={[styles.reviewTitle, { color: palette.text }]}>{displayNetwork}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{normalizedPhone}</Text>
-              <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedAmount ? formatNaira(selectedAmount) : '₦0'}</Text>
-            </View>
-            <Pressable
-              disabled={!canReview || mutation.isPending || biometricBusy}
-              onPress={() => void openPaymentAuth()}
-              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
-            >
-              {mutation.isPending || biometricBusy ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryActionText}>{selectedAmount > 0 ? `Pay ${formatNaira(selectedAmount)}` : 'Select an amount'}</Text>
-              )}
-            </Pressable>
-          </View>
-        ) : null}
-      </Animated.View>
-
-      <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
-          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your provider below.</Text>
-              </View>
-              <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
-                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
-              </Pressable>
-            </View>
-            {services.length ? (
-              <FlatList
-                data={services}
-                keyExtractor={(item) => item.serviceID}
-                renderItem={({ item }) => {
-                  const active = item.serviceID === selectedServiceID;
-                  return (
-                    <Pressable
-                      onPress={() => {
-                        setSelectedServiceID(item.serviceID);
-                        setProviderValidation({ phone: normalizedPhone, serviceID: item.serviceID, providerName: providerLabelFromService(item.serviceID, item.name), confidence: 'low' });
-                        setProviderStatus('success');
-                        setProviderPickerOpen(false);
-                      }}
-                      style={[styles.providerRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
-                    >
-                      <View style={styles.providerRowLeft}>
-                        <ProviderBadge serviceID={item.serviceID} name={item.name} logoUrl={item.logoUrl ?? item.logo ?? item.image ?? null} size={36} />
-                        <View>
-                          <Text style={[styles.providerName, { color: palette.text }]}>{providerLabelFromService(item.serviceID, item.name)}</Text>
-                          <Text style={[styles.providerMeta, { color: palette.textSecondary }]}>{item.name}</Text>
-                        </View>
-                      </View>
-                      <ChevronRight size={16} color={palette.textSecondary} />
-                    </Pressable>
-                  );
-                }}
+                helperText="Lookup fails? Select manually."
               />
-            ) : (
-              <StateCard title="No airtime providers" description="VTpass did not return any airtime providers." icon={<Smartphone size={24} color={palette.textSecondary} />} />
-            )}
-          </View>
-        </View>
-      </Modal>
-      <PaymentPinModal
-        visible={pinModalOpen}
-        title="Enter transfer PIN"
-        subtitle={`You are about to send ${formatNaira(selectedAmount)}.`}
-        reviewLabel="Airtime"
-        reviewTitle={displayNetwork}
-        reviewMeta={normalizedPhone}
-        reviewAmount={formatNaira(selectedAmount)}
-        pin={pin}
-        onPinChange={(value) => {
-          setPin(value);
-          if (pinStatus !== "idle") setPinStatus("idle");
-          if (pinError) setPinError("");
-          if (value.length === 4) {
-            void submitPaymentWithPin(value);
-          }
-        }}
-        loading={pinStatus === "loading" || mutation.isPending}
-        error={pinError || undefined}
-        confirmLabel="Verify and pay"
-        onConfirm={() => void submitPaymentWithPin()}
-        onClose={() => {
-          if (pinStatus === "loading" || mutation.isPending) return;
-          resetPaymentAuthState();
-        }}
-        canClose={!(pinStatus === "loading" || mutation.isPending)}
-        footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
-      />
 
-      <TransactionResultModal
-        visible={Boolean(resultModal?.visible)}
-        type={resultModal?.type ?? 'pending'}
-        title={resultModal?.title ?? ''}
-        message={resultModal?.message ?? ''}
-        amount={resultModal?.amount}
-        reference={resultModal?.reference}
-        onClose={handleCloseResult}
-      />
-
-      <Modal visible={contactsModalOpen} transparent animationType="slide" onRequestClose={() => { setContactsModalOpen(false); setIsAddingContact(false); setNewContactName(''); }}>
-        <View style={styles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => { setContactsModalOpen(false); setIsAddingContact(false); setNewContactName(''); }} />
-          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: palette.text }]}>Saved Contacts</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select a saved contact or save the current number.</Text>
-              </View>
-              <Pressable onPress={() => { setContactsModalOpen(false); setIsAddingContact(false); setNewContactName(''); }} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
-                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              <Pressable
+                disabled={providerStatus === 'loading'}
+                onPress={() => void handleResolveProvider()}
+                style={[styles.primaryAction, { backgroundColor: providerStatus === 'loading' ? palette.border : palette.primary }]}
+              >
+                <Text style={styles.primaryActionText}>{providerStatus === 'loading' ? 'Checking provider...' : 'Validate number'}</Text>
               </Pressable>
-            </View>
 
-            {isAddingContact ? (
-              <View style={styles.addContactForm}>
-                <Input
-                  label="Contact name"
-                  value={newContactName}
-                  onChangeText={setNewContactName}
-                  placeholder="e.g. Mom, Work Phone"
-                  helperText={`Saving phone number: ${phone}`}
-                />
-                <View style={styles.addContactActions}>
-                  <Pressable
-                    onPress={() => setIsAddingContact(false)}
-                    style={[styles.cancelBtn, { borderColor: palette.border }]}
-                  >
-                    <Text style={{ color: palette.text, fontFamily: Typography.family.bold }}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      if (!newContactName.trim()) {
-                        Alert.alert("Error", "Please enter a contact name.");
-                        return;
-                      }
-                      void haptics.success();
-                      addBeneficiary({
-                        name: newContactName.trim(),
-                        phone: normalizedPhone || phone,
-                        serviceID: selectedServiceID,
-                        bankName: displayNetwork,
-                        type: 'AIRTIME',
-                      });
-                      setIsAddingContact(false);
-                      setNewContactName('');
-                    }}
-                    style={[styles.saveBtn, { backgroundColor: palette.primary }]}
-                  >
-                    <Text style={{ color: '#fff', fontFamily: Typography.family.bold }}>Save Contact</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <>
-                {isValidNigerianPhone(phone) && !airtimeBeneficiaries.some(b => b.phone === (normalizedPhone || phone)) && (
-                  <Pressable
-                    onPress={() => setIsAddingContact(true)}
-                    style={[styles.addCurrentRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
-                  >
-                    <ContactRound size={16} color={palette.primary} />
-                    <Text style={[styles.addCurrentText, { color: palette.primary }]}>
-                      Save "{phone}" to Contacts
-                    </Text>
-                  </Pressable>
-                )}
-
-                <FlatList
-                  data={airtimeBeneficiaries}
-                  keyExtractor={(item) => item.id}
-                  ListEmptyComponent={
-                    <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No saved contacts yet.</Text>
-                  }
-                  renderItem={({ item }) => (
-                    <View style={[styles.contactRow, { borderColor: palette.border }]}>
-                      <Pressable
-                        onPress={() => {
-                          void haptics.tap();
-                          setPhone(item.phone || '');
-                          if (item.serviceID) {
-                            setSelectedServiceID(item.serviceID);
-                            setProviderValidation({
-                              phone: item.phone || '',
-                              serviceID: item.serviceID,
-                              providerName: item.bankName || 'Network',
-                              confidence: 'high',
-                            });
-                            setProviderStatus('success');
-                            setStep(2);
-                          }
-                          setContactsModalOpen(false);
-                        }}
-                        style={styles.contactRowLeft}
-                      >
-                        <View style={[styles.contactAvatarCircle, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-                          <Text style={[styles.contactAvatarText, { color: palette.text }]}>
-                            {item.name.slice(0, 2).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View>
-                          <Text style={[styles.contactName, { color: palette.text }]}>{item.name}</Text>
-                          <Text style={[styles.contactPhone, { color: palette.textSecondary }]}>
-                            {item.phone} • {item.bankName || 'Network'}
-                          </Text>
-                        </View>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => {
-                          void haptics.warning();
-                          Alert.alert("Remove Contact", `Are you sure you want to remove ${item.name}?`, [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Remove", style: "destructive", onPress: () => removeBeneficiary(item.id) }
-                          ]);
-                        }}
-                        style={styles.deleteBtn}
-                      >
-                        <Text style={{ color: palette.error, fontSize: Typography.xs, fontFamily: Typography.family.bold }}>Remove</Text>
-                      </Pressable>
+              {providerStatus === 'loading' ? (
+                <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : providerStatus === 'success' && providerValidation?.phone ? (
+                <>
+                  {lowConfidenceBanner ? (
+                    <View style={[styles.statusCard, { backgroundColor: 'rgba(255,159,10,0.10)', borderColor: '#FF9F0A' }]}>
+                      <ShieldCheck size={18} color="#FF9F0A" />
+                      <View style={styles.statusCopy}>
+                        <Text style={[styles.statusTitle, { color: '#FF9F0A' }]}>Network guessed — please confirm</Text>
+                        <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>We detected <Text style={{ fontFamily: 'System', fontWeight: '700' }}>{providerValidation.providerName}</Text> with low confidence. Tap to change if incorrect.</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                      <CheckCircle2 size={18} color={palette.success} />
+                      <View style={styles.statusCopy}>
+                        <Text style={[styles.statusTitle, { color: palette.success }]}>{providerValidation.providerName}</Text>
+                        <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerValidation.phone}</Text>
+                      </View>
                     </View>
                   )}
-                  style={styles.contactsList}
+                  {lowConfidenceBanner ? (
+                    <>
+                      <Pressable
+                        onPress={() => setProviderPickerOpen(true)}
+                        style={[styles.secondaryAction, { borderColor: palette.border, backgroundColor: palette.card }]}
+                      >
+                        <Text style={[styles.secondaryActionText, { color: palette.text }]}>Change network</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => { setLowConfidenceBanner(false); setStep(2); }}
+                        style={[styles.primaryAction, { backgroundColor: palette.primary }]}
+                      >
+                        <Text style={styles.primaryActionText}>Confirm {displayNetwork} and continue</Text>
+                      </Pressable>
+                    </>
+                  ) : null}
+                </>
+              ) : providerStatus === 'error' ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
+                  <ShieldCheck size={18} color={palette.error} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.error }]}>Provider lookup failed</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerError || 'Choose a provider manually.'}</Text>
+                  </View>
+                </View>
+              ) : (
+                <StateCard title="Enter a phone number" description="The network will be detected before the amount step appears." icon={<Search size={24} color={palette.textSecondary} />} />
+              )}
+            </View>
+          ) : null}
+
+          {step === 2 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Banknote size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a quick amount or enter a custom value.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
+                <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{normalizedPhone || 'No phone entered'}</Text>
+                <Text style={[styles.summaryMiniMeta, { fontFamily: Typography.family.medium, color: palette.textSecondary }]}>{title}</Text>
+              </View>
+
+              <View style={styles.amountGrid}>
+                {presetAmounts.map((value) => {
+                  const active = amountPreset === String(value) && !customAmount;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        setAmountPreset(String(value));
+                        setCustomAmount('');
+                      }}
+                      style={({ pressed }) => [
+                        styles.amountChip,
+                        { backgroundColor: active ? palette.text : palette.card, borderColor: active ? palette.text : palette.border, transform: [{ scale: pressed ? 0.96 : active ? 1.03 : 1 }] },
+                      ]}
+                    >
+                      <Text style={[styles.amountChipText, { color: active ? palette.card : palette.text }]}>{formatNaira(value)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Input
+                label="Custom amount"
+                value={customAmount}
+                onChangeText={(value) => {
+                  setCustomAmount(value.replace(/[^0-9]/g, ''));
+                  if (value) setAmountPreset('');
+                }}
+                keyboardType="number-pad"
+                placeholder="50 - 50,000"
+                leftElement={<Text style={[styles.prefix, { color: palette.textSecondary }]}>₦</Text>}
+                helperText={amountValid ? `Wallet balance covers ${formatNaira(selectedAmount)}.` : wallet ? 'Amount must not exceed the available wallet balance.' : undefined}
+              />
+
+              <Text style={[styles.amountHint, { color: palette.textSecondary, fontFamily: Typography.family.regular }]}>Selected amount: {selectedAmount ? formatNaira(selectedAmount) : '₦0'}</Text>
+
+              <Pressable
+                disabled={!canReview}
+                onPress={() => setStep(3)}
+                style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
+              >
+                <Text style={styles.primaryActionText}>Review airtime purchase</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {step === 3 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <CheckCircle2 size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the phone number and amount before you pay.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Airtime</Text>
+                <Text style={[styles.reviewTitle, { color: palette.text }]}>{displayNetwork}</Text>
+                <Text style={[styles.reviewMeta, { color: palette.textSecondary, fontFamily: Typography.family.regular }]}>{normalizedPhone}</Text>
+                <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedAmount ? formatNaira(selectedAmount) : '₦0'}</Text>
+              </View>
+              <Pressable
+                disabled={!canReview || mutation.isPending || biometricBusy}
+                onPress={() => void openPaymentAuth()}
+                style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
+              >
+                {mutation.isPending || biometricBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryActionText}>{selectedAmount > 0 ? `Pay ${formatNaira(selectedAmount)}` : 'Select an amount'}</Text>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+        </Animated.View>
+
+        <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
+          <View style={styles.modalBackdrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
+            <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
+                  <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your provider below.</Text>
+                </View>
+                <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                  <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+                </Pressable>
+              </View>
+              {services.length ? (
+                <FlatList
+                  data={services}
+                  keyExtractor={(item) => item.serviceID}
+                  renderItem={({ item }) => {
+                    const active = item.serviceID === selectedServiceID;
+                    return (
+                      <Pressable
+                        onPress={() => {
+                          setSelectedServiceID(item.serviceID);
+                          setProviderValidation({ phone: normalizedPhone, serviceID: item.serviceID, providerName: providerLabelFromService(item.serviceID, item.name), confidence: 'low' });
+                          setProviderStatus('success');
+                          setProviderPickerOpen(false);
+                        }}
+                        style={[styles.providerRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
+                      >
+                        <View style={styles.providerRowLeft}>
+                          <ProviderBadge serviceID={item.serviceID} name={item.name} logoUrl={item.logoUrl ?? item.logo ?? item.image ?? null} size={36} />
+                          <View>
+                            <Text style={[styles.providerName, { color: palette.text }]}>{providerLabelFromService(item.serviceID, item.name)}</Text>
+                            <Text style={[styles.providerMeta, { color: palette.textSecondary }]}>{item.name}</Text>
+                          </View>
+                        </View>
+                        <ChevronRight size={16} color={palette.textSecondary} />
+                      </Pressable>
+                    );
+                  }}
                 />
-              </>
-            )}
+              ) : (
+                <StateCard title="No airtime providers" description="VTpass did not return any airtime providers." icon={<Smartphone size={24} color={palette.textSecondary} />} />
+              )}
+            </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+        <PaymentPinModal
+          visible={pinModalOpen}
+          title="Enter transfer PIN"
+          subtitle={`You are about to send ${formatNaira(selectedAmount)}.`}
+          reviewLabel="Airtime"
+          reviewTitle={displayNetwork}
+          reviewMeta={normalizedPhone}
+          reviewAmount={formatNaira(selectedAmount)}
+          pin={pin}
+          onPinChange={(value) => {
+            setPin(value);
+            if (pinStatus !== "idle") setPinStatus("idle");
+            if (pinError) setPinError("");
+            if (value.length === 4) {
+              void submitPaymentWithPin(value);
+            }
+          }}
+          loading={pinStatus === "loading" || mutation.isPending}
+          error={pinError || undefined}
+          confirmLabel="Verify and pay"
+          onConfirm={() => void submitPaymentWithPin()}
+          onClose={() => {
+            if (pinStatus === "loading" || mutation.isPending) return;
+            resetPaymentAuthState();
+          }}
+          canClose={!(pinStatus === "loading" || mutation.isPending)}
+          footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
+        />
+
+        <TransactionResultModal
+          visible={Boolean(resultModal?.visible)}
+          type={resultModal?.type ?? 'pending'}
+          title={resultModal?.title ?? ''}
+          message={resultModal?.message ?? ''}
+          amount={resultModal?.amount}
+          reference={resultModal?.reference}
+          onClose={handleCloseResult}
+        />
+
+      </ScrollView>
+
+      <AirtimeContactsSheet
+        ref={contactsSheetRef}
+        selectedServiceID={selectedServiceID}
+        onSelect={handleContactSelect}
+      />
+    </View>
   );
 }
 
@@ -674,8 +576,8 @@ const styles = StyleSheet.create({
   stepPill: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17 },
-  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17, fontFamily: Typography.family.medium },
+  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.light.border, padding: 3, paddingHorizontal: Spacing.xs, marginRight: Spacing.sm, borderRadius: Spacing.xl },
   networkText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   contactButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(10,132,255,0.10)', alignItems: 'center', justifyContent: 'center' },
   statusCard: { borderWidth: 1, borderRadius: 18, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },

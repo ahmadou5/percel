@@ -114,7 +114,7 @@ export function WalletStepper({ currentStep, steps }: WalletStepperProps) {
 
   return (
     <View style={styles.stepper}>
-      <View style={[styles.progressBar, { backgroundColor: palette.border }]}> 
+      <View style={[styles.progressBar, { backgroundColor: palette.border }]}>
         <Animated.View style={[styles.progressFill, { backgroundColor: palette.primary, width: progressWidth }]} />
       </View>
       {steps.map((step, index) => {
@@ -129,7 +129,7 @@ export function WalletStepper({ currentStep, steps }: WalletStepperProps) {
         return (
           <View key={step.key} style={styles.stepItem}>
             <View style={styles.stepHeader}>
-              <View style={[styles.stepDot, { backgroundColor: tone.backgroundColor, borderColor: tone.borderColor }]}> 
+              <View style={[styles.stepDot, { backgroundColor: tone.backgroundColor, borderColor: tone.borderColor }]}>
                 <Text style={[styles.stepDotText, { color: tone.textColor }]}>{complete ? '✓' : step.key}</Text>
               </View>
               {index < steps.length - 1 ? <View style={[styles.stepLine, { backgroundColor: complete ? palette.primary : palette.border }]} /> : null}
@@ -159,7 +159,7 @@ export function ProviderBadge({ serviceID, logoUrl, logo, size = 32 }: ProviderB
       ]}
     >
       {logoUrl || logo ? (
-        <Image source={{ uri: logoUrl ?? logo ?? '' }} style={{ width: size * 0.72, height: size * 0.72 }} resizeMode="contain" />
+        <Image source={{ uri: logoUrl ?? logo ?? '' }} style={{ width: size * 1, height: size * 1 }} resizeMode="contain" />
       ) : (
         <Text style={[styles.badgeText, { color: tone.textColor, fontSize: Math.max(10, size * 0.28) }]}>{tone.label}</Text>
       )}

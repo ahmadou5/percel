@@ -111,7 +111,11 @@ export function useSlideStepTransition(step: number) {
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion) {
+      translateX.setValue(0);
+      opacity.setValue(1);
+      return;
+    }
 
     translateX.setValue(24);
     opacity.setValue(0);
