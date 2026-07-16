@@ -370,8 +370,8 @@ importers:
         specifier: ~18.0.13
         version: 18.0.13(expo@54.0.35)(react-native@0.81.5)
       expo-contacts:
-        specifier: ^57.0.1
-        version: 57.0.1(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)
+        specifier: ^15.0.11
+        version: 15.0.11(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)
       expo-dev-client:
         specifier: ~6.0.21
         version: 6.0.21(expo@54.0.35)
@@ -7440,8 +7440,8 @@ packages:
       - supports-color
     dev: false
 
-  /expo-contacts@57.0.1(expo@54.0.35)(react-native@0.81.5)(react@19.1.0):
-    resolution: {integrity: sha512-hmNgmmEMYHmwr4i/kfZIQ98PpZFhhNAPftKxVeDWZ9jW3+1A/S5fgPIllt8P8bCRj32Sm8KOGmx2a9LWsAfELA==}
+  /expo-contacts@15.0.11(expo@54.0.35)(react-native@0.81.5)(react@19.1.0):
+    resolution: {integrity: sha512-buKkoQuWJgVSEvR1Yloa5SvGC/ud7T2YeYDe0R7Aa0oz8pwQpjk3W7OoL3QrXIfYcuKTrIz6ffqC8lc3peaAyg==}
     peerDependencies:
       expo: '*'
       react: '*'
