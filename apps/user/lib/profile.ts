@@ -14,6 +14,8 @@ export type UserProfile = {
   status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
   walletPinSet: boolean;
   kycComplete: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   createdAt: string;
   updatedAt: string;
 };

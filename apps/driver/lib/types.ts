@@ -19,6 +19,8 @@ export type AuthSessionUser = {
   role: 'USER' | 'ADMIN';
   status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
   avatarUrl: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -33,6 +35,7 @@ export type AuthResponse = {
   tokens?: AuthTokens;
   requiresVerification?: boolean;
   phone?: string;
+  email?: string;
   message?: string;
 };
 

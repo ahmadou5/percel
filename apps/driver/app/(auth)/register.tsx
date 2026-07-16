@@ -6,14 +6,14 @@ import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { AuthButton, AuthInput, CountryPill, ErrorBanner, KeyboardView, useAuthPalette } from '@/components/auth/AuthControls';
-import { useRegisterDriver, useVerifyOTP } from '@/hooks/useAuth';
+import { useRegisterDriver } from '@/hooks/useAuth';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 const vehicleTypes = ['BIKE', 'CAR', 'VAN', 'TRUCK'] as const;
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 2 | 3 | 4 | 5;
 type VehicleType = (typeof vehicleTypes)[number];
 
 function normalizePhone(value: string) {
@@ -40,22 +40,9 @@ export default function DriverRegisterScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [otp, setOtp] = useState('');
-  const [pendingPhone, setPendingPhone] = useState(params.phone ?? '');
-
-  const verifyOTP = useVerifyOTP({
-    onVerified: () => {
-      router.replace('/(kyc)');
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Invalid or expired code.');
-    },
-  });
-
   const register = useRegisterDriver({
-    onRequiresVerification: (phone) => {
-      setPendingPhone(phone);
-      setStep(6);
+    onSuccess: () => {
+      router.replace('/(kyc)');
     },
     onError: (err) => {
       const serverMessage = err instanceof Error ? err.message : 'Unable to create a driver account.';
@@ -76,19 +63,16 @@ export default function DriverRegisterScreen() {
         return Boolean(vehicleType) && vehiclePlate.trim().length >= 5 && vehicleModel.trim().length >= 2;
       case 5:
         return licenseNumber.trim().length >= 4;
-      case 6:
-        return otp.trim().length === 6;
       default:
         return false;
     }
-  }, [acceptedTerms, email, fullName, licenseNumber, password, phoneValue, step, vehicleModel, vehiclePlate, vehicleType, otp]);
+  }, [acceptedTerms, email, fullName, licenseNumber, password, phoneValue, step, vehicleModel, vehiclePlate, vehicleType]);
 
   const next = () => {
     if (stepValid && step < 5) setStep((current) => (current + 1) as Step);
   };
 
   const back = () => {
-    if (step === 6) return; // can't go back from OTP step
     if (step > 1) {
       setStep((current) => (current - 1) as Step);
       return;
@@ -109,12 +93,6 @@ export default function DriverRegisterScreen() {
       vehicleModel: vehicleModel.trim(),
       licenseNumber: licenseNumber.trim().toUpperCase(),
     });
-  };
-
-  const handleVerifyOTP = () => {
-    if (otp.trim().length < 6 || verifyOTP.isPending) return;
-    setError(null);
-    verifyOTP.mutate({ phone: pendingPhone, otp: otp.trim() });
   };
 
   return (
@@ -279,31 +257,6 @@ export default function DriverRegisterScreen() {
                 />
 
                 <AuthButton title={register.isPending ? 'Creating account...' : 'Create driver account'} loading={register.isPending} disabled={!stepValid || register.isPending} onPress={submit} />
-              </Animated.View>
-            ) : null}
-
-            {step === 6 ? (
-              <Animated.View key="step-6" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
-                <Text style={[styles.heading, { color: palette.text }]}>VERIFY YOUR PHONE</Text>
-                <Text style={[styles.subheading, { color: palette.textSecondary }]}>
-                  We sent a 6-digit verification code to{' '}
-                  <Text style={{ fontWeight: '600', color: palette.primary }}>
-                    {pendingPhone}
-                  </Text>
-                  . Enter it below to activate your driver account.
-                </Text>
-
-                <AuthInput
-                  label="Verification Code"
-                  placeholder="Enter 6-digit code"
-                  keyboardType="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChangeText={setOtp}
-                  autoFocus
-                />
-
-                <AuthButton title={verifyOTP.isPending ? 'Verifying...' : 'Verify Phone'} loading={verifyOTP.isPending} disabled={otp.trim().length < 6 || verifyOTP.isPending} onPress={handleVerifyOTP} />
               </Animated.View>
             ) : null}
           </Animated.View>

@@ -13,6 +13,8 @@ export interface SafeUser {
   avatarUrl: string | null;
   dateOfBirth: string | null;
   address: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +24,7 @@ export interface AuthResponse {
   tokens?: AuthTokens;
   requiresVerification?: boolean;
   phone?: string;
+  email?: string;
   message?: string;
 }
 

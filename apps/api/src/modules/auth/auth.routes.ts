@@ -20,6 +20,11 @@ import {
   VerifyOTPBody,
   VerifyOTPSchema,
 } from './auth.schema.js';
+import { Type } from '@sinclair/typebox';
+import { z } from 'zod';
+
+const ConfirmOTPBody = Type.Object({ otp: Type.String({ minLength: 6, maxLength: 6 }) });
+const ConfirmOTPSchema = z.object({ otp: z.string().length(6) });
 
 const authRoutes: FastifyPluginAsync = async (app) => {
   const service = new AuthService(app.prisma, app.jwt as never, app.log);
@@ -66,9 +71,42 @@ const authRoutes: FastifyPluginAsync = async (app) => {
     return controller.resetPassword(request);
   });
 
+  // Legacy verify-otp (kept for backward compat)
   app.post('/verify-otp', { schema: { body: VerifyOTPBody }, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (request) => {
     VerifyOTPSchema.parse(request.body);
     return controller.verifyOTP(request);
+  });
+
+  // ── In-app Email Verification ──────────────────────────────────────────────
+
+  app.post('/email/verify/request', {
+    preHandler: [app.authenticate],
+    config: { rateLimit: { max: 3, timeWindow: '15 minutes' } },
+  }, async (request) => controller.requestEmailVerification(request));
+
+  app.post('/email/verify/confirm', {
+    preHandler: [app.authenticate],
+    schema: { body: ConfirmOTPBody },
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+  }, async (request) => {
+    ConfirmOTPSchema.parse(request.body);
+    return controller.confirmEmailVerification(request);
+  });
+
+  // ── In-app Phone Verification ──────────────────────────────────────────────
+
+  app.post('/phone/verify/request', {
+    preHandler: [app.authenticate],
+    config: { rateLimit: { max: 3, timeWindow: '15 minutes' } },
+  }, async (request) => controller.requestPhoneVerification(request));
+
+  app.post('/phone/verify/confirm', {
+    preHandler: [app.authenticate],
+    schema: { body: ConfirmOTPBody },
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+  }, async (request) => {
+    ConfirmOTPSchema.parse(request.body);
+    return controller.confirmPhoneVerification(request);
   });
 };
 

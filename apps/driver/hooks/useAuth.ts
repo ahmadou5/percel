@@ -45,7 +45,7 @@ export function useLogin(
     onRequiresVerification?: (phone: string) => void;
   }
 ) {
-  const { onSuccess, onRequiresVerification, ...mutationOptions } = options ?? {};
+  const { onSuccess, ...mutationOptions } = options ?? {};
   return useMutation({
     ...mutationOptions,
     mutationFn: async (payload: { identifier: string; password: string }) => {
@@ -54,10 +54,6 @@ export function useLogin(
     },
     onSuccess: async (data, vars, onMutateResult, ctx) => {
       const session = data.data;
-      if (session.requiresVerification && session.phone) {
-        onRequiresVerification?.(session.phone);
-        return;
-      }
       await persistDriverSession(session);
       await onSuccess?.(data, vars, onMutateResult, ctx);
     }
@@ -78,7 +74,7 @@ export function useRegisterDriver(
     onRequiresVerification?: (phone: string) => void;
   }
 ) {
-  const { onSuccess, onRequiresVerification, ...mutationOptions } = options ?? {};
+  const { onSuccess, ...mutationOptions } = options ?? {};
   return useMutation({
     ...mutationOptions,
     mutationFn: async (payload: {
@@ -96,10 +92,6 @@ export function useRegisterDriver(
     },
     onSuccess: async (data, vars, onMutateResult, ctx) => {
       const session = data.data;
-      if (session.requiresVerification && session.phone) {
-        onRequiresVerification?.(session.phone);
-        return;
-      }
       await persistDriverSession(session);
       await onSuccess?.(data, vars, onMutateResult, ctx);
     }
@@ -107,14 +99,14 @@ export function useRegisterDriver(
 }
 
 export function useVerifyOTP(
-  options?: UseMutationOptions<ApiResponse<AuthResponse>, Error, { phone: string; otp: string }> & {
+  options?: UseMutationOptions<ApiResponse<AuthResponse>, Error, { email?: string; phone?: string; otp: string }> & {
     onVerified?: () => void;
   }
 ) {
   const { onSuccess, onVerified, ...mutationOptions } = options ?? {};
   return useMutation({
     ...mutationOptions,
-    mutationFn: async (payload: { phone: string; otp: string }) => {
+    mutationFn: async (payload: { email?: string; phone?: string; otp: string }) => {
       const response = await http.post<ApiResponse<AuthResponse>>('/api/v1/auth/verify-otp', payload);
       return response.data;
     },

@@ -39,12 +39,6 @@ export default function LoginScreen() {
       // Read status from store after login
       const storedDriver = useDriverStore.getState().driver;
       router.replace(routeForStatus(storedDriver?.status));
-    },
-    onRequiresVerification: (phone) => {
-      router.replace({
-        pathname: '/(auth)/register',
-        params: { phone, step: '6' }
-      });
     }
   });
 

@@ -50,9 +50,9 @@ export class AuthController {
   };
 
   verifyOTP = async (request: FastifyRequest) => {
-    const { phone, otp } = request.body as { phone: string; otp: string };
-    const result = await this.service.verifyOTP(phone, otp, request.ip);
-    return success(result, 'Phone verified successfully');
+    const { email, phone, otp } = request.body as { email?: string; phone?: string; otp: string };
+    const result = await this.service.verifyOTP({ email, phone }, otp, request.ip);
+    return success(result, 'Verified successfully');
   };
 
   registerPushToken = async (request: FastifyRequest) => {
@@ -60,5 +60,35 @@ export class AuthController {
     const { token } = request.body as { token: string };
     const result = await this.service.updatePushToken(userId, token);
     return success(result, 'Push token registered');
+  };
+
+  // ── In-app Email Verification ──────────────────────────────────────────────
+
+  requestEmailVerification = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    await this.service.requestEmailVerification(userId);
+    return success({ sent: true }, 'Verification code sent to your email address.');
+  };
+
+  confirmEmailVerification = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { otp } = request.body as { otp: string };
+    const result = await this.service.confirmEmailVerification(userId, otp);
+    return success(result, 'Email verified successfully.');
+  };
+
+  // ── In-app Phone Verification ──────────────────────────────────────────────
+
+  requestPhoneVerification = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    await this.service.requestPhoneVerification(userId);
+    return success({ sent: true }, 'Verification code sent to your phone number.');
+  };
+
+  confirmPhoneVerification = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { otp } = request.body as { otp: string };
+    const result = await this.service.confirmPhoneVerification(userId, otp);
+    return success(result, 'Phone verified successfully.');
   };
 }

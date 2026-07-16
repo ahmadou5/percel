@@ -43,6 +43,7 @@ export function UserRuntime() {
     const unsubscribe = subscribeUserSocket("wallet_updated", () => {
       void queryClient.invalidateQueries({ queryKey: ["wallet"] });
       void queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     });
 
     return unsubscribe;
@@ -166,11 +167,12 @@ export function UserRuntime() {
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       if (data) handleNotificationData(data as Record<string, unknown>);
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [queryClient]);
 
   return null;
 }

@@ -151,6 +151,10 @@ model User {
   passwordResetExpiry     DateTime?
   phoneVerificationCode   String?
   phoneVerificationExpiry DateTime?
+  emailVerificationCode   String?
+  emailVerificationExpiry DateTime?
+  emailVerified           Boolean    @default(false)
+  phoneVerified           Boolean    @default(false)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

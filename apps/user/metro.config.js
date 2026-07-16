@@ -6,10 +6,10 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// Only watch the shared package source — NOT the entire workspace root
-// Watching workspaceRoot causes ENOSPC (too many inotify watchers) on Linux
+// Provide the workspace root so Metro (and expo/metro-config) can find
+// pnpm-hoisted node_modules in EAS builds as well as locally.
 config.watchFolders = [
-  path.resolve(workspaceRoot, 'packages/shared/src'),
+  workspaceRoot,
 ];
 
 // Tell Metro where to find modules — project node_modules first, then workspace root

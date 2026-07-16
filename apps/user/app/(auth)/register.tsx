@@ -10,8 +10,7 @@ import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Input } from '@/components/ui/Input';
 import { PinInput } from '@/components/ui/PinInput';
 import { KeyboardView } from '@/components/ui/KeyboardView';
-import { Typography } from '@/constants/typography';
-import { useRegister, useVerifyOTP } from '@/hooks/useAuth';
+import { useRegister } from '@/hooks/useAuth';
 import { useSetTransferPin } from '@/hooks/useWallet';
 import { useAppPalette, isLight } from '@/lib/theme';
 
@@ -19,7 +18,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 export default function RegisterScreen() {
   const theme = useAppPalette();
@@ -38,29 +37,18 @@ export default function RegisterScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const phoneValue = phone.replace(/\D/g, '');
   const [otp, setOtp] = useState('');
-  const [pendingPhone, setPendingPhone] = useState(params.phone ?? '');
+  void otp; // kept for future use, unused currently
   const setPinMutation = useSetTransferPin();
 
-  const verifyOTP = useVerifyOTP({
-    onVerified: async () => {
+  const register = useRegister({
+    onSuccess: async () => {
       try {
         await setPinMutation.mutateAsync({ newPin: pin });
       } catch (err) {
-        console.warn('Failed to set PIN after OTP verification', err);
+        console.warn('Failed to set PIN after registration', err);
       }
       router.replace('/');
-    },
-    onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Invalid or expired code.');
-    },
-  });
-
-  const register = useRegister({
-    onRequiresVerification: (phone) => {
-      setPendingPhone(phone);
-      setStep(7);
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
@@ -81,12 +69,10 @@ export default function RegisterScreen() {
         return referralCode.trim() === '' || referralCode.trim().length >= 4;
       case 6:
         return pin.length === 4;
-      case 7:
-        return otp.length === 6;
       default:
         return false;
     }
-  }, [step, fullName, acceptedTerms, phoneValue, email, password, referralCode, pin, otp]);
+  }, [step, fullName, acceptedTerms, phoneValue, email, password, referralCode, pin]);
 
   const handleNext = () => {
     if (stepValid && step < 6) {
@@ -95,7 +81,6 @@ export default function RegisterScreen() {
   };
 
   const handleBack = () => {
-    if (step === 7) return; // can't go back from OTP step
     if (step > 1) {
       setStep((current) => (current - 1) as Step);
     } else {
@@ -115,13 +100,7 @@ export default function RegisterScreen() {
     });
   };
 
-  const handleVerifyOTP = () => {
-    if (otp.length < 6 || verifyOTP.isPending) return;
-    setError(null);
-    verifyOTP.mutate({ phone: pendingPhone, otp });
-  };
-
-  const isSubmitting = register.isPending || setPinMutation.isPending || verifyOTP.isPending;
+  const isSubmitting = register.isPending || setPinMutation.isPending;
 
   return (
     <KeyboardView>
@@ -309,37 +288,6 @@ export default function RegisterScreen() {
                     onPress={handleSubmit} 
                     size="lg" 
                     style={styles.cta} 
-                  />
-                </View>
-              </Animated.View>
-            )}
-
-            {step === 7 && (
-              <Animated.View key="step-7" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
-                <Text style={[styles.heading, { color: theme.text }]}>VERIFY YOUR PHONE</Text>
-                <Text style={[styles.subheading, { color: theme.textSecondary }]}>
-                  We sent a 6-digit verification code to{' '}
-                  <Text style={{ fontFamily: Typography.family.semibold, color: theme.primary }}>
-                    {pendingPhone}
-                  </Text>
-                  . Enter it below to activate your account.
-                </Text>
-
-                <PinInput
-                  value={otp}
-                  onChangeText={setOtp}
-                  loading={verifyOTP.isPending}
-                  error={error || undefined}
-                />
-
-                <View style={styles.ctaWrap}>
-                  <Button
-                    title={verifyOTP.isPending ? 'Verifying…' : 'Verify Phone'}
-                    loading={verifyOTP.isPending}
-                    disabled={otp.length < 6 || verifyOTP.isPending}
-                    onPress={handleVerifyOTP}
-                    size="lg"
-                    style={styles.cta}
                   />
                 </View>
               </Animated.View>

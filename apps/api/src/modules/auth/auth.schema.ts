@@ -31,7 +31,8 @@ export const RegisterDriverSchema = RegisterUserSchema.extend({
 });
 
 export const VerifyOTPSchema = z.object({
-  phone: z.string().regex(nigerianPhone),
+  email: z.string().email().optional(),
+  phone: z.string().regex(nigerianPhone).optional(),
   otp: z.string().length(6),
 });
 
@@ -96,7 +97,8 @@ export const ResetPasswordBody = Type.Object({
 });
 
 export const VerifyOTPBody = Type.Object({
-  phone: Type.String(),
+  email: Type.Optional(Type.String({ format: 'email' })),
+  phone: Type.Optional(Type.String()),
   otp: Type.String({ minLength: 6, maxLength: 6 }),
 });
 

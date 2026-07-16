@@ -100,3 +100,65 @@ export function useToggleOnlineStatus() {
     },
   });
 }
+
+// ── In-app Verification ───────────────────────────────────────────────────────
+
+export function useRequestEmailVerification() {
+  return useMutation({
+    mutationFn: async () => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'driver.email_verify_requested', level: 'info' });
+      const response = await http.post<ApiResponse<{ sent: boolean }>>('/api/v1/auth/email/verify/request');
+      return response.data.data;
+    },
+  });
+}
+
+export function useConfirmEmailVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (otp: string) => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'driver.email_verify_confirmed', level: 'info' });
+      const response = await http.post<ApiResponse<{ verified: boolean }>>('/api/v1/auth/email/verify/confirm', { otp });
+      return response.data.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
+      const store = useDriverStore.getState();
+      if (store.user) {
+        const nextUser = { ...store.user, emailVerified: true };
+        await store.setUser(nextUser);
+      }
+    },
+  });
+}
+
+export function useRequestPhoneVerification() {
+  return useMutation({
+    mutationFn: async () => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'driver.phone_verify_requested', level: 'info' });
+      const response = await http.post<ApiResponse<{ sent: boolean }>>('/api/v1/auth/phone/verify/request');
+      return response.data.data;
+    },
+  });
+}
+
+export function useConfirmPhoneVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (otp: string) => {
+      Sentry.addBreadcrumb({ category: 'profile', message: 'driver.phone_verify_confirmed', level: 'info' });
+      const response = await http.post<ApiResponse<{ verified: boolean }>>('/api/v1/auth/phone/verify/confirm', { otp });
+      return response.data.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
+      const store = useDriverStore.getState();
+      if (store.user) {
+        const nextUser = { ...store.user, phoneVerified: true };
+        await store.setUser(nextUser);
+      }
+    },
+  });
+}

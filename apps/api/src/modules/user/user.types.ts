@@ -16,6 +16,8 @@ export type UserProfileResponse = {
   status: UserStatus;
   walletPinSet: boolean;
   kycComplete: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   createdAt: string;
   updatedAt: string;
 };

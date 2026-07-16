@@ -44,6 +44,30 @@ type UserTokenContext = {
   driverId?: string | null;
 };
 
+/**
+ * Normalize an identifier (email or phone) so lookups work regardless of
+ * whether the caller sends "08012345678", "2348012345678" or "+2348012345678".
+ */
+function normalizeIdentifier(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.includes('@')) return trimmed.toLowerCase();
+
+  // Strip non-digit characters
+  const digits = trimmed.replace(/\D/g, '');
+
+  if (digits.startsWith('234') && digits.length >= 13) {
+    return `+${digits}`;
+  }
+  if (digits.startsWith('0') && digits.length === 11) {
+    return `+234${digits.slice(1)}`;
+  }
+  if (digits.length === 10) {
+    return `+234${digits}`;
+  }
+  // Return with + prefix if it already starts with 234
+  return trimmed.startsWith('+') ? trimmed : `+${digits}`;
+}
+
 function redactUser(user: User): SafeUser {
   return {
     id: user.id,
@@ -55,6 +79,8 @@ function redactUser(user: User): SafeUser {
     avatarUrl: user.avatarUrl,
     dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString() : null,
     address: user.address,
+    emailVerified: (user as any).emailVerified ?? false,
+    phoneVerified: (user as any).phoneVerified ?? false,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -69,6 +95,14 @@ function safeTokenEqual(a: string, b: string): boolean {
   const bb = Buffer.from(b);
   if (ab.length !== bb.length) return false;
   return crypto.timingSafeEqual(ab, bb);
+}
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function otpExpiry(): Date {
+  return new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 }
 
 export class AuthService {
@@ -101,8 +135,11 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  // ─── Registration ──────────────────────────────────────────────────────────
+
   async registerUser(data: Record<string, unknown>): Promise<AuthResponse> {
     const payload = data as AuthInput;
+
     const existing = await this.prisma.user.findFirst({
       where: { OR: [{ email: payload.email }, { phone: payload.phone }] },
     });
@@ -119,9 +156,6 @@ export class AuthService {
       inviterId = inviter.id;
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -130,9 +164,7 @@ export class AuthService {
           passwordHash,
           fullName: payload.fullName,
           referredById: inviterId,
-          status: 'PENDING_VERIFICATION',
-          phoneVerificationCode: otpCode,
-          phoneVerificationExpiry: expiry,
+          status: 'ACTIVE', // no verification gate at signup
         },
       });
 
@@ -151,30 +183,23 @@ export class AuthService {
       return created;
     });
 
-    await sendSMS({
-      to: user.phone,
-      message: `Your Percel verification code is: ${otpCode}. Valid for 15 minutes.`,
-    });
+    const driverId = await this.resolveDriverId(user.id);
+    const tokens = await this.generateTokens({ userId: user.id, role: user.role, driverId });
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
 
-    this.logger.info({ userId: user.id }, 'auth.register.initiated');
-    return {
-      requiresVerification: true,
-      phone: user.phone,
-      message: 'Verification OTP sent to your phone number.',
-    };
+    this.logger.info({ userId: user.id }, 'auth.register.success');
+    return { user: redactUser(user), tokens };
   }
 
   async registerDriver(data: Record<string, unknown>): Promise<AuthResponse> {
     const payload = data as DriverInput;
+
     const existing = await this.prisma.user.findFirst({
       where: { OR: [{ email: payload.email }, { phone: payload.phone }] },
     });
     if (existing) throw new ValidationError('Email or phone already exists');
 
     const passwordHash = await bcrypt.hash(payload.password, 12);
-
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -183,9 +208,7 @@ export class AuthService {
           phone: payload.phone,
           passwordHash,
           fullName: payload.fullName,
-          status: 'PENDING_VERIFICATION',
-          phoneVerificationCode: otpCode,
-          phoneVerificationExpiry: expiry,
+          status: 'ACTIVE', // no verification gate at signup
         },
       });
 
@@ -204,21 +227,22 @@ export class AuthService {
       return created;
     });
 
-    await sendSMS({
-      to: user.phone,
-      message: `Your Percel verification code is: ${otpCode}. Valid for 15 minutes.`,
-    });
+    const driverId = await this.resolveDriverId(user.id);
+    const tokens = await this.generateTokens({ userId: user.id, role: user.role, driverId });
+    await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
 
-    this.logger.info({ userId: user.id }, 'auth.register_driver.initiated');
-    return {
-      requiresVerification: true,
-      phone: user.phone,
-      message: 'Verification OTP sent to your phone number.',
-    };
+    this.logger.info({ userId: user.id }, 'auth.register_driver.success');
+    return { user: redactUser(user), tokens };
   }
 
+  // ─── Login ─────────────────────────────────────────────────────────────────
+
   async login(identifier: string, password: string, ip?: string): Promise<AuthResponse> {
-    const user = await this.prisma.user.findFirst({ where: { OR: [{ email: identifier }, { phone: identifier }] } });
+    const normalized = normalizeIdentifier(identifier);
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email: normalized }, { phone: normalized }] },
+    });
+
     if (!user) {
       this.logger.warn({ identifier, ip }, 'auth.login.failed');
       throw new UnauthorizedError('Invalid credentials');
@@ -232,20 +256,6 @@ export class AuthService {
 
     if (user.status === 'SUSPENDED') throw new ForbiddenError('Account is suspended');
 
-    if (user.status === 'PENDING_VERIFICATION') {
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          phoneVerificationCode: otpCode,
-          phoneVerificationExpiry: expiry,
-        },
-      });
-      await sendSMS({ to: user.phone, message: `Your Percel verification code is: ${otpCode}. Valid for 15 minutes.` });
-      return { requiresVerification: true, phone: user.phone, message: 'Please verify your phone number' };
-    }
-
     const driverId = await this.resolveDriverId(user.id);
     const tokens = await this.generateTokens({ userId: user.id, role: user.role, driverId });
     await this.prisma.user.update({ where: { id: user.id }, data: { refreshToken: hashToken(tokens.refreshToken) } });
@@ -254,26 +264,34 @@ export class AuthService {
     return { user: redactUser(user), tokens };
   }
 
-  async verifyOTP(phone: string, otp: string, ip?: string): Promise<AuthResponse> {
-    const user = await this.prisma.user.findUnique({ where: { phone } });
+  // ─── Legacy OTP verify (kept for backward compat, now mostly unused) ───────
+
+  async verifyOTP(params: { email?: string; phone?: string }, otp: string, ip?: string): Promise<AuthResponse> {
+    const { email, phone } = params;
+    if (!email && !phone) throw new ValidationError('email or phone required');
+
+    const user = await this.prisma.user.findFirst({
+      where: email ? { email } : { phone },
+    });
     if (!user) throw new ValidationError('User not found');
-    if (!user.phoneVerificationCode || !user.phoneVerificationExpiry) {
-      throw new ValidationError('No active verification request found');
-    }
-    if (user.phoneVerificationExpiry < new Date()) {
-      throw new ValidationError('Verification code has expired');
-    }
-    if (user.phoneVerificationCode !== otp) {
-      throw new ValidationError('Invalid verification code');
-    }
+
+    // Check email verification fields
+    const u = user as any;
+    const code: string | null = u.emailVerificationCode ?? u.phoneVerificationCode ?? null;
+    const expiry: Date | null = u.emailVerificationExpiry ?? u.phoneVerificationExpiry ?? null;
+
+    if (!code || !expiry) throw new ValidationError('No active verification request found');
+    if (expiry < new Date()) throw new ValidationError('Verification code has expired');
+    if (code !== otp) throw new ValidationError('Invalid verification code');
+
+    const isEmailVerify = Boolean(u.emailVerificationCode);
+    const updateData: Record<string, unknown> = isEmailVerify
+      ? { emailVerificationCode: null, emailVerificationExpiry: null, emailVerified: true }
+      : { phoneVerificationCode: null, phoneVerificationExpiry: null, phoneVerified: true };
 
     const updated = await this.prisma.user.update({
       where: { id: user.id },
-      data: {
-        status: 'ACTIVE',
-        phoneVerificationCode: null,
-        phoneVerificationExpiry: null,
-      },
+      data: updateData as any,
     });
 
     const driverId = await this.resolveDriverId(updated.id);
@@ -284,17 +302,128 @@ export class AuthService {
     return { user: redactUser(updated), tokens };
   }
 
+  // ─── In-App Email Verification ─────────────────────────────────────────────
+
+  async requestEmailVerification(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ValidationError('User not found');
+
+    const otpCode = generateOTP();
+    const expiry = otpExpiry();
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationCode: otpCode,
+        emailVerificationExpiry: expiry,
+      } as any,
+    });
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Verify your Percel email address',
+      text: `Your Percel email verification code is: ${otpCode}. Valid for 15 minutes.`,
+      html: `<p>Your Percel email verification code is: <strong>${otpCode}</strong>.</p><p>Valid for 15 minutes.</p>`,
+    });
+
+    this.logger.info({ userId }, 'auth.email_verification.requested');
+  }
+
+  async confirmEmailVerification(userId: string, otp: string): Promise<{ verified: boolean }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ValidationError('User not found');
+
+    const u = user as any;
+    if (!u.emailVerificationCode || !u.emailVerificationExpiry) {
+      throw new ValidationError('No active email verification request. Please request a new code.');
+    }
+    if (u.emailVerificationExpiry < new Date()) {
+      throw new ValidationError('Verification code has expired. Please request a new one.');
+    }
+    if (u.emailVerificationCode !== otp) {
+      throw new ValidationError('Invalid verification code.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerified: true,
+        emailVerificationCode: null,
+        emailVerificationExpiry: null,
+      } as any,
+    });
+
+    this.logger.info({ userId }, 'auth.email_verification.confirmed');
+    return { verified: true };
+  }
+
+  // ─── In-App Phone Verification ─────────────────────────────────────────────
+
+  async requestPhoneVerification(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ValidationError('User not found');
+
+    const otpCode = generateOTP();
+    const expiry = otpExpiry();
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        phoneVerificationCode: otpCode,
+        phoneVerificationExpiry: expiry,
+      },
+    });
+
+    await sendSMS({
+      to: user.phone,
+      message: `Your Percel phone verification code is: ${otpCode}. Valid for 15 minutes.`,
+    });
+
+    this.logger.info({ userId }, 'auth.phone_verification.requested');
+  }
+
+  async confirmPhoneVerification(userId: string, otp: string): Promise<{ verified: boolean }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ValidationError('User not found');
+
+    if (!user.phoneVerificationCode || !user.phoneVerificationExpiry) {
+      throw new ValidationError('No active phone verification request. Please request a new code.');
+    }
+    if (user.phoneVerificationExpiry < new Date()) {
+      throw new ValidationError('Verification code has expired. Please request a new one.');
+    }
+    if (user.phoneVerificationCode !== otp) {
+      throw new ValidationError('Invalid verification code.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        phoneVerified: true,
+        phoneVerificationCode: null,
+        phoneVerificationExpiry: null,
+      } as any,
+    });
+
+    this.logger.info({ userId }, 'auth.phone_verification.confirmed');
+    return { verified: true };
+  }
+
+  // ─── Password Recovery ─────────────────────────────────────────────────────
+
   async forgotPassword(identifier: string): Promise<void> {
+    const normalized = normalizeIdentifier(identifier);
+
     const user = await this.prisma.user.findFirst({
-      where: { OR: [{ email: identifier }, { phone: identifier }] },
+      where: { OR: [{ email: normalized }, { phone: normalized }] },
     });
     if (!user) {
       this.logger.warn({ identifier }, 'auth.forgot_password.user_not_found');
-      return;
+      return; // silent — don't leak whether account exists
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    const otpCode = generateOTP();
+    const expiry = otpExpiry();
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -337,6 +466,8 @@ export class AuthService {
 
     this.logger.info({ userId: user.id }, 'auth.reset_password.success');
   }
+
+  // ─── Token Management ──────────────────────────────────────────────────────
 
   async refreshTokens(refreshToken: string, ip?: string): Promise<AuthTokens> {
     let payload: Record<string, unknown>;

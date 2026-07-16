@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Device from 'expo-device';
 import * as ScreenCapture from 'expo-screen-capture';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Camera, ChevronLeft, CircleAlert, ShieldCheck, Sparkles, UserPen } from 'lucide-react-native';
@@ -14,7 +14,17 @@ import { KeyboardView } from '@/components/ui/KeyboardView';
 
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useChangePassword, useDeleteAccount, useProfile, useUpdateAvatar, useUpdateProfile } from '@/hooks/useProfile';
+import {
+  useChangePassword,
+  useDeleteAccount,
+  useProfile,
+  useUpdateAvatar,
+  useUpdateProfile,
+  useRequestEmailVerification,
+  useConfirmEmailVerification,
+  useRequestPhoneVerification,
+  useConfirmPhoneVerification,
+} from '@/hooks/useProfile';
 import { useAppPalette } from '@/lib/theme';
 import { usePreferencesStore } from '@/store/preferences.store';
 
@@ -38,6 +48,53 @@ export default function EditProfileScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [deleteVisible, setDeleteVisible] = useState(false);
+
+  const [verifyType, setVerifyType] = useState<'EMAIL' | 'PHONE' | null>(null);
+  const [verifyOtp, setVerifyOtp] = useState('');
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const reqEmailVerify = useRequestEmailVerification();
+  const confirmEmailVerify = useConfirmEmailVerification();
+  const reqPhoneVerify = useRequestPhoneVerification();
+  const confirmPhoneVerify = useConfirmPhoneVerification();
+
+  const handleStartEmailVerify = async () => {
+    setVerifyError(null);
+    setVerifyOtp('');
+    try {
+      await reqEmailVerify.mutateAsync();
+      setVerifyType('EMAIL');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not send verification code.');
+    }
+  };
+
+  const handleStartPhoneVerify = async () => {
+    setVerifyError(null);
+    setVerifyOtp('');
+    try {
+      await reqPhoneVerify.mutateAsync();
+      setVerifyType('PHONE');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not send verification code.');
+    }
+  };
+
+  const handleConfirmVerify = async () => {
+    if (verifyOtp.length < 6) return;
+    setVerifyError(null);
+    try {
+      if (verifyType === 'EMAIL') {
+        await confirmEmailVerify.mutateAsync(verifyOtp);
+      } else {
+        await confirmPhoneVerify.mutateAsync(verifyOtp);
+      }
+      setVerifyType(null);
+      Alert.alert('Success', `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`);
+    } catch (err: any) {
+      setVerifyError(err.message || 'Verification failed. Please try again.');
+    }
+  };
 
   const allowScreenshots = usePreferencesStore((s) => s.allowScreenshots);
 
@@ -204,6 +261,47 @@ export default function EditProfileScreen() {
             <View style={[styles.formCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.sectionHeader}>
                 <ShieldCheck size={18} color={palette.primary} />
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Verification Status</Text>
+              </View>
+
+              {/* Email Verification Row */}
+              <View style={styles.verificationRow}>
+                <View style={styles.verificationCopy}>
+                  <Text style={[styles.verificationLabel, { color: palette.text }]}>Email Address</Text>
+                  <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.email}</Text>
+                </View>
+                {profile?.emailVerified ? (
+                  <View style={styles.verifiedBadge}>
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                ) : (
+                  <Pressable onPress={handleStartEmailVerify} style={styles.verifyButton}>
+                    <Text style={[styles.verifyButtonText, { color: palette.primary }]}>Verify</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Phone Verification Row */}
+              <View style={styles.verificationRow}>
+                <View style={styles.verificationCopy}>
+                  <Text style={[styles.verificationLabel, { color: palette.text }]}>Phone Number</Text>
+                  <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.phone}</Text>
+                </View>
+                {profile?.phoneVerified ? (
+                  <View style={styles.verifiedBadge}>
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                ) : (
+                  <Pressable onPress={handleStartPhoneVerify} style={styles.verifyButton}>
+                    <Text style={[styles.verifyButtonText, { color: palette.primary }]}>Verify</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+
+            <View style={[styles.formCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <ShieldCheck size={18} color={palette.primary} />
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Change password</Text>
               </View>
               <Input label="Current password" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Current password" secureTextEntry secureToggle />
@@ -230,6 +328,43 @@ export default function EditProfileScreen() {
         onCancel={() => setDeleteVisible(false)}
         onConfirm={confirmDelete}
       />
+
+      <Modal visible={verifyType !== null} transparent animationType="fade" onRequestClose={() => setVerifyType(null)}>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: palette.card, borderColor: palette.border, borderWidth: 1 }]}>
+            <Text style={[styles.modalTitle, { color: palette.text }]}>
+              Verify Your {verifyType === 'EMAIL' ? 'Email' : 'Phone'}
+            </Text>
+            <Text style={[styles.modalDescription, { color: palette.textSecondary }]}>
+              We sent a 6-digit verification code to your {verifyType === 'EMAIL' ? 'email' : 'phone number'}. Enter it below to verify.
+            </Text>
+            <Input
+              label="Verification Code"
+              placeholder="e.g. 123456"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={verifyOtp}
+              onChangeText={setVerifyOtp}
+            />
+            {verifyError ? <Text style={styles.modalError}>{verifyError}</Text> : null}
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                style={styles.modalBtn}
+                onPress={() => setVerifyType(null)}
+              />
+              <Button
+                title="Confirm"
+                style={styles.modalBtn}
+                disabled={verifyOtp.length < 6 || confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
+                loading={confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
+                onPress={handleConfirmVerify}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardView>
   );
 }
@@ -259,4 +394,19 @@ const styles = StyleSheet.create({
     headerSpacer: { width: 42 },
       backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
+  verificationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255, 255, 255, 0.1)', paddingBottom: 12, marginBottom: 4 },
+  verificationCopy: { flex: 1, gap: 2 },
+  verificationLabel: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  verificationValue: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
+  verifiedBadge: { backgroundColor: 'rgba(48, 209, 88, 0.16)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  verifiedText: { color: '#30d158', fontSize: 12, fontFamily: Typography.family.bold },
+  verifyButton: { backgroundColor: 'rgba(10, 132, 255, 0.12)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  verifyButtonText: { fontSize: 12, fontFamily: Typography.family.bold },
+  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { width: '100%', maxWidth: 400, borderRadius: 24, padding: 24, gap: 16 },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
+  modalDescription: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20 },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalBtn: { flex: 1 },
+  modalError: { color: '#ff453a', fontSize: Typography.sm, textAlign: 'center' },
 });
