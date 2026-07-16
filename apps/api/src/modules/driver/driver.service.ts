@@ -450,14 +450,29 @@ export class DriverService {
     if (!driver) throw new NotFoundError('Driver not found');
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.driverKYC.update({
+      const existingKyc = await tx.driverKYC.findUnique({
         where: { driverId },
-        data: {
-          status: DriverKYCStatus.APPROVED,
-          rejectionReason: null,
-          reviewedAt: new Date(),
-        },
       });
+      if (existingKyc) {
+        await tx.driverKYC.update({
+          where: { driverId },
+          data: {
+            status: DriverKYCStatus.APPROVED,
+            rejectionReason: null,
+            reviewedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.driverKYC.create({
+          data: {
+            driverId,
+            ninNumber: driver.user.ninNumber || 'PENDING',
+            bvnNumber: driver.user.bvnNumber || 'PENDING',
+            status: DriverKYCStatus.APPROVED,
+            reviewedAt: new Date(),
+          },
+        });
+      }
 
       await tx.driver.update({
         where: { id: driverId },
@@ -492,14 +507,30 @@ export class DriverService {
     if (!driver) throw new NotFoundError('Driver not found');
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.driverKYC.update({
+      const existingKyc = await tx.driverKYC.findUnique({
         where: { driverId },
-        data: {
-          status: DriverKYCStatus.REJECTED,
-          rejectionReason: reason,
-          reviewedAt: new Date(),
-        },
       });
+      if (existingKyc) {
+        await tx.driverKYC.update({
+          where: { driverId },
+          data: {
+            status: DriverKYCStatus.REJECTED,
+            rejectionReason: reason,
+            reviewedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.driverKYC.create({
+          data: {
+            driverId,
+            ninNumber: driver.user.ninNumber || 'PENDING',
+            bvnNumber: driver.user.bvnNumber || 'PENDING',
+            status: DriverKYCStatus.REJECTED,
+            rejectionReason: reason,
+            reviewedAt: new Date(),
+          },
+        });
+      }
 
       await tx.driver.update({
         where: { id: driverId },
