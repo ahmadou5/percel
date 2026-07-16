@@ -7,7 +7,7 @@ import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute } from '../.
 import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext } from '../../lib/hubs.js';
 import { getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { addNotificationJob } from '../../queues/index.js';
-import { broadcastOrderStatusUpdate, clearActiveDriverTracking, setActiveDriverTracking, type RealtimeApp } from '../../lib/realtime.js';
+import { broadcastOrderStatusUpdate, clearActiveDriverTracking, setActiveDriverTracking, broadcastDriverLocation, type RealtimeApp } from '../../lib/realtime.js';
 import { getPriceQuote } from '../../lib/pricing.js';
 import { addOrderMatchingJob } from '../../queues/index.js';
 import { haversineDistanceKm } from '../../utils/helpers.js';

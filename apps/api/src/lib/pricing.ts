@@ -9,6 +9,7 @@ export interface PriceQuote {
   surgeMultiplier: number;
   totalPrice: number;
   currency: 'NGN';
+  deliveryType?: 'INTERSTATE' | 'INTRASTATE';
   breakdown: {
     sizeLabel: string;
     distanceBand: string;
