@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, ChevronDown, ChevronLeft, CreditCard, Search, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Animated, Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
@@ -12,10 +12,20 @@ import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateProfile, useVerifyBvn } from '@/hooks/useProfile';
 import { useBanks } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
-import { getBankLogoUrl } from '@percel/shared';
+import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
+import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
 
-function isValidDateInput(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
+function isOfAge(dateString: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+  const birthDate = new Date(dateString);
+  if (Number.isNaN(birthDate.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 18;
 }
 
 function isValidIdInput(value: string, expectedLength: number) {
@@ -40,44 +50,6 @@ type BankItem = {
   longcode?: string | null;
 };
 
-const BANK_PALETTE = [
-  "#0A84FF", "#30D158", "#FF9F0A", "#FF375F", "#BF5AF2",
-  "#32ADE6", "#FF6961", "#5AC8FA", "#AC8E68", "#34C759",
-];
-
-function bankInitialColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return BANK_PALETTE[Math.abs(hash) % BANK_PALETTE.length];
-}
-
-function BankAvatar({ name, size = 38 }: { name: string; size?: number }) {
-  const color = bankInitialColor(name);
-  const initial = name.trim().charAt(0).toUpperCase() || 'B';
-  return (
-    <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color, fontSize: size * 0.4, fontFamily: 'System', fontWeight: '700' }}>{initial}</Text>
-    </View>
-  );
-}
-
-function BankLogo({ name, slug, size = 38 }: { name: string; slug?: string | null; size?: number }) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const url = getBankLogoUrl(undefined, name, slug);
-  useEffect(() => {
-    setLogoFailed(false);
-  }, [url]);
-  if (url && !logoFailed) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <Image source={{ uri: url }} style={{ width: size * 0.82, height: size * 0.82 }} resizeMode="contain" onError={() => setLogoFailed(true)} />
-      </View>
-    );
-  }
-  return <BankAvatar name={name} size={size} />;
-}
-
 export default function KycScreen() {
   const queryClient = useQueryClient();
   const palette = useAppPalette();
@@ -95,8 +67,8 @@ export default function KycScreen() {
   const [bvn, setBvn] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [bankCode, setBankCode] = useState('');
-  const [bankSearch, setBankSearch] = useState('');
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { opacity, translateX } = useSlideStepTransition(step);
@@ -119,11 +91,6 @@ export default function KycScreen() {
   }, [bankCode, banks]);
 
   const selectedBank = banks.find((item) => item.code === bankCode) ?? null;
-  const filteredBanks = useMemo(() => {
-    const term = bankSearch.trim().toLowerCase();
-    if (!term) return banks;
-    return banks.filter((bank) => `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term));
-  }, [bankSearch, banks]);
 
   const kycComplete = Boolean(profile?.kycComplete);
   const verificationPending = profile?.status === 'PENDING_VERIFICATION' && !kycComplete;
@@ -131,7 +98,7 @@ export default function KycScreen() {
     firstName.trim().length >= 1 &&
     lastName.trim().length >= 1 &&
     address.trim().length >= 8 &&
-    isValidDateInput(dateOfBirth);
+    isOfAge(dateOfBirth);
   const identityComplete =
     isValidIdInput(bvn, 11) &&
     isValidIdInput(accountNumber, 10) &&
@@ -153,6 +120,25 @@ export default function KycScreen() {
     : verificationPending || submitted
       ? 'Our verification partner is validating your BVN and bank account. Your dedicated account will be created when the webhook confirms success.'
       : 'Complete the staged form below to validate your identity and unlock dedicated account creation.';
+
+  if (kycComplete) {
+    return (
+      <View style={[styles.screen, { backgroundColor: palette.bg, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl }]}>
+        <View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={[styles.verifiedIconWrap, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+            <ShieldCheck size={48} color={palette.success} />
+          </View>
+          <Text style={[styles.verifiedTitle, { color: palette.text }]}>You're Verified!</Text>
+          <Text style={[styles.verifiedBody, { color: palette.textSecondary }]}>
+            Your identity has been fully verified. Your account is active and eligible for higher transaction limits, deposits, and bank payouts.
+          </Text>
+          <Pressable onPress={() => back()} style={[styles.primaryAction, { width: '100%', marginTop: Spacing.md, backgroundColor: palette.primary }]}>
+            <Text style={styles.primaryActionText}>Back to Profile</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   const headerBack = () => {
     if (step > 1) {
@@ -264,14 +250,17 @@ export default function KycScreen() {
               helperText="Use the address that matches your identity documents."
             />
 
-            <Input
-              label="Date of birth"
-              value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-              placeholder="YYYY-MM-DD"
-              keyboardType="numbers-and-punctuation"
-              helperText="Enter your date of birth in ISO format, for example 1998-04-18."
-            />
+            <Pressable onPress={() => setDatePickerOpen(true)}>
+              <View pointerEvents="none">
+                <Input
+                  label="Date of birth"
+                  value={dateOfBirth}
+                  placeholder="Select date of birth"
+                  editable={false}
+                  helperText="Date of birth (Must be at least 18 years old)."
+                />
+              </View>
+            </Pressable>
 
             <Pressable
               onPress={handleNext}
@@ -399,63 +388,19 @@ export default function KycScreen() {
         ) : null}
       </Animated.View>
 
-      <Modal visible={bankPickerOpen} transparent animationType="fade" onRequestClose={() => setBankPickerOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setBankPickerOpen(false)} />
-          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a bank</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Search the supported bank list.</Text>
-              </View>
-              <Pressable onPress={() => setBankPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
-                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
-              </Pressable>
-            </View>
+      <BankPickerModal
+        visible={bankPickerOpen}
+        onClose={() => setBankPickerOpen(false)}
+        selectedBankCode={bankCode}
+        onSelect={(bank) => setBankCode(bank.code)}
+      />
 
-            <Input
-              label="Search banks"
-              value={bankSearch}
-              onChangeText={setBankSearch}
-              placeholder="Search by name or code"
-              leftElement={<Search size={16} color={palette.textSecondary} />}
-            />
-
-            {banksQuery.isLoading ? (
-              <View style={styles.bankLoading}>
-                <Text style={{ color: palette.textSecondary }}>Loading bank list...</Text>
-              </View>
-            ) : filteredBanks.length ? (
-              <FlatList
-                data={filteredBanks}
-                keyExtractor={(item) => item.code}
-                style={styles.bankList}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => {
-                  const active = item.code === bankCode;
-                  return (
-                    <Pressable
-                      onPress={() => {
-                        setBankCode(item.code);
-                        setBankPickerOpen(false);
-                      }}
-                      style={[styles.bankRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
-                    >
-                      <BankLogo name={item.name} slug={item.slug} size={38} />
-                      <Text style={[styles.bankRowName, { color: palette.text, flex: 1, marginLeft: 10 }]}>{item.name}</Text>
-                      {active ? <CheckCircle2 size={16} color={palette.primary} /> : null}
-                    </Pressable>
-                  );
-                }}
-              />
-            ) : (
-              <View style={styles.bankLoading}>
-                <Text style={{ color: palette.textSecondary }}>No banks match your search.</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <DobDatePickerModal
+        visible={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        onSelect={setDateOfBirth}
+        initialValue={dateOfBirth}
+      />
     </ScrollView>
   );
 }
@@ -526,16 +471,8 @@ const styles = StyleSheet.create({
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
   reviewLabel: { fontSize: Typography.sm, flexShrink: 0 },
   reviewValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'right', flex: 1 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
-  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  modalSubtitle: { fontSize: Typography.sm, marginTop: 2 },
-  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
-  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  bankLoading: { paddingVertical: Spacing.lg, alignItems: 'center', justifyContent: 'center' },
-  bankList: { maxHeight: 320 },
-  bankRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
-  bankRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  bankRowCode: { fontSize: Typography.xs },
+  verifiedCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.xl, gap: Spacing.lg, alignItems: 'center', width: '100%' },
+  verifiedIconWrap: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  verifiedTitle: { fontSize: 26, fontFamily: Typography.family.bold, textAlign: 'center', letterSpacing: -0.5 },
+  verifiedBody: { fontSize: Typography.sm, lineHeight: 22, textAlign: 'center', paddingHorizontal: Spacing.md },
 });

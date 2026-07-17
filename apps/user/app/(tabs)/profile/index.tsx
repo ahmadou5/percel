@@ -92,12 +92,20 @@ export default function ProfileScreen() {
             <ShieldCheck size={12} color={verified ? palette.success : palette.warning} />
             <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'KYC complete' : 'KYC required'}</Text>
           </View>
-          {!verified ? (
+          {verified ? (
+            <View style={[styles.kycVerifiedCard, { backgroundColor: 'rgba(48,209,88,0.06)', borderColor: palette.success + '30' }]}>
+              <ShieldCheck size={18} color={palette.success} />
+              <View style={styles.kycVerifiedTextWrap}>
+                <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity Verified</Text>
+                <Text style={[styles.kycVerifiedSubtitle, { color: palette.textSecondary }]}>Your NUBAN and bank payouts are fully unlocked.</Text>
+              </View>
+            </View>
+          ) : (
             <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: lightBg ? 'rgba(255,214,10,0.10)' : 'rgba(255,214,10,0.12)', borderColor: palette.border }]}>
               <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC to unlock your NUBAN</Text>
               <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Choose BVN or NIN and finish KYC in Settings.</Text>
             </Pressable>
-          ) : null}
+          )}
         </View>
 
         <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
@@ -158,4 +166,8 @@ const styles = StyleSheet.create({
   settingsTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   settingsSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
   pressed: { opacity: 0.92 },
+  kycVerifiedCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 10, flexDirection: 'row', alignItems: 'center' },
+  kycVerifiedTextWrap: { flex: 1, gap: 2 },
+  kycVerifiedTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  kycVerifiedSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
 });

@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/Input";
 import { PinInput } from "@/components/ui/PinInput";
 import { StateCard } from "@/components/ui/StateCard";
 import { AmountInput } from "@/components/wallet/AmountInput";
+import { BankPickerModal, BankLogo } from "@/components/wallet/BankPickerModal";
 import {
   normalizeNigerianPhone,
   isValidNigerianPhone,
@@ -100,98 +101,7 @@ type RecipientValidation = {
   avatarUrl?: string | null;
 };
 
-const BANK_PALETTE = [
-  "#0A84FF",
-  "#30D158",
-  "#FF9F0A",
-  "#FF375F",
-  "#BF5AF2",
-  "#32ADE6",
-  "#FF6961",
-  "#5AC8FA",
-  "#AC8E68",
-  "#34C759",
-];
-
-function bankInitialColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return BANK_PALETTE[Math.abs(hash) % BANK_PALETTE.length];
-}
-
-// Removed local bankLogoUrl in favor of getBankLogoUrl from @percel/shared
-
-function BankAvatar({ name, size = 40 }: { name: string; size?: number }) {
-  const color = bankInitialColor(name);
-  const initial = name.trim().charAt(0).toUpperCase() || "B";
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 4,
-        backgroundColor: color + "22",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text
-        style={{
-          color,
-          fontSize: size * 0.4,
-          fontFamily: Typography.family.bold,
-        }}
-      >
-        {initial}
-      </Text>
-    </View>
-  );
-}
-
-function BankLogo({
-  name,
-  bankCode,
-  slug,
-  size = 40,
-}: {
-  name: string;
-  bankCode?: string | null;
-  slug?: string | null;
-  size?: number;
-}) {
-  const [logoFailed, setLogoFailed] = useState(false);
-  const url = getBankLogoUrl(bankCode || undefined, name, slug);
-
-  useEffect(() => {
-    setLogoFailed(false);
-  }, [url]);
-
-  if (url && !logoFailed) {
-    return (
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 4,
-          backgroundColor: "rgba(255,255,255,0.06)",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        <Image
-          source={{ uri: url }}
-          style={{ width: size * 0.82, height: size * 0.82 }}
-          resizeMode="contain"
-          onError={() => setLogoFailed(true)}
-        />
-      </View>
-    );
-  }
-
-  return <BankAvatar name={name} size={size} />;
-}
+// Mode selection
 
 function modeLabel(mode: Mode) {
   return mode === "BANK" ? "Bank transfer" : "Inter-app transfer";
@@ -264,7 +174,6 @@ export default function TransferScreen() {
   );
   const [pinError, setPinError] = useState("");
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
-  const [bankSearch, setBankSearch] = useState("");
   const [bankConfirmed, setBankConfirmed] = useState(false);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -319,15 +228,6 @@ export default function TransferScreen() {
     name: "Select bank",
     code: bankCode,
   };
-  const filteredBanks = useMemo(() => {
-    const term = bankSearch.trim().toLowerCase();
-    if (!term) return banks;
-    return banks.filter((bank) =>
-      `${bank.name} ${bank.code} ${bank.slug ?? ""}`
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [bankSearch, banks]);
 
   const bankValidation: BankValidation | null =
     bankLookup.data &&
@@ -385,7 +285,6 @@ export default function TransferScreen() {
     setBankCode("044");
     setBankConfirmed(false);
     setPhone("");
-    setBankSearch("");
     setIsSavedBeneficiary(false);
   };
 
@@ -1674,153 +1573,17 @@ export default function TransferScreen() {
           ) : null}
         </View>
 
-        <Modal
+        <BankPickerModal
           visible={bankPickerOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setBankPickerOpen(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={() => setBankPickerOpen(false)}
-            />
-            <View
-              style={[
-                styles.modalCard,
-                { backgroundColor: palette.card, borderColor: palette.border },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={[styles.modalTitle, { color: palette.text }]}>
-                    Choose a bank
-                  </Text>
-                  <Text
-                    style={[
-                      styles.modalSubtitle,
-                      { color: palette.textSecondary },
-                    ]}
-                  >
-                    Search the bank list to switch the recipient bank.
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => setBankPickerOpen(false)}
-                  style={[styles.modalClose, { backgroundColor: palette.bg }]}
-                >
-                  <Text
-                    style={[styles.modalCloseText, { color: palette.text }]}
-                  >
-                    Close
-                  </Text>
-                </Pressable>
-              </View>
-
-              <View
-                style={[
-                  styles.searchWrap,
-                  { backgroundColor: palette.bg, borderColor: palette.border },
-                ]}
-              >
-                <Search size={16} color={palette.textSecondary} />
-                <TextInput
-                  value={bankSearch}
-                  onChangeText={setBankSearch}
-                  placeholder="Search bank"
-                  placeholderTextColor={palette.textSecondary}
-                  style={[styles.searchInput, { color: palette.text }]}
-                />
-              </View>
-
-              <FlatList
-                data={filteredBanks}
-                keyExtractor={(item) => item.code}
-                keyboardShouldPersistTaps="handled"
-                ListEmptyComponent={
-                  banksQuery.isLoading ? (
-                    <Text
-                      style={[
-                        styles.emptyText,
-                        { color: palette.textSecondary },
-                      ]}
-                    >
-                      Loading banks…
-                    </Text>
-                  ) : (
-                    <Text
-                      style={[
-                        styles.emptyText,
-                        { color: palette.textSecondary },
-                      ]}
-                    >
-                      No banks matched your search.
-                    </Text>
-                  )
-                }
-                renderItem={({ item }) => {
-                  const active = item.code === bankCode;
-                  return (
-                    <Pressable
-                      onPress={() => {
-                        setBankCode(item.code);
-                        setAccountNumber("");
-                        setPinStatus("idle");
-                        setPinError("");
-                        setBankPickerOpen(false);
-                      }}
-                      style={[
-                        styles.bankRow,
-                        {
-                          borderColor: active
-                            ? palette.primary
-                            : palette.border,
-                          backgroundColor: active
-                            ? "rgba(10,132,255,0.08)"
-                            : palette.bg,
-                        },
-                      ]}
-                    >
-                      <BankLogo name={item.name} bankCode={item.code} slug={item.slug} size={40} />
-                      <View style={[styles.bankRowCopy, { marginLeft: 12 }]}>
-                        <Text
-                          style={[styles.bankRowName, { color: palette.text }]}
-                        >
-                          {item.name}
-                        </Text>
-                      </View>
-                      {active ? (
-                        <View
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 11,
-                            backgroundColor: palette.primary,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <CheckCircle2 size={14} color="#fff" />
-                        </View>
-                      ) : (
-                        <View
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 11,
-                            borderWidth: 1.5,
-                            borderColor: palette.border,
-                          }}
-                        />
-                      )}
-                    </Pressable>
-                  );
-                }}
-                style={styles.bankList}
-              />
-            </View>
-          </View>
-        </Modal>
+          onClose={() => setBankPickerOpen(false)}
+          selectedBankCode={bankCode}
+          onSelect={(bank) => {
+            setBankCode(bank.code);
+            setAccountNumber("");
+            setPinStatus("idle");
+            setPinError("");
+          }}
+        />
 
         <Modal
           visible={pinModalOpen}
