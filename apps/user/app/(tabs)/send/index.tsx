@@ -1,60 +1,137 @@
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { ArrowLeftRight, ChevronLeft, MapPin, Truck, Sparkles } from 'lucide-react-native';
-import { useMemo, useState, useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import {
+  ArrowDownUp,
+  Building2,
+  ChevronLeft,
+  Clock,
+  Globe,
+  Home,
+  Loader2,
+  MapPin,
+  Navigation2,
+  Sparkles,
+  Truck,
+} from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { HubPicker } from '@/components/order/HubPicker';
-import { Input } from '@/components/ui/Input';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { getRouteWithHubs, listHubs } from '@/lib/hubs';
+import { formatHubLabel, formatHubLocation, getRouteWithHubs } from '@/lib/hubs';
 import { formatMoney } from '@/lib/order';
 import { useAppPalette } from '@/lib/theme';
 import type { Hub } from '@/types/hubs';
-import { useGetQuote } from '@/hooks/useOrder';
+import { useActiveHubs, useGetQuote, useReverseGeocode } from '@/hooks/useOrder';
 
-const starterHubs = listHubs();
+// ─── Recent/Saved location quick picks ───────────────────────────────────────
+const QUICK_PICKS = [
+  { id: 'home', label: 'Home', subtitle: 'Add your home address', icon: 'home' as const },
+  { id: 'work', label: 'Work', subtitle: 'Add your work address', icon: 'building' as const },
+];
+
+type DeliveryMode = 'INTRASTATE' | 'INTERSTATE';
 
 export default function SendOrderEntryScreen() {
   const router = useRouter();
   const back = useSafeBack('/');
   const palette = useAppPalette();
-  const quoteQuery = useGetQuote();
 
+  const quoteQuery = useGetQuote();
+  const reverseGeocodeMutation = useReverseGeocode();
+  const { data: apiHubs, isLoading: hubsLoading } = useActiveHubs();
+
+  // ── location fields ──────────────────────────────────────────────────────
   const [pickupAddress, setPickupAddress] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [originHub, setOriginHub] = useState<Hub | null>(starterHubs[0] ?? null);
-  const [destinationHub, setDestinationHub] = useState<Hub | null>(starterHubs[1] ?? null);
-  
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [quoteData, setQuoteData] = useState<any>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
-  // Swap pickup & delivery address values
-  const swapAddresses = () => {
-    const temp = pickupAddress;
-    setPickupAddress(deliveryAddress);
-    setDeliveryAddress(temp);
+  // ── delivery mode tab ────────────────────────────────────────────────────
+  const [mode, setMode] = useState<DeliveryMode>('INTRASTATE');
+
+  // ── interstate hub selection ─────────────────────────────────────────────
+  const [originHub, setOriginHub] = useState<Hub | null>(null);
+  const [destinationHub, setDestinationHub] = useState<Hub | null>(null);
+
+  // ── quote + error state ──────────────────────────────────────────────────
+  const [quoteData, setQuoteData] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // ── tab indicator animation ───────────────────────────────────────────────
+  const tabOffset = useSharedValue(0);
+  const tabStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: withSpring(tabOffset.value, { damping: 20, stiffness: 220 }) }],
+  }));
+
+  const switchMode = (m: DeliveryMode) => {
+    setMode(m);
+    tabOffset.value = m === 'INTRASTATE' ? 0 : 1;
     setQuoteData(null);
     setErrorMsg(null);
   };
 
-  // Swap hubs for interstate fallback
+  // ── GPS auto-fill ─────────────────────────────────────────────────────────
+  const fillGpsLocation = useCallback(async () => {
+    setGpsLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Location permission denied. Enter your address manually.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const result = await reverseGeocodeMutation.mutateAsync({
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+      });
+      setPickupAddress(result.formattedAddress);
+    } catch {
+      setErrorMsg('Could not fetch your current location. Try entering manually.');
+    } finally {
+      setGpsLoading(false);
+    }
+  }, []);
+
+  // ── swap addresses ────────────────────────────────────────────────────────
+  const swapAddresses = () => {
+    const tmp = pickupAddress;
+    setPickupAddress(deliveryAddress);
+    setDeliveryAddress(tmp);
+    setQuoteData(null);
+    setErrorMsg(null);
+  };
+
+  // ── swap hubs ─────────────────────────────────────────────────────────────
   const swapHubs = () => {
     setOriginHub(destinationHub);
     setDestinationHub(originHub);
   };
 
-  const routePreview = useMemo(() => {
-    if (!originHub || !destinationHub) return null;
-    return getRouteWithHubs(originHub.id, destinationHub.id);
-  }, [destinationHub, originHub]);
-
-  // Trigger auto-quote when address fields change
+  // ── auto-quote for intrastate ─────────────────────────────────────────────
   useEffect(() => {
+    if (mode !== 'INTRASTATE') return;
     if (pickupAddress.trim().length > 5 && deliveryAddress.trim().length > 5) {
-      const delayDebounce = setTimeout(async () => {
+      const timer = setTimeout(async () => {
         setErrorMsg(null);
         try {
           const res = await quoteQuery.mutateAsync({
@@ -64,28 +141,31 @@ export default function SendOrderEntryScreen() {
           });
           setQuoteData(res);
         } catch (err: any) {
-          setErrorMsg(err.message || 'Unable to fetch route details. Try another address.');
+          setErrorMsg(err.message ?? 'Unable to detect the route. Try different addresses.');
           setQuoteData(null);
         }
-      }, 1000);
-
-      return () => clearTimeout(delayDebounce);
+      }, 900);
+      return () => clearTimeout(timer);
     } else {
       setQuoteData(null);
     }
-  }, [pickupAddress, deliveryAddress]);
+  }, [pickupAddress, deliveryAddress, mode]);
 
-  const deliveryType = quoteData?.deliveryType ?? 'INTERSTATE';
-  const isIntrastate = deliveryType === 'INTRASTATE';
+  // ── route preview (interstate) ────────────────────────────────────────────
+  const routePreview =
+    mode === 'INTERSTATE' && originHub && destinationHub
+      ? getRouteWithHubs(originHub.id, destinationHub.id)
+      : null;
 
-  const canContinue = isIntrastate
-    ? Boolean(quoteData && pickupAddress.trim() && deliveryAddress.trim())
-    : Boolean(routePreview && originHub && destinationHub && originHub.id !== destinationHub.id);
+  // ── can continue? ─────────────────────────────────────────────────────────
+  const canContinue =
+    mode === 'INTRASTATE'
+      ? Boolean(quoteData && pickupAddress.trim() && deliveryAddress.trim())
+      : Boolean(originHub && destinationHub && originHub.id !== destinationHub.id);
 
   const handleContinue = () => {
     if (!canContinue) return;
-    
-    if (isIntrastate) {
+    if (mode === 'INTRASTATE') {
       router.push({
         pathname: '/send/pickup-details',
         params: {
@@ -95,19 +175,18 @@ export default function SendOrderEntryScreen() {
         },
       });
     } else {
-      if (!routePreview || !originHub || !destinationHub) return;
       router.push({
         pathname: '/send/pickup-details',
         params: {
-          originHubId: originHub.id,
-          destinationHubId: destinationHub.id,
-          routeId: routePreview.id,
-          localPickupAddress: pickupAddress.trim() || undefined,
+          originHubId: originHub!.id,
+          destinationHubId: destinationHub!.id,
+          ...(pickupAddress.trim() ? { localPickupAddress: pickupAddress.trim() } : {}),
         },
       });
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: palette.bg }]}
@@ -115,177 +194,508 @@ export default function SendOrderEntryScreen() {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
+      {/* ── Header ── */}
       <View style={styles.headerRow}>
         <Pressable
           style={({ pressed }) => [
-            styles.backButton,
+            styles.backBtn,
             { backgroundColor: palette.card, borderColor: palette.border },
-            pressed ? { opacity: 0.7 } : null,
+            pressed && { opacity: 0.7 },
           ]}
           onPress={() => back()}
         >
           <ChevronLeft size={18} color={palette.text} />
         </Pressable>
-        <View style={styles.headerSpacer} />
       </View>
 
+      {/* ── Hero text ── */}
       <View style={styles.hero}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Send waybill</Text>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Send a parcel</Text>
         <Text style={[styles.title, { color: palette.text }]}>Where is the package going?</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Enter the pickup and delivery addresses. We'll automatically match the route and show rates.</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+          Enter pickup and delivery details. We'll handle the routing automatically.
+        </Text>
       </View>
 
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <Input
-          label="Pickup Address"
-          value={pickupAddress}
-          onChangeText={setPickupAddress}
-          placeholder="Enter pickup address"
+      {/* ── Delivery mode toggle ── */}
+      <View style={[styles.tabBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Animated.View
+          style={[
+            styles.tabIndicator,
+            { backgroundColor: palette.primary, width: '50%' },
+            tabStyle,
+            { left: 4 },
+          ]}
         />
+        <Pressable style={styles.tabBtn} onPress={() => switchMode('INTRASTATE')}>
+          <MapPin size={15} color={mode === 'INTRASTATE' ? '#fff' : palette.textSecondary} />
+          <Text
+            style={[
+              styles.tabLabel,
+              { color: mode === 'INTRASTATE' ? '#fff' : palette.textSecondary },
+            ]}
+          >
+            Within State
+          </Text>
+        </Pressable>
+        <Pressable style={styles.tabBtn} onPress={() => switchMode('INTERSTATE')}>
+          <Globe size={15} color={mode === 'INTERSTATE' ? '#fff' : palette.textSecondary} />
+          <Text
+            style={[
+              styles.tabLabel,
+              { color: mode === 'INTERSTATE' ? '#fff' : palette.textSecondary },
+            ]}
+          >
+            Interstate
+          </Text>
+        </Pressable>
+      </View>
 
+      {/* ── Google Maps-style stacked address card ── */}
+      <View
+        style={[
+          styles.addressCard,
+          { backgroundColor: palette.card, borderColor: palette.border },
+        ]}
+      >
+        {/* Pickup field */}
+        <View style={styles.addressRow}>
+          <View style={[styles.dotOuter, { borderColor: palette.primary }]}>
+            <View style={[styles.dotInner, { backgroundColor: palette.primary }]} />
+          </View>
+          <View style={styles.addressFieldWrap}>
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
+              {mode === 'INTERSTATE' ? 'Local pickup address (optional)' : 'Your location'}
+            </Text>
+            <View style={styles.addressInputRow}>
+              <TextInput
+                style={[styles.addressInput, { color: palette.text }]}
+                value={pickupAddress}
+                onChangeText={setPickupAddress}
+                placeholder={
+                  mode === 'INTERSTATE' ? 'Your full address for pickup' : 'Enter pickup address'
+                }
+                placeholderTextColor={palette.textSecondary}
+                returnKeyType="next"
+              />
+              <Pressable
+                onPress={fillGpsLocation}
+                style={({ pressed }) => [
+                  styles.gpsBtn,
+                  { backgroundColor: `${palette.primary}18` },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                {gpsLoading ? (
+                  <ActivityIndicator size={14} color={palette.primary} />
+                ) : (
+                  <Navigation2 size={14} color={palette.primary} />
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* Divider + swap button */}
         <View style={styles.swapRow}>
-          <View style={[styles.swapLine, { backgroundColor: palette.border }]} />
+          <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
           <Pressable
             onPress={swapAddresses}
             style={({ pressed }) => [
-              styles.swapButton,
+              styles.swapBtn,
               { backgroundColor: palette.bg, borderColor: palette.border },
-              pressed ? { opacity: 0.85 } : null,
+              pressed && { opacity: 0.8 },
             ]}
           >
-            <ArrowLeftRight size={16} color={palette.primary} />
+            <ArrowDownUp size={15} color={palette.primary} />
           </Pressable>
-          <View style={[styles.swapLine, { backgroundColor: palette.border }]} />
+          <View style={[styles.dividerLine, { backgroundColor: palette.border }]} />
         </View>
 
-        <Input
-          label="Delivery Address"
-          value={deliveryAddress}
-          onChangeText={setDeliveryAddress}
-          placeholder="Enter delivery address"
-        />
+        {/* Destination field */}
+        <View style={styles.addressRow}>
+          <View style={[styles.squareDot, { backgroundColor: palette.primary }]} />
+          <View style={styles.addressFieldWrap}>
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
+              {mode === 'INTERSTATE' ? 'Recipient address' : 'Delivery address'}
+            </Text>
+            <TextInput
+              style={[styles.addressInput, { color: palette.text }]}
+              value={deliveryAddress}
+              onChangeText={setDeliveryAddress}
+              placeholder="Enter delivery address"
+              placeholderTextColor={palette.textSecondary}
+              returnKeyType="done"
+            />
+          </View>
+        </View>
       </View>
 
-      {quoteQuery.isPending && (
-        <View style={styles.loaderContainer}>
+      {/* ── Quick picks (only for intrastate) ── */}
+      {mode === 'INTRASTATE' && (
+        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+          <View style={styles.quickPicksRow}>
+            {QUICK_PICKS.map((p) => (
+              <Pressable
+                key={p.id}
+                style={({ pressed }) => [
+                  styles.quickPickChip,
+                  {
+                    backgroundColor: palette.card,
+                    borderColor: palette.border,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                {p.icon === 'home' ? (
+                  <Home size={14} color={palette.primary} />
+                ) : (
+                  <Building2 size={14} color={palette.primary} />
+                )}
+                <Text style={[styles.quickPickLabel, { color: palette.text }]}>{p.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickPickChip,
+                {
+                  backgroundColor: palette.card,
+                  borderColor: palette.border,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Clock size={14} color={palette.textSecondary} />
+              <Text style={[styles.quickPickLabel, { color: palette.textSecondary }]}>Recent</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ── Auto-quote loading ── */}
+      {quoteQuery.isPending && mode === 'INTRASTATE' && (
+        <Animated.View entering={FadeIn.duration(200)} style={styles.loaderRow}>
           <ActivityIndicator size="small" color={palette.primary} />
-          <Text style={[styles.loaderText, { color: palette.textSecondary }]}>Detecting delivery route...</Text>
-        </View>
+          <Text style={[styles.loaderText, { color: palette.textSecondary }]}>
+            Detecting route & fare...
+          </Text>
+        </Animated.View>
       )}
 
       {errorMsg && <ErrorBanner message={errorMsg} />}
 
-      {quoteData && isIntrastate && (
-        <View style={[styles.previewCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      {/* ── Intrastate quote preview card ── */}
+      {quoteData && mode === 'INTRASTATE' && (
+        <Animated.View
+          entering={FadeIn.springify().damping(20)}
+          style={[
+            styles.previewCard,
+            { backgroundColor: palette.card, borderColor: palette.primary + '30' },
+          ]}
+        >
           <View style={styles.previewHeader}>
             <Sparkles size={18} color={palette.primary} />
-            <Text style={[styles.previewTitle, { color: palette.text }]}>Local same-state delivery inferred</Text>
+            <Text style={[styles.previewTitle, { color: palette.text }]}>
+              Local delivery detected ✓
+            </Text>
           </View>
-          <View style={styles.previewRow}>
-            <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Estimated Delivery</Text>
-            <Text style={[styles.previewValue, { color: palette.text }]}>~2-4 hours today</Text>
+          <View style={styles.previewGrid}>
+            <View style={styles.previewCell}>
+              <Text style={[styles.cellLabel, { color: palette.textSecondary }]}>
+                Estimated Pickup
+              </Text>
+              <Text style={[styles.cellValue, { color: palette.text }]}>8–15 mins</Text>
+            </View>
+            <View style={[styles.previewDivider, { backgroundColor: palette.border }]} />
+            <View style={styles.previewCell}>
+              <Text style={[styles.cellLabel, { color: palette.textSecondary }]}>
+                Starting From
+              </Text>
+              <Text style={[styles.cellValue, { color: palette.primary }]}>
+                {formatMoney(quoteData.totalPrice)}
+              </Text>
+            </View>
           </View>
-          <View style={styles.previewRow}>
-            <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Pricing Quote</Text>
-            <Text style={[styles.previewValue, { color: palette.text }]}>{formatMoney(quoteData.totalPrice)}</Text>
-          </View>
-        </View>
+        </Animated.View>
       )}
 
-      {quoteData && !isIntrastate && (
-        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={styles.previewHeader}>
+      {/* ── Interstate hub pickers ── */}
+      {mode === 'INTERSTATE' && (
+        <Animated.View
+          entering={FadeIn.springify().damping(22)}
+          style={[
+            styles.hubCard,
+            { backgroundColor: palette.card, borderColor: palette.border },
+          ]}
+        >
+          <View style={styles.hubCardHeader}>
             <Truck size={18} color={palette.primary} />
-            <Text style={[styles.previewTitle, { color: palette.text }]}>Interstate Waybill Required</Text>
+            <Text style={[styles.hubCardTitle, { color: palette.text }]}>
+              Select network hubs
+            </Text>
           </View>
-          <Text style={[styles.previewNote, { color: palette.textSecondary }]}>
-            Since this shipment crosses state boundaries, it will route through our hubs. Please select your preferred hubs below:
+          <Text style={[styles.hubCardBody, { color: palette.textSecondary }]}>
+            Your parcel will be transported through these two hub stations across state lines.
           </Text>
 
           <HubPicker
             label="Origin hub"
             value={originHub}
             onSelect={setOriginHub}
-            helperText="The pickup station where the parcel enters our network."
+            helperText="Pickup station entering our interstate network"
             disabledHubId={destinationHub?.id}
+            hubs={apiHubs ?? []}
+            loading={hubsLoading}
           />
 
-          <View style={styles.swapRow}>
-            <View style={[styles.swapLine, { backgroundColor: palette.border }]} />
+          <View style={styles.hubSwapRow}>
+            <View style={[styles.hubSwapLine, { backgroundColor: palette.border }]} />
             <Pressable
               onPress={swapHubs}
               style={({ pressed }) => [
-                styles.swapButton,
+                styles.swapBtn,
                 { backgroundColor: palette.bg, borderColor: palette.border },
-                pressed ? { opacity: 0.85 } : null,
+                pressed && { opacity: 0.8 },
               ]}
             >
-              <ArrowLeftRight size={16} color={palette.primary} />
+              <ArrowDownUp size={15} color={palette.primary} />
             </Pressable>
-            <View style={[styles.swapLine, { backgroundColor: palette.border }]} />
+            <View style={[styles.hubSwapLine, { backgroundColor: palette.border }]} />
           </View>
 
           <HubPicker
             label="Destination hub"
             value={destinationHub}
             onSelect={setDestinationHub}
-            helperText="The receiving station for the interstate leg."
+            helperText="Receiving station at the destination state"
             disabledHubId={originHub?.id}
+            hubs={apiHubs ?? []}
+            loading={hubsLoading}
           />
 
+          {/* Route summary strip */}
           {routePreview && (
-            <View style={[styles.previewCard, { backgroundColor: palette.bg, borderColor: palette.border, borderStyle: 'dashed' }]}>
-              <View style={styles.previewRow}>
-                <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Base Hub Price</Text>
-                <Text style={[styles.previewValue, { color: palette.text }]}>{formatMoney(routePreview.baseFare)}</Text>
+            <Animated.View
+              entering={FadeIn.duration(250)}
+              style={[
+                styles.routeStrip,
+                { backgroundColor: `${palette.primary}10`, borderColor: `${palette.primary}30` },
+              ]}
+            >
+              <View style={styles.routeStripCell}>
+                <Text style={[styles.routeStripLabel, { color: palette.textSecondary }]}>
+                  Base fare
+                </Text>
+                <Text style={[styles.routeStripValue, { color: palette.text }]}>
+                  {formatMoney(routePreview.baseFare)}
+                </Text>
               </View>
-              <View style={styles.previewRow}>
-                <Text style={[styles.previewLabel, { color: palette.textSecondary }]}>Estimated Delivery</Text>
-                <Text style={[styles.previewValue, { color: palette.text }]}>{routePreview.estimatedDays} day{routePreview.estimatedDays === 1 ? '' : 's'}</Text>
+              <View style={[styles.routeStripDivider, { backgroundColor: `${palette.primary}25` }]} />
+              <View style={styles.routeStripCell}>
+                <Text style={[styles.routeStripLabel, { color: palette.textSecondary }]}>
+                  Est. Hub Arrival
+                </Text>
+                <Text style={[styles.routeStripValue, { color: palette.text }]}>
+                  {routePreview.estimatedDays === 1
+                    ? '1 day'
+                    : `${routePreview.estimatedDays} days`}
+                </Text>
               </View>
-            </View>
+            </Animated.View>
           )}
-        </View>
+        </Animated.View>
       )}
 
+      {/* ── CTA ── */}
       <Pressable
         disabled={!canContinue}
         onPress={handleContinue}
         style={({ pressed }) => [
-          styles.primary,
-          { backgroundColor: canContinue ? palette.primary : palette.border },
-          pressed && canContinue ? { opacity: 0.9 } : null,
+          styles.cta,
+          {
+            backgroundColor: canContinue ? palette.primary : palette.border,
+            opacity: pressed && canContinue ? 0.88 : 1,
+          },
         ]}
       >
-        <Text style={styles.primaryText}>{canContinue ? 'Continue' : 'Enter Route Details'}</Text>
+        <Text style={[styles.ctaText, { color: canContinue ? '#fff' : palette.textSecondary }]}>
+          {canContinue ? 'Continue →' : 'Complete route details'}
+        </Text>
       </Pressable>
     </ScrollView>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, gap: Spacing.lg, paddingBottom: Spacing.xxxl },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerSpacer: { width: 42 },
-  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  hero: { gap: Spacing.sm },
-  eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  content: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
+    gap: Spacing.lg,
+  },
+
+  // header
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // hero
+  hero: { gap: Spacing.xs },
+  eyebrow: {
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+  },
   title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
   subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
-  card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
-  swapRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  swapLine: { flex: 1, height: 1 },
-  swapButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  loaderContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center', padding: 8 },
+
+  // delivery mode tab
+  tabBar: {
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    position: 'relative',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    borderRadius: 12,
+    zIndex: 0,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: '100%',
+    zIndex: 1,
+  },
+  tabLabel: { fontSize: Typography.sm, fontFamily: Typography.family.semibold },
+
+  // address card
+  addressCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 4 },
+  dotOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  dotInner: { width: 7, height: 7, borderRadius: 4 },
+  squareDot: { width: 14, height: 14, borderRadius: 4, marginTop: 20 },
+  addressFieldWrap: { flex: 1, paddingVertical: Spacing.sm, gap: 2 },
+  fieldLabel: { fontSize: 11, fontFamily: Typography.family.medium, letterSpacing: 0.3 },
+  addressInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addressInput: {
+    flex: 1,
+    fontSize: Typography.md,
+    fontFamily: Typography.family.semibold,
+    paddingVertical: 0,
+    minHeight: 28,
+  },
+  gpsBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // swap
+  swapRow: { flexDirection: 'row', alignItems: 'center', marginLeft: 10, gap: Spacing.sm },
+  swapBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dividerLine: { flex: 1, height: 1 },
+
+  // quick picks
+  quickPicksRow: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
+  quickPickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 99,
+    borderWidth: 1,
+  },
+  quickPickLabel: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
+
+  // loader
+  loaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center' },
   loaderText: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-  previewCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
-  previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  previewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  previewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
-  previewLabel: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
-  previewValue: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-  previewNote: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular, marginBottom: 8 },
-  primary: { minHeight: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  primaryText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
+
+  // quote preview (intrastate)
+  previewCard: {
+    borderRadius: 24,
+    borderWidth: 1.5,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  previewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold, flex: 1 },
+  previewGrid: { flexDirection: 'row', alignItems: 'center' },
+  previewCell: { flex: 1, alignItems: 'center', gap: 4 },
+  previewDivider: { width: 1, height: 40 },
+  cellLabel: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
+  cellValue: { fontSize: Typography.xl, fontFamily: Typography.family.bold },
+
+  // interstate hub card
+  hubCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
+  hubCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hubCardTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  hubCardBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+  hubSwapRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  hubSwapLine: { flex: 1, height: 1 },
+
+  // route strip
+  routeStrip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  routeStripCell: { flex: 1, alignItems: 'center', gap: 4 },
+  routeStripLabel: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
+  routeStripValue: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  routeStripDivider: { width: 1, height: 40, marginHorizontal: Spacing.md },
+
+  // CTA
+  cta: {
+    minHeight: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  ctaText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

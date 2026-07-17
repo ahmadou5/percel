@@ -13,6 +13,7 @@ const nav = [
   { href: '/orders', label: 'Orders' },
   { href: '/wallet', label: 'Wallet' },
   { href: '/service-areas', label: 'Service Areas' },
+  { href: '/hubs', label: 'Hubs & Routes' },
   { href: '/notifications', label: 'Notifications' },
   { href: '/settings', label: 'Settings' },
 ];

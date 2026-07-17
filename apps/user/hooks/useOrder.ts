@@ -3,6 +3,30 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { http } from '@/lib/api';
 import { Sentry } from '@/lib/sentry';
 import type { Order, OrderDetailResponse, OrderDraft, OrderListResponse, OrderQuoteResponse, OrderRateResult, TrackingResponse } from '@/lib/order';
+import type { Hub } from '@/types/hubs';
+
+export function useActiveHubs() {
+  return useQuery<Hub[]>({
+    queryKey: ['hubs', 'active'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const response = await http.get<{ data: Hub[] }>('/api/v1/hubs');
+      return response.data.data;
+    },
+  });
+}
+
+export function useReverseGeocode() {
+  return useMutation({
+    mutationFn: async (coords: { lat: number; lng: number }) => {
+      const response = await http.post<{ data: { formattedAddress: string; city: string; state: string } }>(
+        '/api/v1/orders/reverse-geocode',
+        coords,
+      );
+      return response.data.data;
+    },
+  });
+}
 
 export function useGetQuote() {
   return useMutation({

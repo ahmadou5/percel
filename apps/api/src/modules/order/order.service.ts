@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { OrderStatus, PaymentStatus, Prisma, type OrderSize, type PrismaClient } from '@prisma/client';
 
-import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute } from '../../lib/googleMaps.js';
+import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute, reverseGeocode } from '../../lib/googleMaps.js';
 import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext } from '../../lib/hubs.js';
 import { getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { addNotificationJob } from '../../queues/index.js';
@@ -125,9 +125,21 @@ export class OrderService {
     pickupAddress?: string;
     deliveryAddress?: string;
   }): Promise<OrderQuote> {
-    const routeContext = resolveHubRouteContext(payload.originHubId, payload.destinationHubId, payload.routeId);
+    // Try DB-backed route first
+    const dbRoute = (payload.originHubId && payload.destinationHubId)
+      ? await this.prisma.route.findFirst({
+          where: {
+            originHubId: payload.originHubId,
+            destinationHubId: payload.destinationHubId,
+            isActive: true,
+          },
+          include: { originHub: true, destinationHub: true },
+        })
+      : null;
 
-    if (routeContext) {
+    const staticRouteContext = !dbRoute ? resolveHubRouteContext(payload.originHubId, payload.destinationHubId, payload.routeId) : null;
+
+    if (dbRoute || staticRouteContext) {
       const onlineDriversCacheKey = 'cache:drivers:online:active';
       const cachedDrivers = await getCachedJson<number>(this.app.redis, onlineDriversCacheKey);
       const onlineDrivers =
@@ -137,11 +149,21 @@ export class OrderService {
         await setCachedJson(this.app.redis, onlineDriversCacheKey, onlineDrivers, 30);
       }
 
-      const quoteKey = `cache:quote:${payload.size}:hub:${routeContext.route.id}:${routeContext.distanceKm.toFixed(1)}:${Math.round(routeContext.durationMin)}:${onlineDrivers}`;
+      const routeId = dbRoute?.id ?? staticRouteContext?.route.id;
+      const distanceKm = staticRouteContext?.distanceKm ?? haversineDistanceKm(
+        Number(dbRoute!.originHub.lat), Number(dbRoute!.originHub.lng),
+        Number(dbRoute!.destinationHub.lat), Number(dbRoute!.destinationHub.lng),
+      );
+      const durationMin = staticRouteContext?.durationMin ?? Math.max(Number(dbRoute!.estimatedDays) * 12 * 60, 60);
+
+      const quoteKey = `cache:quote:${payload.size}:hub:${routeId}:${distanceKm.toFixed(1)}:${Math.round(durationMin)}:${onlineDrivers}`;
       const cached = await getCachedJson<OrderQuote>(this.app.redis, quoteKey);
       if (cached) return cached;
 
-      const quote = getPriceQuote(payload.size, routeContext.distanceKm, routeContext.durationMin, onlineDrivers, 'INTERSTATE');
+      const routeCtxForPricing = dbRoute
+        ? { baseFare: Number(dbRoute.baseFare), originModifier: Number(dbRoute.originHub.basePricingModifier), destModifier: Number(dbRoute.destinationHub.basePricingModifier) }
+        : null;
+      const quote = getPriceQuote(payload.size, distanceKm, durationMin, onlineDrivers, 'INTERSTATE', null, routeCtxForPricing);
       quote.deliveryType = 'INTERSTATE';
       await setCachedJson(this.app.redis, quoteKey, quote, 300);
       return quote;
@@ -212,7 +234,23 @@ export class OrderService {
     notes?: string | null;
     fragile?: boolean;
   }) {
-    const routeContext = resolveHubRouteContext(data.originHubId, data.destinationHubId, data.routeId);
+    // Prefer DB-backed route over seed-based static hubs
+    const dbRouteContext = (data.originHubId && data.destinationHubId)
+      ? await this.prisma.route.findFirst({
+          where: { originHubId: data.originHubId, destinationHubId: data.destinationHubId, isActive: true },
+          include: { originHub: true, destinationHub: true },
+        })
+      : null;
+    const routeContext = !dbRouteContext ? resolveHubRouteContext(data.originHubId, data.destinationHubId, data.routeId) : null;
+    const effectiveRouteContext = dbRouteContext
+      ? {
+          originHub: dbRouteContext.originHub,
+          destinationHub: dbRouteContext.destinationHub,
+          route: dbRouteContext,
+          distanceKm: haversineDistanceKm(Number(dbRouteContext.originHub.lat), Number(dbRouteContext.originHub.lng), Number(dbRouteContext.destinationHub.lat), Number(dbRouteContext.destinationHub.lng)),
+          durationMin: Math.max(Number(dbRouteContext.estimatedDays) * 12 * 60, 60),
+        }
+      : routeContext;
     const pickupContactName = cleanText(data.contactName);
     const pickupContactPhone = cleanText(data.contactPhone);
     const pickupNote = cleanText(data.pickupNote);
@@ -226,45 +264,42 @@ export class OrderService {
 
     const orderNotes = notesParts.length ? notesParts.join('\n') : null;
 
-    const pickup = routeContext
+    const pickup = effectiveRouteContext
       ? {
-          street: cleanText(data.localPickupAddress) ?? routeContext.originHub.address,
-          city: routeContext.originHub.city,
-          state: routeContext.originHub.state,
+          street: cleanText(data.localPickupAddress) ?? effectiveRouteContext.originHub.address,
+          city: effectiveRouteContext.originHub.city,
+          state: effectiveRouteContext.originHub.state,
           country: 'Nigeria',
-          lat: routeContext.originHub.lat,
-          lng: routeContext.originHub.lng,
-          placeId: routeContext.originHub.id,
-          formattedAddress: composePickupAddress(routeContext.originHub, cleanText(data.localPickupAddress) ?? ''),
+          lat: Number(effectiveRouteContext.originHub.lat),
+          lng: Number(effectiveRouteContext.originHub.lng),
+          placeId: effectiveRouteContext.originHub.id,
+          formattedAddress: composePickupAddress(effectiveRouteContext.originHub, cleanText(data.localPickupAddress) ?? ''),
         }
       : await geocodeAddress(data.pickupAddress ?? '');
 
-    const delivery = routeContext
+    const delivery = effectiveRouteContext
       ? {
-          street: routeContext.destinationHub.address,
-          city: routeContext.destinationHub.city,
-          state: routeContext.destinationHub.state,
+          street: effectiveRouteContext.destinationHub.address,
+          city: effectiveRouteContext.destinationHub.city,
+          state: effectiveRouteContext.destinationHub.state,
           country: 'Nigeria',
-          lat: routeContext.destinationHub.lat,
-          lng: routeContext.destinationHub.lng,
-          placeId: routeContext.destinationHub.id,
-          formattedAddress: composeDeliveryAddress(routeContext.destinationHub),
+          lat: Number(effectiveRouteContext.destinationHub.lat),
+          lng: Number(effectiveRouteContext.destinationHub.lng),
+          placeId: effectiveRouteContext.destinationHub.id,
+          formattedAddress: composeDeliveryAddress(effectiveRouteContext.destinationHub),
         }
       : await geocodeAddress(data.deliveryAddress ?? '');
 
-    if (!routeContext && (!data.pickupAddress || !data.deliveryAddress)) {
+    if (!effectiveRouteContext && (!data.pickupAddress || !data.deliveryAddress)) {
       throw new ValidationError('Pickup and delivery addresses are required');
     }
 
-    const route = routeContext
-      ? {
-          distanceKm: routeContext.distanceKm,
-          durationMin: routeContext.durationMin,
-        }
+    const route = effectiveRouteContext
+      ? { distanceKm: effectiveRouteContext.distanceKm, durationMin: effectiveRouteContext.durationMin }
       : await getDistanceAndDuration(pickup.lat, pickup.lng, delivery.lat, delivery.lng);
 
     const sameState = pickup.state.toLowerCase() === delivery.state.toLowerCase();
-    const isIntrastate = !routeContext && sameState && route.distanceKm <= 200;
+    const isIntrastate = !effectiveRouteContext && sameState && route.distanceKm <= 200;
 
     let serviceArea = null;
     if (isIntrastate) {
@@ -280,6 +315,9 @@ export class OrderService {
     }
 
     const onlineDrivers = await this.prisma.driver.count({ where: { isOnline: true, status: 'ACTIVE' } });
+    const routePricingCtx = dbRouteContext
+      ? { baseFare: Number(dbRouteContext.baseFare), originModifier: Number(dbRouteContext.originHub.basePricingModifier), destModifier: Number(dbRouteContext.destinationHub.basePricingModifier) }
+      : null;
     const quote = getPriceQuote(
       data.size,
       route.distanceKm,
@@ -287,6 +325,7 @@ export class OrderService {
       onlineDrivers,
       isIntrastate ? 'INTRASTATE' : 'INTERSTATE',
       serviceArea,
+      routePricingCtx,
     );
 
     const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
@@ -1038,5 +1077,29 @@ export class OrderService {
       etaMinutes: order.etaMinutes,
       status: order.status,
     };
+  }
+
+  async getActiveHubs() {
+    const hubs = await this.prisma.hub.findMany({
+      where: { isActive: true },
+      orderBy: { state: 'asc' },
+    });
+    return hubs.map((h) => ({
+      id: h.id,
+      name: h.name,
+      city: h.city,
+      state: h.state,
+      address: h.address,
+      lat: Number(h.lat),
+      lng: Number(h.lng),
+      type: h.type as 'office' | 'agent' | 'partner_park',
+      contactPhone: h.contactPhone ?? undefined,
+      isActive: h.isActive,
+      createdAt: h.createdAt.toISOString(),
+    }));
+  }
+
+  async reverseGeocode(lat: number, lng: number) {
+    return reverseGeocode(lat, lng);
   }
 }

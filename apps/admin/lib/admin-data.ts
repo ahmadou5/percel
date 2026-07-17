@@ -177,3 +177,37 @@ export async function getDashboardHighlights() {
 export async function loadServiceAreas() {
   return adminFetch<AdminServiceArea[]>('/service-areas');
 }
+
+export type AdminHub = {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  address: string;
+  lat: number;
+  lng: number;
+  type: 'office' | 'agent' | 'partner_park';
+  contactPhone?: string;
+  isActive: boolean;
+  basePricingModifier: number;
+  createdAt: string;
+};
+
+export type AdminRoute = {
+  id: string;
+  originHubId: string;
+  destinationHubId: string;
+  baseFare: number;
+  estimatedDays: number;
+  isActive: boolean;
+  originHub?: AdminHub;
+  destinationHub?: AdminHub;
+};
+
+export async function loadHubs() {
+  return adminFetch<AdminHub[]>('/hubs');
+}
+
+export async function loadRoutes() {
+  return adminFetch<AdminRoute[]>('/routes');
+}

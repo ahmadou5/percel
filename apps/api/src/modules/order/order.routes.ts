@@ -10,6 +10,8 @@ const orderRoutes: FastifyPluginAsync = async (app) => {
   const service = new OrderService(app.prisma, walletService, app.log, app);
   const controller = new OrderController(service);
 
+  app.get('/hubs', { preHandler: [app.authenticate] }, controller.getActiveHubs);
+  app.post('/orders/reverse-geocode', { preHandler: [app.authenticate] }, controller.reverseGeocode);
   app.post('/orders/quote', { preHandler: [app.authenticate], schema: { body: QuoteBody } }, controller.getQuote);
   app.post('/orders', { preHandler: [app.authenticate], schema: { body: CreateOrderBody } }, controller.createOrder);
   app.get('/orders', { preHandler: [app.authenticate], schema: { querystring: OrderQuery } }, controller.getUserOrders);

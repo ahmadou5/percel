@@ -634,6 +634,161 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     });
     return success({ deleted: true }, 'Service area deleted');
   });
+
+  // Admin Hubs CRUD
+  app.get('/admin/hubs', async () => {
+    const hubs = await app.prisma.hub.findMany({
+      orderBy: { state: 'asc' },
+    });
+    return success(hubs, 'Admin hubs fetched');
+  });
+
+  app.post('/admin/hubs', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name', 'city', 'state', 'address', 'lat', 'lng'],
+        properties: {
+          name: { type: 'string', minLength: 1 },
+          city: { type: 'string', minLength: 1 },
+          state: { type: 'string', minLength: 1 },
+          address: { type: 'string', minLength: 1 },
+          lat: { type: 'number' },
+          lng: { type: 'number' },
+          type: { type: 'string', enum: ['office', 'agent', 'partner_park'] },
+          contactPhone: { type: 'string' },
+          isActive: { type: 'boolean' },
+          basePricingModifier: { type: 'number' },
+        },
+      },
+    },
+  }, async (request) => {
+    const body = request.body as any;
+    const created = await app.prisma.hub.create({
+      data: {
+        name: body.name,
+        city: body.city,
+        state: body.state,
+        address: body.address,
+        lat: body.lat,
+        lng: body.lng,
+        type: body.type ?? 'office',
+        contactPhone: body.contactPhone,
+        isActive: body.isActive ?? true,
+        basePricingModifier: body.basePricingModifier ?? 0.0,
+      },
+    });
+    return success(created, 'Hub created');
+  });
+
+  app.patch('/admin/hubs/:id', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          city: { type: 'string' },
+          state: { type: 'string' },
+          address: { type: 'string' },
+          lat: { type: 'number' },
+          lng: { type: 'number' },
+          type: { type: 'string', enum: ['office', 'agent', 'partner_park'] },
+          contactPhone: { type: 'string' },
+          isActive: { type: 'boolean' },
+          basePricingModifier: { type: 'number' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const updated = await app.prisma.hub.update({
+      where: { id },
+      data: body,
+    });
+    return success(updated, 'Hub updated');
+  });
+
+  app.delete('/admin/hubs/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    await app.prisma.hub.delete({ where: { id } });
+    return success({ deleted: true }, 'Hub deleted');
+  });
+
+  // Admin Routes CRUD
+  app.get('/admin/routes', async () => {
+    const routes = await app.prisma.route.findMany({
+      include: { originHub: true, destinationHub: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const formatted = routes.map((r) => ({
+      id: r.id,
+      originHubId: r.originHubId,
+      destinationHubId: r.destinationHubId,
+      baseFare: Number(r.baseFare),
+      estimatedDays: r.estimatedDays,
+      isActive: r.isActive,
+      originHub: r.originHub,
+      destinationHub: r.destinationHub,
+    }));
+    return success(formatted, 'Admin routes fetched');
+  });
+
+  app.post('/admin/routes', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['originHubId', 'destinationHubId', 'baseFare', 'estimatedDays'],
+        properties: {
+          originHubId: { type: 'string' },
+          destinationHubId: { type: 'string' },
+          baseFare: { type: 'number', minimum: 0 },
+          estimatedDays: { type: 'integer', minimum: 1 },
+          isActive: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request) => {
+    const body = request.body as any;
+    const created = await app.prisma.route.create({
+      data: {
+        originHubId: body.originHubId,
+        destinationHubId: body.destinationHubId,
+        baseFare: body.baseFare,
+        estimatedDays: body.estimatedDays,
+        isActive: body.isActive ?? true,
+      },
+    });
+    return success(created, 'Route created');
+  });
+
+  app.patch('/admin/routes/:id', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          baseFare: { type: 'number', minimum: 0 },
+          estimatedDays: { type: 'integer', minimum: 1 },
+          isActive: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const updated = await app.prisma.route.update({
+      where: { id },
+      data: body,
+    });
+    return success(updated, 'Route updated');
+  });
+
+  app.delete('/admin/routes/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    await app.prisma.route.delete({ where: { id } });
+    return success({ deleted: true }, 'Route deleted');
+  });
 };
 
 export default adminRoutes;
+

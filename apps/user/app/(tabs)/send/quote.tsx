@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { PriceBreakdown } from '@/components/order/PriceBreakdown';
+import { OrderSuccessModal } from '@/components/order/OrderSuccessModal';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spacing } from '@/constants/spacing';
@@ -14,6 +15,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteById } from '@/lib/hubs';
 import { formatDistance, formatDuration, formatMoney } from '@/lib/order';
 import { useAppPalette } from '@/lib/theme';
+import type { Order } from '@/lib/order';
 
 type PackageItem = {
   description: string;
@@ -44,6 +46,7 @@ export default function QuoteScreen() {
   const quoteQuery = useGetQuote();
   const createOrder = useCreateOrder();
   const { config: modalConfig, hide: hideModal, alert: showAlert } = useAppModal();
+  const [successOrder, setSuccessOrder] = useState<Order | null>(null);
 
   const originHub = getHubById(params.originHubId);
   const destinationHub = getHubById(params.destinationHubId);
@@ -133,7 +136,7 @@ export default function QuoteScreen() {
         notes: notes.trim(),
         items: orderItems,
       });
-      router.replace({ pathname: '/orders/[id]', params: { id: order.id } } as never);
+      setSuccessOrder(order);
     } catch (error) {
       showAlert('Order failed', error instanceof Error ? error.message : 'Unable to create order.', 'error');
     }
@@ -248,6 +251,24 @@ export default function QuoteScreen() {
       )}
     </ScrollView>
     <AppModal config={modalConfig} onClose={hideModal} />
+    <OrderSuccessModal
+      visible={Boolean(successOrder)}
+      trackingCode={successOrder?.trackingCode ?? ''}
+      totalPrice={Number(successOrder?.price ?? 0)}
+      deliveryType={successOrder?.deliveryType as 'INTRASTATE' | 'INTERSTATE' ?? 'INTERSTATE'}
+      estimatedPickup={isIntrastate ? '8–15 mins' : undefined}
+      estimatedHubArrival={!isIntrastate ? (route ? `${route.estimatedDays} day${route.estimatedDays === 1 ? '' : 's'}` : '1–2 days') : undefined}
+      onClose={() => {
+        setSuccessOrder(null);
+        router.replace('/');
+      }}
+      onTrackOrder={() => {
+        if (successOrder) {
+          router.replace({ pathname: '/orders/[id]', params: { id: successOrder.id } } as never);
+        }
+        setSuccessOrder(null);
+      }}
+    />
   </View>
   );
 }

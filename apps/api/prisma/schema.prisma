@@ -466,3 +466,39 @@ model LocalServiceArea {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model Hub {
+  id                  String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                String
+  city                String
+  state               String
+  address             String
+  lat                 Decimal  @db.Decimal(10, 7)
+  lng                 Decimal  @db.Decimal(10, 7)
+  type                String   @default("office") // 'office' | 'agent' | 'partner_park'
+  contactPhone        String?
+  isActive            Boolean  @default(true)
+  basePricingModifier Decimal  @default(0.0) @db.Decimal(10, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  originRoutes      Route[] @relation("OriginRoutes")
+  destinationRoutes Route[] @relation("DestinationRoutes")
+}
+
+model Route {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  originHubId      String   @db.Uuid
+  destinationHubId String   @db.Uuid
+  baseFare         Decimal  @db.Decimal(10, 2)
+  estimatedDays    Int
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  originHub      Hub @relation("OriginRoutes", fields: [originHubId], references: [id])
+  destinationHub Hub @relation("DestinationRoutes", fields: [destinationHubId], references: [id])
+
+  @@unique([originHubId, destinationHubId])
+}
+

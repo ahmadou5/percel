@@ -128,4 +128,13 @@ export class OrderController {
     const { id } = request.params as { id: string };
     return success(await this.service.getCourierLocation(userId, id), 'Location fetched');
   };
+
+  getActiveHubs = async (request: FastifyRequest) => {
+    return success(await this.service.getActiveHubs(), 'Active hubs fetched');
+  };
+
+  reverseGeocode = async (request: FastifyRequest) => {
+    const { lat, lng } = request.body as { lat: number; lng: number };
+    return success(await this.service.reverseGeocode(lat, lng), 'Address reverse geocoded');
+  };
 }

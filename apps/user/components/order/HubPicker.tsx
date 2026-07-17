@@ -1,6 +1,6 @@
-import { ChevronRight, Search } from 'lucide-react-native';
+import { ChevronRight, Loader2, Search } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { Spacing } from '@/constants/spacing';
@@ -17,6 +17,9 @@ type Props = {
   placeholder?: string;
   helperText?: string;
   disabledHubId?: string;
+  /** Live hubs from the API — falls back to static seed if empty */
+  hubs?: Hub[];
+  loading?: boolean;
 };
 
 function getTypeTone(type: Hub['type']) {
@@ -30,19 +33,20 @@ function getTypeTone(type: Hub['type']) {
   }
 }
 
-export function HubPicker({ label, value, onSelect, placeholder = 'Select hub', helperText, disabledHubId }: Props) {
+export function HubPicker({ label, value, onSelect, placeholder = 'Select hub', helperText, disabledHubId, hubs: propHubs, loading = false }: Props) {
   const palette = useAppPalette();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const progress = useSharedValue(0);
 
   const hubs = useMemo(() => {
+    const base = propHubs && propHubs.length > 0 ? propHubs : listHubs();
     const term = query.trim().toLowerCase();
-    return listHubs().filter((hub) => {
+    return base.filter((hub) => {
       if (!term) return true;
       return [hub.name, hub.city, hub.state, hub.address, formatHubType(hub)].some((field) => field.toLowerCase().includes(term));
     });
-  }, [query]);
+  }, [query, propHubs]);
 
   const groupedHubs = useMemo(() => {
     return hubs.reduce<Record<string, Hub[]>>((acc, hub) => {
@@ -73,20 +77,20 @@ export function HubPicker({ label, value, onSelect, placeholder = 'Select hub', 
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
   }));
 
-  const selectedLabel = value ? formatHubLabel(value) : placeholder;
+  const selectedLabel = value ? formatHubLabel(value) : loading ? 'Loading hubs...' : placeholder;
 
   return (
     <View style={styles.wrap}>
       <Text style={[styles.label, { color: palette.text }]}>{label}</Text>
       <Pressable
-        onPress={openPicker}
+        onPress={loading ? undefined : openPicker}
         style={({ pressed }) => [
           styles.field,
           {
             backgroundColor: palette.card,
             borderColor: value ? palette.primary : palette.border,
           },
-          pressed ? { opacity: 0.92 } : null,
+          pressed && !loading ? { opacity: 0.92 } : null,
         ]}
       >
         <View style={styles.fieldCopy}>
@@ -95,7 +99,11 @@ export function HubPicker({ label, value, onSelect, placeholder = 'Select hub', 
           </Text>
           {value ? <Text style={[styles.fieldMeta, { color: palette.textSecondary }]} numberOfLines={1}>{formatHubLocation(value)}</Text> : null}
         </View>
-        <ChevronRight size={18} color={palette.primary} />
+        {loading ? (
+          <ActivityIndicator size={16} color={palette.textSecondary} />
+        ) : (
+          <ChevronRight size={18} color={palette.primary} />
+        )}
       </Pressable>
       {helperText ? <Text style={[styles.helper, { color: palette.textSecondary }]}>{helperText}</Text> : null}
 

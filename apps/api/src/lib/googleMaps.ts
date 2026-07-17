@@ -192,3 +192,31 @@ export async function getDirectionsRoute(
     return straight;
   }
 }
+
+export async function reverseGeocode(lat: number, lng: number) {
+  try {
+    const { data } = await googleMaps.get('/geocode/json', {
+      params: { latlng: `${lat},${lng}`, key: env.GOOGLE_MAPS_API_KEY },
+    });
+
+    const result = data?.results?.[0];
+    const location = result?.geometry?.location;
+    if (!result || !location) throw new ValidationError('Unable to reverse geocode coordinates');
+
+    const parts = String(result.formatted_address).split(',').map((part: string) => part.trim());
+
+    return {
+      street: parts[0] ?? 'Unknown Street',
+      city: parts[1] ?? parts[0] ?? 'Unknown City',
+      state: parts[2] ?? parts[1] ?? 'Unknown State',
+      country: parts[3] ?? 'Nigeria',
+      lat: Number(location.lat),
+      lng: Number(location.lng),
+      formattedAddress: result.formatted_address,
+      placeId: String(result.place_id),
+    };
+  } catch (error) {
+    wrapError(error);
+  }
+}
+
