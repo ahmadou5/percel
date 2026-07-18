@@ -266,11 +266,12 @@ export async function listBanks(country = 'nigeria') {
     const { data } = await paystack.get('/bank', {
       params: {
         country,
-        pay_with_bank_transfer: true,
+        use_cursor: false,
+        perPage: 200,
       },
     });
 
-    return data.data as BankListItem[];
+    return (data.data ?? []) as BankListItem[];
   } catch (error) {
     wrapPaystackError(error);
   }

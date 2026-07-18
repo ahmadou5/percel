@@ -233,30 +233,35 @@ function normalizeName(name: string): string {
  * Uses the community-maintained CDN from jsdelivr targeting the nigerian-banks-api.
  */
 export function getBankLogoUrl(bankCode?: string, bankName?: string, slug?: string | null): string {
-  // 1. Try matching using the slug directly
-  if (slug) {
-    return `https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos/${slug}.png`;
+  const baseUrl = 'https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos';
+  const code = bankCode?.trim();
+  const cleanSlug = slug?.trim();
+
+  // Some providers send the bank code as `slug`, so known mappings need to win
+  // before trusting a provider slug directly.
+  if (code && BANK_SLUGS[code]) {
+    return baseUrl + '/' + BANK_SLUGS[code] + '.png';
   }
 
-  // 2. Try matching using the bank code
-  if (bankCode && BANK_SLUGS[bankCode]) {
-    return `https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos/${BANK_SLUGS[bankCode]}.png`;
+  if (cleanSlug && BANK_SLUGS[cleanSlug]) {
+    return baseUrl + '/' + BANK_SLUGS[cleanSlug] + '.png';
   }
 
-  // 3. Try matching by lowercased bank name string match
   if (bankName) {
     const cleanName = bankName.toLowerCase().trim();
     if (BANK_SLUGS[cleanName]) {
-      return `https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos/${BANK_SLUGS[cleanName]}.png`;
+      return baseUrl + '/' + BANK_SLUGS[cleanName] + '.png';
     }
 
-    // 4. Fallback: normalize the name dynamically and request slug
     const normalized = normalizeName(bankName);
     if (normalized) {
-      return `https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos/${normalized}.png`;
+      return baseUrl + '/' + normalized + '.png';
     }
   }
 
-  // 5. Default fallback: generic bank building icon (represented by the first-bank-of-nigeria logo or similar, or customizable)
-  return 'https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos/default-bank.png';
+  if (cleanSlug && !/^[0-9]+$/.test(cleanSlug)) {
+    return baseUrl + '/' + cleanSlug + '.png';
+  }
+
+  return baseUrl + '/default-bank.png';
 }

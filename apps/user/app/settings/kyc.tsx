@@ -56,7 +56,7 @@ export default function KycScreen() {
   const profileQuery = useProfile();
   const updateProfile = useUpdateProfile();
   const verifyBvn = useVerifyBvn();
-  const banksQuery = useBanks('PAYSTACK');
+  const banksQuery = useBanks();
   const profile = profileQuery.data;
   const banks = (banksQuery.data ?? []) as BankItem[];
   const [step, setStep] = useState<KycStep>(1);
@@ -392,6 +392,8 @@ export default function KycScreen() {
         visible={bankPickerOpen}
         onClose={() => setBankPickerOpen(false)}
         selectedBankCode={bankCode}
+        banks={(banksQuery.data ?? []) as BankItem[]}
+        banksLoading={banksQuery.isLoading}
         onSelect={(bank) => setBankCode(bank.code)}
       />
 

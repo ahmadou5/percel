@@ -1577,6 +1577,8 @@ export default function TransferScreen() {
           visible={bankPickerOpen}
           onClose={() => setBankPickerOpen(false)}
           selectedBankCode={bankCode}
+          banks={(banksQuery.data ?? []) as import('@/components/wallet/BankPickerModal').BankItem[]}
+          banksLoading={banksQuery.isLoading}
           onSelect={(bank) => {
             setBankCode(bank.code);
             setAccountNumber("");

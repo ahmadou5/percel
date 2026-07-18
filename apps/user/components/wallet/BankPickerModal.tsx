@@ -14,7 +14,6 @@ import { getBankLogoUrl } from '@percel/shared';
 import { Input } from '@/components/ui/Input';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useBanks } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 
 export type BankItem = {
@@ -29,6 +28,10 @@ type BankPickerModalProps = {
   onClose: () => void;
   onSelect: (bank: BankItem) => void;
   selectedBankCode?: string;
+  /** Bank list fetched by the parent screen. */
+  banks: BankItem[];
+  /** Whether the parent's bank query is still loading. */
+  banksLoading?: boolean;
 };
 
 const BANK_PALETTE = [
@@ -47,26 +50,74 @@ function BankAvatar({ name, size = 38 }: { name: string; size?: number }) {
   const color = bankInitialColor(name);
   const initial = name.trim().charAt(0).toUpperCase() || 'B';
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color, fontSize: size * 0.4, fontFamily: 'System', fontWeight: '700' }}>{initial}</Text>
+    <View style={{
+      width: size,
+      height: size,
+      borderRadius: size / 4,
+      backgroundColor: color + '22',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <Text style={{ color, fontSize: size * 0.4, fontFamily: 'System', fontWeight: '700' }}>
+        {initial}
+      </Text>
     </View>
   );
 }
 
-export function BankLogo({ name, slug, bankCode, size = 38 }: { name: string; slug?: string | null; bankCode?: string | null; size?: number }) {
-  const [logoFailed, setLogoFailed] = useState(false);
+/**
+ * Bank logo with smooth avatar-first loading:
+ * - Renders the colored initial avatar immediately (no ghost box).
+ * - Once the CDN PNG loads successfully, fades it in over the avatar.
+ * - Falls back to avatar permanently on 404 / network error.
+ */
+export function BankLogo({
+  name,
+  slug,
+  bankCode,
+  size = 38,
+}: {
+  name: string;
+  slug?: string | null;
+  bankCode?: string | null;
+  size?: number;
+}) {
   const url = getBankLogoUrl(bankCode || undefined, name, slug);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // Reset when bank changes
   useEffect(() => {
-    setLogoFailed(false);
+    setLoaded(false);
+    setFailed(false);
   }, [url]);
-  if (url && !logoFailed) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <Image source={{ uri: url }} style={{ width: size * 0.82, height: size * 0.82 }} resizeMode="contain" onError={() => setLogoFailed(true)} />
-      </View>
-    );
+
+  if (failed) {
+    return <BankAvatar name={name} size={size} />;
   }
-  return <BankAvatar name={name} size={size} />;
+
+  return (
+    <View style={{ width: size, height: size, position: 'relative' }}>
+      {/* Avatar shown underneath until the CDN image loads */}
+      {!loaded && (
+        <View style={{ position: 'absolute', top: 0, left: 0 }}>
+          <BankAvatar name={name} size={size} />
+        </View>
+      )}
+      <Image
+        source={{ uri: url }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 4,
+          opacity: loaded ? 1 : 0,
+        }}
+        resizeMode="contain"
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </View>
+  );
 }
 
 export function BankPickerModal({
@@ -74,35 +125,37 @@ export function BankPickerModal({
   onClose,
   onSelect,
   selectedBankCode,
+  banks,
+  banksLoading = false,
 }: BankPickerModalProps) {
   const palette = useAppPalette();
-  const banksQuery = useBanks('PAYSTACK');
   const [search, setSearch] = useState('');
-
-  const banks = (banksQuery.data ?? []) as BankItem[];
 
   const filteredBanks = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return banks;
-    return banks.filter((bank) => `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term));
+    return banks.filter((bank) =>
+      `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term)
+    );
   }, [search, banks]);
 
-  // Reset search when modal becomes visible or invisible
   useEffect(() => {
-    if (!visible) {
-      setSearch('');
-    }
+    if (!visible) setSearch('');
   }, [visible]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.modalHeader}>
             <View>
               <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a bank</Text>
-              <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Search the supported bank list.</Text>
+              <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>
+                {banksLoading
+                  ? 'Loading banks…'
+                  : `${banks.length} banks available`}
+              </Text>
             </View>
             <Pressable onPress={onClose} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
               <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -117,16 +170,23 @@ export function BankPickerModal({
             leftElement={<Search size={16} color={palette.textSecondary} />}
           />
 
-          {banksQuery.isLoading ? (
+          {banksLoading ? (
             <View style={styles.bankLoading}>
-              <Text style={{ color: palette.textSecondary }}>Loading bank list...</Text>
+              <Text style={{ color: palette.textSecondary }}>Loading bank list…</Text>
             </View>
-          ) : filteredBanks.length ? (
+          ) : filteredBanks.length === 0 ? (
+            <View style={styles.bankLoading}>
+              <Text style={{ color: palette.textSecondary }}>
+                {search ? 'No banks matched your search.' : 'No banks available.'}
+              </Text>
+            </View>
+          ) : (
             <FlatList
               data={filteredBanks}
               keyExtractor={(item) => item.code}
               style={styles.bankList}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const active = item.code === selectedBankCode;
                 return (
@@ -135,10 +195,19 @@ export function BankPickerModal({
                       onSelect(item);
                       onClose();
                     }}
-                    style={[styles.bankRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
+                    style={[
+                      styles.bankRow,
+                      {
+                        backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg,
+                        borderColor: active ? palette.primary : palette.border,
+                      },
+                    ]}
                   >
-                    <BankLogo name={item.name} slug={item.slug} bankCode={item.code} size={38} />
-                    <Text style={[styles.bankRowName, { color: palette.text, flex: 1, marginLeft: 10 }]} numberOfLines={1}>
+                    <BankLogo name={item.name} slug={item.slug} bankCode={item.code} size={40} />
+                    <Text
+                      style={[styles.bankRowName, { color: palette.text, flex: 1, marginLeft: 12 }]}
+                      numberOfLines={1}
+                    >
                       {item.name}
                     </Text>
                     {active ? (
@@ -152,10 +221,6 @@ export function BankPickerModal({
                 );
               }}
             />
-          ) : (
-            <View style={styles.bankLoading}>
-              <Text style={{ color: palette.textSecondary }}>No banks match your search.</Text>
-            </View>
           )}
         </View>
       </View>
@@ -164,23 +229,40 @@ export function BankPickerModal({
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md, maxHeight: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.50)', justifyContent: 'flex-end' },
+  modalCard: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: 40,
+    gap: Spacing.md,
+    maxHeight: '80%',
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center' },
   modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   modalSubtitle: { fontSize: Typography.sm, marginTop: 2 },
   modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
   modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  bankLoading: { paddingVertical: Spacing.lg, alignItems: 'center', justifyContent: 'center' },
-  bankList: { maxHeight: 320 },
-  bankRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md, marginBottom: 10 },
-  bankRowName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  bankLoading: { paddingVertical: Spacing.xl, alignItems: 'center', justifyContent: 'center' },
+  bankList: { flex: 1 },
+  bankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  bankRowName: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   checkboxCheck: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checkboxEmpty: {
     width: 22,
