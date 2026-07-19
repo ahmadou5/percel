@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -52,6 +54,16 @@ const QUICK_PICKS = [
 
 type DeliveryMode = 'INTRASTATE' | 'INTERSTATE';
 
+type LocationTarget = 'pickup' | 'delivery';
+type MapPoint = { latitude: number; longitude: number };
+
+const DEFAULT_REGION: Region = {
+  latitude: 6.5244,
+  longitude: 3.3792,
+  latitudeDelta: 0.018,
+  longitudeDelta: 0.018,
+};
+
 export default function SendOrderEntryScreen() {
   const router = useRouter();
   const back = useSafeBack('/');
@@ -64,6 +76,11 @@ export default function SendOrderEntryScreen() {
   // ── location fields ──────────────────────────────────────────────────────
   const [pickupAddress, setPickupAddress] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [pickupPoint, setPickupPoint] = useState<MapPoint | null>(null);
+  const [deliveryPoint, setDeliveryPoint] = useState<MapPoint | null>(null);
+  const [mapPickerTarget, setMapPickerTarget] = useState<LocationTarget | null>(null);
+  const [mapPickerRegion, setMapPickerRegion] = useState<Region>(DEFAULT_REGION);
+  const [mapPickerResolving, setMapPickerResolving] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   // ── delivery mode tab ────────────────────────────────────────────────────
@@ -105,6 +122,7 @@ export default function SendOrderEntryScreen() {
         lng: loc.coords.longitude,
       });
       setPickupAddress(result.formattedAddress);
+      setPickupPoint({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
     } catch {
       setErrorMsg('Could not fetch your current location. Try entering manually.');
     } finally {
@@ -115,8 +133,11 @@ export default function SendOrderEntryScreen() {
   // ── swap addresses ────────────────────────────────────────────────────────
   const swapAddresses = () => {
     const tmp = pickupAddress;
+    const tmpPoint = pickupPoint;
     setPickupAddress(deliveryAddress);
     setDeliveryAddress(tmp);
+    setPickupPoint(deliveryPoint);
+    setDeliveryPoint(tmpPoint);
     setQuoteData(null);
     setErrorMsg(null);
   };
@@ -125,6 +146,36 @@ export default function SendOrderEntryScreen() {
   const swapHubs = () => {
     setOriginHub(destinationHub);
     setDestinationHub(originHub);
+  };
+
+  const openMapPicker = (target: LocationTarget) => {
+    const point = target === 'pickup' ? pickupPoint : deliveryPoint;
+    setMapPickerRegion(point ? { ...DEFAULT_REGION, ...point } : DEFAULT_REGION);
+    setMapPickerTarget(target);
+  };
+
+  const confirmMapPicker = async () => {
+    if (!mapPickerTarget) return;
+    const point = { latitude: mapPickerRegion.latitude, longitude: mapPickerRegion.longitude };
+    setMapPickerResolving(true);
+    setErrorMsg(null);
+
+    try {
+      const result = await reverseGeocodeMutation.mutateAsync({ lat: point.latitude, lng: point.longitude });
+      if (mapPickerTarget === 'pickup') {
+        setPickupAddress(result.formattedAddress);
+        setPickupPoint(point);
+      } else {
+        setDeliveryAddress(result.formattedAddress);
+        setDeliveryPoint(point);
+      }
+      setQuoteData(null);
+      setMapPickerTarget(null);
+    } catch {
+      setErrorMsg('Could not name that location. Move the map slightly and try again.');
+    } finally {
+      setMapPickerResolving(false);
+    }
   };
 
   // ── auto-quote for intrastate ─────────────────────────────────────────────
@@ -153,9 +204,22 @@ export default function SendOrderEntryScreen() {
 
   // ── route preview (interstate) ────────────────────────────────────────────
   const routePreview =
-    mode === 'INTERSTATE' && originHub && destinationHub
+    mode === "INTERSTATE" && originHub && destinationHub
       ? getRouteWithHubs(originHub.id, destinationHub.id)
       : null;
+
+  const mapRoutePoints =
+    mode === "INTRASTATE" && pickupPoint && deliveryPoint ? [pickupPoint, deliveryPoint] : [];
+  const mapDistanceKm = quoteData?.distanceKm as number | undefined;
+  const mapDurationMin = quoteData?.durationMin as number | undefined;
+  const previewRegion: Region | null = mapRoutePoints.length === 2
+    ? {
+        latitude: (mapRoutePoints[0].latitude + mapRoutePoints[1].latitude) / 2,
+        longitude: (mapRoutePoints[0].longitude + mapRoutePoints[1].longitude) / 2,
+        latitudeDelta: Math.max(Math.abs(mapRoutePoints[0].latitude - mapRoutePoints[1].latitude) * 2.4, 0.018),
+        longitudeDelta: Math.max(Math.abs(mapRoutePoints[0].longitude - mapRoutePoints[1].longitude) * 2.4, 0.018),
+      }
+    : null;
 
   // ── can continue? ─────────────────────────────────────────────────────────
   const canContinue =
@@ -271,7 +335,11 @@ export default function SendOrderEntryScreen() {
               <TextInput
                 style={[styles.addressInput, { color: palette.text }]}
                 value={pickupAddress}
-                onChangeText={setPickupAddress}
+                onChangeText={(value) => {
+                  setPickupAddress(value);
+                  setPickupPoint(null);
+                  setQuoteData(null);
+                }}
                 placeholder={
                   mode === 'INTERSTATE' ? 'Your full address for pickup' : 'Enter pickup address'
                 }
@@ -322,7 +390,11 @@ export default function SendOrderEntryScreen() {
             <TextInput
               style={[styles.addressInput, { color: palette.text }]}
               value={deliveryAddress}
-              onChangeText={setDeliveryAddress}
+              onChangeText={(value) => {
+                setDeliveryAddress(value);
+                setDeliveryPoint(null);
+                setQuoteData(null);
+              }}
               placeholder="Enter delivery address"
               placeholderTextColor={palette.textSecondary}
               returnKeyType="done"
@@ -330,6 +402,36 @@ export default function SendOrderEntryScreen() {
           </View>
         </View>
       </View>
+
+      {mode === "INTRASTATE" && (
+        <View style={[styles.locationList, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Pressable
+            onPress={() => openMapPicker("pickup")}
+            style={({ pressed }) => [styles.locationRow, pressed && { opacity: 0.72 }]}
+          >
+            <View style={[styles.locationIcon, { backgroundColor: palette.primary + "14" }]}>
+              <MapPin size={17} color={palette.primary} />
+            </View>
+            <View style={styles.locationCopy}>
+              <Text style={[styles.locationTitle, { color: palette.text }]}>Choose pickup on map</Text>
+              <Text style={[styles.locationSubtitle, { color: palette.textSecondary }]}>Pan and zoom the map under the fixed pin</Text>
+            </View>
+          </Pressable>
+          <View style={[styles.locationDivider, { backgroundColor: palette.border }]} />
+          <Pressable
+            onPress={() => openMapPicker("delivery")}
+            style={({ pressed }) => [styles.locationRow, pressed && { opacity: 0.72 }]}
+          >
+            <View style={[styles.locationIcon, { backgroundColor: palette.primary + "14" }]}>
+              <Navigation2 size={17} color={palette.primary} />
+            </View>
+            <View style={styles.locationCopy}>
+              <Text style={[styles.locationTitle, { color: palette.text }]}>Choose destination on map</Text>
+              <Text style={[styles.locationSubtitle, { color: palette.textSecondary }]}>Place the center pin at the exact drop-off</Text>
+            </View>
+          </Pressable>
+        </View>
+      )}
 
       {/* ── Quick picks (only for intrastate) ── */}
       {mode === 'INTRASTATE' && (
@@ -383,6 +485,41 @@ export default function SendOrderEntryScreen() {
       )}
 
       {errorMsg && <ErrorBanner message={errorMsg} />}
+
+      {previewRegion && (
+        <Animated.View
+          entering={FadeIn.springify().damping(20)}
+          style={[styles.routePreviewCard, { backgroundColor: palette.card, borderColor: palette.border }]}
+        >
+          <View style={styles.routePreviewMap}>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={StyleSheet.absoluteFill}
+              initialRegion={previewRegion}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+              showsCompass={false}
+              toolbarEnabled={false}
+            >
+              <Polyline coordinates={mapRoutePoints} strokeColor={palette.primary} strokeWidth={5} />
+              <Marker coordinate={mapRoutePoints[0]} anchor={{ x: 0.5, y: 0.5 }} />
+              <Marker coordinate={mapRoutePoints[1]} anchor={{ x: 0.5, y: 1 }} />
+            </MapView>
+          </View>
+          <View style={styles.routePreviewSummary}>
+            <View>
+              <Text style={[styles.routePreviewTitle, { color: palette.text }]}>Route preview</Text>
+              <Text style={[styles.routePreviewSub, { color: palette.textSecondary }]}>Review the pickup and destination before order details.</Text>
+            </View>
+            <View style={styles.routePreviewStats}>
+              <Text style={[styles.routeStatValue, { color: palette.primary }]}>{mapDistanceKm ? `${mapDistanceKm.toFixed(1)} km` : "-- km"}</Text>
+              <Text style={[styles.routeStatValue, { color: palette.text }]}>{mapDurationMin ? `${Math.round(mapDurationMin)} mins` : "ETA pending"}</Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
 
       {/* ── Intrastate quote preview card ── */}
       {quoteData && mode === 'INTRASTATE' && (
@@ -522,6 +659,57 @@ export default function SendOrderEntryScreen() {
           {canContinue ? 'Continue →' : 'Complete route details'}
         </Text>
       </Pressable>
+
+      <Modal visible={Boolean(mapPickerTarget)} animationType="slide" onRequestClose={() => setMapPickerTarget(null)}>
+        <View style={styles.mapPickerScreen}>
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={StyleSheet.absoluteFill}
+            initialRegion={mapPickerRegion}
+            onRegionChangeComplete={setMapPickerRegion}
+            showsUserLocation
+            showsMyLocationButton
+            showsCompass={false}
+            toolbarEnabled={false}
+          />
+          <View pointerEvents="none" style={styles.centerPinWrap}>
+            <View style={[styles.centerPin, { backgroundColor: palette.primary }]}>
+              <MapPin size={24} color="#fff" fill="#fff" />
+            </View>
+            <View style={styles.centerPinStem} />
+            <View style={styles.centerPinShadow} />
+          </View>
+          <View style={styles.mapTopBar}>
+            <Pressable
+              onPress={() => setMapPickerTarget(null)}
+              style={({ pressed }) => [styles.mapCloseButton, { backgroundColor: palette.card }, pressed && { opacity: 0.75 }]}
+            >
+              <ChevronLeft size={20} color={palette.text} />
+            </Pressable>
+            <View style={[styles.mapSearchCard, { backgroundColor: palette.card }]}>
+              <Text style={[styles.mapSearchLabel, { color: palette.textSecondary }]}>
+                {mapPickerTarget === "pickup" ? "Set pickup location" : "Set destination"}
+              </Text>
+              <Text style={[styles.mapSearchTitle, { color: palette.text }]} numberOfLines={1}>Move the map under the pin</Text>
+            </View>
+          </View>
+          <View style={[styles.mapSetSheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.mapSheetHandle} />
+            <Text style={[styles.mapSetTitle, { color: palette.text }]}>Confirm exact location</Text>
+            <Text style={[styles.mapSetSub, { color: palette.textSecondary }]}>Pan or zoom until the pin sits on the pickup or drop-off point.</Text>
+            <Pressable
+              onPress={confirmMapPicker}
+              disabled={mapPickerResolving}
+              style={({ pressed }) => [
+                styles.mapSetButton,
+                { backgroundColor: palette.primary, opacity: pressed || mapPickerResolving ? 0.82 : 1 },
+              ]}
+            >
+              {mapPickerResolving ? <ActivityIndicator color="#fff" /> : <Text style={styles.mapSetButtonText}>Set</Text>}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -674,6 +862,42 @@ const styles = StyleSheet.create({
   hubCardBody: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
   hubSwapRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   hubSwapLine: { flex: 1, height: 1 },
+
+  // map location rows
+  locationList: { borderRadius: 22, borderWidth: 1, overflow: "hidden" },
+  locationRow: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: Spacing.md },
+  locationIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  locationCopy: { flex: 1, gap: 3 },
+  locationTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  locationSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
+  locationDivider: { height: 1, marginLeft: 64 },
+
+  // route preview map
+  routePreviewCard: { borderRadius: 24, borderWidth: 1, overflow: "hidden" },
+  routePreviewMap: { height: 190, overflow: "hidden" },
+  routePreviewSummary: { padding: Spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: Spacing.md },
+  routePreviewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  routePreviewSub: { marginTop: 3, maxWidth: 210, fontSize: Typography.xs, lineHeight: 17, fontFamily: Typography.family.regular },
+  routePreviewStats: { alignItems: "flex-end", gap: 4 },
+  routeStatValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+
+  // full-screen fixed-pin map picker
+  mapPickerScreen: { flex: 1, backgroundColor: "#000" },
+  centerPinWrap: { position: "absolute", left: 0, right: 0, top: "50%", alignItems: "center", marginTop: -54 },
+  centerPin: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.26, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 8 },
+  centerPinStem: { width: 4, height: 18, borderRadius: 2, backgroundColor: "#0A84FF", marginTop: -3 },
+  centerPinShadow: { width: 28, height: 8, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.22)", marginTop: 2 },
+  mapTopBar: { position: "absolute", top: 54, left: Spacing.lg, right: Spacing.lg, flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  mapCloseButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  mapSearchCard: { flex: 1, minHeight: 54, borderRadius: 18, paddingHorizontal: Spacing.md, justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  mapSearchLabel: { fontSize: 11, fontFamily: Typography.family.medium, textTransform: "uppercase", letterSpacing: 0.6 },
+  mapSearchTitle: { marginTop: 2, fontSize: Typography.md, fontFamily: Typography.family.bold },
+  mapSetSheet: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: 36, gap: Spacing.sm },
+  mapSheetHandle: { width: 46, height: 5, borderRadius: 99, backgroundColor: "rgba(148,163,184,0.45)", alignSelf: "center", marginBottom: Spacing.xs },
+  mapSetTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: "center" },
+  mapSetSub: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular, textAlign: "center" },
+  mapSetButton: { minHeight: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: Spacing.sm },
+  mapSetButtonText: { color: "#fff", fontSize: Typography.md, fontFamily: Typography.family.bold },
 
   // route strip
   routeStrip: {

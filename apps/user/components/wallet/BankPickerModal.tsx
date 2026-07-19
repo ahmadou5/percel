@@ -185,6 +185,7 @@ export function BankPickerModal({
               data={filteredBanks}
               keyExtractor={(item) => item.code}
               style={styles.bankList}
+              contentContainerStyle={styles.bankListContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
@@ -238,6 +239,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: 40,
     gap: Spacing.md,
+    height: '80%',
     maxHeight: '80%',
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center' },
@@ -246,7 +248,8 @@ const styles = StyleSheet.create({
   modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
   modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   bankLoading: { paddingVertical: Spacing.xl, alignItems: 'center', justifyContent: 'center' },
-  bankList: { flex: 1 },
+  bankList: { flex: 1, minHeight: 160 },
+  bankListContent: { paddingBottom: Spacing.md },
   bankRow: {
     flexDirection: 'row',
     alignItems: 'center',
