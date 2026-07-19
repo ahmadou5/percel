@@ -220,3 +220,59 @@ export async function reverseGeocode(lat: number, lng: number) {
   }
 }
 
+export async function autocompletePlaces(input: string) {
+  if (!input) return [];
+  try {
+    const { data } = await googleMaps.get('/place/autocomplete/json', {
+      params: {
+        input,
+        key: env.GOOGLE_MAPS_API_KEY,
+        components: 'country:ng',
+      },
+    });
+
+    if (data?.status !== 'OK' && data?.status !== 'ZERO_RESULTS') {
+      console.warn('[googleMaps] autocompletePlaces returned status:', data?.status, data?.error_message);
+      return [];
+    }
+
+    const predictions = data?.predictions ?? [];
+    return predictions.map((pred: any) => ({
+      description: pred.description,
+      placeId: pred.place_id,
+      mainText: pred.structured_formatting?.main_text ?? pred.description,
+      secondaryText: pred.structured_formatting?.secondary_text ?? '',
+    }));
+  } catch (error) {
+    console.error('[googleMaps] autocompletePlaces error:', error);
+    return [];
+  }
+}
+
+export async function getPlaceDetails(placeId: string) {
+  try {
+    const { data } = await googleMaps.get('/geocode/json', {
+      params: { place_id: placeId, key: env.GOOGLE_MAPS_API_KEY },
+    });
+
+    const result = data?.results?.[0];
+    const location = result?.geometry?.location;
+    if (!result || !location) throw new ValidationError('Unable to geocode place ID');
+
+    const parts = String(result.formatted_address).split(',').map((part: string) => part.trim());
+
+    return {
+      street: parts[0] ?? 'Unknown Street',
+      city: parts[1] ?? parts[0] ?? 'Unknown City',
+      state: parts[2] ?? parts[1] ?? 'Unknown State',
+      country: parts[3] ?? 'Nigeria',
+      lat: Number(location.lat),
+      lng: Number(location.lng),
+      formattedAddress: result.formatted_address,
+      placeId: String(result.place_id),
+    };
+  } catch (error) {
+    wrapError(error);
+  }
+}
+

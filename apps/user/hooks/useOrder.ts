@@ -28,6 +28,38 @@ export function useReverseGeocode() {
   });
 }
 
+export function usePlaceAutocomplete() {
+  return useMutation({
+    mutationFn: async (input: string) => {
+      const response = await http.get<{ data: Array<{ description: string; placeId: string; mainText: string; secondaryText: string }> }>(
+        '/api/v1/orders/autocomplete',
+        { params: { input } }
+      );
+      return response.data.data;
+    },
+  });
+}
+
+export function usePlaceDetails() {
+  return useMutation({
+    mutationFn: async (placeId: string) => {
+      const response = await http.get<{
+        data: {
+          street: string;
+          city: string;
+          state: string;
+          country: string;
+          lat: number;
+          lng: number;
+          formattedAddress: string;
+          placeId: string;
+        };
+      }>('/api/v1/orders/place-details', { params: { placeId } });
+      return response.data.data;
+    },
+  });
+}
+
 export function useGetQuote() {
   return useMutation({
     mutationFn: async (payload: {

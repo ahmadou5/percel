@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { OrderStatus, PaymentStatus, Prisma, type OrderSize, type PrismaClient } from '@prisma/client';
 
-import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute, reverseGeocode } from '../../lib/googleMaps.js';
+import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute, reverseGeocode, autocompletePlaces, getPlaceDetails } from '../../lib/googleMaps.js';
 import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext } from '../../lib/hubs.js';
 import { getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { addNotificationJob } from '../../queues/index.js';
@@ -244,8 +244,22 @@ export class OrderService {
     const routeContext = !dbRouteContext ? resolveHubRouteContext(data.originHubId, data.destinationHubId, data.routeId) : null;
     const effectiveRouteContext = dbRouteContext
       ? {
-          originHub: dbRouteContext.originHub,
-          destinationHub: dbRouteContext.destinationHub,
+          originHub: {
+            ...dbRouteContext.originHub,
+            lat: Number(dbRouteContext.originHub.lat),
+            lng: Number(dbRouteContext.originHub.lng),
+            createdAt: dbRouteContext.originHub.createdAt.toISOString(),
+            type: dbRouteContext.originHub.type as any,
+            contactPhone: dbRouteContext.originHub.contactPhone ?? undefined,
+          },
+          destinationHub: {
+            ...dbRouteContext.destinationHub,
+            lat: Number(dbRouteContext.destinationHub.lat),
+            lng: Number(dbRouteContext.destinationHub.lng),
+            createdAt: dbRouteContext.destinationHub.createdAt.toISOString(),
+            type: dbRouteContext.destinationHub.type as any,
+            contactPhone: dbRouteContext.destinationHub.contactPhone ?? undefined,
+          },
           route: dbRouteContext,
           distanceKm: haversineDistanceKm(Number(dbRouteContext.originHub.lat), Number(dbRouteContext.originHub.lng), Number(dbRouteContext.destinationHub.lat), Number(dbRouteContext.destinationHub.lng)),
           durationMin: Math.max(Number(dbRouteContext.estimatedDays) * 12 * 60, 60),
@@ -1101,5 +1115,13 @@ export class OrderService {
 
   async reverseGeocode(lat: number, lng: number) {
     return reverseGeocode(lat, lng);
+  }
+
+  async autocomplete(input: string) {
+    return autocompletePlaces(input);
+  }
+
+  async getPlaceDetails(placeId: string) {
+    return getPlaceDetails(placeId);
   }
 }

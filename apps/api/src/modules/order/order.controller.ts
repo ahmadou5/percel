@@ -137,4 +137,14 @@ export class OrderController {
     const { lat, lng } = request.body as { lat: number; lng: number };
     return success(await this.service.reverseGeocode(lat, lng), 'Address reverse geocoded');
   };
+
+  autocomplete = async (request: FastifyRequest) => {
+    const { input } = request.query as { input: string };
+    return success(await this.service.autocomplete(input), 'Autocomplete suggestions fetched');
+  };
+
+  getPlaceDetails = async (request: FastifyRequest) => {
+    const { placeId } = request.query as { placeId: string };
+    return success(await this.service.getPlaceDetails(placeId), 'Place details fetched');
+  };
 }
