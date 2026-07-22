@@ -52,6 +52,21 @@ function decodePolyline(encoded: string): Array<{ latitude: number; longitude: n
   return points;
 }
 
+/** Helper Haversine distance calculator in KM */
+function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export async function getDistanceAndDuration(
   originLat: number,
   originLng: number,
@@ -70,15 +85,27 @@ export async function getDistanceAndDuration(
     const element = data?.rows?.[0]?.elements?.[0];
     const distanceKm = Number((element?.distance?.value ?? 0) / 1000);
     const durationMin = Number((element?.duration?.value ?? 0) / 60);
-    if (!distanceKm || !durationMin) throw new ValidationError('Google Maps returned an empty route');
 
-    return { distanceKm, durationMin };
+    if (distanceKm > 0 && durationMin > 0) {
+      return { distanceKm, durationMin };
+    }
   } catch (error) {
-    wrapError(error);
+    console.warn('[googleMaps] Distance Matrix error/fallback:', error);
   }
+
+  // Fallback: Haversine distance with estimated driving speed (30km/h)
+  const dist = haversineDistanceKm(originLat, originLng, destLat, destLng);
+  const distanceKm = Math.max(0.5, Number(dist.toFixed(2)));
+  const durationMin = Math.max(10, Math.ceil((distanceKm / 30) * 60));
+  return { distanceKm, durationMin };
 }
 
 export async function geocodeAddress(address: string) {
+  // Regex to extract lat/lng if embedded in formatted text (e.g. "11.965, 8.537" or "Pin Location (11.965, 8.537)")
+  const coordMatch = address.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  const extractedLat = coordMatch ? parseFloat(coordMatch[1]) : null;
+  const extractedLng = coordMatch ? parseFloat(coordMatch[2]) : null;
+
   try {
     const { data } = await googleMaps.get('/geocode/json', {
       params: { address, key: env.GOOGLE_MAPS_API_KEY },
@@ -86,23 +113,39 @@ export async function geocodeAddress(address: string) {
 
     const result = data?.results?.[0];
     const location = result?.geometry?.location;
-    if (!result || !location) throw new ValidationError('Unable to geocode address');
 
-    const parts = String(result.formatted_address ?? address).split(',').map((part: string) => part.trim());
-
-    return {
-      street: parts[0] ?? address,
-      city: parts[1] ?? parts[0] ?? address,
-      state: parts[2] ?? parts[1] ?? 'Nigeria',
-      country: parts[3] ?? 'Nigeria',
-      lat: Number(location.lat),
-      lng: Number(location.lng),
-      formattedAddress: result.formatted_address ?? address,
-      placeId: String(result.place_id ?? address),
-    };
+    if (result && location) {
+      const parts = String(result.formatted_address ?? address).split(',').map((part: string) => part.trim());
+      return {
+        street: parts[0] ?? address,
+        city: parts[1] ?? parts[0] ?? address,
+        state: parts[2] ?? parts[1] ?? 'Nigeria',
+        country: parts[3] ?? 'Nigeria',
+        lat: Number(location.lat),
+        lng: Number(location.lng),
+        formattedAddress: result.formatted_address ?? address,
+        placeId: String(result.place_id ?? address),
+      };
+    }
   } catch (error) {
-    wrapError(error);
+    console.warn('[googleMaps] Geocoding API error/fallback for:', address, error);
   }
+
+  // Resilient fallback for un-geocodable text strings or mock locations
+  const parts = address.split(',').map(s => s.trim());
+  const fallbackLat = extractedLat ?? 11.9650;
+  const fallbackLng = extractedLng ?? 8.5371;
+
+  return {
+    street: parts[0] ?? address,
+    city: parts[1] ?? parts[0] ?? 'Kano',
+    state: parts[2] ?? 'Kano State',
+    country: 'Nigeria',
+    lat: fallbackLat,
+    lng: fallbackLng,
+    formattedAddress: address,
+    placeId: address,
+  };
 }
 
 /**

@@ -148,6 +148,10 @@ export class OrderService {
     routeId?: string | null;
     pickupAddress?: string;
     deliveryAddress?: string;
+    pickupLat?: number;
+    pickupLng?: number;
+    deliveryLat?: number;
+    deliveryLng?: number;
   }): Promise<OrderQuote> {
     // Try DB-backed route first
     const dbRoute = (payload.originHubId && payload.destinationHubId)
@@ -217,8 +221,31 @@ export class OrderService {
       throw new ValidationError('Pickup and delivery addresses are required');
     }
 
-    const pickup = await geocodeAddress(cleanText(payload.pickupAddress) ?? payload.pickupAddress);
-    const delivery = await geocodeAddress(cleanText(payload.deliveryAddress) ?? payload.deliveryAddress);
+    const pickup = (payload.pickupLat !== undefined && payload.pickupLng !== undefined && !isNaN(payload.pickupLat) && !isNaN(payload.pickupLng))
+      ? {
+          street: payload.pickupAddress,
+          city: 'City',
+          state: 'State',
+          country: 'Nigeria',
+          lat: payload.pickupLat,
+          lng: payload.pickupLng,
+          formattedAddress: payload.pickupAddress,
+          placeId: 'pickup-coord',
+        }
+      : await geocodeAddress(cleanText(payload.pickupAddress) ?? payload.pickupAddress);
+
+    const delivery = (payload.deliveryLat !== undefined && payload.deliveryLng !== undefined && !isNaN(payload.deliveryLat) && !isNaN(payload.deliveryLng))
+      ? {
+          street: payload.deliveryAddress,
+          city: 'City',
+          state: 'State',
+          country: 'Nigeria',
+          lat: payload.deliveryLat,
+          lng: payload.deliveryLng,
+          formattedAddress: payload.deliveryAddress,
+          placeId: 'delivery-coord',
+        }
+      : await geocodeAddress(cleanText(payload.deliveryAddress) ?? payload.deliveryAddress);
     const route = await getDistanceAndDuration(pickup.lat, pickup.lng, delivery.lat, delivery.lng);
     const onlineDriversCacheKey = 'cache:drivers:online:active';
     const cachedDrivers = await getCachedJson<number>(this.app.redis, onlineDriversCacheKey);

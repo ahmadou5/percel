@@ -71,6 +71,10 @@ export function useGetQuote() {
       localPickupAddress?: string;
       pickupAddress?: string;
       deliveryAddress?: string;
+      pickupLat?: number;
+      pickupLng?: number;
+      deliveryLat?: number;
+      deliveryLng?: number;
     }) => {
       const response = await http.post<{ data: OrderQuoteResponse }>('/api/v1/orders/quote', payload);
       return response.data.data;

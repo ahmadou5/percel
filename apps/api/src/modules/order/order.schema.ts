@@ -27,6 +27,10 @@ export const QuoteBody = Type.Object({
   localPickupAddress: Type.Optional(Type.String()),
   pickupAddress: Type.Optional(Type.String()),
   deliveryAddress: Type.Optional(Type.String()),
+  pickupLat: Type.Optional(Type.Number()),
+  pickupLng: Type.Optional(Type.Number()),
+  deliveryLat: Type.Optional(Type.Number()),
+  deliveryLng: Type.Optional(Type.Number()),
 });
 
 export const CreateOrderBody = Type.Object({

@@ -427,7 +427,7 @@ export default function SendOrderEntryScreen() {
   // ── auto-quote for intrastate ──
   useEffect(() => {
     if (mode !== 'INTRASTATE') return;
-    if (pickupAddress.trim().length > 5 && deliveryAddress.trim().length > 5) {
+    if (pickupAddress.trim().length > 3 && deliveryAddress.trim().length > 3) {
       const timer = setTimeout(async () => {
         setErrorMsg(null);
         try {
@@ -435,19 +435,23 @@ export default function SendOrderEntryScreen() {
             size: 'SMALL',
             pickupAddress: pickupAddress.trim(),
             deliveryAddress: deliveryAddress.trim(),
+            pickupLat: pickupPoint?.latitude,
+            pickupLng: pickupPoint?.longitude,
+            deliveryLat: deliveryPoint?.latitude,
+            deliveryLng: deliveryPoint?.longitude,
           });
           setQuoteData(res);
         } catch (err) {
-          const errMsg = err instanceof Error ? err.message : 'Unable to detect the route. Try different addresses.';
+          const errMsg = err instanceof Error ? err.message : 'Unable to calculate quote. Try adjusting location pins.';
           setErrorMsg(errMsg);
           setQuoteData(null);
         }
-      }, 900);
+      }, 750);
       return () => clearTimeout(timer);
     } else {
       setQuoteData(null);
     }
-  }, [pickupAddress, deliveryAddress, mode]);
+  }, [pickupAddress, deliveryAddress, pickupPoint, deliveryPoint, mode]);
 
   // ── route preview (interstate) ──
   const routePreview =
