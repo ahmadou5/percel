@@ -24,7 +24,7 @@ export const RefreshTokenSchema = z.object({
 });
 
 export const RegisterDriverSchema = RegisterUserSchema.extend({
-  vehicleType: z.enum(['BIKE', 'CAR', 'VAN', 'TRUCK']),
+  vehicleType: z.enum(['BIKE', 'TRICYCLE', 'CAR', 'VAN', 'TRUCK']),
   vehiclePlate: z.string().min(2),
   vehicleModel: z.string().min(2),
   licenseNumber: z.string().min(3),
@@ -69,6 +69,7 @@ export const RegisterDriverBody = Type.Object({
   fullName: Type.String({ minLength: 2 }),
   vehicleType: Type.Union([
     Type.Literal('BIKE'),
+    Type.Literal('TRICYCLE'),
     Type.Literal('CAR'),
     Type.Literal('VAN'),
     Type.Literal('TRUCK'),

@@ -186,7 +186,7 @@ export class DriverService {
 
   async updateVehicleProfile(
     driverId: string,
-    data: { vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK'; vehiclePlate: string; vehicleModel: string },
+    data: { vehicleType: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK'; vehiclePlate: string; vehicleModel: string },
   ): Promise<DriverProfileResponse> {
     const driver = await this.prisma.driver.update({
       where: { id: driverId },

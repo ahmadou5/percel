@@ -32,7 +32,7 @@ type AuthInput = {
 };
 
 type DriverInput = AuthInput & {
-  vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK';
+  vehicleType: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK';
   vehiclePlate: string;
   vehicleModel: string;
   licenseNumber: string;

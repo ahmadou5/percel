@@ -6,7 +6,7 @@ export const DriverReviewsQuery = Type.Object({
 });
 
 export const UpdateVehicleBody = Type.Object({
-  vehicleType: Type.Union([Type.Literal('BIKE'), Type.Literal('CAR'), Type.Literal('VAN'), Type.Literal('TRUCK')]),
+  vehicleType: Type.Union([Type.Literal('BIKE'), Type.Literal('TRICYCLE'), Type.Literal('CAR'), Type.Literal('VAN'), Type.Literal('TRUCK')]),
   vehiclePlate: Type.String({ minLength: 2 }),
   vehicleModel: Type.String({ minLength: 2 }),
 });

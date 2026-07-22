@@ -36,6 +36,7 @@ enum DriverStatus {
 
 enum VehicleType {
   BIKE
+  TRICYCLE
   CAR
   VAN
   TRUCK

@@ -10,6 +10,11 @@ import {
   Navigation2,
   Truck,
   Search,
+  PinIcon,
+  MapPinHouse,
+  MapPinned,
+  Package,
+  Map,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -151,53 +156,6 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.025,
 };
 
-const DARK_MAP_STYLE2 = [
-  { elementType: 'geometry', stylers: [{ color: Colors.dark.bg }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.dark.bg }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
-  { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.text }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: Colors.dark.bg }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: Colors.dark.bg }] },
-  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: Colors.dark.card }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
-  { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
-  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: Colors.light.text }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.border }] },
-];
-
-const LIGHT_MAP_STYLE2 = [
-  { elementType: 'geometry', stylers: [{ color: Colors.light.bg }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.bg }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
-  { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.text }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#D2F1D2' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.bg }] },
-  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: Colors.light.card }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
-  { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
-  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#A9C4EB' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.border }] },
-];
 
 
 // Premium dark blue map theme
@@ -281,6 +239,7 @@ export default function SendOrderEntryScreen() {
 
   // ── delivery mode tab ────────────────────────────────────────────────────
   const [mode, setMode] = useState<DeliveryMode>('INTRASTATE');
+  const [selectedVehicle, setSelectedVehicle] = useState<'BIKE' | 'TRICYCLE'>('BIKE');
 
   // ── interstate hub selection ─────────────────────────────────────────────
   const [originHub, setOriginHub] = useState<Hub | null>(null);
@@ -603,6 +562,7 @@ export default function SendOrderEntryScreen() {
         params: {
           pickupAddress: pickupAddress.trim(),
           deliveryAddress: deliveryAddress.trim(),
+          vehicleType: selectedVehicle,
           size: 'SMALL',
         },
       });
@@ -612,6 +572,7 @@ export default function SendOrderEntryScreen() {
         params: {
           originHubId: originHub!.id,
           destinationHubId: destinationHub!.id,
+          vehicleType: 'CAR',
           ...(pickupAddress.trim() ? { localPickupAddress: pickupAddress.trim() } : {}),
         },
       });
@@ -639,14 +600,14 @@ export default function SendOrderEntryScreen() {
         {pickupPoint && (
           <Marker coordinate={pickupPoint} anchor={{ x: 0.5, y: 0.5 }}>
             <View style={[styles.markerPin, { backgroundColor: palette.primary }]}>
-              <View style={styles.markerInner} />
+              <MapPin size={16} color="#fff" />
             </View>
           </Marker>
         )}
         {deliveryPoint && (
-          <Marker coordinate={deliveryPoint} anchor={{ x: 0.5, y: 1 }}>
-            <View style={[styles.markerPinSquare, { backgroundColor: palette.error || '#FB7185' }]}>
-              <View style={styles.markerInnerSquare} />
+          <Marker coordinate={deliveryPoint} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={[styles.markerPinSquare, { backgroundColor: palette.primary }]}>
+              <MapPinned size={16} color="#fff" />
             </View>
           </Marker>
         )}
@@ -660,37 +621,36 @@ export default function SendOrderEntryScreen() {
         )}
       </MapView>
 
-      {/* ── Top Floating panel (Stacked inputs) ── */}
+      {/* ── Top Floating panel (Hero Card) ── */}
       <Animated.View
         entering={FadeInUp.springify().damping(22)}
         style={[
-          styles.floatingHeader,
+          styles.heroCard,
           {
-            paddingTop: insets.top + Spacing.sm,
-            paddingBottom: Spacing.md,
-            backgroundColor: palette.bg,
-            borderBottomWidth: 1,
-            borderBottomColor: palette.border,
+            top: insets.top + Spacing.sm,
+            backgroundColor: palette.card,
+            borderColor: palette.border,
           },
         ]}
       >
-        {/* Safe Back / Screen Title */}
-        <View style={styles.headerTitleRow}>
+        <View style={styles.heroTop}>
           <Pressable
             onPress={() => back()}
             style={({ pressed }) => [
               styles.backButton,
               { backgroundColor: palette.card, borderColor: palette.border },
-              pressed && { opacity: 0.72 },
+              pressed && { opacity: 0.7 },
             ]}
           >
             <ChevronLeft size={18} color={palette.text} />
           </Pressable>
-
+          <View style={[styles.heroBadge, { backgroundColor: `${palette.primary}1A` }]}>
+            <Map size={18} color={palette.primary} />
+          </View>
         </View>
 
         {/* Delivery Mode Toggle */}
-        <View style={[styles.tabBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <View style={[styles.tabBar, { backgroundColor: palette.bg, borderColor: palette.border }]}>
           <Animated.View
             style={[
               styles.tabIndicator,
@@ -725,7 +685,7 @@ export default function SendOrderEntryScreen() {
 
         {/* Address Card */}
         {mode === 'INTRASTATE' && (
-          <View style={[styles.addressCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={[styles.addressCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
             {/* Pickup address field */}
             <Pressable
               onPress={() => {
@@ -735,9 +695,8 @@ export default function SendOrderEntryScreen() {
               }}
               style={styles.addressBtnRow}
             >
-              <View style={[styles.dotOuter, { borderColor: palette.primary }]}>
-                <View style={[styles.dotInner, { backgroundColor: palette.primary }]} />
-              </View>
+              <MapPin size={16} color={'#10B981'} />
+
               <View style={styles.addressBtnContent}>
                 <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
                   Pickup location
@@ -769,9 +728,9 @@ export default function SendOrderEntryScreen() {
                 ]}
               >
                 {gpsLoading ? (
-                  <ActivityIndicator size={12} color={palette.primary} />
+                  <ActivityIndicator size={17} color={palette.primary} />
                 ) : (
-                  <Navigation2 size={12} color={palette.primary} />
+                  <MapPinHouse size={17} color={palette.primary} />
                 )}
               </Pressable>
             </Pressable>
@@ -783,7 +742,7 @@ export default function SendOrderEntryScreen() {
                 onPress={swapAddresses}
                 style={({ pressed }) => [
                   styles.swapBtn,
-                  { backgroundColor: palette.bg, borderColor: palette.border },
+                  { backgroundColor: palette.card, borderColor: palette.border },
                   pressed && { opacity: 0.8 },
                 ]}
               >
@@ -801,7 +760,8 @@ export default function SendOrderEntryScreen() {
               }}
               style={styles.addressBtnRow}
             >
-              <View style={[styles.squareDot, { backgroundColor: palette.primary }]} />
+              <MapPinned size={16} color={palette.primary} />
+
               <View style={styles.addressBtnContent}>
                 <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
                   Delivery address
@@ -872,31 +832,89 @@ export default function SendOrderEntryScreen() {
                   </Text>
                 </View>
               ) : quoteData ? (
-                <Animated.View entering={FadeIn.duration(200)} style={styles.vehicleChoiceRow}>
-                  {/* Two wheeler select row matching user expectation */}
-                  <View
-                    style={[
-                      styles.vehicleOptionCard,
-                      { backgroundColor: palette.bg, borderColor: palette.primary + '40' },
-                    ]}
-                  >
-                    <View style={styles.vehicleDetailsRow}>
-                      <View style={[styles.vehicleIconBox, { backgroundColor: `${palette.primary}18` }]}>
-                        <Truck size={22} color={palette.primary} />
-                      </View>
-                      <View style={{ gap: 2, flex: 1 }}>
-                        <Text style={[styles.vehicleNameText, { color: palette.text }]}>Two-wheeler</Text>
-                        <Text style={[styles.vehicleMetaText, { color: palette.textSecondary }]}>
-                          {mapDurationMin ? `${Math.round(mapDurationMin)} mins` : '15 mins'} · {mapDistanceKm ? `${mapDistanceKm.toFixed(1)} km` : '-- km'}
-                        </Text>
-                      </View>
-                      <Text style={[styles.vehiclePriceText, { color: palette.primary }]}>
-                        {formatMoney(quoteData.totalPrice)}
-                      </Text>
-                    </View>
+                <Animated.View entering={FadeIn.duration(200)} style={{ gap: 10 }}>
+                  <Text style={[styles.sheetSectionTitle, { color: palette.textSecondary }]}>
+                    Select local vehicle
+                  </Text>
+
+                  <View style={styles.vehicleRowHorizontal}>
+                    {[
+                      {
+                        id: 'BIKE' as const,
+                        title: 'Bike',
+                        subtitle: mapDurationMin ? `${Math.round(mapDurationMin)} mins` : 'Motorcycle',
+                        multiplier: 1.0,
+                        badge: 'Fastest',
+                      },
+                      {
+                        id: 'TRICYCLE' as const,
+                        title: 'Keke Napep',
+                        subtitle: 'Neighborhood load',
+                        multiplier: 1.25,
+                        badge: 'Popular',
+                      },
+                    ].map((v) => {
+                      const isSelected = selectedVehicle === v.id;
+                      const price = formatMoney(quoteData.totalPrice * v.multiplier);
+                      return (
+                        <Pressable
+                          key={v.id}
+                          onPress={() => setSelectedVehicle(v.id)}
+                          style={({ pressed }) => [
+                            styles.vehicleCardHorizontal,
+                            {
+                              backgroundColor: isSelected ? `${palette.primary}0F` : palette.bg,
+                              borderColor: isSelected ? palette.primary : palette.border,
+                              borderWidth: isSelected ? 2 : 1,
+                            },
+                            pressed && { opacity: 0.85 },
+                          ]}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <View
+                              style={[
+                                styles.vehicleIconBoxSmall,
+                                { backgroundColor: isSelected ? `${palette.primary}20` : `${palette.textSecondary}15` },
+                              ]}
+                            >
+                              <Truck size={18} color={isSelected ? palette.primary : palette.textSecondary} />
+                            </View>
+                            <View
+                              style={[
+                                styles.vehicleBadgeTag,
+                                { backgroundColor: isSelected ? `${palette.primary}25` : `${palette.textSecondary}15` },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.vehicleBadgeTagText,
+                                  { color: isSelected ? palette.primary : palette.textSecondary },
+                                ]}
+                              >
+                                {v.badge}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={{ gap: 2, marginTop: 4 }}>
+                            <Text style={[styles.vehicleNameText, { color: palette.text }]}>
+                              {v.title}
+                            </Text>
+                            <Text style={[styles.vehicleMetaText, { color: palette.textSecondary }]}>
+                              {v.subtitle}
+                            </Text>
+                          </View>
+
+                          <Text style={[styles.vehiclePriceTextHorizontal, { color: isSelected ? palette.primary : palette.text }]}>
+                            {price}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
+
                   <Text style={[styles.sheetHelperText, { color: palette.textSecondary }]}>
-                    Local delivery route detected. Est. pickup in 8–15 mins.
+                    Local delivery route detected. Nearby {selectedVehicle === 'BIKE' ? 'bikers' : 'keke trikes'} will be matched.
                   </Text>
                 </Animated.View>
               ) : (
@@ -989,7 +1007,7 @@ export default function SendOrderEntryScreen() {
             ]}
           >
             <Text style={[styles.ctaButtonText, { color: canContinue ? '#fff' : palette.textSecondary }]}>
-              {canContinue ? 'Continue →' : 'Complete details to continue'}
+              {canContinue ? 'Continue' : 'Complete details to continue'}
             </Text>
           </Pressable>
         </Animated.View>
@@ -1046,7 +1064,7 @@ export default function SendOrderEntryScreen() {
               ]}
             >
               <View style={[styles.shortcutIconBox, { backgroundColor: `${palette.primary}18` }]}>
-                <Navigation2 size={16} color={palette.primary} />
+                <Map size={16} color={palette.primary} />
               </View>
               <Text style={[styles.shortcutText, { color: palette.text }]}>Choose on map</Text>
             </Pressable>
@@ -1100,7 +1118,7 @@ export default function SendOrderEntryScreen() {
                       ]}
                     >
                       {item.icon === 'home' ? (
-                        <Home size={16} color={palette.primary} />
+                        <MapPinHouse size={16} color={palette.primary} />
                       ) : (
                         <Clock size={16} color={palette.textSecondary} />
                       )}
@@ -1133,12 +1151,12 @@ export default function SendOrderEntryScreen() {
             showsMyLocationButton
             showsCompass={false}
             toolbarEnabled={false}
-            customMapStyle={DARK_MAP_STYLE}
+            customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
           />
           {/* Central fixed marker pin */}
           <View pointerEvents="none" style={styles.centerPinWrap}>
             <View style={[styles.centerPin, { backgroundColor: palette.primary }]}>
-              <MapPin size={24} color="#fff" fill="#fff" />
+              <MapPin size={14} color={palette.bg} />
             </View>
             <View style={[styles.centerPinStem, { backgroundColor: palette.primary }]} />
             <View style={styles.centerPinShadow} />
@@ -1269,27 +1287,33 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.bold,
   },
 
-  // Floating top header
-  floatingHeader: {
+  // Floating top header / Hero Card
+  heroCard: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Spacing.lg,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    gap: 12,
     zIndex: 10,
-    gap: Spacing.md,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
     shadowColor: '#000',
     shadowOpacity: 0.16,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  headerTitleRow: {
+  heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    justifyContent: 'space-between',
+  },
+  heroBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButton: {
     width: 40,
@@ -1454,8 +1478,44 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.regular,
     paddingVertical: Spacing.md,
   },
-  vehicleChoiceRow: {
-    gap: Spacing.md,
+  vehicleRowHorizontal: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  vehicleCardHorizontal: {
+    flex: 1,
+    borderRadius: 16,
+    padding: Spacing.md,
+    gap: 6,
+    alignItems: 'flex-start',
+  },
+  vehicleIconBoxSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehiclePriceTextHorizontal: {
+    fontSize: Typography.md,
+    fontFamily: Typography.family.bold,
+    marginTop: 2,
+  },
+  sheetSectionTitle: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  vehicleBadgeTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  vehicleBadgeTagText: {
+    fontSize: 10,
+    fontFamily: Typography.family.bold,
   },
   vehicleOptionCard: {
     borderRadius: 18,
@@ -1650,7 +1710,7 @@ const styles = StyleSheet.create({
   // Map Picker Modal (Choose on Map)
   mapPickerScreen: { flex: 1, backgroundColor: '#000' },
   centerPinWrap: { position: 'absolute', left: 0, right: 0, top: '50%', alignItems: 'center', marginTop: -50 },
-  centerPin: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  centerPin: { width: 24, height: 24, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   centerPinStem: { width: 4, height: 16, borderRadius: 2, marginTop: -3 },
   centerPinShadow: { width: 24, height: 6, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.22)', marginTop: 2 },
   mapTopBar: { position: 'absolute', top: 0, left: Spacing.lg, right: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },

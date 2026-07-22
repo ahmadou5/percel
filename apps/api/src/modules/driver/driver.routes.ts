@@ -23,7 +23,7 @@ const driverRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch('/driver/profile/vehicle', { preHandler: [app.authenticateDriver], schema: { body: UpdateVehicleBody } }, async (request) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
-    const body = request.body as { vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK'; vehiclePlate: string; vehicleModel: string };
+    const body = request.body as { vehicleType: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK'; vehiclePlate: string; vehicleModel: string };
     return success(await service.updateVehicleProfile(driverId, body), 'Vehicle profile updated');
   });
 
