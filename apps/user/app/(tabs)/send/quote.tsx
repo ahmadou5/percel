@@ -10,9 +10,9 @@ import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useCreateOrder, useGetQuote } from '@/hooks/useOrder';
+import { useCreateOrder, useGetQuote, useActiveHubs } from '@/hooks/useOrder';
 import { useWallet } from '@/hooks/useWallet';
-import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteById } from '@/lib/hubs';
+import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteWithHubs } from '@/lib/hubs';
 import { formatDistance, formatDuration, formatMoney } from '@/lib/order';
 import { useAppPalette } from '@/lib/theme';
 import type { Order } from '@/lib/order';
@@ -26,6 +26,7 @@ export default function QuoteScreen() {
   const router = useRouter();
   const back = useSafeBack('/send/package');
   const palette = useAppPalette();
+  const { data: apiHubs } = useActiveHubs();
   const params = useLocalSearchParams<{
     originHubId?: string;
     destinationHubId?: string;
@@ -48,9 +49,9 @@ export default function QuoteScreen() {
   const { config: modalConfig, hide: hideModal, alert: showAlert } = useAppModal();
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
 
-  const originHub = getHubById(params.originHubId);
-  const destinationHub = getHubById(params.destinationHubId);
-  const route = getRouteById(params.routeId);
+  const originHub = getHubById(params.originHubId, apiHubs);
+  const destinationHub = getHubById(params.destinationHubId, apiHubs);
+  const route = getRouteWithHubs(originHub, destinationHub, apiHubs);
   const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
   const pickupAddress = isIntrastate
     ? (params.pickupAddress ?? '')
@@ -98,12 +99,12 @@ export default function QuoteScreen() {
           deliveryAddress,
         });
       } else {
-        if (!originHub || !destinationHub || !route) return;
+        if (!originHub || !destinationHub) return;
         await quoteQuery.mutateAsync({
           size,
           originHubId: originHub.id,
           destinationHubId: destinationHub.id,
-          routeId: route.id,
+          routeId: route?.id,
           localPickupAddress: params.localPickupAddress ?? '',
           pickupAddress,
           deliveryAddress,

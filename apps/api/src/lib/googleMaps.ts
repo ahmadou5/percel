@@ -220,16 +220,21 @@ export async function reverseGeocode(lat: number, lng: number) {
   }
 }
 
-export async function autocompletePlaces(input: string) {
+export async function autocompletePlaces(input: string, lat?: number, lng?: number) {
   if (!input) return [];
   try {
-    const { data } = await googleMaps.get('/place/autocomplete/json', {
-      params: {
-        input,
-        key: env.GOOGLE_MAPS_API_KEY,
-        components: 'country:ng',
-      },
-    });
+    const params: Record<string, string | number> = {
+      input,
+      key: env.GOOGLE_MAPS_API_KEY,
+      components: 'country:ng',
+    };
+
+    if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+      params.location = `${lat},${lng}`;
+      params.radius = 50000;
+    }
+
+    const { data } = await googleMaps.get('/place/autocomplete/json', { params });
 
     if (data?.status !== 'OK' && data?.status !== 'ZERO_RESULTS') {
       console.warn('[googleMaps] autocompletePlaces returned status:', data?.status, data?.error_message);

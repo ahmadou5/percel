@@ -6,13 +6,15 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteById } from '@/lib/hubs';
+import { useActiveHubs } from '@/hooks/useOrder';
+import { composeDeliveryAddress, composePickupAddress, formatHubLocation, getHubById, getRouteWithHubs } from '@/lib/hubs';
 import { useAppPalette } from '@/lib/theme';
 
 export default function PickupDetailsScreen() {
   const router = useRouter();
   const back = useSafeBack('/send');
   const palette = useAppPalette();
+  const { data: apiHubs } = useActiveHubs();
   const params = useLocalSearchParams<{
     originHubId?: string;
     destinationHubId?: string;
@@ -25,9 +27,9 @@ export default function PickupDetailsScreen() {
 
   const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
 
-  const originHub = getHubById(params.originHubId);
-  const destinationHub = getHubById(params.destinationHubId);
-  const route = getRouteById(params.routeId);
+  const originHub = getHubById(params.originHubId, apiHubs);
+  const destinationHub = getHubById(params.destinationHubId, apiHubs);
+  const route = getRouteWithHubs(originHub, destinationHub, apiHubs);
 
   const [localPickupAddress, setLocalPickupAddress] = useState('');
   const [contactName, setContactName] = useState('');
@@ -36,7 +38,7 @@ export default function PickupDetailsScreen() {
 
   const canContinue = isIntrastate
     ? Boolean(contactName.trim() && contactPhone.trim())
-    : Boolean(originHub && destinationHub && route && localPickupAddress.trim() && contactName.trim() && contactPhone.trim());
+    : Boolean(originHub && destinationHub && localPickupAddress.trim() && contactName.trim() && contactPhone.trim());
 
   const preview = useMemo(() => {
     if (isIntrastate) {

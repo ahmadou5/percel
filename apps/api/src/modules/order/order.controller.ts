@@ -139,8 +139,10 @@ export class OrderController {
   };
 
   autocomplete = async (request: FastifyRequest) => {
-    const { input } = request.query as { input: string };
-    return success(await this.service.autocomplete(input), 'Autocomplete suggestions fetched');
+    const { input, lat, lng } = request.query as { input: string; lat?: string; lng?: string };
+    const latNum = lat != null ? Number(lat) : undefined;
+    const lngNum = lng != null ? Number(lng) : undefined;
+    return success(await this.service.autocomplete(input, latNum, lngNum), 'Autocomplete suggestions fetched');
   };
 
   getPlaceDetails = async (request: FastifyRequest) => {

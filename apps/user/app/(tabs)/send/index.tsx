@@ -291,21 +291,26 @@ export default function SendOrderEntryScreen() {
     setMapPickerResolving(true);
     setErrorMsg(null);
 
+    let address = `${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
     try {
       const result = await reverseGeocodeMutation.mutateAsync({ lat: point.latitude, lng: point.longitude });
+      if (result?.formattedAddress) {
+        address = result.formattedAddress;
+      }
+    } catch (e) {
+      console.warn('Reverse geocode fallback:', e);
+      address = `Location near ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
+    } finally {
       if (mapPickerTarget === 'pickup') {
-        setPickupAddress(result.formattedAddress);
+        setPickupAddress(address);
         setPickupPoint(point);
       } else {
-        setDeliveryAddress(result.formattedAddress);
+        setDeliveryAddress(address);
         setDeliveryPoint(point);
       }
       setQuoteData(null);
-      setMapPickerTarget(null);
-    } catch {
-      setErrorMsg('Could not name that location. Move the map slightly and try again.');
-    } finally {
       setMapPickerResolving(false);
+      setMapPickerTarget(null);
     }
   };
 
@@ -318,7 +323,11 @@ export default function SendOrderEntryScreen() {
     const timer = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        const res = await autocompleteMutation.mutateAsync(searchText);
+        const res = await autocompleteMutation.mutateAsync({
+          input: searchText,
+          lat: mapRegion.latitude,
+          lng: mapRegion.longitude,
+        });
         setSearchResults(res);
       } catch (err) {
         // Fallback to local landmark search
@@ -331,7 +340,7 @@ export default function SendOrderEntryScreen() {
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, mapRegion.latitude, mapRegion.longitude]);
 
   const handleSelectPlace = async (place: {
     description: string;
@@ -405,7 +414,7 @@ export default function SendOrderEntryScreen() {
   // ── route preview (interstate) ──
   const routePreview =
     mode === 'INTERSTATE' && originHub && destinationHub
-      ? getRouteWithHubs(originHub.id, destinationHub.id)
+      ? getRouteWithHubs(originHub, destinationHub, apiHubs)
       : null;
 
   const mapRoutePoints =

@@ -30,10 +30,11 @@ export function useReverseGeocode() {
 
 export function usePlaceAutocomplete() {
   return useMutation({
-    mutationFn: async (input: string) => {
+    mutationFn: async (payload: string | { input: string; lat?: number; lng?: number }) => {
+      const params = typeof payload === 'string' ? { input: payload } : payload;
       const response = await http.get<{ data: Array<{ description: string; placeId: string; mainText: string; secondaryText: string }> }>(
         '/api/v1/orders/autocomplete',
-        { params: { input } }
+        { params }
       );
       return response.data.data;
     },

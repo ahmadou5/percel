@@ -137,9 +137,23 @@ export class OrderService {
         })
       : null;
 
-    const staticRouteContext = !dbRoute ? resolveHubRouteContext(payload.originHubId, payload.destinationHubId, payload.routeId) : null;
+    let originHubObj = dbRoute?.originHub ?? null;
+    let destHubObj = dbRoute?.destinationHub ?? null;
 
-    if (dbRoute || staticRouteContext) {
+    if (!dbRoute && payload.originHubId && payload.destinationHubId) {
+      const [oHub, dHub] = await Promise.all([
+        this.prisma.hub.findUnique({ where: { id: payload.originHubId } }),
+        this.prisma.hub.findUnique({ where: { id: payload.destinationHubId } }),
+      ]);
+      if (oHub && dHub) {
+        originHubObj = oHub;
+        destHubObj = dHub;
+      }
+    }
+
+    const staticRouteContext = !dbRoute && !originHubObj ? resolveHubRouteContext(payload.originHubId, payload.destinationHubId, payload.routeId) : null;
+
+    if (dbRoute || originHubObj || staticRouteContext) {
       const onlineDriversCacheKey = 'cache:drivers:online:active';
       const cachedDrivers = await getCachedJson<number>(this.app.redis, onlineDriversCacheKey);
       const onlineDrivers =
@@ -149,20 +163,26 @@ export class OrderService {
         await setCachedJson(this.app.redis, onlineDriversCacheKey, onlineDrivers, 30);
       }
 
-      const routeId = dbRoute?.id ?? staticRouteContext?.route.id;
-      const distanceKm = staticRouteContext?.distanceKm ?? haversineDistanceKm(
-        Number(dbRoute!.originHub.lat), Number(dbRoute!.originHub.lng),
-        Number(dbRoute!.destinationHub.lat), Number(dbRoute!.destinationHub.lng),
-      );
-      const durationMin = staticRouteContext?.durationMin ?? Math.max(Number(dbRoute!.estimatedDays) * 12 * 60, 60);
+      const oLat = originHubObj ? Number(originHubObj.lat) : Number(staticRouteContext!.originHub.lat);
+      const oLng = originHubObj ? Number(originHubObj.lng) : Number(staticRouteContext!.originHub.lng);
+      const dLat = destHubObj ? Number(destHubObj.lat) : Number(staticRouteContext!.destinationHub.lat);
+      const dLng = destHubObj ? Number(destHubObj.lng) : Number(staticRouteContext!.destinationHub.lng);
 
+      const distanceKm = staticRouteContext?.distanceKm ?? haversineDistanceKm(oLat, oLng, dLat, dLng);
+      const estimatedDays = dbRoute?.estimatedDays ?? staticRouteContext?.route.estimatedDays ?? Math.max(1, Math.ceil(distanceKm / 400));
+      const durationMin = staticRouteContext?.durationMin ?? Math.max(estimatedDays * 12 * 60, 60);
+
+      const routeId = dbRoute?.id ?? staticRouteContext?.route.id ?? `${payload.originHubId}_${payload.destinationHubId}`;
       const quoteKey = `cache:quote:${payload.size}:hub:${routeId}:${distanceKm.toFixed(1)}:${Math.round(durationMin)}:${onlineDrivers}`;
       const cached = await getCachedJson<OrderQuote>(this.app.redis, quoteKey);
       if (cached) return cached;
 
-      const routeCtxForPricing = dbRoute
-        ? { baseFare: Number(dbRoute.baseFare), originModifier: Number(dbRoute.originHub.basePricingModifier), destModifier: Number(dbRoute.destinationHub.basePricingModifier) }
-        : null;
+      const baseFareNum = dbRoute ? Number(dbRoute.baseFare) : Math.round(Math.max(1500, distanceKm * 15));
+      const routeCtxForPricing = {
+        baseFare: baseFareNum,
+        originModifier: originHubObj ? Number(originHubObj.basePricingModifier ?? 0) : 0,
+        destModifier: destHubObj ? Number(destHubObj.basePricingModifier ?? 0) : 0,
+      };
       const quote = getPriceQuote(payload.size, distanceKm, durationMin, onlineDrivers, 'INTERSTATE', null, routeCtxForPricing);
       quote.deliveryType = 'INTERSTATE';
       await setCachedJson(this.app.redis, quoteKey, quote, 300);
@@ -1117,8 +1137,8 @@ export class OrderService {
     return reverseGeocode(lat, lng);
   }
 
-  async autocomplete(input: string) {
-    return autocompletePlaces(input);
+  async autocomplete(input: string, lat?: number, lng?: number) {
+    return autocompletePlaces(input, lat, lng);
   }
 
   async getPlaceDetails(placeId: string) {
