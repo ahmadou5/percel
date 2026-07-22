@@ -4,7 +4,7 @@ import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { OrderStatus, PaymentStatus, Prisma, type OrderSize, type PrismaClient } from '@prisma/client';
 
 import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute, reverseGeocode, autocompletePlaces, getPlaceDetails } from '../../lib/googleMaps.js';
-import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext } from '../../lib/hubs.js';
+import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext, type HubType } from '../../lib/hubs.js';
 import { getCachedJson, setCachedJson } from '../../lib/cache.js';
 import { addNotificationJob } from '../../queues/index.js';
 import { broadcastOrderStatusUpdate, clearActiveDriverTracking, setActiveDriverTracking, broadcastDriverLocation, type RealtimeApp } from '../../lib/realtime.js';
@@ -249,7 +249,7 @@ export class OrderService {
             lat: Number(dbRouteContext.originHub.lat),
             lng: Number(dbRouteContext.originHub.lng),
             createdAt: dbRouteContext.originHub.createdAt.toISOString(),
-            type: dbRouteContext.originHub.type as any,
+            type: dbRouteContext.originHub.type as HubType,
             contactPhone: dbRouteContext.originHub.contactPhone ?? undefined,
           },
           destinationHub: {
@@ -257,7 +257,7 @@ export class OrderService {
             lat: Number(dbRouteContext.destinationHub.lat),
             lng: Number(dbRouteContext.destinationHub.lng),
             createdAt: dbRouteContext.destinationHub.createdAt.toISOString(),
-            type: dbRouteContext.destinationHub.type as any,
+            type: dbRouteContext.destinationHub.type as HubType,
             contactPhone: dbRouteContext.destinationHub.contactPhone ?? undefined,
           },
           route: dbRouteContext,
