@@ -30,6 +30,8 @@ export type OrderDraft = {
   contactName?: string;
   contactPhone?: string;
   pickupNote?: string;
+  recipientName?: string;
+  recipientPhone?: string;
   size: OrderSize;
   fragile: boolean;
   items: OrderItem[];
@@ -42,6 +44,9 @@ export type OrderSummary = {
   driverId: string | null;
   pickupFormattedAddress: string;
   deliveryFormattedAddress: string;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
+  notes?: string | null;
   size: OrderSize;
   status: OrderStatus;
   paymentStatus: PaymentStatus;

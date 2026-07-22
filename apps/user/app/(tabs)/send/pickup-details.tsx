@@ -36,9 +36,12 @@ export default function PickupDetailsScreen() {
   const [contactPhone, setContactPhone] = useState('');
   const [pickupNote, setPickupNote] = useState('');
 
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+
   const canContinue = isIntrastate
-    ? Boolean(contactName.trim() && contactPhone.trim())
-    : Boolean(originHub && destinationHub && localPickupAddress.trim() && contactName.trim() && contactPhone.trim());
+    ? Boolean(contactName.trim() && contactPhone.trim() && recipientName.trim() && recipientPhone.trim())
+    : Boolean(originHub && destinationHub && localPickupAddress.trim() && contactName.trim() && contactPhone.trim() && recipientName.trim() && recipientPhone.trim());
 
   const preview = useMemo(() => {
     if (isIntrastate) {
@@ -65,6 +68,8 @@ export default function PickupDetailsScreen() {
           contactName,
           contactPhone,
           pickupNote,
+          recipientName,
+          recipientPhone,
         },
       });
     } else {
@@ -78,6 +83,8 @@ export default function PickupDetailsScreen() {
           contactName,
           contactPhone,
           pickupNote,
+          recipientName,
+          recipientPhone,
         },
       });
     }
@@ -93,42 +100,35 @@ export default function PickupDetailsScreen() {
 
       <View style={styles.hero}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Pickup details</Text>
-        {isIntrastate ? (
-          <Text style={[styles.title, { color: palette.text }]}>Add your pickup contact for the courier.</Text>
-        ) : (
-          <Text style={[styles.title, { color: palette.text }]}>Add the local pickup details near the chosen hub.</Text>
-        )}
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-          {isIntrastate
-            ? 'We have your addresses. Just tell us who the courier should contact at the pickup point.'
-            : 'We keep the interstate move hub-to-hub and capture only the local pickup point here.'}
-        </Text>
+
+
       </View>
 
-      {/* Route / address summary */}
-      <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>{isIntrastate ? 'Delivery route' : 'Selected route'}</Text>
-        {isIntrastate ? (
-          <>
-            <View style={styles.addrRow}>
-              <MapPin size={14} color={palette.primary} />
-              <Text style={[styles.routeText, { color: palette.text }]} numberOfLines={2}>{params.pickupAddress}</Text>
+      {/* Route card */}
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: Spacing.xs }]}>Route</Text>
+
+        <View style={styles.routeContainer}>
+          <View style={styles.routeConnectorCol}>
+            <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
+            <View style={[styles.routeDot, { backgroundColor: palette.primary }]} />
+          </View>
+          <View style={styles.routeDetailsCol}>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Pickup Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {isIntrastate ? params.pickupAddress : (originHub ? `${originHub.name} (${formatHubLocation(originHub)})` : 'Origin hub')}
+              </Text>
             </View>
-            <Text style={styles.arrow}>↓</Text>
-            <View style={styles.addrRow}>
-              <MapPin size={14} color={palette.error ?? '#EF4444'} />
-              <Text style={[styles.routeText, { color: palette.text }]} numberOfLines={2}>{params.deliveryAddress}</Text>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Delivery Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {isIntrastate ? params.deliveryAddress : (destinationHub ? `${destinationHub.name} (${formatHubLocation(destinationHub)})` : 'Destination hub')}
+              </Text>
             </View>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.routeText, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub not selected'}</Text>
-            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
-            <Text style={styles.arrow}>↓</Text>
-            <Text style={[styles.routeText, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub not selected'}</Text>
-            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
-          </>
-        )}
+          </View>
+        </View>
       </View>
 
       {/* Landmark (interstate only) */}
@@ -146,13 +146,13 @@ export default function PickupDetailsScreen() {
         </View>
       )}
 
-      {/* Contact */}
+      {/* Pickup Contact */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup contact</Text>
         <TextInput
           value={contactName}
           onChangeText={setContactName}
-          placeholder="Contact name"
+          placeholder="Sender / Pickup contact name"
           placeholderTextColor={palette.textSecondary}
           style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
         />
@@ -160,17 +160,37 @@ export default function PickupDetailsScreen() {
           value={contactPhone}
           onChangeText={setContactPhone}
           keyboardType="phone-pad"
-          placeholder="Phone number"
+          placeholder="Pickup phone number"
           placeholderTextColor={palette.textSecondary}
           style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
         />
         <TextInput
           value={pickupNote}
           onChangeText={setPickupNote}
-          placeholder="Optional note for the driver"
+          placeholder="Optional pickup note for the driver"
           placeholderTextColor={palette.textSecondary}
           style={[styles.noteInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
           multiline
+        />
+      </View>
+
+      {/* Recipient Contact */}
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Recipient contact</Text>
+        <TextInput
+          value={recipientName}
+          onChangeText={setRecipientName}
+          placeholder="Recipient full name"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+        />
+        <TextInput
+          value={recipientPhone}
+          onChangeText={setRecipientPhone}
+          keyboardType="phone-pad"
+          placeholder="Recipient phone number"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
         />
       </View>
 
@@ -213,6 +233,15 @@ const styles = StyleSheet.create({
   routeMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
   arrow: { fontSize: Typography.xl, textAlign: 'center', color: '#8B5CF6' },
   card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  routeContainer: { flexDirection: 'row', alignItems: 'stretch', gap: 12, marginTop: 4 },
+  routeConnectorCol: { alignItems: 'center', width: 16, paddingTop: 4, paddingBottom: 4 },
+  routeDot: { width: 10, height: 10, borderRadius: 5 },
+  routeLine: { flex: 1, width: 2, marginVertical: 4 },
+  routeDetailsCol: { flex: 1, gap: 16 },
+  routeDetailItem: { gap: 2 },
+  routeLabel: { fontSize: 11, fontFamily: Typography.family.semibold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  routeValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold, lineHeight: 18 },
   input: { minHeight: 54, borderRadius: 16, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: Typography.md, fontFamily: Typography.family.regular },
   noteInput: { minHeight: 98, borderRadius: 16, borderWidth: 1, paddingHorizontal: Spacing.md, paddingTop: 14, fontSize: Typography.md, fontFamily: Typography.family.regular, textAlignVertical: 'top' },
   helper: { fontSize: Typography.xs, lineHeight: 18 },

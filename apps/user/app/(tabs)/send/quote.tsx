@@ -35,6 +35,8 @@ export default function QuoteScreen() {
     contactName?: string;
     contactPhone?: string;
     pickupNote?: string;
+    recipientName?: string;
+    recipientPhone?: string;
     size?: 'SMALL' | 'MEDIUM' | 'LARGE';
     fragile?: string;
     notes?: string;
@@ -65,6 +67,8 @@ export default function QuoteScreen() {
   const pickupNote = params.pickupNote ?? '';
   const contactName = params.contactName ?? '';
   const contactPhone = params.contactPhone ?? '';
+  const recipientName = params.recipientName ?? '';
+  const recipientPhone = params.recipientPhone ?? '';
   const walletBalance = Number(walletQuery.data?.balance ?? 0);
   const deliveryType = quoteQuery.data?.deliveryType ?? (isIntrastate ? 'INTRASTATE' : 'INTERSTATE');
 
@@ -133,6 +137,8 @@ export default function QuoteScreen() {
         contactName,
         contactPhone,
         pickupNote,
+        recipientName,
+        recipientPhone,
         fragile,
         notes: notes.trim(),
         items: orderItems,
@@ -164,41 +170,31 @@ export default function QuoteScreen() {
       {routeUnavailable ? <ErrorBanner message="This hub pair is not serviced yet. Go back and choose a supported route." onDismiss={() => quoteQuery.reset()} /> : null}
       {quoteQuery.isError ? <ErrorBanner message="Could not load quote. Check the hubs and route details and try again." onDismiss={() => quoteQuery.reset()} /> : null}
 
-      <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Route summary</Text>
-        {isIntrastate ? (
-          <>
-            <Text style={[styles.routeTitle, { color: palette.text }]} numberOfLines={2}>{pickupAddress}</Text>
-            <Text style={styles.arrow}>↓</Text>
-            <Text style={[styles.routeTitle, { color: palette.text }]} numberOfLines={2}>{deliveryAddress}</Text>
-            <View style={styles.routeStats}>
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Estimated delivery</Text>
-                <Text style={[styles.statValue, { color: palette.text }]}>~2–4 hours today</Text>
-              </View>
+      {/* Route card */}
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: Spacing.xs }]}>Route</Text>
+
+        <View style={styles.routeContainer}>
+          <View style={styles.routeConnectorCol}>
+            <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
+            <View style={[styles.routeDot, { backgroundColor: palette.primary }]} />
+          </View>
+          <View style={styles.routeDetailsCol}>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Pickup Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {pickupAddress}
+              </Text>
             </View>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.routeTitle, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub missing'}</Text>
-            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
-            <Text style={styles.arrow}>↓</Text>
-            <Text style={[styles.routeTitle, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub missing'}</Text>
-            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
-            {route ? (
-              <View style={styles.routeStats}>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Base route fare</Text>
-                  <Text style={[styles.statValue, { color: palette.text }]}>{formatMoney(route.baseFare)}</Text>
-                </View>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: palette.textSecondary }]}>Estimated transit</Text>
-                  <Text style={[styles.statValue, { color: palette.text }]}>{route.estimatedDays} day{route.estimatedDays === 1 ? '' : 's'}</Text>
-                </View>
-              </View>
-            ) : null}
-          </>
-        )}
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Delivery Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {deliveryAddress}
+              </Text>
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -293,6 +289,15 @@ const styles = StyleSheet.create({
   statValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   arrow: { color: '#8B5CF6', fontSize: Typography.xl, alignSelf: 'center' },
   card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  routeContainer: { flexDirection: 'row', alignItems: 'stretch', gap: 12, marginTop: 4 },
+  routeConnectorCol: { alignItems: 'center', width: 16, paddingTop: 4, paddingBottom: 4 },
+  routeDot: { width: 10, height: 10, borderRadius: 5 },
+  routeLine: { flex: 1, width: 2, marginVertical: 4 },
+  routeDetailsCol: { flex: 1, gap: 16 },
+  routeDetailItem: { gap: 2 },
+  routeLabel: { fontSize: 11, fontFamily: Typography.family.semibold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  routeValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold, lineHeight: 18 },
   cardText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   cardSub: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
   metaGroup: { gap: 4, paddingTop: 2 },

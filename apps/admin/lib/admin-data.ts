@@ -69,6 +69,8 @@ export type AdminOrder = {
   timeline: Array<{ status: string; note: string; at: string }>;
   riskLevel?: string;
   customerNote?: string;
+  recipientName?: string;
+  recipientPhone?: string;
 };
 
 export type AdminNotification = {

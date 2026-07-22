@@ -257,6 +257,9 @@ model Order {
   deliveryPlaceId          String
   deliveryFormattedAddress String
 
+  recipientName            String?
+  recipientPhone           String?
+
   distanceKm           Decimal       @db.Decimal(10, 2)
   estimatedDurationMin Int
   price                Decimal       @db.Decimal(12, 2)

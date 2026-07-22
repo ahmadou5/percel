@@ -80,6 +80,9 @@ export type DriverOrder = {
   size: DriverOrderSize;
   pickupFormattedAddress: string;
   deliveryFormattedAddress: string;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
+  notes?: string | null;
   distanceKm: number;
   estimatedDurationMin: number;
   createdAt: string;

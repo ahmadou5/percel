@@ -92,10 +92,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <DetailActions actions={actions} />
       </div>
 
-      {/* Sender + Driver parties */}
+      {/* Sender + Driver + Recipient parties */}
       <section>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Parties involved</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
           <PartyCard
             role="Sender"
             name={order.user}
@@ -114,6 +114,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             avatarUrl={order.driverAvatarUrl}
             profileHref={order.driverId ? `/drivers/${order.driverId}` : undefined}
             accentClass="border-success/20 bg-success/5"
+          />
+          <PartyCard
+            role="Recipient (Drop-off)"
+            name={order.recipientName || 'Unspecified'}
+            phone={order.recipientPhone || undefined}
+            sub="Delivery point contact"
+            accentClass="border-warning/20 bg-warning/5"
           />
         </div>
       </section>

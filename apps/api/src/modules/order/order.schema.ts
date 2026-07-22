@@ -44,6 +44,8 @@ export const CreateOrderBody = Type.Object({
   contactName: Type.Optional(Type.String()),
   contactPhone: Type.Optional(Type.String()),
   pickupNote: Type.Optional(Type.String()),
+  recipientName: Type.Optional(Type.String()),
+  recipientPhone: Type.Optional(Type.String()),
   items: Type.Array(OrderItemBody, { minItems: 1 }),
   notes: Type.Optional(Type.String()),
   fragile: Type.Optional(Type.Boolean()),

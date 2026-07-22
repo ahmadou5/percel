@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { CheckCircle2, ChevronLeft, Package } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
@@ -12,7 +12,7 @@ import { useAppPalette } from '@/lib/theme';
 
 export default function PackageDetailsScreen() {
   const router = useRouter();
-  const back = useSafeBack('/send/pickup-details');
+  const back = useSafeBack('/send');
   const palette = useAppPalette();
   const params = useLocalSearchParams<{
     originHubId?: string;
@@ -22,6 +22,8 @@ export default function PackageDetailsScreen() {
     contactName?: string;
     contactPhone?: string;
     pickupNote?: string;
+    recipientName?: string;
+    recipientPhone?: string;
     // Intrastate passthrough
     pickupAddress?: string;
     deliveryAddress?: string;
@@ -34,7 +36,7 @@ export default function PackageDetailsScreen() {
   const [size, setSize] = useState<'SMALL' | 'MEDIUM' | 'LARGE'>('SMALL');
   const [fragile, setFragile] = useState(false);
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState([{ description: 'Documents', quantity: 1 }]);
+  const [items, setItems] = useState([{ description: 'Parcel Item', quantity: 1 }]);
 
   const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
 
@@ -57,66 +59,73 @@ export default function PackageDetailsScreen() {
       </View>
 
       <View style={styles.hero}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Package</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Choose the package size and add the item list.</Text>
-        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>The route is already locked to the chosen hubs. Add the parcel details before the quote step.</Text>
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Package Details</Text>
+
       </View>
 
-      <View style={[styles.routeCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Route summary</Text>
-        <View style={styles.routeRow}>
-          <View style={styles.routeCopy}>
-            <Text style={[styles.routeTitle, { color: palette.text }]}>{originHub ? originHub.name : 'Origin hub missing'}</Text>
-            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{originHub ? formatHubLocation(originHub) : ''}</Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: palette.primary + '18' }]}>
-            <Text style={[styles.badgeText, { color: palette.primary }]}>{originHub ? formatHubType(originHub) : 'Hub'}</Text>
-          </View>
-        </View>
-        <Text style={styles.arrow}>↓</Text>
-        <View style={styles.routeRow}>
-          <View style={styles.routeCopy}>
-            <Text style={[styles.routeTitle, { color: palette.text }]}>{destinationHub ? destinationHub.name : 'Destination hub missing'}</Text>
-            <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>{destinationHub ? formatHubLocation(destinationHub) : ''}</Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: palette.primary + '18' }]}>
-            <Text style={[styles.badgeText, { color: palette.primary }]}>{destinationHub ? formatHubType(destinationHub) : 'Hub'}</Text>
-          </View>
-        </View>
-        {route ? (
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>Base route fare</Text>
-            <Text style={[styles.summaryValue, { color: palette.text }]}>{formatMoney(route.baseFare)}</Text>
-          </View>
-        ) : (
-          <Text style={[styles.routeAlert, { color: palette.error }]}>Route not available yet.</Text>
-        )}
-        {route ? <Text style={[styles.routeMeta, { color: palette.textSecondary }]}>Estimated transit: {route.estimatedDays} day{route.estimatedDays === 1 ? '' : 's'}</Text> : null}
-      </View>
-
+      {/* Route card */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Local pickup</Text>
-        <Text style={[styles.cardText, { color: palette.text }]}>{pickupPreview || 'Add the pickup landmark near the origin hub.'}</Text>
-        <Text style={[styles.cardSub, { color: palette.textSecondary }]}>{deliveryPreview || 'Destination hub will be used for the interstate leg.'}</Text>
-        {params.contactName || params.contactPhone || params.pickupNote ? (
-          <View style={styles.metaGroup}>
-            {params.contactName ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Contact: {params.contactName}{params.contactPhone ? ` • ${params.contactPhone}` : ''}</Text> : null}
-            {params.pickupNote ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Note: {params.pickupNote}</Text> : null}
+        <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: Spacing.xs }]}>Route</Text>
+
+        <View style={styles.routeContainer}>
+          <View style={styles.routeConnectorCol}>
+            <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
+            <View style={[styles.routeDot, { backgroundColor: palette.primary }]} />
           </View>
-        ) : null}
+          <View style={styles.routeDetailsCol}>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Pickup Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {pickupPreview || 'Selected pickup address'}
+              </Text>
+            </View>
+            <View style={styles.routeDetailItem}>
+              <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Delivery Location</Text>
+              <Text style={[styles.routeValue, { color: palette.text }]} numberOfLines={2}>
+                {deliveryPreview || 'Selected delivery address'}
+              </Text>
+            </View>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.grid}>
-        {orderSizes.map((option) => {
-          const selected = option.size === size;
-          return (
-            <Pressable key={option.size} onPress={() => setSize(option.size)} style={({ pressed }) => [styles.sizeCard, { backgroundColor: palette.card, borderColor: selected ? palette.primary : palette.border }, selected ? { backgroundColor: palette.primary + '12' } : null, pressed ? { opacity: 0.92 } : null]}>
-              <Text style={[styles.sizeLabel, { color: palette.text }]}>{option.label}</Text>
-              <Text style={[styles.sizeWeight, { color: palette.textSecondary }]}>{option.weightRange}</Text>
-              <Text style={[styles.sizeHint, { color: palette.primary }]}>{option.basePriceHint}</Text>
-            </Pressable>
-          );
-        })}
+      {/* ── 3 Package Sizes in 1 Row ── */}
+      <View style={styles.sectionWrap}>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary, marginBottom: 8 }]}>Select package size</Text>
+        <View style={styles.sizeSelectorRow}>
+          {orderSizes.map((option) => {
+            const selected = option.size === size;
+            return (
+              <Pressable
+                key={option.size}
+                onPress={() => setSize(option.size)}
+                style={({ pressed }) => [
+                  styles.sizeCardHorizontal,
+                  {
+                    backgroundColor: selected ? `${palette.primary}15` : palette.card,
+                    borderColor: selected ? palette.primary : palette.border,
+                  },
+                  pressed ? { opacity: 0.88 } : null,
+                ]}
+              >
+                {selected && (
+                  <View style={[styles.activeCheckBadge, { backgroundColor: palette.primary }]}>
+                    <CheckCircle2 size={12} color="#fff" />
+                  </View>
+                )}
+                <Package size={22} color={selected ? palette.primary : palette.textSecondary} />
+                <Text style={[styles.sizeLabelSingleRow, { color: selected ? palette.primary : palette.text }]}>
+                  {option.label}
+                </Text>
+                <Text style={[styles.sizeWeightSingleRow, { color: palette.textSecondary }]}>
+                  {option.weightRange}
+                </Text>
+
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={[styles.toggleRow, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -135,7 +144,7 @@ export default function PackageDetailsScreen() {
           </Pressable>
         </View>
         {items.map((item, index) => (
-          <View key={`${index}-${item.description}`} style={[styles.itemRow, { borderBottomColor: palette.border }]}>
+          <View key={`item-row-${index}`} style={[styles.itemRow, { borderBottomColor: palette.border }]}>
             <TextInput
               value={item.description}
               onChangeText={(value) => updateItem(index, 'description', value)}
@@ -185,6 +194,8 @@ export default function PackageDetailsScreen() {
               contactName: params.contactName ?? '',
               contactPhone: params.contactPhone ?? '',
               pickupNote: params.pickupNote ?? '',
+              recipientName: params.recipientName ?? '',
+              recipientPhone: params.recipientPhone ?? '',
               size,
               fragile: String(fragile),
               notes,
@@ -207,10 +218,21 @@ const styles = StyleSheet.create({
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   hero: { gap: Spacing.sm },
   eyebrow: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
-  subtitle: { fontSize: Typography.md, lineHeight: 22, fontFamily: Typography.family.regular },
-  routeCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  title: { fontSize: 26, lineHeight: 32, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
+  subtitle: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
+
+  card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
+  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 1.1, fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  routeContainer: { flexDirection: 'row', alignItems: 'stretch', gap: 12, marginTop: 4 },
+  routeConnectorCol: { alignItems: 'center', width: 16, paddingTop: 4, paddingBottom: 4 },
+  routeDot: { width: 10, height: 10, borderRadius: 5 },
+  routeLine: { flex: 1, width: 2, marginVertical: 4 },
+  routeDetailsCol: { flex: 1, gap: 16 },
+  routeDetailItem: { gap: 2 },
+  routeLabel: { fontSize: 11, fontFamily: Typography.family.semibold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  routeValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold, lineHeight: 18 },
+
   routeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
   routeCopy: { flex: 1, gap: 4 },
   routeTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
@@ -219,26 +241,45 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
   summaryValue: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   routeAlert: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  arrow: { fontSize: Typography.xl, textAlign: 'center', color: '#8B5CF6' },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  badgeText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  card: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
-  cardText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  cardSub: { fontSize: Typography.sm, lineHeight: 20, fontFamily: Typography.family.regular },
-  metaGroup: { gap: 4, paddingTop: 2 },
-  metaLine: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  sizeCard: { width: '48%', borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: 6 },
-  sizeLabel: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  sizeWeight: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-  sizeHint: { fontSize: Typography.xs, fontFamily: Typography.family.semibold },
+  arrow: { fontSize: Typography.lg, textAlign: 'center', color: '#8B5CF6' },
+  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeText: { fontSize: 10, fontFamily: Typography.family.bold },
+
+  // Size Selector 3 cards on 1 row
+  sectionWrap: { gap: 4 },
+  sizeSelectorRow: { flexDirection: 'row', gap: 8 },
+  sizeCardHorizontal: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    position: 'relative',
+    minHeight: 110,
+  },
+  activeCheckBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sizeLabelSingleRow: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'center' },
+  sizeWeightSingleRow: { fontSize: 10, fontFamily: Typography.family.medium, textAlign: 'center' },
+  sizeHintSingleRow: { fontSize: 10, fontFamily: Typography.family.bold, textAlign: 'center' },
+
   toggleRow: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
   toggleCopy: { flex: 1, gap: 2 },
   toggleTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   toggleBody: { fontSize: Typography.sm, maxWidth: '85%', fontFamily: Typography.family.regular },
   itemsCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   link: { fontFamily: Typography.family.semibold },
   itemRow: { gap: Spacing.sm, paddingBottom: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
   itemInput: { minHeight: 46, borderRadius: 14, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: Typography.md, fontFamily: Typography.family.regular },

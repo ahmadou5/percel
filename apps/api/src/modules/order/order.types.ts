@@ -50,6 +50,9 @@ export interface OrderSummary {
   etaMinutes?: number | null;
   pickupFormattedAddress: string;
   deliveryFormattedAddress: string;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
+  notes?: string | null;
   distanceKm: number;
   estimatedDurationMin: number;
   createdAt: string;

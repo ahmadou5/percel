@@ -219,6 +219,17 @@ export default function OrderDetailScreen() {
         </View>
       </View>
 
+      {/* Recipient info card */}
+      {order.recipientName || order.recipientPhone ? (
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: Spacing.xs }]}>Recipient Contact</Text>
+          <View style={{ gap: 4 }}>
+            {order.recipientName ? <Text style={[styles.routeValue, { color: palette.text }]}>{order.recipientName}</Text> : null}
+            {order.recipientPhone ? <Text style={[styles.routeValue, { color: palette.textSecondary }]}>{order.recipientPhone}</Text> : null}
+          </View>
+        </View>
+      ) : null}
+
       {/* Driver card - show if driver is assigned */}
       {order.driver ? (
         <DriverCard

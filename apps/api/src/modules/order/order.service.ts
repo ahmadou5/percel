@@ -46,6 +46,9 @@ type OrderLike = {
   createdAt: Date;
   cancelReason?: string | null;
   deliveryType?: 'INTERSTATE' | 'INTRASTATE';
+  notes?: string | null;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
   courierLat?: Prisma.Decimal | number | null;
   courierLng?: Prisma.Decimal | number | null;
   etaMinutes?: number | null;
@@ -86,6 +89,9 @@ function serializeOrder(order: OrderLike): OrderSummary {
     estimatedDurationMin: order.estimatedDurationMin,
     createdAt: order.createdAt.toISOString(),
     cancelReason: order.cancelReason ?? null,
+    notes: order.notes ?? null,
+    recipientName: order.recipientName ?? null,
+    recipientPhone: order.recipientPhone ?? null,
     driver: order.driver
       ? {
           id: order.driver.id,
@@ -293,6 +299,8 @@ export class OrderService {
     contactName?: string | null;
     contactPhone?: string | null;
     pickupNote?: string | null;
+    recipientName?: string | null;
+    recipientPhone?: string | null;
     items: Array<{ description: string; quantity: number; weightKg: number; fragile?: boolean; imageUrl?: string | null }>;
     notes?: string | null;
     fragile?: boolean;
@@ -331,11 +339,16 @@ export class OrderService {
     const pickupContactName = cleanText(data.contactName);
     const pickupContactPhone = cleanText(data.contactPhone);
     const pickupNote = cleanText(data.pickupNote);
+    const recipientName = cleanText(data.recipientName);
+    const recipientPhone = cleanText(data.recipientPhone);
     const notesParts = [
       cleanText(data.notes),
       pickupNote ? `Pickup note: ${pickupNote}` : null,
       pickupContactName
         ? `Pickup contact: ${pickupContactName}${pickupContactPhone ? ` (${pickupContactPhone})` : ''}`
+        : null,
+      recipientName
+        ? `Recipient contact: ${recipientName}${recipientPhone ? ` (${recipientPhone})` : ''}`
         : null,
     ].filter((part): part is string => Boolean(part && part.trim()));
 
@@ -426,6 +439,8 @@ export class OrderService {
           deliveryLng: delivery.lng,
           deliveryPlaceId: delivery.placeId,
           deliveryFormattedAddress: delivery.formattedAddress,
+          recipientName: recipientName ?? null,
+          recipientPhone: recipientPhone ?? null,
           distanceKm: quote.distanceKm,
           estimatedDurationMin: quote.durationMin,
           price: quote.totalPrice,

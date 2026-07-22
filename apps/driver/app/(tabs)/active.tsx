@@ -197,8 +197,25 @@ export default function ActiveOrderScreen() {
               onPress={() => void Linking.openURL(`tel:${order.customer?.phone ?? ''}`)}
             >
               <Phone size={15} color="#30D158" />
-              <Text style={styles.callBtnText}>Call customer</Text>
+              <Text style={styles.callBtnText}>Call sender ({order.customer.phone})</Text>
             </Pressable>
+          </View>
+        )}
+
+        {/* Recipient contact */}
+        {(order.recipientName || order.recipientPhone) && (
+          <View style={[styles.detailCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Text style={[styles.cardSectionLabel, { color: palette.textSecondary }]}>RECIPIENT CONTACT</Text>
+            <Text style={[styles.customerName, { color: palette.text }]}>{order.recipientName || 'Recipient'}</Text>
+            {order.recipientPhone ? (
+              <Pressable
+                style={[styles.callBtn, { backgroundColor: hexToRgba('#30D158', 0.14), borderColor: hexToRgba('#30D158', 0.24) }]}
+                onPress={() => void Linking.openURL(`tel:${order.recipientPhone}`)}
+              >
+                <Phone size={15} color="#30D158" />
+                <Text style={styles.callBtnText}>Call recipient ({order.recipientPhone})</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
 
