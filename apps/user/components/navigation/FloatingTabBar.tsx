@@ -2,7 +2,7 @@ import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { usePathname, useRouter } from 'expo-router';
 import { ClipboardList, House, Plus, Settings } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   interpolate,
   interpolateColor,
@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppPalette, isLight } from '@/lib/theme';
 import { haptics } from '@/utils/haptics';
+import { useOrders } from '@/hooks/useOrder';
+import { Typography } from '@/constants/typography';
 
 type IconProps = {
   color?: string;
@@ -91,7 +93,7 @@ function useThemeTokens() {
 
     return {
       shellBackground: palette.card,
-      shellBorder:palette.border,
+      shellBorder: palette.border,
       shellShadow: dark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(0, 0, 0, 0.12)',
       shellTint: dark ? 'rgba(255, 255, 255, 0.02)' : hexToRgba(primary, 0.04),
       activeFill: palette.primary,
@@ -108,12 +110,14 @@ function useThemeTokens() {
 function TabPill({
   item,
   focused,
+  badgeCount = 0,
   onPress,
   onLongPress,
   theme,
 }: {
   item: NavItem;
   focused: boolean;
+  badgeCount?: number;
   onPress: () => void;
   onLongPress: () => void;
   theme: ThemeTokens;
@@ -151,6 +155,11 @@ function TabPill({
       <Animated.View style={[styles.tabPill, containerStyle]}>
         <Animated.View style={[styles.iconWrap, iconStyle]}>
           <item.Icon color={focused ? theme.activeText : theme.inactiveText} size={22} strokeWidth={focused ? 2.2 : 1.9} />
+          {!focused && badgeCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badgeCount > 9 ? '9+' : badgeCount}</Text>
+            </View>
+          )}
         </Animated.View>
       </Animated.View>
     </Pressable>
@@ -204,6 +213,13 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const visible = shouldShowDock(pathname);
   const intro = useSharedValue(0);
 
+  const { data: ordersData } = useOrders();
+  const activeOrdersCount = useMemo(() => {
+    if (!ordersData) return 0;
+    const allOrders = ordersData.pages.flatMap((page) => page.data || []);
+    return allOrders.filter((order) => order && !['DELIVERED', 'COMPLETED', 'CANCELLED', 'DISPUTED'].includes(order.status)).length;
+  }, [ordersData]);
+
   useEffect(() => {
     intro.value = withSpring(1, {
       damping: 18,
@@ -246,7 +262,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         <View style={styles.tabRow}>
           {NAV_ITEMS.map((item) => {
             const focused = focusedKey === item.key;
-            
+
             const onPress = () => {
               if (item.routeName) {
                 const route = state.routes.find((candidate) => candidate.name === item.routeName);
@@ -278,6 +294,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 key={item.key}
                 focused={focused}
                 item={item}
+                badgeCount={item.key === 'orders' ? activeOrdersCount : 0}
                 onLongPress={onLongPress}
                 onPress={onPress}
                 theme={theme}
@@ -346,7 +363,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   iconWrap: {
     width: 32,
@@ -400,5 +416,24 @@ const styles = StyleSheet.create({
   },
   fabPressed: {
     transform: [{ scale: 0.94 }],
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    zIndex: 10,
+    elevation: 10,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontFamily: Typography.family.bold
   },
 });

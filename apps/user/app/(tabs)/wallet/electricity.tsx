@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, Search, ShieldCheck, Smartphone, Zap } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -50,6 +51,7 @@ export default function ElectricityScreen() {
   const [biometricToast, setBiometricToast] = useState("");
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
+  const router = useRouter();
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
   const selectedService = services.find((service) => service.serviceID === selectedServiceID);
@@ -96,13 +98,13 @@ export default function ElectricityScreen() {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    back();
+    router.navigate('/');
   };
 
   const handleCloseResult = () => {
     const shouldReturn = resultModal?.returnAfterClose;
     setResultModal(null);
-    if (shouldReturn) back();
+    if (shouldReturn) router.navigate('/');
   };
 
   const amountValid = amountValue > 0;
@@ -189,207 +191,205 @@ export default function ElectricityScreen() {
     setPinModalOpen(true);
   };
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
-          <ArrowLeft size={18} color={palette.text} />
-        </Pressable>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.headerCopy}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Electricity</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Pick the disco first, validate the meter, then choose the amount.</Text>
-      </View>
-
-      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
-        <View style={styles.heroTop}>
-          <View>
-            <Text style={styles.heroLabel}>Selected provider</Text>
-            <Text style={styles.heroValue}>{displayService}</Text>
-          </View>
-          <View style={styles.heroIcon}>
-            <Zap size={20} color="#fff" />
-          </View>
+    <>
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
+            <ArrowLeft size={18} color={palette.text} />
+          </Pressable>
+          <View style={styles.headerSpacer} />
         </View>
-        <Text style={styles.heroBody}>Provider logos and validation status come from the provider APIs, and only one step stays visible at a time.</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
-      </View>
 
-      <Animated.View style={{ opacity, transform: [{ translateX }] }}>
-        {step === 1 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <Zap size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider and validation</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select the disco, meter type, and validate the meter first.</Text>
-              </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Electricity</Text>
+        </View>
+
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroLabel}>provider</Text>
+              <Text style={styles.heroValue}>{displayService}</Text>
             </View>
+            <View style={styles.heroIcon}>
+              <Zap size={20} color="#fff" />
+            </View>
+          </View>
+          <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
+        </View>
 
-            <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.selectRow, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <View style={styles.selectCopy}>
-                <Text style={[styles.selectLabel, { color: palette.textSecondary }]}>Provider</Text>
-                <View style={styles.selectValueRow}>
-                  {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={28} /> : null}
-                  <View style={{ gap: 2 }}>
-                    <Text style={[styles.selectValue, { color: palette.text }]}>{displayService}</Text>
-                    <Text style={[styles.selectMeta, { color: palette.textSecondary }]}>{selectedService?.name ?? 'Choose provider'}</Text>
+        <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+          {step === 1 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Zap size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select the disco, meter type, and validate the meter first.</Text>
+                </View>
+              </View>
+
+              <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.selectRow, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <View style={styles.selectCopy}>
+
+                  <View style={styles.selectValueRow}>
+                    {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={28} /> : null}
+                    <View style={{ gap: 2 }}>
+                      <Text style={[styles.selectValue, { color: palette.text }]}>{displayService}</Text>
+                      <Text style={[styles.selectMeta, { color: palette.textSecondary }]}>{selectedService?.name ?? 'Choose provider'}</Text>
+                    </View>
                   </View>
                 </View>
+                <ChevronDown size={18} color={palette.textSecondary} />
+              </Pressable>
+
+              <View style={styles.typeToggle}>
+                {(['prepaid', 'postpaid'] as const).map((type) => {
+                  const active = type === meterType;
+                  return (
+                    <Pressable key={type} onPress={() => setMeterType(type)} style={[styles.typePill, { backgroundColor: active ? palette.text : palette.bg }]}>
+                      <Text style={[styles.typeText, { color: active ? palette.card : palette.text }]}>{type}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <ChevronDown size={18} color={palette.textSecondary} />
-            </Pressable>
 
-            <View style={styles.typeToggle}>
-              {(['prepaid', 'postpaid'] as const).map((type) => {
-                const active = type === meterType;
-                return (
-                  <Pressable key={type} onPress={() => setMeterType(type)} style={[styles.typePill, { backgroundColor: active ? palette.text : palette.bg }]}>
-                    <Text style={[styles.typeText, { color: active ? palette.card : palette.text }]}>{type}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+              <Input
+                label="Meter number"
+                value={meterNumber}
+                onChangeText={(value) => {
+                  setMeterNumber(value);
+                  setValidation(null);
+                  setValidationStatus('idle');
+                  setValidationError('');
+                }}
+                keyboardType="number-pad"
+                placeholder="1234567890"
+                leftElement={<Smartphone size={16} color={palette.textSecondary} />}
+                helperText="Validate the meter before payment so the customer name shows first."
+              />
 
-            <Input
-              label="Meter number"
-              value={meterNumber}
-              onChangeText={(value) => {
-                setMeterNumber(value);
-                setValidation(null);
-                setValidationStatus('idle');
-                setValidationError('');
-              }}
-              keyboardType="number-pad"
-              placeholder="1234567890"
-              leftElement={<Smartphone size={16} color={palette.textSecondary} />}
-              helperText="Validate the meter before payment so the customer name shows first."
-            />
+              <Pressable
+                disabled={validationStatus === 'loading'}
+                onPress={() => void handleValidateMeter()}
+                style={[styles.primaryAction, { backgroundColor: validationStatus === 'loading' ? palette.border : palette.primary }]}
+              >
+                <Text style={styles.primaryActionText}>{validationStatus === 'loading' ? 'Validating meter...' : 'Validate meter'}</Text>
+              </Pressable>
 
-            <Pressable
-              disabled={validationStatus === 'loading'}
-              onPress={() => void handleValidateMeter()}
-              style={[styles.primaryAction, { backgroundColor: validationStatus === 'loading' ? palette.border : palette.primary }]}
-            >
-              <Text style={styles.primaryActionText}>{validationStatus === 'loading' ? 'Validating meter...' : 'Validate meter'}</Text>
-            </Pressable>
-
-            {validationStatus === 'loading' ? (
-              <StateCard loading title="Validating meter" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
-            ) : validationStatus === 'success' && validation ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                <CheckCircle2 size={18} color={palette.success} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.success }]}>{validation.name}</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validation.address ?? 'Validated subscriber'}</Text>
+              {validationStatus === 'loading' ? (
+                <StateCard loading title="Validating meter" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : validationStatus === 'success' && validation ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                  <CheckCircle2 size={18} color={palette.success} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.success }]}>{validation.name}</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validation.address ?? 'Validated subscriber'}</Text>
+                  </View>
                 </View>
-              </View>
-            ) : validationStatus === 'error' ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
-                <ShieldCheck size={18} color={palette.error} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.error }]}>Validation failed</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Please check the meter number and provider.'}</Text>
+              ) : validationStatus === 'error' ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
+                  <ShieldCheck size={18} color={palette.error} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.error }]}>Validation failed</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Please check the meter number and provider.'}</Text>
+                  </View>
                 </View>
-              </View>
-            ) : (
-              <StateCard title="Enter a meter number" description="The subscriber details will appear before the amount step." icon={<Search size={24} color={palette.textSecondary} />} />
-            )}
-          </View>
-        ) : null}
-
-        {step === 2 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <ArrowUpRight size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Amount</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a preset or enter a custom amount for the meter.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Meter</Text>
-              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{validation?.name ?? 'Validated subscriber'}</Text>
-              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayService} • {meterType}</Text>
-            </View>
-
-            <View style={styles.amountGrid}>
-              {amountPresets.map((value) => {
-                const active = amountPreset === String(value) && !customAmount;
-                return (
-                  <Pressable
-                    key={value}
-                    onPress={() => {
-                      setAmountPreset(String(value));
-                      setCustomAmount('');
-                    }}
-                    style={({ pressed }) => [styles.amountChip, { backgroundColor: active ? palette.text : palette.card, borderColor: active ? palette.text : palette.border, transform: [{ scale: pressed ? 0.96 : active ? 1.03 : 1 }] }]}
-                  >
-                    <Text style={[styles.amountChipText, { color: active ? palette.card : palette.text }]}>{formatNaira(value)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <Input
-              label="Custom amount"
-              value={customAmount}
-              onChangeText={(value) => {
-                setCustomAmount(value.replace(/[^0-9]/g, ''));
-                if (value) setAmountPreset('');
-              }}
-              keyboardType="number-pad"
-              placeholder="Optional override"
-              leftElement={<Text style={[styles.prefix, { color: palette.textSecondary }]}>₦</Text>}
-            />
-
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected amount: {amountValue ? formatNaira(amountValue) : '₦0'}</Text>
-
-            <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
-              <Text style={styles.primaryActionText}>Review electricity payment</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {step === 3 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <CheckCircle2 size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the meter, provider, and amount before payment.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Electricity</Text>
-              <Text style={[styles.reviewTitle, { color: palette.text }]}>{validation?.name ?? 'Validated subscriber'}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{meterNumber.trim()} • {displayService} • {meterType}</Text>
-              <Text style={[styles.reviewAmount, { color: palette.text }]}>{amountValue ? formatNaira(amountValue) : '₦0'}</Text>
-            </View>
-
-            <Pressable
-              disabled={!canReview || mutation.isPending || biometricBusy}
-              onPress={() => void openPaymentAuth()}
-              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
-            >
-              {mutation.isPending || biometricBusy ? (
-                <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.primaryActionText}>{amountValue > 0 ? 'Pay ' + formatNaira(amountValue) : 'Select an amount'}</Text>
+                <StateCard title="Enter a meter number" description="The subscriber details will appear before the amount step." icon={<Search size={24} color={palette.textSecondary} />} />
               )}
-            </Pressable>
-          </View>
-        ) : null}
-      </Animated.View>
+            </View>
+          ) : null}
+
+          {step === 2 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <ArrowUpRight size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a preset or enter a custom amount for the meter.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Meter</Text>
+                <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{validation?.name ?? 'Validated subscriber'}</Text>
+                <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayService} • {meterType}</Text>
+              </View>
+
+              <View style={styles.amountGrid}>
+                {amountPresets.map((value) => {
+                  const active = amountPreset === String(value) && !customAmount;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        setAmountPreset(String(value));
+                        setCustomAmount('');
+                      }}
+                      style={({ pressed }) => [styles.amountChip, { backgroundColor: active ? palette.text : palette.card, borderColor: active ? palette.text : palette.border, transform: [{ scale: pressed ? 0.96 : active ? 1.03 : 1 }] }]}
+                    >
+                      <Text style={[styles.amountChipText, { color: active ? palette.card : palette.text }]}>{formatNaira(value)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Input
+                label="Custom amount"
+                value={customAmount}
+                onChangeText={(value) => {
+                  setCustomAmount(value.replace(/[^0-9]/g, ''));
+                  if (value) setAmountPreset('');
+                }}
+                keyboardType="number-pad"
+                placeholder="Optional override"
+                leftElement={<Text style={[styles.prefix, { color: palette.textSecondary }]}>₦</Text>}
+              />
+
+              <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected amount: {amountValue ? formatNaira(amountValue) : '₦0'}</Text>
+
+              <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
+                <Text style={styles.primaryActionText}>Review electricity payment</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {step === 3 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <CheckCircle2 size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the meter, provider, and amount before payment.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Electricity</Text>
+                <Text style={[styles.reviewTitle, { color: palette.text }]}>{validation?.name ?? 'Validated subscriber'}</Text>
+                <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{meterNumber.trim()} • {displayService} • {meterType}</Text>
+                <Text style={[styles.reviewAmount, { color: palette.text }]}>{amountValue ? formatNaira(amountValue) : '₦0'}</Text>
+              </View>
+
+              <Pressable
+                disabled={!canReview || mutation.isPending || biometricBusy}
+                onPress={() => void openPaymentAuth()}
+                style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
+              >
+                {mutation.isPending || biometricBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryActionText}>{amountValue > 0 ? 'Pay ' + formatNaira(amountValue) : 'Select an amount'}</Text>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+        </Animated.View>
+      </ScrollView>
 
       <TransactionResultModal
         visible={Boolean(resultModal?.visible)}
@@ -477,7 +477,7 @@ export default function ElectricityScreen() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </>
   );
 }
 
@@ -501,13 +501,13 @@ const styles = StyleSheet.create({
   stepPill: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17 },
+  sectionSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   selectRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
   selectCopy: { flex: 1, gap: 4 },
   selectLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   selectValueRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   selectValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  selectMeta: { fontSize: Typography.xs },
+  selectMeta: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   typeToggle: { flexDirection: 'row', gap: 10 },
   typePill: { flex: 1, minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   typeText: { fontFamily: Typography.family.bold },

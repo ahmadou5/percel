@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -62,6 +63,7 @@ export default function AirtimeScreen() {
   const airtimeBeneficiaries = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
+  const router = useRouter();
   const contactsSheetRef = useRef<AirtimeContactsSheetRef>(null);
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
@@ -143,13 +145,13 @@ export default function AirtimeScreen() {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    back();
+    router.navigate('/');
   };
 
   const handleCloseResult = () => {
     const shouldReturn = resultModal?.returnAfterClose;
     setResultModal(null);
-    if (shouldReturn) back();
+    if (shouldReturn) router.navigate('/');
   };
 
   const title = providerValidation?.providerName ?? (selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Airtime');
@@ -457,94 +459,94 @@ export default function AirtimeScreen() {
             </View>
           ) : null}
         </Animated.View>
-
-        <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
-          <View style={styles.modalBackdrop}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
-            <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
-                  <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your provider below.</Text>
-                </View>
-                <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
-                  <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
-                </Pressable>
-              </View>
-              {services.length ? (
-                <FlatList
-                  data={services}
-                  keyExtractor={(item) => item.serviceID}
-                  renderItem={({ item }) => {
-                    const active = item.serviceID === selectedServiceID;
-                    return (
-                      <Pressable
-                        onPress={() => {
-                          setSelectedServiceID(item.serviceID);
-                          setProviderValidation({ phone: normalizedPhone, serviceID: item.serviceID, providerName: providerLabelFromService(item.serviceID, item.name), confidence: 'low' });
-                          setProviderStatus('success');
-                          setProviderPickerOpen(false);
-                        }}
-                        style={[styles.providerRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
-                      >
-                        <View style={styles.providerRowLeft}>
-                          <ProviderBadge serviceID={item.serviceID} name={item.name} logoUrl={item.logoUrl ?? item.logo ?? item.image ?? null} size={36} />
-                          <View>
-                            <Text style={[styles.providerName, { color: palette.text }]}>{providerLabelFromService(item.serviceID, item.name)}</Text>
-                            <Text style={[styles.providerMeta, { color: palette.textSecondary }]}>{item.name}</Text>
-                          </View>
-                        </View>
-                        <ChevronRight size={16} color={palette.textSecondary} />
-                      </Pressable>
-                    );
-                  }}
-                />
-              ) : (
-                <StateCard title="No airtime providers" description="VTpass did not return any airtime providers." icon={<Smartphone size={24} color={palette.textSecondary} />} />
-              )}
-            </View>
-          </View>
-        </Modal>
-        <PaymentPinModal
-          visible={pinModalOpen}
-          title="Enter transfer PIN"
-          subtitle={`You are about to send ${formatNaira(selectedAmount)}.`}
-          reviewLabel="Airtime"
-          reviewTitle={displayNetwork}
-          reviewMeta={normalizedPhone}
-          reviewAmount={formatNaira(selectedAmount)}
-          pin={pin}
-          onPinChange={(value) => {
-            setPin(value);
-            if (pinStatus !== "idle") setPinStatus("idle");
-            if (pinError) setPinError("");
-            if (value.length === 4) {
-              void submitPaymentWithPin(value);
-            }
-          }}
-          loading={pinStatus === "loading" || mutation.isPending}
-          error={pinError || undefined}
-          confirmLabel="Verify and pay"
-          onConfirm={() => void submitPaymentWithPin()}
-          onClose={() => {
-            if (pinStatus === "loading" || mutation.isPending) return;
-            resetPaymentAuthState();
-          }}
-          canClose={!(pinStatus === "loading" || mutation.isPending)}
-          footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
-        />
-
-        <TransactionResultModal
-          visible={Boolean(resultModal?.visible)}
-          type={resultModal?.type ?? 'pending'}
-          title={resultModal?.title ?? ''}
-          message={resultModal?.message ?? ''}
-          amount={resultModal?.amount}
-          reference={resultModal?.reference}
-          onClose={handleCloseResult}
-        />
-
       </ScrollView>
+
+      <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select the network operator for this number.</Text>
+              </View>
+              <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+              </Pressable>
+            </View>
+            {services.length ? (
+              <FlatList
+                data={services}
+                keyExtractor={(item) => item.serviceID}
+                renderItem={({ item }) => {
+                  const active = item.serviceID === selectedServiceID;
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        setSelectedServiceID(item.serviceID);
+                        setProviderValidation({ phone: normalizedPhone, serviceID: item.serviceID, providerName: providerLabelFromService(item.serviceID, item.name), confidence: 'low' });
+                        setProviderStatus('success');
+                        setProviderPickerOpen(false);
+                      }}
+                      style={[styles.providerRow, { backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg, borderColor: active ? palette.primary : palette.border }]}
+                    >
+                      <View style={styles.providerRowLeft}>
+                        <ProviderBadge serviceID={item.serviceID} name={item.name} logoUrl={item.logoUrl ?? item.logo ?? item.image ?? null} size={36} />
+                        <View>
+                          <Text style={[styles.providerName, { color: palette.text }]}>{providerLabelFromService(item.serviceID, item.name)}</Text>
+                          <Text style={[styles.providerMeta, { color: palette.textSecondary }]}>{item.name}</Text>
+                        </View>
+                      </View>
+                      <ChevronRight size={16} color={palette.textSecondary} />
+                    </Pressable>
+                  );
+                }}
+              />
+            ) : (
+              <StateCard title="No airtime providers" description="VTpass did not return any airtime providers." icon={<Smartphone size={24} color={palette.textSecondary} />} />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <PaymentPinModal
+        visible={pinModalOpen}
+        title="Enter transfer PIN"
+        subtitle={`You are about to send ${formatNaira(selectedAmount)}.`}
+        reviewLabel="Airtime"
+        reviewTitle={displayNetwork}
+        reviewMeta={normalizedPhone}
+        reviewAmount={formatNaira(selectedAmount)}
+        pin={pin}
+        onPinChange={(value) => {
+          setPin(value);
+          if (pinStatus !== "idle") setPinStatus("idle");
+          if (pinError) setPinError("");
+          if (value.length === 4) {
+            void submitPaymentWithPin(value);
+          }
+        }}
+        loading={pinStatus === "loading" || mutation.isPending}
+        error={pinError || undefined}
+        confirmLabel="Verify and pay"
+        onConfirm={() => void submitPaymentWithPin()}
+        onClose={() => {
+          if (pinStatus === "loading" || mutation.isPending) return;
+          resetPaymentAuthState();
+        }}
+        canClose={!(pinStatus === "loading" || mutation.isPending)}
+        footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
+      />
+
+      <TransactionResultModal
+        visible={Boolean(resultModal?.visible)}
+        type={resultModal?.type ?? 'pending'}
+        title={resultModal?.title ?? ''}
+        message={resultModal?.message ?? ''}
+        amount={resultModal?.amount}
+        reference={resultModal?.reference}
+        onClose={handleCloseResult}
+      />
 
       <AirtimeContactsSheet
         ref={contactsSheetRef}

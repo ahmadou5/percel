@@ -1,5 +1,6 @@
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Globe, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Globe, Search, ShieldCheck, Smartphone, Wifi } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useBeneficiaryStore } from '@/store/beneficiary.store';
@@ -59,6 +60,7 @@ export default function DataScreen() {
   const dataContacts = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
+  const router = useRouter();
   const contactsSheetRef = useRef<AirtimeContactsSheetRef>(null);
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
@@ -204,13 +206,13 @@ export default function DataScreen() {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    back();
+    router.navigate('/');
   };
 
   const handleCloseResult = () => {
     const shouldReturn = resultModal?.returnAfterClose;
     setResultModal(null);
-    if (shouldReturn) back();
+    if (shouldReturn) router.navigate('/');
   };
 
   const resetPaymentAuthState = () => {
@@ -302,223 +304,225 @@ export default function DataScreen() {
     setPinModalOpen(true);
   };
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
-          <ArrowLeft size={18} color={palette.text} />
-        </Pressable>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.headerCopy}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Data</Text>
-
-      </View>
-
-      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
-        <View style={styles.heroTop}>
-          <View>
-            <Text style={styles.heroLabel}>Provider</Text>
-            <Text style={styles.heroValue}>{displayNetwork}</Text>
-          </View>
-          <View style={styles.heroIcon}>
-            <Globe color="#fff" size={20} />
-          </View>
+    <>
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
+            <ArrowLeft size={18} color={palette.text} />
+          </Pressable>
+          <View style={styles.headerSpacer} />
         </View>
-        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
-      </View>
 
-      <Animated.View style={{ transform: [{ translateX }] }}>
-        {step === 1 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <Smartphone size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number and we will auto-detect the network.</Text>
-              </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Data</Text>
+
+        </View>
+
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroLabel}>Provider</Text>
+              <Text style={styles.heroValue}>{displayNetwork}</Text>
             </View>
-
-            <Input
-              label="Phone number"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              placeholder="Enter Number"
-              leftElement={
-                <Pressable onPress={() => setProviderPickerOpen(true)} style={styles.providerPill}>
-                  {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={22} /> : null}
-                  <Text style={[styles.providerText, { color: palette.text }]}>{displayNetwork}</Text>
-                  <ChevronDown size={14} color={palette.textSecondary} />
-                </Pressable>
-              }
-              helperText="If lookup fails, you can pick the provider manually."
-              rightElement={
-                <Pressable onPress={() => contactsSheetRef.current?.open()} style={styles.contactButton}>
-                  <ContactRound size={18} color={palette.primary} />
-                </Pressable>
-              }
-            />
-
-            <Pressable
-              disabled={providerStatus === 'loading'}
-              onPress={() => void handleResolveProvider()}
-              style={[styles.primaryAction, { backgroundColor: providerStatus === 'loading' ? palette.border : palette.primary }]}
-            >
-              <Text style={styles.primaryActionText}>{providerStatus === 'loading' ? 'Checking provider...' : 'Validate number'}</Text>
-            </Pressable>
-
-            {providerStatus === 'loading' ? (
-              <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
-            ) : providerStatus === 'success' && providerValidation ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                <CheckCircle2 size={18} color={palette.success} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.success }]}>{providerValidation.providerName}</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerValidation.phone}</Text>
-                </View>
-              </View>
-            ) : providerStatus === 'error' ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
-                <ShieldCheck size={18} color={palette.error} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.error }]}>Provider lookup failed</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerError || 'Choose a provider manually.'}</Text>
-                </View>
-              </View>
-            ) : (
-              <StateCard title="Enter a phone number" description="The network will be detected before the bundle step appears." icon={<Search size={24} color={palette.textSecondary} />} />
-            )}
+            <View style={styles.heroIcon}>
+              <Globe color="#fff" size={20} />
+            </View>
           </View>
-        ) : null}
+          <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
+        </View>
 
-        {step === 2 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <Globe size={16} color={palette.primary} />
+        <Animated.View style={{ transform: [{ translateX }] }}>
+          {step === 1 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Smartphone size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number and we will auto-detect the network.</Text>
+                </View>
               </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select a data bundle.</Text>
-              </View>
-            </View>
 
-            <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
-              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{normalizedPhone || 'No phone entered'}</Text>
-              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayNetwork}</Text>
-            </View>
+              <Input
+                label="Phone number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="Enter Number"
+                leftElement={
+                  <Pressable onPress={() => setProviderPickerOpen(true)} style={styles.providerPill}>
+                    {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={22} /> : null}
+                    <Text style={[styles.providerText, { color: palette.text }]}>{displayNetwork}</Text>
+                    <ChevronDown size={14} color={palette.textSecondary} />
+                  </Pressable>
+                }
+                helperText="If lookup fails, you can pick the provider manually."
+                rightElement={
+                  <Pressable onPress={() => contactsSheetRef.current?.open()} style={styles.contactButton}>
+                    <ContactRound size={18} color={palette.primary} />
+                  </Pressable>
+                }
+              />
 
-            <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 8 }]}>Plans</Text>
-            {selectedService ? (
-              variationsQuery.isLoading ? (
-                <StateCard loading title="Loading plans" description="Fetching live data bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
-              ) : variations.length ? (
-                <>
-                  <View style={[styles.tabBarContainer, { borderBottomColor: lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-                      {TABS.map((tab) => {
-                        const isActive = activeTab === tab;
-                        return (
-                          <Pressable
-                            key={tab}
-                            onPress={() => setActiveTab(tab)}
-                            style={styles.tabButton}
-                          >
-                            <Text style={[styles.tabText, { color: isActive ? palette.primary : palette.textSecondary }]}>
-                              {tab}
-                            </Text>
-                            {isActive ? <View style={[styles.tabIndicator, { backgroundColor: palette.primary }]} /> : null}
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
+              <Pressable
+                disabled={providerStatus === 'loading'}
+                onPress={() => void handleResolveProvider()}
+                style={[styles.primaryAction, { backgroundColor: providerStatus === 'loading' ? palette.border : palette.primary }]}
+              >
+                <Text style={styles.primaryActionText}>{providerStatus === 'loading' ? 'Checking provider...' : 'Validate number'}</Text>
+              </Pressable>
+
+              {providerStatus === 'loading' ? (
+                <StateCard loading title="Detecting provider" description="Checking the phone number against the network resolver." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : providerStatus === 'success' && providerValidation ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                  <CheckCircle2 size={18} color={palette.success} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.success }]}>{providerValidation.providerName}</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerValidation.phone}</Text>
                   </View>
-
-                  {filteredVariations.length ? (
-                    <View style={styles.planGrid}>
-                      {filteredVariations.map((variation) => {
-                        const active = variation.variation_code === selectedVariationCode;
-                        const cardBg = lightBg ? (active ? 'rgba(10,132,255,0.06)' : '#FFFFFF') : (active ? 'rgba(10,132,255,0.12)' : '#1E293B');
-                        const cardText = lightBg ? '#0F172A' : '#FFFFFF';
-                        const cardBorder = active ? palette.primary : (lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)');
-
-                        return (
-                          <Pressable
-                            key={variation.variation_code}
-                            onPress={() => setSelectedVariationCode(variation.variation_code)}
-                            style={[styles.planCard, { backgroundColor: cardBg, borderColor: cardBorder }]}
-                          >
-                            <View style={styles.planTop}>
-                              <Text style={[styles.planSizeText, { color: cardText }]} numberOfLines={1}>
-                                {variation.size}
-                              </Text>
-                              <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={18} />
-                            </View>
-                            <Text style={[styles.planPriceText, { color: lightBg ? '#475569' : '#CBD5E1' }]}>
-                              {formatNaira(Number(variation.variation_amount))}
-                            </Text>
-                            <Text style={[styles.planDurationText, { color: palette.primary }]}>
-                              {variation.duration}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <StateCard title="No plans" description="No plans available in this category." icon={<Globe size={24} color={palette.textSecondary} />} />
-                  )}
-                </>
+                </View>
+              ) : providerStatus === 'error' ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
+                  <ShieldCheck size={18} color={palette.error} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.error }]}>Provider lookup failed</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{providerError || 'Choose a provider manually.'}</Text>
+                  </View>
+                </View>
               ) : (
-                <StateCard title="No bundles" description="VTpass did not return any data plans for this provider." icon={<Globe size={24} color={palette.textSecondary} />} />
-              )
-            ) : null}
-
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected bundle: {selectedVariation?.name ?? 'None'}</Text>
-
-            <Pressable
-              disabled={!canReview}
-              onPress={() => setStep(3)}
-              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
-            >
-              <Text style={styles.primaryActionText}>Review data purchase</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {step === 3 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <CheckCircle2 size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the amount before you pay.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Data plan</Text>
-              <Text style={[styles.reviewTitle, { color: palette.text }]}>{selectedVariation?.name ?? 'Select a plan'}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{displayNetwork}</Text>
-              <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedPrice ? formatNaira(selectedPrice) : '₦0'}</Text>
-            </View>
-
-            <Pressable
-              disabled={!canReview || mutation.isPending || biometricBusy}
-              onPress={() => void openPaymentAuth()}
-              style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
-            >
-              {mutation.isPending || biometricBusy ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryActionText}>{selectedVariation ? `Buy for ${formatNaira(selectedPrice)}` : 'Select a bundle'}</Text>
+                <StateCard title="Enter a phone number" description="The network will be detected before the bundle step appears." icon={<Search size={24} color={palette.textSecondary} />} />
               )}
-            </Pressable>
-          </View>
-        ) : null}
-      </Animated.View>
+            </View>
+          ) : null}
+
+          {step === 2 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Globe size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select a data bundle.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
+                <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{normalizedPhone || 'No phone entered'}</Text>
+                <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayNetwork}</Text>
+              </View>
+
+              <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 8 }]}>Plans</Text>
+              {selectedService ? (
+                variationsQuery.isLoading ? (
+                  <StateCard loading title="Loading plans" description="Fetching live data bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
+                ) : variations.length ? (
+                  <>
+                    <View style={[styles.tabBarContainer, { borderBottomColor: lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
+                        {TABS.map((tab) => {
+                          const isActive = activeTab === tab;
+                          return (
+                            <Pressable
+                              key={tab}
+                              onPress={() => setActiveTab(tab)}
+                              style={styles.tabButton}
+                            >
+                              <Text style={[styles.tabText, { color: isActive ? palette.primary : palette.textSecondary }]}>
+                                {tab}
+                              </Text>
+                              {isActive ? <View style={[styles.tabIndicator, { backgroundColor: palette.primary }]} /> : null}
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    {filteredVariations.length ? (
+                      <View style={styles.planGrid}>
+                        {filteredVariations.map((variation) => {
+                          const active = variation.variation_code === selectedVariationCode;
+                          const cardBg = lightBg ? (active ? 'rgba(10,132,255,0.06)' : '#FFFFFF') : (active ? 'rgba(10,132,255,0.12)' : '#1E293B');
+                          const cardText = lightBg ? '#0F172A' : '#FFFFFF';
+                          const cardBorder = active ? palette.primary : (lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)');
+
+                          return (
+                            <Pressable
+                              key={variation.variation_code}
+                              onPress={() => setSelectedVariationCode(variation.variation_code)}
+                              style={[styles.planCard, { backgroundColor: cardBg, borderColor: cardBorder }]}
+                            >
+                              <View style={styles.planTop}>
+                                <Text style={[styles.planSizeText, { color: cardText }]} numberOfLines={1}>
+                                  {variation.size}
+                                </Text>
+                                <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={18} />
+                              </View>
+                              <Text style={[styles.planPriceText, { color: lightBg ? '#475569' : '#CBD5E1' }]}>
+                                {formatNaira(Number(variation.variation_amount))}
+                              </Text>
+                              <Text style={[styles.planDurationText, { color: palette.primary }]}>
+                                {variation.duration}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <StateCard title="No plans" description="No plans available in this category." icon={<Globe size={24} color={palette.textSecondary} />} />
+                    )}
+                  </>
+                ) : (
+                  <StateCard title="No bundles" description="VTpass did not return any data plans for this provider." icon={<Globe size={24} color={palette.textSecondary} />} />
+                )
+              ) : null}
+
+              <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected bundle: {selectedVariation?.name ?? 'None'}</Text>
+
+              <Pressable
+                disabled={!canReview}
+                onPress={() => setStep(3)}
+                style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
+              >
+                <Text style={styles.primaryActionText}>Review data purchase</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {step === 3 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <CheckCircle2 size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the amount before you pay.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Data plan</Text>
+                <Text style={[styles.reviewTitle, { color: palette.text }]}>{selectedVariation?.name ?? 'Select a plan'}</Text>
+                <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{displayNetwork}</Text>
+                <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedPrice ? formatNaira(selectedPrice) : '₦0'}</Text>
+              </View>
+
+              <Pressable
+                disabled={!canReview || mutation.isPending || biometricBusy}
+                onPress={() => void openPaymentAuth()}
+                style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}
+              >
+                {mutation.isPending || biometricBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryActionText}>{selectedVariation ? `Buy for ${formatNaira(selectedPrice)}` : 'Select a bundle'}</Text>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+        </Animated.View>
+      </ScrollView>
 
       <TransactionResultModal
         visible={Boolean(resultModal?.visible)}
@@ -529,8 +533,6 @@ export default function DataScreen() {
         reference={resultModal?.reference}
         onClose={handleCloseResult}
       />
-
-
 
       <PaymentPinModal
         visible={pinModalOpen}
@@ -560,6 +562,7 @@ export default function DataScreen() {
         canClose={!(pinStatus === "loading" || mutation.isPending)}
         footerHint={biometricToast ? <Text style={[styles.biometricToast, { color: palette.textSecondary }]}>{biometricToast}</Text> : undefined}
       />
+
       <Modal visible={providerPickerOpen} transparent animationType="fade" onRequestClose={() => setProviderPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setProviderPickerOpen(false)} />
@@ -607,12 +610,13 @@ export default function DataScreen() {
           </View>
         </View>
       </Modal>
+
       <AirtimeContactsSheet
         ref={contactsSheetRef}
         selectedServiceID={selectedServiceID}
         onSelect={handleContactSelect}
       />
-    </ScrollView>
+    </>
   );
 }
 

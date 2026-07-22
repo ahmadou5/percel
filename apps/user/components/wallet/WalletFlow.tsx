@@ -154,7 +154,7 @@ export function ProviderBadge({ serviceID, logoUrl, logo, size = 32 }: ProviderB
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: tone.backgroundColor,
+          //backgroundColor: tone.backgroundColor,
         },
       ]}
     >

@@ -106,33 +106,15 @@ export function useStepBackHandler(step: number, onPreviousStep: () => void) {
 }
 
 export function useSlideStepTransition(step: number) {
-  const reduceMotion = useReduceMotion();
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
+  // We are keeping the Animated Values but disabling the animation
+  // to avoid the cards moving across steps, as requested.
   useEffect(() => {
-    if (reduceMotion) {
-      translateX.setValue(0);
-      opacity.setValue(1);
-      return;
-    }
-
-    translateX.setValue(24);
-    opacity.setValue(0);
-
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [opacity, reduceMotion, step, translateX]);
+    translateX.setValue(0);
+    opacity.setValue(1);
+  }, [step, opacity, translateX]);
 
   return { opacity, translateX };
 }

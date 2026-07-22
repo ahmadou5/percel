@@ -61,7 +61,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   description: {
-    fontSize: Typography.sm,
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.regular,
     lineHeight: 20,
     textAlign: 'center',
     maxWidth: 260,

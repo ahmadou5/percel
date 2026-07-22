@@ -1,4 +1,5 @@
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Radio, Search, ShieldCheck, Tv2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -53,10 +54,10 @@ export default function TvScreen() {
   const [saveCardName, setSaveCardName] = useState('');
   const [saveCardModalOpen, setSaveCardModalOpen] = useState(false);
   const { beneficiaries, addBeneficiary, removeBeneficiary } = useBeneficiaryStore();
-  // TV smartcards are stored with accountNumber=smartcardNumber and serviceID
   const tvSmartcards = beneficiaries.filter((b) => b.accountNumber && b.serviceID);
   const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
+  const router = useRouter();
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
   const selectedService = services.find((service) => service.serviceID === selectedServiceID);
@@ -116,13 +117,13 @@ export default function TvScreen() {
       setStep((current) => (current - 1) as 1 | 2 | 3);
       return;
     }
-    back();
+    router.navigate('/');
   };
 
   const handleCloseResult = () => {
     const shouldReturn = resultModal?.returnAfterClose;
     setResultModal(null);
-    if (shouldReturn) back();
+    if (shouldReturn) router.navigate('/');
   };
 
   const resetPaymentAuthState = () => {
@@ -208,251 +209,253 @@ export default function TvScreen() {
   const displayService = selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Choose a provider';
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
-          <ArrowLeft size={18} color={palette.text} />
-        </Pressable>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.headerCopy}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>TV Subscription</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Choose the provider first, validate the smartcard, then pick a bouquet.</Text>
-      </View>
-
-      <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
-        <View style={styles.heroTop}>
-          <View>
-            <Text style={styles.heroLabel}>Live TV pricing</Text>
-            <Text style={styles.heroValue}>{displayService}</Text>
-          </View>
-          <View style={styles.heroIcon}>
-            <Tv2 color="#fff" size={20} />
-          </View>
+    <>
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
+            <ArrowLeft size={18} color={palette.text} />
+          </Pressable>
+          <View style={styles.headerSpacer} />
         </View>
-        <Text style={styles.heroBody}>Validation keeps the subscriber details visible before payment while the old step labels stay out of the form body.</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
-      </View>
 
-      <Animated.View style={{ transform: [{ translateX }] }}>
-        {step === 1 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <Tv2 size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider and validation</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select the TV provider and validate the smartcard number first.</Text>
-              </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>TV Subscription</Text>
+
+        </View>
+
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroLabel}>Provider</Text>
+              <Text style={styles.heroValue}>{displayService}</Text>
             </View>
+            <View style={styles.heroIcon}>
+              <Tv2 color="#fff" size={20} />
+            </View>
+          </View>
 
-            {/* Saved Smartcards */}
-            {tvSmartcards.length > 0 && (
-              <View style={styles.savedCardsSection}>
-                <Text style={[styles.savedCardsTitle, { color: palette.textSecondary }]}>Saved Smartcards</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedCardsScroll}>
-                  {tvSmartcards.map((b) => (
-                    <Pressable
-                      key={b.id}
-                      onPress={() => {
-                        void haptics.tap();
-                        setSmartcardNumber(b.accountNumber || '');
-                        if (b.serviceID) setSelectedServiceID(b.serviceID);
-                        setValidation(null);
-                        setValidationStatus('idle');
-                      }}
-                      onLongPress={() => {
-                        void haptics.warning();
-                        modal.show({
-                          title: "Remove Card",
-                          description: `Remove ${b.name} from saved cards?`,
-                          type: "warning",
-                          primaryText: "Remove",
-                          onPrimaryPress: () => {
-                            removeBeneficiary(b.id);
-                            modal.hide();
-                          },
-                          secondaryText: "Cancel",
-                          onSecondaryPress: () => modal.hide(),
-                        });
-                      }}
-                      style={styles.savedCardChip}
-                    >
-                      <View style={[styles.savedCardAvatar, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-                        <Tv2 size={18} color={palette.primary} />
-                      </View>
-                      <Text style={[styles.savedCardName, { color: palette.text }]} numberOfLines={1}>{b.name}</Text>
-                      <Text style={[styles.savedCardNumber, { color: palette.textSecondary }]} numberOfLines={1}>
-                        ···{(b.accountNumber || '').slice(-4)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
+          <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
+        </View>
+
+        <Animated.View style={{ transform: [{ translateX }] }}>
+          {step === 1 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Tv2 size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select the TV provider and validate the smartcard number first.</Text>
+                </View>
               </View>
-            )}
 
-            <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.selectRow, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <View style={styles.selectCopy}>
-                <Text style={[styles.selectLabel, { color: palette.textSecondary }]}>Provider</Text>
-                <View style={styles.selectValueRow}>
-                  {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={28} /> : null}
-                  <View style={{ gap: 2 }}>
-                    <Text style={[styles.selectValue, { color: palette.text }]}>{displayService}</Text>
-                    <Text style={[styles.selectMeta, { color: palette.textSecondary }]}>{selectedService?.name ?? 'Choose provider'}</Text>
+              {/* Saved Smartcards */}
+              {tvSmartcards.length > 0 && (
+                <View style={styles.savedCardsSection}>
+                  <Text style={[styles.savedCardsTitle, { color: palette.textSecondary }]}>Saved Smartcards</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedCardsScroll}>
+                    {tvSmartcards.map((b) => (
+                      <Pressable
+                        key={b.id}
+                        onPress={() => {
+                          void haptics.tap();
+                          setSmartcardNumber(b.accountNumber || '');
+                          if (b.serviceID) setSelectedServiceID(b.serviceID);
+                          setValidation(null);
+                          setValidationStatus('idle');
+                        }}
+                        onLongPress={() => {
+                          void haptics.warning();
+                          modal.show({
+                            title: "Remove Card",
+                            description: `Remove ${b.name} from saved cards?`,
+                            type: "warning",
+                            primaryText: "Remove",
+                            onPrimaryPress: () => {
+                              removeBeneficiary(b.id);
+                              modal.hide();
+                            },
+                            secondaryText: "Cancel",
+                            onSecondaryPress: () => modal.hide(),
+                          });
+                        }}
+                        style={styles.savedCardChip}
+                      >
+                        <View style={[styles.savedCardAvatar, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                          <Tv2 size={18} color={palette.primary} />
+                        </View>
+                        <Text style={[styles.savedCardName, { color: palette.text }]} numberOfLines={1}>{b.name}</Text>
+                        <Text style={[styles.savedCardNumber, { color: palette.textSecondary }]} numberOfLines={1}>
+                          ···{(b.accountNumber || '').slice(-4)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              <Pressable onPress={() => setProviderPickerOpen(true)} style={[styles.selectRow, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <View style={styles.selectCopy}>
+
+                  <View style={styles.selectValueRow}>
+                    {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={28} /> : null}
+                    <View style={{ gap: 2 }}>
+                      <Text style={[styles.selectValue, { color: palette.text }]}>{displayService}</Text>
+                      <Text style={[styles.selectMeta, { color: palette.textSecondary }]}>{selectedService?.name ?? 'Choose provider'}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-              <ChevronDown size={18} color={palette.textSecondary} />
-            </Pressable>
-
-            <Input
-              label="Smartcard number"
-              value={smartcardNumber}
-              onChangeText={(value) => {
-                setSmartcardNumber(value.replace(/\s/g, ''));
-                setValidation(null);
-                setValidationStatus('idle');
-                setValidationError('');
-              }}
-              keyboardType="number-pad"
-              placeholder="Enter smartcard number"
-              helperText="Validate the card before paying so the subscriber details are visible."
-            />
-
-            <Pressable
-              disabled={validationStatus === 'loading'}
-              onPress={() => void handleValidateSmartcard()}
-              style={[styles.primaryAction, { backgroundColor: validationStatus === 'loading' ? palette.border : palette.primary }]}
-            >
-              <Text style={styles.primaryActionText}>{validationStatus === 'loading' ? 'Validating smartcard...' : 'Validate smartcard'}</Text>
-            </Pressable>
-
-            {validationStatus === 'loading' ? (
-              <StateCard loading title="Validating smartcard" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
-            ) : validationStatus === 'success' && validation ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-                <CheckCircle2 size={18} color={palette.success} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.success }]}>{validation.name}</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validation.address ?? 'Validated subscriber'}</Text>
-                </View>
-              </View>
-            ) : validationStatus === 'error' ? (
-              <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
-                <ShieldCheck size={18} color={palette.error} />
-                <View style={styles.statusCopy}>
-                  <Text style={[styles.statusTitle, { color: palette.error }]}>Validation failed</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Please check the provider and smartcard number.'}</Text>
-                </View>
-              </View>
-            ) : (
-              <StateCard
-                title="Enter a smartcard number"
-                description="Press validate after choosing the provider and entering the smartcard number."
-                icon={<Search size={24} color={palette.textSecondary} />}
-              />
-            )}
-
-            {/* Save this smartcard after validation */}
-            {validationStatus === 'success' && !isCardSaved && !tvSmartcards.some(b => b.accountNumber === smartcardNumber.trim()) && (
-              <Pressable
-                onPress={() => setSaveCardModalOpen(true)}
-                style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
-              >
-                <Tv2 size={16} color={palette.primary} />
-                <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this smartcard</Text>
+                <ChevronDown size={18} color={palette.textSecondary} />
               </Pressable>
-            )}
-            {isCardSaved && (
-              <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
-                <CheckCircle2 size={16} color={palette.success} />
-                <Text style={[styles.saveCardText, { color: palette.success }]}>Smartcard saved</Text>
-              </View>
-            )}
-          </View>
-        ) : null}
 
-        {step === 2 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <Radio size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Bouquet selection</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose the live bouquet you want to renew.</Text>
-              </View>
-            </View>
+              <Input
+                label="Smartcard number"
+                value={smartcardNumber}
+                onChangeText={(value) => {
+                  setSmartcardNumber(value.replace(/\s/g, ''));
+                  setValidation(null);
+                  setValidationStatus('idle');
+                  setValidationError('');
+                }}
+                keyboardType="number-pad"
+                placeholder="Enter smartcard number"
+                helperText="Validate the card before paying so the subscriber details are visible."
+              />
 
-            <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Subscriber</Text>
-              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{validation?.name ?? 'Verified subscriber'}</Text>
-              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayService}</Text>
-            </View>
+              <Pressable
+                disabled={validationStatus === 'loading'}
+                onPress={() => void handleValidateSmartcard()}
+                style={[styles.primaryAction, { backgroundColor: validationStatus === 'loading' ? palette.border : palette.primary }]}
+              >
+                <Text style={styles.primaryActionText}>{validationStatus === 'loading' ? 'Validating smartcard...' : 'Validate smartcard'}</Text>
+              </Pressable>
 
-            <Text style={[styles.sectionTitle, { color: palette.text }]}>Live bouquets</Text>
-            {selectedService ? (
-              variationsQuery.isLoading ? (
-                <StateCard loading title="Loading bouquets" description="Fetching the current bouquet list from VTpass." icon={<Tv2 size={24} color={palette.textSecondary} />} />
-              ) : variations.length ? (
-                <View style={styles.planList}>
-                  {variations.map((variation) => {
-                    const active = variation.variation_code === selectedVariationCode;
-                    return (
-                      <Pressable key={variation.variation_code} onPress={() => setSelectedVariationCode(variation.variation_code)} style={[styles.planRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.planName, { color: palette.text }]}>{variation.name}</Text>
-                          <Text style={[styles.planMeta, { color: palette.textSecondary }]}>{variation.fixedPrice === 'Yes' ? 'Fixed price' : 'Variable price'}</Text>
-                        </View>
-                        <Text style={[styles.planPrice, { color: palette.text }]}>{formatNaira(Number(variation.variation_amount))}</Text>
-                      </Pressable>
-                    );
-                  })}
+              {validationStatus === 'loading' ? (
+                <StateCard loading title="Validating smartcard" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
+              ) : validationStatus === 'success' && validation ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
+                  <CheckCircle2 size={18} color={palette.success} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.success }]}>{validation.name}</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validation.address ?? 'Validated subscriber'}</Text>
+                  </View>
+                </View>
+              ) : validationStatus === 'error' ? (
+                <View style={[styles.statusCard, { backgroundColor: 'rgba(255,69,58,0.08)', borderColor: palette.error }]}>
+                  <ShieldCheck size={18} color={palette.error} />
+                  <View style={styles.statusCopy}>
+                    <Text style={[styles.statusTitle, { color: palette.error }]}>Validation failed</Text>
+                    <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Please check the provider and smartcard number.'}</Text>
+                  </View>
                 </View>
               ) : (
-                <StateCard title="No bouquets available" description="VTpass did not return any TV variations for the selected provider." icon={<Radio size={24} color={palette.textSecondary} />} />
-              )
-            ) : null}
+                <StateCard
+                  title="Enter a smartcard number"
+                  description="Press validate after choosing the provider and entering the smartcard number."
+                  icon={<Search size={24} color={palette.textSecondary} />}
+                />
+              )}
 
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected bouquet: {selectedVariation?.name ?? 'None'}</Text>
-
-            <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
-              <Text style={styles.primaryActionText}>Review subscription</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {step === 3 ? (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
-                <CheckCircle2 size={16} color={palette.primary} />
-              </View>
-              <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the provider, bouquet, and amount before payment.</Text>
-              </View>
+              {/* Save this smartcard after validation */}
+              {validationStatus === 'success' && !isCardSaved && !tvSmartcards.some(b => b.accountNumber === smartcardNumber.trim()) && (
+                <Pressable
+                  onPress={() => setSaveCardModalOpen(true)}
+                  style={[styles.saveCardRow, { borderColor: palette.primary, backgroundColor: 'rgba(10,132,255,0.05)' }]}
+                >
+                  <Tv2 size={16} color={palette.primary} />
+                  <Text style={[styles.saveCardText, { color: palette.primary }]}>Save this smartcard</Text>
+                </Pressable>
+              )}
+              {isCardSaved && (
+                <View style={[styles.saveCardRow, { borderColor: palette.success, backgroundColor: 'rgba(48,209,88,0.06)' }]}>
+                  <CheckCircle2 size={16} color={palette.success} />
+                  <Text style={[styles.saveCardText, { color: palette.success }]}>Smartcard saved</Text>
+                </View>
+              )}
             </View>
+          ) : null}
 
-            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>TV subscription</Text>
-              <Text style={[styles.reviewTitle, { color: palette.text }]}>{selectedVariation?.name ?? 'Select a bouquet'}</Text>
-              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{displayService}</Text>
-              <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedPrice ? formatNaira(selectedPrice) : '₦0'}</Text>
+          {step === 2 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                  <Radio size={16} color={palette.primary} />
+                </View>
+                <View style={styles.sectionCopy}>
+
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a bouquet you want to renew.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Subscriber</Text>
+                <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{validation?.name ?? 'Verified subscriber'}</Text>
+                <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayService}</Text>
+              </View>
+
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>Live bouquets</Text>
+              {selectedService ? (
+                variationsQuery.isLoading ? (
+                  <StateCard loading title="Loading bouquets" description="Fetching the current bouquet list from VTpass." icon={<Tv2 size={24} color={palette.textSecondary} />} />
+                ) : variations.length ? (
+                  <View style={styles.planList}>
+                    {variations.map((variation) => {
+                      const active = variation.variation_code === selectedVariationCode;
+                      return (
+                        <Pressable key={variation.variation_code} onPress={() => setSelectedVariationCode(variation.variation_code)} style={[styles.planRow, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg }]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.planName, { color: palette.text }]}>{variation.name}</Text>
+                            <Text style={[styles.planMeta, { color: palette.textSecondary }]}>{variation.fixedPrice === 'Yes' ? 'Fixed price' : 'Variable price'}</Text>
+                          </View>
+                          <Text style={[styles.planPrice, { color: palette.text }]}>{formatNaira(Number(variation.variation_amount))}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <StateCard title="No bouquets available" description="VTpass did not return any TV variations for the selected provider." icon={<Radio size={24} color={palette.textSecondary} />} />
+                )
+              ) : null}
+
+              <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected bouquet: {selectedVariation?.name ?? 'None'}</Text>
+
+              <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
+                <Text style={styles.primaryActionText}>Review subscription</Text>
+              </Pressable>
             </View>
+          ) : null}
 
-            <Pressable
-              disabled={!selectedService || !selectedVariation || mutation.isPending || biometricBusy}
-              onPress={() => void openPaymentAuth()}
-              style={[styles.primaryAction, { backgroundColor: selectedService && selectedVariation ? palette.primary : palette.border }]}
-            >
-              {mutation.isPending || biometricBusy ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : "Select a bouquet"}</Text>}
-            </Pressable>
-          </View>
-        ) : null}
-      </Animated.View>
+          {step === 3 ? (
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.success }]}>
+                  <CheckCircle2 size={16} color={palette.success} />
+                </View>
+                <View style={styles.sectionCopy}>
+
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the provider, bouquet, and amount before payment.</Text>
+                </View>
+              </View>
+
+              <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>TV subscription</Text>
+                <Text style={[styles.reviewTitle, { color: palette.text }]}>{selectedVariation?.name ?? 'Select a bouquet'}</Text>
+                <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{displayService}</Text>
+                <Text style={[styles.reviewAmount, { color: palette.text }]}>{selectedPrice ? formatNaira(selectedPrice) : '₦0'}</Text>
+              </View>
+
+              <Pressable
+                disabled={!selectedService || !selectedVariation || mutation.isPending || biometricBusy}
+                onPress={() => void openPaymentAuth()}
+                style={[styles.primaryAction, { backgroundColor: selectedService && selectedVariation ? palette.primary : palette.border }]}
+              >
+                {mutation.isPending || biometricBusy ? <ActivityIndicator color={palette.card} /> : <Text style={styles.primaryActionText}>{selectedVariation ? `Renew for ${formatNaira(selectedPrice)}` : "Select a bouquet"}</Text>}
+              </Pressable>
+            </View>
+          ) : null}
+        </Animated.View>
+      </ScrollView>
 
       <TransactionResultModal
         visible={Boolean(resultModal?.visible)}
@@ -591,7 +594,7 @@ export default function TvScreen() {
         </View>
       </Modal>
       <AppModal config={modal.config} onClose={modal.hide} />
-    </ScrollView>
+    </>
   );
 }
 
@@ -615,7 +618,7 @@ const styles = StyleSheet.create({
   stepPill: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17 },
+  sectionSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   selectRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64 },
   selectCopy: { flex: 1, gap: 4 },
   selectLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
@@ -625,17 +628,17 @@ const styles = StyleSheet.create({
   statusCard: { borderWidth: 1, borderRadius: 18, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },
   statusCopy: { flex: 1, gap: 2 },
   statusTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  statusMeta: { fontSize: Typography.xs, lineHeight: 16 },
+  statusMeta: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   summaryMini: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
   summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  summaryMiniMeta: { fontSize: Typography.xs },
+  summaryMiniMeta: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   planList: { gap: 10 },
   planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 18, borderWidth: 1, padding: Spacing.md },
   planName: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  planMeta: { fontSize: Typography.xs },
+  planMeta: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   planPrice: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  amountHint: { fontSize: Typography.xs },
+  amountHint: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
   reviewLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   reviewTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },

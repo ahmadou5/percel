@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { SearchCheck } from 'lucide-react-native';
 
 import { PinInput } from '@/components/ui/PinInput';
 import { useAppPalette } from '@/lib/theme';
@@ -106,13 +107,16 @@ export function PaymentPinModal({
             disabled={!canSubmit}
             style={({ pressed }) => [
               styles.confirmButton,
-              { backgroundColor: canSubmit ? palette.primary : palette.border, opacity: pressed ? 0.92 : 1 },
+              { backgroundColor: palette.primary, opacity: canSubmit ? (pressed ? 0.92 : 1) : 0.45 },
             ]}
           >
             {loading ? (
               <ActivityIndicator color={palette.card} />
             ) : (
-              <Text style={[styles.confirmText, { color: palette.card }]}>{confirmLabel}</Text>
+              <>
+                <SearchCheck size={18} color={palette.card} />
+                <Text style={[styles.confirmText, { color: palette.card }]}>{confirmLabel}</Text>
+              </>
             )}
           </Pressable>
         </View>
@@ -124,54 +128,51 @@ export function PaymentPinModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.48)',
-    justifyContent: 'center',
-    padding: Spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
   },
   card: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 1,
-    borderRadius: 28,
     padding: Spacing.lg,
     gap: Spacing.md,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
+    alignItems: 'center',
+    marginBottom: 10,
   },
   title: {
-    fontSize: Typography.xl,
+    fontSize: Typography.lg,
     fontFamily: Typography.family.bold,
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: 2,
     fontSize: Typography.sm,
-    lineHeight: 20,
-    fontFamily: Typography.family.regular,
-    maxWidth: '88%',
   },
   closeButton: {
-    minHeight: 40,
+    borderRadius: 999,
     paddingHorizontal: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 10,
   },
   closeText: {
     fontSize: Typography.sm,
     fontFamily: Typography.family.bold,
   },
   reviewCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    borderRadius: 22,
     padding: Spacing.md,
-    gap: 6,
+    gap: 4,
   },
   reviewLabel: {
     fontSize: Typography.xs,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     fontFamily: Typography.family.bold,
   },
   reviewTitle: {
@@ -179,9 +180,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.bold,
   },
   reviewMeta: {
-    fontSize: Typography.sm,
-    lineHeight: 20,
-    fontFamily: Typography.family.regular,
+    fontSize: Typography.xs,
   },
   reviewAmountBox: {
     marginTop: 6,
@@ -198,14 +197,17 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.bold,
   },
   reviewAmountValue: {
-    fontSize: Typography.lg,
+    fontSize: 28,
     fontFamily: Typography.family.bold,
+    marginTop: 2,
   },
   confirmButton: {
+    flexDirection: 'row',
     minHeight: 54,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
   confirmText: {
     fontSize: Typography.md,

@@ -217,6 +217,7 @@ export default function SettingsDetailScreen() {
           </View>
         </ScrollView>
       )}
+
     </View>
   );
 }
