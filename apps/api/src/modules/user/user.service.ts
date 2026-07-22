@@ -351,7 +351,7 @@ export class UserService {
         const providers = new PaymentProviderService(this.prisma);
         try {
           const provider = await providers.getActiveProvider();
-          const account = await providers.createVirtualAccount(provider, {
+          const account = await providers.createVirtualAccountWithFallback(provider, {
             id: userId,
             email: userWithWallet.email,
             fullName: firstName + ' ' + lastName,
@@ -366,7 +366,7 @@ export class UserService {
               nuban: account.accountNumber,
               bankName: account.bankName,
               bankCode: account.bankCode ?? null,
-              paymentProvider: provider,
+              paymentProvider: account.provider,
             },
           });
 

@@ -219,4 +219,29 @@ export class PaymentProviderService {
       gender: env.SQUAD_DEFAULT_CUSTOMER_GENDER,
     });
   }
+
+  async createVirtualAccountWithFallback(
+    preferredProvider: PaymentProvider,
+    owner: VirtualAccountOwner,
+  ): Promise<VirtualAccountResult & { provider: PaymentProvider }> {
+    const candidates: PaymentProvider[] = Array.from(
+      new Set([preferredProvider, PaymentProvider.MONNIFY, PaymentProvider.PAYSTACK, PaymentProvider.SQUAD]),
+    );
+
+    const results = await Promise.allSettled(
+      candidates.map(async (candidate) => {
+        const result = await this.createVirtualAccount(candidate, owner);
+        return { ...result, provider: candidate };
+      }),
+    );
+
+    for (const res of results) {
+      if (res.status === 'fulfilled') {
+        return res.value;
+      }
+    }
+
+    const firstReason = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+    throw firstReason?.reason ?? new PaymentError('Failed to create virtual account on available payment providers');
+  }
 }

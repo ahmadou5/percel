@@ -145,7 +145,7 @@ export class WalletService {
     if (!kycComplete) return { ...wallet, kycComplete, paymentProvider: provider };
     if (wallet.nuban && wallet.bankName && wallet.paymentProvider === provider) return { ...wallet, kycComplete };
 
-    const account = await providers.createVirtualAccount(provider, {
+    const account = await providers.createVirtualAccountWithFallback(provider, {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
@@ -162,7 +162,7 @@ export class WalletService {
         nuban: account.accountNumber,
         bankName: account.bankName,
         bankCode: account.bankCode,
-        paymentProvider: provider,
+        paymentProvider: account.provider,
       },
     });
     return { ...updatedWallet, kycComplete };
@@ -364,7 +364,7 @@ export class WalletService {
       return;
     }
 
-    const account = await providers.createVirtualAccount(provider, {
+    const account = await providers.createVirtualAccountWithFallback(provider, {
       id: customer.id,
       email: customer.email,
       fullName: customer.fullName,
@@ -383,7 +383,7 @@ export class WalletService {
           nuban: account.accountNumber,
           bankName,
           bankCode,
-          paymentProvider: provider,
+          paymentProvider: account.provider,
         },
       });
 

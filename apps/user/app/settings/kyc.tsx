@@ -1,19 +1,41 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ChevronDown, ChevronLeft, CreditCard, Search, ShieldCheck } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { Animated, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  Copy,
+  CreditCard,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Zap,
+} from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Alert,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
+import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
+import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateProfile, useVerifyBvn } from '@/hooks/useProfile';
-import { useBanks } from '@/hooks/useWallet';
+import { useBanks, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
-import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
-import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
 
 function isOfAge(dateString: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
@@ -51,14 +73,19 @@ type BankItem = {
 };
 
 export default function KycScreen() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const palette = useAppPalette();
   const profileQuery = useProfile();
+  const walletQuery = useWallet();
   const updateProfile = useUpdateProfile();
   const verifyBvn = useVerifyBvn();
   const banksQuery = useBanks();
+
   const profile = profileQuery.data;
+  const wallet = walletQuery.data;
   const banks = (banksQuery.data ?? []) as BankItem[];
+
   const [step, setStep] = useState<KycStep>(1);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -71,9 +98,89 @@ export default function KycScreen() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
   const { opacity, translateX } = useSlideStepTransition(step);
-  const back = useSafeBack("/profile");
-  useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
+  const back = useSafeBack('/profile');
+  useStepBackHandler(step, () => {
+    if (step > 1) {
+      setStep((current) => (current - 1) as typeof step);
+    }
+  });
+
+  // Animations
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  const kycComplete = Boolean(
+    profile?.kycComplete || profile?.bvnVerified || profile?.ninVerified || profile?.status === 'ACTIVE',
+  );
+  const verificationPending =
+    (profile?.status === 'PENDING_VERIFICATION' || submitted) && !kycComplete;
+  const verificationRejected = profile?.status === 'SUSPENDED';
+
+  // Polling when verification is pending
+  useEffect(() => {
+    if (!verificationPending) return;
+
+    const interval = setInterval(() => {
+      void profileQuery.refetch();
+      void walletQuery.refetch();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [verificationPending, profileQuery, walletQuery]);
+
+  // Verified card animation
+  useEffect(() => {
+    if (kycComplete) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [kycComplete, scaleAnim]);
+
+  // Pending pulse animation
+  useEffect(() => {
+    if (verificationPending) {
+      const pulseLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 1000,
+            easing: Easing.ease,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.ease,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+
+      const rotateLoop = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      );
+
+      pulseLoop.start();
+      rotateLoop.start();
+
+      return () => {
+        pulseLoop.stop();
+        rotateLoop.stop();
+      };
+    }
+  }, [verificationPending, pulseAnim, rotateAnim]);
 
   useEffect(() => {
     const name = splitFullName(profile?.fullName ?? '');
@@ -92,8 +199,6 @@ export default function KycScreen() {
 
   const selectedBank = banks.find((item) => item.code === bankCode) ?? null;
 
-  const kycComplete = Boolean(profile?.kycComplete);
-  const verificationPending = profile?.status === 'PENDING_VERIFICATION' && !kycComplete;
   const personalInfoComplete =
     firstName.trim().length >= 1 &&
     lastName.trim().length >= 1 &&
@@ -110,33 +215,198 @@ export default function KycScreen() {
     !updateProfile.isPending &&
     !verifyBvn.isPending;
 
-  const statusTitle = kycComplete
-    ? 'Profile verified'
-    : verificationPending || submitted
-      ? 'Verification pending'
-      : 'Verification required';
-  const statusDescription = kycComplete
-    ? 'Your KYC profile is ready for deposits and bank payouts.'
-    : verificationPending || submitted
-      ? 'Our verification partner is validating your BVN and bank account. Your dedicated account will be created when the webhook confirms success.'
-      : 'Complete the staged form below to validate your identity and unlock dedicated account creation.';
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      const Clipboard = await import('expo-clipboard');
+      await Clipboard.setStringAsync(text);
+      Alert.alert(`${label} Copied!`, `${text} has been copied to your clipboard.`);
+    } catch {
+      Alert.alert(label, text);
+    }
+  };
 
+  // 1. VERIFIED STATE VIEW
   if (kycComplete) {
+    const nuban = wallet?.nuban;
+    const bankName = wallet?.bankName ?? 'Percel Dedicated Account';
+    const spin = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
-      <View style={[styles.screen, { backgroundColor: palette.bg, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl }]}>
-        <View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <View style={[styles.verifiedIconWrap, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
-            <ShieldCheck size={48} color={palette.success} />
+      <ScrollView
+        style={[styles.screen, { backgroundColor: palette.bg }]}
+        contentContainerStyle={styles.centerContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerRow}>
+          <Pressable
+            style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+            onPress={() => back()}
+          >
+            <ChevronLeft size={18} color={palette.text} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: palette.text }]}>KYC Status</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <Animated.View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border, transform: [{ scale: scaleAnim }] }]}>
+          <View style={[styles.verifiedBadgeGlow, { backgroundColor: 'rgba(48,209,88,0.14)', borderColor: palette.success }]}>
+            <ShieldCheck size={56} color={palette.success} />
           </View>
-          <Text style={[styles.verifiedTitle, { color: palette.text }]}>You're Verified!</Text>
-          <Text style={[styles.verifiedBody, { color: palette.textSecondary }]}>
-            Your identity has been fully verified. Your account is active and eligible for higher transaction limits, deposits, and bank payouts.
+
+          <Text style={[styles.verifiedTitle, { color: palette.text }]}>You're Fully Verified!</Text>
+          <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
+            Your identity was successfully validated. Your dedicated bank account is active for transfers, deposits, and bill payments.
           </Text>
-          <Pressable onPress={() => back()} style={[styles.primaryAction, { width: '100%', marginTop: Spacing.md, backgroundColor: palette.primary }]}>
-            <Text style={styles.primaryActionText}>Back to Profile</Text>
+
+          {/* Dedicated Virtual Account Card */}
+          <View style={[styles.nubanCard, { backgroundColor: palette.primaryDark, borderColor: palette.border }]}>
+            <View style={styles.nubanCardHeader}>
+              <View style={styles.nubanHeaderLeft}>
+                <CreditCard size={20} color="#FFFFFF" />
+                <Text style={styles.nubanProviderLabel}>{bankName}</Text>
+              </View>
+              <View style={styles.activePill}>
+                <Text style={styles.activePillText}>ACTIVE NUBAN</Text>
+              </View>
+            </View>
+
+            {nuban ? (
+              <View style={styles.nubanBody}>
+                <Text style={styles.nubanLabel}>DEDICATED ACCOUNT NUMBER</Text>
+                <View style={styles.nubanRow}>
+                  <Text style={styles.nubanNumber}>{nuban}</Text>
+                  <Pressable
+                    onPress={() => void copyToClipboard(nuban, 'Account Number')}
+                    style={({ pressed }) => [styles.copyBtn, pressed ? { opacity: 0.7 } : null]}
+                  >
+                    <Copy size={18} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+                <Text style={styles.accountNameLabel}>ACCOUNT NAME: {profile?.fullName || 'Percel User'}</Text>
+              </View>
+            ) : (
+              <View style={styles.nubanBody}>
+                <Text style={styles.nubanLabel}>ACCOUNT PROVISIONING</Text>
+                <Text style={styles.nubanPendingText}>Generating your dedicated NUBAN account details…</Text>
+                <Pressable onPress={() => void walletQuery.refetch()} style={styles.refetchBtn}>
+                  <RefreshCw size={14} color="#FFFFFF" />
+                  <Text style={styles.refetchText}>Refresh Account Info</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+
+          {/* Quick Features List */}
+          <View style={[styles.featuresCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <View style={styles.featureItem}>
+              <CheckCircle2 size={18} color={palette.success} />
+              <Text style={[styles.featureText, { color: palette.text }]}>Unlimited Wallet Top-ups & Transfers</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <CheckCircle2 size={18} color={palette.success} />
+              <Text style={[styles.featureText, { color: palette.text }]}>Direct Bank Deposit Receiver</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <CheckCircle2 size={18} color={palette.success} />
+              <Text style={[styles.featureText, { color: palette.text }]}>Airtime, Data, Electricity & TV Bills</Text>
+            </View>
+          </View>
+
+          <View style={styles.actionGroup}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/wallet/transfer' as never)}
+              style={({ pressed }) => [styles.primaryAction, { backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
+            >
+              <Send size={18} color="#FFFFFF" />
+              <Text style={styles.primaryActionText}>Transfer Money</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/(tabs)/wallet/topup' as never)}
+              style={({ pressed }) => [styles.secondaryAction, { backgroundColor: palette.bg, borderColor: palette.border }, pressed && { opacity: 0.85 }]}
+            >
+              <Zap size={18} color={palette.text} />
+              <Text style={[styles.secondaryActionText, { color: palette.text }]}>Top Up Wallet</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    );
+  }
+
+  // 2. PENDING VERIFICATION STATE VIEW
+  if (verificationPending) {
+    const spin = rotateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+      <ScrollView
+        style={[styles.screen, { backgroundColor: palette.bg }]}
+        contentContainerStyle={styles.centerContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerRow}>
+          <Pressable
+            style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+            onPress={() => back()}
+          >
+            <ChevronLeft size={18} color={palette.text} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: palette.text }]}>Verification Pending</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Animated.View
+            style={[
+              styles.pendingBadgeWrap,
+              { backgroundColor: 'rgba(255,159,10,0.12)', borderColor: '#FF9F0A', transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <RefreshCw size={44} color="#FF9F0A" />
+            </Animated.View>
+          </Animated.View>
+
+          <Text style={[styles.verifiedTitle, { color: palette.text }]}>Verification in Progress</Text>
+          <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
+            Our identity partner is validating your BVN and bank account details. Your dedicated NUBAN will be assigned automatically.
+          </Text>
+
+          <View style={[styles.infoBanner, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <View style={styles.liveIndicator}>
+              <View style={styles.pulseDot} />
+              <Text style={[styles.liveText, { color: palette.textSecondary }]}>Checking verification status automatically…</Text>
+            </View>
+            <Text style={[styles.infoSubtext, { color: palette.textSecondary }]}>
+              You don't need to stay on this screen. You will receive a system notification as soon as status confirms!
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => {
+              void profileQuery.refetch();
+              void walletQuery.refetch();
+            }}
+            style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
+          >
+            <RefreshCw size={18} color="#FFFFFF" />
+            <Text style={styles.primaryActionText}>Check Status Now</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => back()}
+            style={({ pressed }) => [styles.secondaryAction, { width: '100%', backgroundColor: palette.bg, borderColor: palette.border }, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={[styles.secondaryActionText, { color: palette.text }]}>Back to Profile</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -159,7 +429,10 @@ export default function KycScreen() {
 
   const submit = async () => {
     if (!canSubmit) {
-      Alert.alert('Complete the form', 'Add your name, address, date of birth, BVN, account number, bank, and consent before continuing.');
+      Alert.alert(
+        'Complete all required fields',
+        'Please enter your full name, residential address, date of birth, BVN, account number, bank, and consent before continuing.',
+      );
       return;
     }
 
@@ -180,44 +453,76 @@ export default function KycScreen() {
       });
 
       setSubmitted(true);
-      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
-      await queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      await queryClient.invalidateQueries({ queryKey: ['banks'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['wallet'] }),
+        queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+        queryClient.invalidateQueries({ queryKey: ['banks'] }),
+      ]);
 
-      if (result.kycComplete) {
-        back();
+      if (result.kycComplete || result.status === 'ACTIVE') {
+        Alert.alert('Verification Approved!', 'Your identity is verified and your dedicated account is ready.');
       }
     } catch (error) {
-      Alert.alert('Could not save KYC', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Verification Failed', error instanceof Error ? error.message : 'Please check your details and try again.');
     }
   };
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: palette.bg }]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
-        <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
+        <Pressable
+          style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+          onPress={headerBack}
+        >
           <ChevronLeft size={18} color={palette.text} />
         </Pressable>
+        <Text style={[styles.headerTitle, { color: palette.text }]}>Identity Verification</Text>
         <View style={styles.headerSpacer} />
       </View>
 
+      {verificationRejected && (
+        <View style={[styles.errorCard, { backgroundColor: 'rgba(255,69,58,0.12)', borderColor: palette.error }]}>
+          <AlertCircle size={20} color={palette.error} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.errorTitle, { color: palette.error }]}>Previous verification issue</Text>
+            <Text style={[styles.errorSub, { color: palette.text }]}>
+              Please double check your BVN and bank account details below and resubmit.
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={styles.headerCopy}>
-        <Text style={[styles.eyebrowLabel, { color: palette.primary }]}>KYC Verification</Text>
-        <Text style={[styles.pageTitle, { color: palette.text }]}>Validate BVN and bank account in a guided flow.</Text>
+        <Text style={[styles.eyebrowLabel, { color: palette.primary }]}>Customer KYC</Text>
+        <Text style={[styles.pageTitle, { color: palette.text }]}>
+          Verify your BVN & bank to unlock dedicated account numbers.
+        </Text>
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
         <View style={styles.heroTop}>
           <View>
             <Text style={styles.heroLabel}>Identity check</Text>
-            <Text style={styles.heroValue}>{kycComplete ? 'KYC already complete' : (verificationPending || submitted ? 'Verification pending' : `Step ${step} of 3`)}</Text>
+            <Text style={styles.heroValue}>{`Step ${step} of 3`}</Text>
           </View>
           <View style={styles.heroIcon}>
-            <ShieldCheck size={20} color="#fff" />
+            <ShieldCheck size={22} color="#fff" />
           </View>
         </View>
-        <Text style={styles.heroBody}>Customer identity verification now uses secure identity verification for BVN-linked NUBAN setup, while driver verification stays in the driver app.</Text>
-        <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
+        <Text style={styles.heroBody}>
+          Verification creates a dedicated NUBAN account in your name, allowing instantaneous deposits and high transfer limits.
+        </Text>
+        <FlowProgressDots
+          currentStep={step}
+          totalSteps={3}
+          onStepPress={(targetStep) => {
+            if (targetStep < step) setStep(targetStep as typeof step);
+          }}
+        />
       </View>
 
       <Animated.View style={{ opacity, transform: [{ translateX }] }}>
@@ -229,16 +534,18 @@ export default function KycScreen() {
               </View>
               <View style={styles.sectionCopy}>
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Personal info</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Add the name and address that should be tied to your account.</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                  Add the legal name and address associated with your bank account.
+                </Text>
               </View>
             </View>
 
             <View style={styles.nameRow}>
               <View style={styles.nameField}>
-                <Input label="First name" value={firstName} onChangeText={setFirstName} placeholder="Uchenna" />
+                <Input label="First name" value={firstName} onChangeText={setFirstName} placeholder="First name" />
               </View>
               <View style={styles.nameField}>
-                <Input label="Last name" value={lastName} onChangeText={setLastName} placeholder="Okoro" />
+                <Input label="Last name" value={lastName} onChangeText={setLastName} placeholder="Last name" />
               </View>
             </View>
 
@@ -246,8 +553,8 @@ export default function KycScreen() {
               label="Residential address"
               value={address}
               onChangeText={setAddress}
-              placeholder="12 Broad Street, Lagos"
-              helperText="Use the address that matches your identity documents."
+              placeholder="Full residential street address"
+              helperText="Must match official residential address."
             />
 
             <Pressable onPress={() => setDatePickerOpen(true)}>
@@ -265,9 +572,13 @@ export default function KycScreen() {
             <Pressable
               onPress={handleNext}
               disabled={!personalInfoComplete}
-              style={[styles.primaryAction, { backgroundColor: personalInfoComplete ? palette.primary : palette.border }]}
+              style={({ pressed }) => [
+                styles.primaryAction,
+                { backgroundColor: personalInfoComplete ? palette.primary : palette.border },
+                pressed && personalInfoComplete ? { opacity: 0.9 } : null,
+              ]}
             >
-              <Text style={styles.primaryActionText}>Continue to identity details</Text>
+              <Text style={styles.primaryActionText}>Continue to Bank & BVN</Text>
             </Pressable>
           </View>
         ) : null}
@@ -279,32 +590,40 @@ export default function KycScreen() {
                 <ShieldCheck size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Identity & bank</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter your BVN, pick a bank, and confirm the NUBAN account number.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Bank & BVN details</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                  Enter your BVN, select your bank, and enter your NUBAN account number.
+                </Text>
               </View>
             </View>
 
             <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Profile</Text>
-              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{`${firstName.trim()} ${lastName.trim()}`.trim() || 'Full name pending'}</Text>
+              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Verified name</Text>
+              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>
+                {`${firstName.trim()} ${lastName.trim()}`.trim() || 'Full name pending'}
+              </Text>
               <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{dateOfBirth || 'DOB pending'}</Text>
             </View>
 
-             <Input
-              label="BVN"
+            <Input
+              label="BVN (Bank Verification Number)"
               value={bvn}
               onChangeText={setBvn}
               placeholder="11 digit BVN"
               keyboardType="number-pad"
-              helperText="BVN is required for customer verification."
+              helperText="Used strictly for identity validation via NIBSS."
             />
 
-            <Pressable onPress={() => setBankPickerOpen(true)} style={[styles.bankButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <Pressable
+              onPress={() => setBankPickerOpen(true)}
+              style={[styles.bankButton, { backgroundColor: palette.bg, borderColor: palette.border }]}
+            >
               <BankLogo name={selectedBank?.name ?? 'Bank'} slug={selectedBank?.slug} size={40} />
               <View style={styles.bankButtonCopy}>
                 <Text style={[styles.bankButtonLabel, { color: palette.textSecondary }]}>Bank</Text>
-                <Text style={[styles.bankButtonValue, { color: palette.text }]}>{selectedBank?.name ?? 'Choose a bank'}</Text>
-                {!selectedBank && <Text style={[styles.bankButtonMeta, { color: palette.textSecondary }]}>Search and pick your bank</Text>}
+                <Text style={[styles.bankButtonValue, { color: palette.text }]}>
+                  {selectedBank?.name ?? 'Choose your bank'}
+                </Text>
               </View>
               <ChevronDown size={18} color={palette.textSecondary} />
             </Pressable>
@@ -313,31 +632,58 @@ export default function KycScreen() {
               label="Account number"
               value={accountNumber}
               onChangeText={setAccountNumber}
-              placeholder="0111111111"
+              placeholder="10 digit NUBAN account number"
               keyboardType="number-pad"
-              helperText="Use the 10-digit NUBAN account number linked to your BVN."
+              helperText="10-digit NUBAN linked to your BVN."
             />
 
-            <Pressable onPress={() => setConsent((value) => !value)} style={[styles.consentRow, { borderColor: consent ? palette.primary : palette.border, backgroundColor: consent ? 'rgba(10,132,255,0.08)' : palette.bg }]}>
-              <View style={[styles.checkbox, { borderColor: consent ? palette.primary : palette.border, backgroundColor: consent ? palette.primary : 'transparent' }]}>
+            <Pressable
+              onPress={() => setConsent((value) => !value)}
+              style={[
+                styles.consentRow,
+                {
+                  borderColor: consent ? palette.primary : palette.border,
+                  backgroundColor: consent ? 'rgba(10,132,255,0.08)' : palette.bg,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: consent ? palette.primary : palette.border,
+                    backgroundColor: consent ? palette.primary : 'transparent',
+                  },
+                ]}
+              >
                 {consent ? <Text style={styles.checkboxMark}>✓</Text> : null}
               </View>
               <View style={styles.consentCopy}>
                 <Text style={[styles.consentTitle, { color: palette.text }]}>I consent to identity verification</Text>
-                <Text style={[styles.consentBody, { color: palette.textSecondary }]}>I agree that Percel can verify my identity and create my dedicated account.</Text>
+                <Text style={[styles.consentBody, { color: palette.textSecondary }]}>
+                  I authorize Percel and its partners to verify my details and issue a dedicated NUBAN.
+                </Text>
               </View>
             </Pressable>
 
             <View style={styles.stepActions}>
-              <Pressable onPress={headerBack} style={[styles.secondary, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <Pressable
+                onPress={headerBack}
+                style={[styles.secondary, { backgroundColor: palette.card, borderColor: palette.border }]}
+              >
                 <Text style={[styles.secondaryText, { color: palette.text }]}>Back</Text>
               </Pressable>
               <Pressable
                 onPress={handleNext}
                 disabled={!identityComplete}
-                style={[styles.primaryAction, styles.stepActionFlex, { backgroundColor: identityComplete ? palette.primary : palette.border }]}
+                style={({ pressed }) => [
+                  styles.primaryAction,
+                  styles.stepActionFlex,
+                  { backgroundColor: identityComplete ? palette.primary : palette.border },
+                  pressed && identityComplete ? { opacity: 0.9 } : null,
+                ]}
               >
-                <Text style={styles.primaryActionText}>Review & submit</Text>
+                <Text style={styles.primaryActionText}>Review Details</Text>
               </Pressable>
             </View>
           </View>
@@ -350,38 +696,48 @@ export default function KycScreen() {
                 <CheckCircle2 size={16} color={palette.success} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review & submit</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm everything before we send the BVN and bank account to Paystack.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Confirm & Submit</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                  Review your information carefully before submitting.
+                </Text>
               </View>
             </View>
 
             <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
               <Text style={[styles.reviewGroupLabel, { color: palette.textSecondary }]}>Personal info</Text>
-              <Row label="Name" value={`${firstName.trim()} ${lastName.trim()}`.trim()} palette={palette} />
+              <Row label="Full Name" value={`${firstName.trim()} ${lastName.trim()}`.trim()} palette={palette} />
               <Row label="Address" value={address.trim()} palette={palette} />
-              <Row label="Date of birth" value={dateOfBirth.trim()} palette={palette} />
+              <Row label="Date of Birth" value={dateOfBirth.trim()} palette={palette} />
             </View>
 
             <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-              <Text style={[styles.reviewGroupLabel, { color: palette.textSecondary }]}>Identity</Text>
+              <Text style={[styles.reviewGroupLabel, { color: palette.textSecondary }]}>Identity & Bank</Text>
               <Row label="BVN" value={bvn.trim()} palette={palette} />
-              <Row label="Bank" value={selectedBank?.name ?? 'Select a bank'} palette={palette} />
-              <Row label="Account" value={accountNumber.trim()} palette={palette} />
-              <Row label="Consent" value={consent ? 'Given' : 'Missing'} palette={palette} />
+              <Row label="Bank" value={selectedBank?.name ?? '—'} palette={palette} />
+              <Row label="Account Number" value={accountNumber.trim()} palette={palette} />
+              <Row label="Consent" value={consent ? 'Authorized' : 'Missing'} palette={palette} />
             </View>
 
-            <StateCard
-              title={statusTitle}
-              description={statusDescription}
-              icon={<CheckCircle2 size={24} color={kycComplete ? palette.success : palette.textSecondary} />}
-            />
-
             <View style={styles.stepActions}>
-              <Pressable onPress={headerBack} style={[styles.secondary, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <Pressable
+                onPress={headerBack}
+                style={[styles.secondary, { backgroundColor: palette.card, borderColor: palette.border }]}
+              >
                 <Text style={[styles.secondaryText, { color: palette.text }]}>Back</Text>
               </Pressable>
-              <Pressable disabled={!canSubmit} onPress={() => void submit()} style={[styles.primaryAction, styles.stepActionFlex, { backgroundColor: canSubmit ? palette.primary : palette.border }]}>
-                <Text style={styles.primaryActionText}>{updateProfile.isPending || verifyBvn.isPending ? 'Verifying…' : verificationPending || submitted ? 'Verification pending' : 'Save and continue'}</Text>
+              <Pressable
+                disabled={!canSubmit}
+                onPress={() => void submit()}
+                style={({ pressed }) => [
+                  styles.primaryAction,
+                  styles.stepActionFlex,
+                  { backgroundColor: canSubmit ? palette.primary : palette.border },
+                  pressed && canSubmit ? { opacity: 0.9 } : null,
+                ]}
+              >
+                <Text style={styles.primaryActionText}>
+                  {updateProfile.isPending || verifyBvn.isPending ? 'Verifying Identity…' : 'Submit Verification'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -392,7 +748,7 @@ export default function KycScreen() {
         visible={bankPickerOpen}
         onClose={() => setBankPickerOpen(false)}
         selectedBankCode={bankCode}
-        banks={(banksQuery.data ?? []) as BankItem[]}
+        banks={banks}
         banksLoading={banksQuery.isLoading}
         onSelect={(bank) => setBankCode(bank.code)}
       />
@@ -417,7 +773,7 @@ function Row({
   palette: ReturnType<typeof useAppPalette>;
 }) {
   return (
-    <View style={[styles.reviewRow, { borderBottomColor: palette.border }]}> 
+    <View style={[styles.reviewRow, { borderBottomColor: palette.border }]}>
       <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>{label}</Text>
       <Text style={[styles.reviewValue, { color: palette.text }]}>{value || '—'}</Text>
     </View>
@@ -427,18 +783,20 @@ function Row({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  centerContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.huge, gap: Spacing.lg, alignItems: 'center' },
+  headerRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { width: 42 },
   headerCopy: { gap: 8 },
   eyebrowLabel: { textTransform: 'uppercase', letterSpacing: 1.2, fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  pageTitle: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
-  hero: { borderRadius: 28, padding: Spacing.lg, gap: 12 },
+  pageTitle: { fontSize: 26, lineHeight: 32, fontFamily: Typography.family.bold },
+  hero: { borderRadius: 24, padding: Spacing.lg, gap: 12 },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   heroLabel: { color: 'rgba(255,255,255,0.68)', fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 1 },
   heroValue: { color: '#fff', fontSize: Typography.lg, fontFamily: Typography.family.bold, marginTop: 2 },
   heroIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
-  heroBody: { color: 'rgba(255,255,255,0.82)', fontSize: Typography.sm, lineHeight: 20 },
+  heroBody: { color: 'rgba(255,255,255,0.85)', fontSize: Typography.sm, lineHeight: 20 },
   card: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   stepPill: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
@@ -455,7 +813,6 @@ const styles = StyleSheet.create({
   bankButtonCopy: { flex: 1, gap: 4 },
   bankButtonLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   bankButtonValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  bankButtonMeta: { fontSize: Typography.xs },
   consentRow: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },
   checkbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   checkboxMark: { color: '#fff', fontSize: Typography.sm, fontFamily: Typography.family.bold },
@@ -464,8 +821,10 @@ const styles = StyleSheet.create({
   consentBody: { fontSize: Typography.xs, lineHeight: 16 },
   stepActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   stepActionFlex: { flex: 1 },
-  primaryAction: { minHeight: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryAction: { minHeight: 56, borderRadius: 16, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   primaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold, textAlign: 'center' },
+  secondaryAction: { minHeight: 54, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  secondaryActionText: { fontSize: Typography.md, fontFamily: Typography.family.bold, textAlign: 'center' },
   secondary: { minHeight: 56, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   secondaryText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   reviewCard: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
@@ -473,8 +832,38 @@ const styles = StyleSheet.create({
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
   reviewLabel: { fontSize: Typography.sm, flexShrink: 0 },
   reviewValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'right', flex: 1 },
+
+  // Verified & Pending specific UI
   verifiedCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.xl, gap: Spacing.lg, alignItems: 'center', width: '100%' },
-  verifiedIconWrap: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  verifiedTitle: { fontSize: 26, fontFamily: Typography.family.bold, textAlign: 'center', letterSpacing: -0.5 },
-  verifiedBody: { fontSize: Typography.sm, lineHeight: 22, textAlign: 'center', paddingHorizontal: Spacing.md },
+  verifiedBadgeGlow: { width: 96, height: 96, borderRadius: 48, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  pendingBadgeWrap: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  verifiedTitle: { fontSize: 24, fontFamily: Typography.family.bold, textAlign: 'center', letterSpacing: -0.5 },
+  verifiedSub: { fontSize: Typography.sm, lineHeight: 22, textAlign: 'center' },
+  nubanCard: { width: '100%', borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  nubanCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nubanHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nubanProviderLabel: { color: '#FFFFFF', fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  activePill: { backgroundColor: 'rgba(48,209,88,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  activePillText: { color: '#30D158', fontSize: 10, fontFamily: Typography.family.bold, letterSpacing: 0.8 },
+  nubanBody: { gap: 4 },
+  nubanLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: Typography.family.bold, letterSpacing: 1 },
+  nubanRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nubanNumber: { color: '#FFFFFF', fontSize: 32, fontFamily: Typography.family.bold, letterSpacing: 2 },
+  copyBtn: { padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.18)' },
+  accountNameLabel: { color: 'rgba(255,255,255,0.85)', fontSize: Typography.xs, fontFamily: Typography.family.medium, marginTop: 4 },
+  nubanPendingText: { color: '#FFFFFF', fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  refetchBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  refetchText: { color: '#FFFFFF', fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  featuresCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 10 },
+  featureItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  featureText: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
+  actionGroup: { width: '100%', gap: 10 },
+  infoBanner: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 8 },
+  liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF9F0A' },
+  liveText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  infoSubtext: { fontSize: Typography.xs, lineHeight: 17 },
+  errorCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  errorTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  errorSub: { fontSize: Typography.xs, lineHeight: 16, marginTop: 2 },
 });
