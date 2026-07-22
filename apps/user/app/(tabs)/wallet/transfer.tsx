@@ -32,6 +32,7 @@ import {
 
 import { useSafeBack } from "@/components/navigation/useSafeBack";
 import { TransactionResultModal } from "@/components/TransactionResultModal";
+import { AppModal, useAppModal } from "@/components/ui/AppModal";
 import { Input } from "@/components/ui/Input";
 import { PinInput } from "@/components/ui/PinInput";
 import { StateCard } from "@/components/ui/StateCard";
@@ -143,6 +144,7 @@ function initialsFromName(name: string) {
 export default function TransferScreen() {
   const router = useRouter();
   const palette = useAppPalette();
+  const modal = useAppModal();
   const walletQuery = useWallet();
   const wallet = walletQuery.data;
   const banksQuery = useBanks(wallet?.paymentProvider);
@@ -732,18 +734,18 @@ export default function TransferScreen() {
                           }}
                           onLongPress={() => {
                             void haptics.warning();
-                            Alert.alert(
-                              "Remove Beneficiary",
-                              `Are you sure you want to remove ${b.name}?`,
-                              [
-                                { text: "Cancel", style: "cancel" },
-                                {
-                                  text: "Remove",
-                                  style: "destructive",
-                                  onPress: () => removeBeneficiary(b.id),
-                                },
-                              ],
-                            );
+                            modal.show({
+                              title: "Remove Beneficiary",
+                              description: `Are you sure you want to remove ${b.name}?`,
+                              type: "warning",
+                              primaryText: "Remove",
+                              onPrimaryPress: () => {
+                                removeBeneficiary(b.id);
+                                modal.hide();
+                              },
+                              secondaryText: "Cancel",
+                              onSecondaryPress: () => modal.hide(),
+                            });
                           }}
                           style={styles.beneficiaryAvatarCard}
                         >
@@ -1083,18 +1085,18 @@ export default function TransferScreen() {
                           }}
                           onLongPress={() => {
                             void haptics.warning();
-                            Alert.alert(
-                              "Remove Contact",
-                              `Are you sure you want to remove ${b.name}?`,
-                              [
-                                { text: "Cancel", style: "cancel" },
-                                {
-                                  text: "Remove",
-                                  style: "destructive",
-                                  onPress: () => removeBeneficiary(b.id),
-                                },
-                              ],
-                            );
+                            modal.show({
+                              title: "Remove Beneficiary",
+                              description: `Are you sure you want to remove ${b.name}?`,
+                              type: "warning",
+                              primaryText: "Remove",
+                              onPrimaryPress: () => {
+                                removeBeneficiary(b.id);
+                                modal.hide();
+                              },
+                              secondaryText: "Cancel",
+                              onSecondaryPress: () => modal.hide(),
+                            });
                           }}
                           style={styles.beneficiaryAvatarCard}
                         >
@@ -2000,6 +2002,7 @@ export default function TransferScreen() {
           reference={receiptResult?.reference}
           onClose={() => setReceiptResult(null)}
         />
+        <AppModal config={modal.config} onClose={modal.hide} />
       </ScrollView>
     </View>
   );

@@ -19,6 +19,7 @@ import { triggerBiometricAuth } from '@/lib/localAuthentication';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { useAppPalette } from '@/lib/theme';
+import { useAppModal, AppModal } from '@/components/ui/AppModal';
 
 type ValidationResult = {
   name: string;
@@ -28,6 +29,7 @@ type ValidationResult = {
 export default function TvScreen() {
   const palette = useAppPalette();
   const mutation = useBuyTv();
+  const modal = useAppModal()
   const validateMutation = useValidateProviderAccount();
   const services = useProviderServices('tv-subscription').data ?? [];
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -263,10 +265,18 @@ export default function TvScreen() {
                       }}
                       onLongPress={() => {
                         void haptics.warning();
-                        Alert.alert('Remove Card', `Remove "${b.name}" from saved cards?`, [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Remove', style: 'destructive', onPress: () => removeBeneficiary(b.id) },
-                        ]);
+                        modal.show({
+                          title: "Remove Card",
+                          description: `Remove ${b.name} from saved cards?`,
+                          type: "warning",
+                          primaryText: "Remove",
+                          onPrimaryPress: () => {
+                            removeBeneficiary(b.id);
+                            modal.hide();
+                          },
+                          secondaryText: "Cancel",
+                          onSecondaryPress: () => modal.hide(),
+                        });
                       }}
                       style={styles.savedCardChip}
                     >
@@ -478,7 +488,7 @@ export default function TvScreen() {
             <Pressable
               onPress={() => {
                 if (!saveCardName.trim()) {
-                  Alert.alert('Error', 'Please enter a name for this smartcard.');
+                  modal.alert(`Error`, `Please enter a name for this smartcard.`, `error`);
                   return;
                 }
                 void haptics.success();
@@ -580,6 +590,7 @@ export default function TvScreen() {
           </View>
         </View>
       </Modal>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </ScrollView>
   );
 }

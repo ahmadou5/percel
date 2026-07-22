@@ -13,6 +13,7 @@ import { useAppPalette, isLight } from '@/lib/theme';
 import { useBeneficiaryStore, type Beneficiary } from '@/store/beneficiary.store';
 import { haptics } from '@/utils/haptics';
 import { getBankLogoUrl } from '@percel/shared';
+import { useAppModal, AppModal } from '@/components/ui/AppModal';
 
 const SLUGS = {
   kyc: { title: 'KYC', description: 'Verify your identity so your account stays compliant and ready for higher limits.', Icon: BadgeCheck },
@@ -31,6 +32,7 @@ type BeneficiaryTab = 'Bank' | 'Airtime' | 'TV';
 
 function BeneficiariesScreen() {
   const palette = useAppPalette();
+  const modal = useAppModal()
   const lightBg = isLight(palette.bg);
   const { beneficiaries, removeBeneficiary } = useBeneficiaryStore();
   const [activeTab, setActiveTab] = useState<BeneficiaryTab>('Airtime');
@@ -48,19 +50,24 @@ function BeneficiariesScreen() {
 
   const currentList: Beneficiary[] =
     activeTab === 'Bank' ? bankBeneficiaries :
-    activeTab === 'TV' ? tvBeneficiaries :
-    airtimeBeneficiaries;
+      activeTab === 'TV' ? tvBeneficiaries :
+        airtimeBeneficiaries;
 
   const handleDelete = (b: Beneficiary) => {
     void haptics.warning();
-    Alert.alert(
-      'Remove beneficiary',
-      `Remove "${b.name}" from saved beneficiaries?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => removeBeneficiary(b.id) },
-      ]
-    );
+    modal.show({
+      title: "Remove Beneficiary",
+      description: `Are you sure you want to remove ${b.name}?`,
+      type: "warning",
+      primaryText: "Remove",
+      onPrimaryPress: () => {
+        removeBeneficiary(b.id);
+        modal.hide();
+      },
+      secondaryText: "Cancel",
+      onSecondaryPress: () => modal.hide(),
+    });
+
   };
 
   return (
@@ -95,8 +102,8 @@ function BeneficiariesScreen() {
           <View style={styles.bEmpty}>
             <View style={[styles.bEmptyIcon, { backgroundColor: lightBg ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)' }]}>
               {activeTab === 'Bank' ? <Landmark size={28} color={palette.textSecondary} /> :
-               activeTab === 'TV' ? <Tv2 size={28} color={palette.textSecondary} /> :
-               <Phone size={28} color={palette.textSecondary} />}
+                activeTab === 'TV' ? <Tv2 size={28} color={palette.textSecondary} /> :
+                  <Phone size={28} color={palette.textSecondary} />}
             </View>
             <Text style={[styles.bEmptyTitle, { color: palette.text }]}>No saved {activeTab === 'Airtime' ? 'contacts' : activeTab === 'TV' ? 'smartcards' : 'accounts'}</Text>
             <Text style={[styles.bEmptyBody, { color: palette.textSecondary }]}>
@@ -115,10 +122,10 @@ function BeneficiariesScreen() {
                   ? <Tv2 size={18} color={palette.primary} />
                   : activeTab === 'Bank' && b.bankName
                     ? <Image
-                        source={{ uri: getBankLogoUrl(b.bankCode || undefined, b.bankName) }}
-                        style={{ width: 28, height: 28 }}
-                        resizeMode="contain"
-                      />
+                      source={{ uri: getBankLogoUrl(b.bankCode || undefined, b.bankName) }}
+                      style={{ width: 28, height: 28 }}
+                      resizeMode="contain"
+                    />
                     : activeTab === 'Bank'
                       ? <Building2 size={18} color={palette.primary} />
                       : <Text style={[styles.bAvatarText, { color: palette.primary }]}>{b.name.slice(0, 2).toUpperCase()}</Text>}
@@ -152,6 +159,7 @@ function BeneficiariesScreen() {
           </Text>
         </View>
       </ScrollView>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }
@@ -197,8 +205,8 @@ export default function SettingsDetailScreen() {
         <BeneficiariesScreen />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-            <View style={[styles.icon, { backgroundColor: palette.text }]}> 
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={[styles.icon, { backgroundColor: palette.text }]}>
               <page.Icon size={24} color={palette.card} />
             </View>
             <View style={[styles.note, { backgroundColor: lightBg ? 'rgba(10,132,255,0.06)' : 'rgba(255,255,255,0.04)', borderColor: palette.border }]}>

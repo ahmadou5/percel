@@ -26,6 +26,8 @@ import {
   useConfirmPhoneVerification,
 } from '@/hooks/useProfile';
 import { useAppPalette } from '@/lib/theme';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
+
 import { usePreferencesStore } from '@/store/preferences.store';
 
 function toFormDate(value?: string | null) {
@@ -35,6 +37,7 @@ function toFormDate(value?: string | null) {
 export default function EditProfileScreen() {
   const back = useSafeBack("/profile");
   const palette = useAppPalette();
+  const modal = useAppModal()
   const profileQuery = useProfile();
   const profile = profileQuery.data;
   const updateProfile = useUpdateProfile();
@@ -65,7 +68,7 @@ export default function EditProfileScreen() {
       await reqEmailVerify.mutateAsync();
       setVerifyType('EMAIL');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not send verification code.');
+      modal.alert(`Error`, `${err.message || 'Could not send verification code.'}`, 'error')
     }
   };
 
@@ -76,7 +79,7 @@ export default function EditProfileScreen() {
       await reqPhoneVerify.mutateAsync();
       setVerifyType('PHONE');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not send verification code.');
+      modal.alert(`Error`, `${err.message || 'Could not send verification code.'}`, `error`)
     }
   };
 
@@ -90,8 +93,10 @@ export default function EditProfileScreen() {
         await confirmPhoneVerify.mutateAsync(verifyOtp);
       }
       setVerifyType(null);
-      Alert.alert('Success', `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`);
+      modal.alert(`Success`, `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`, `success`)
+
     } catch (err: any) {
+      modal.alert(`Error`, `${err.message || 'Verification failed. Please try again.'}`, `error`)
       setVerifyError(err.message || 'Verification failed. Please try again.');
     }
   };
@@ -100,7 +105,7 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     if (!Device.isDevice) {
-      Alert.alert('Security warning', 'Use a physical device for profile changes when possible.');
+      modal.alert(`Security warning`, `Use a physical device for profile changes when possible.`, `warning`)
     }
 
     if (!allowScreenshots) {
@@ -138,17 +143,17 @@ export default function EditProfileScreen() {
         dateOfBirth: dateOfBirth ? dateOfBirth : null,
         address: address.trim() ? address.trim() : null,
       });
-      Alert.alert('Profile updated', 'Your changes were saved.');
+      modal.alert(`Profile updated`, `Your changes were saved`, `success`)
       back();
     } catch (error) {
-      Alert.alert('Could not update profile', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert(`Could not update profile`, `${error instanceof Error ? error.message : 'Please try again.'}`, `error`)
     }
   };
 
   const changeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo access to change your avatar.');
+      modal.alert(`Permission required`, `Allow photo access to change your avatar.`, `info`)
       return;
     }
 
@@ -173,9 +178,9 @@ export default function EditProfileScreen() {
 
     try {
       await updateAvatar.mutateAsync(formData);
-      Alert.alert('Avatar updated', 'Your profile photo has been saved.');
+      modal.alert(`Avatar updated`, `Your profile photo has been saved.`, `success`);
     } catch (error) {
-      Alert.alert('Could not update avatar', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert(`Could not update avatar`, `${error instanceof Error ? error.message : 'Please try again.'}`, `error`);
     }
   };
 
@@ -186,9 +191,9 @@ export default function EditProfileScreen() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      Alert.alert('Password changed', 'Use the new password the next time you sign in.');
+      modal.alert(`Password changed`, `Use the new password the next time you sign in.`, `success`);
     } catch (error) {
-      Alert.alert('Could not change password', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert(`Could not change password`, `${error instanceof Error ? error.message : 'Please try again.'}`, `error`);
     }
   };
 
@@ -196,7 +201,7 @@ export default function EditProfileScreen() {
     try {
       await deleteAccount.mutateAsync();
     } catch (error) {
-      Alert.alert('Could not delete account', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert(`Could not delete account`, `${error instanceof Error ? error.message : 'Please try again.'}`, `error`);
     }
   };
 
@@ -204,12 +209,12 @@ export default function EditProfileScreen() {
     <KeyboardView>
       <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-              <Pressable onPress={() => back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-               <ChevronLeft size={20} color={palette.text} fill={"none"}  />
-              </Pressable>
-              
-              <View style={styles.headerSpacer} />
-            </View>
+          <Pressable onPress={() => back()} style={[styles.backButton, { borderColor: palette.border }]}>
+            <ChevronLeft size={20} color={palette.text} fill={"none"} />
+          </Pressable>
+
+          <View style={styles.headerSpacer} />
+        </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Profile</Text>
           <Text style={[styles.title, { color: palette.text }]}>Keep your account details current and secure.</Text>
@@ -365,6 +370,7 @@ export default function EditProfileScreen() {
           </View>
         </View>
       </Modal>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </KeyboardView>
   );
 }
@@ -390,9 +396,9 @@ const styles = StyleSheet.create({
   formCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
-   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    headerSpacer: { width: 42 },
-      backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSpacer: { width: 42 },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
   verificationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255, 255, 255, 0.1)', paddingBottom: 12, marginBottom: 4 },
   verificationCopy: { flex: 1, gap: 2 },
