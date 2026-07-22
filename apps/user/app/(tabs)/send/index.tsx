@@ -116,6 +116,29 @@ const MOCK_LANDMARKS: LandmarkItem[] = [
   },
 ];
 
+// ── Helper to format clean Google-style title & subtitle from full address ──
+function parseAddressDisplay(fullAddress: string): { title: string; subtitle: string } {
+  if (!fullAddress || !fullAddress.trim()) {
+    return { title: '', subtitle: '' };
+  }
+  // Strip technical Plus Codes (e.g. XG8P+4Q9) and postal zip codes
+  const cleaned = fullAddress
+    .replace(/\b[A-Z0-9]{4}\+[A-Z0-9]{2,3}\b/gi, '')
+    .replace(/\b\d{5,6}\b/g, '')
+    .trim();
+
+  const parts = cleaned.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) {
+    return { title: fullAddress, subtitle: '' };
+  }
+  if (parts.length === 1) {
+    return { title: parts[0], subtitle: '' };
+  }
+  const title = parts[0];
+  const subtitle = parts.slice(1).join(', ');
+  return { title, subtitle };
+}
+
 type DeliveryMode = 'INTRASTATE' | 'INTERSTATE';
 type LocationTarget = 'pickup' | 'delivery';
 type MapPoint = { latitude: number; longitude: number };
@@ -614,15 +637,22 @@ export default function SendOrderEntryScreen() {
               <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
                 {mode === 'INTERSTATE' ? 'Local pickup address (optional)' : 'Pickup location'}
               </Text>
-              <Text
-                style={[
-                  styles.addressValueText,
-                  { color: pickupAddress ? palette.text : palette.textSecondary },
-                ]}
-                numberOfLines={1}
-              >
-                {pickupAddress || (mode === 'INTERSTATE' ? 'Your pickup address' : 'Enter pickup location')}
-              </Text>
+              {pickupAddress ? (
+                <>
+                  <Text style={[styles.addressValueText, { color: palette.text }]} numberOfLines={1}>
+                    {parseAddressDisplay(pickupAddress).title}
+                  </Text>
+                  {Boolean(parseAddressDisplay(pickupAddress).subtitle) && (
+                    <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.regular }} numberOfLines={1}>
+                      {parseAddressDisplay(pickupAddress).subtitle}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={[styles.addressValueText, { color: palette.textSecondary }]} numberOfLines={1}>
+                  {mode === 'INTERSTATE' ? 'Your pickup address' : 'Enter pickup location'}
+                </Text>
+              )}
             </View>
             {mode === 'INTRASTATE' && (
               <Pressable
@@ -673,15 +703,22 @@ export default function SendOrderEntryScreen() {
               <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
                 {mode === 'INTERSTATE' ? 'Recipient address' : 'Delivery address'}
               </Text>
-              <Text
-                style={[
-                  styles.addressValueText,
-                  { color: deliveryAddress ? palette.text : palette.textSecondary },
-                ]}
-                numberOfLines={1}
-              >
-                {deliveryAddress || 'Enter delivery address'}
-              </Text>
+              {deliveryAddress ? (
+                <>
+                  <Text style={[styles.addressValueText, { color: palette.text }]} numberOfLines={1}>
+                    {parseAddressDisplay(deliveryAddress).title}
+                  </Text>
+                  {Boolean(parseAddressDisplay(deliveryAddress).subtitle) && (
+                    <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.regular }} numberOfLines={1}>
+                      {parseAddressDisplay(deliveryAddress).subtitle}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={[styles.addressValueText, { color: palette.textSecondary }]} numberOfLines={1}>
+                  Enter delivery destination
+                </Text>
+              )}
             </View>
           </Pressable>
         </View>
@@ -1019,9 +1056,16 @@ export default function SendOrderEntryScreen() {
               <Text style={[styles.mapSearchLabel, { color: palette.textSecondary }]}>
                 {mapPickerTarget === 'pickup' ? 'Choose pickup location' : 'Choose destination'}
               </Text>
-              <Text style={[styles.mapSearchTitle, { color: palette.text }]} numberOfLines={1}>
-                Pan and zoom map under pin
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {mapPickerResolving && <ActivityIndicator size={10} color={palette.primary} />}
+                <Text style={[styles.mapSearchTitle, { color: palette.text, flex: 1 }]} numberOfLines={1}>
+                  {mapPickerResolving
+                    ? 'Resolving location...'
+                    : (mapPickerTarget === 'pickup' ? pickupAddress : deliveryAddress)
+                      ? parseAddressDisplay(mapPickerTarget === 'pickup' ? pickupAddress : deliveryAddress).title
+                      : 'Pan map to position pin'}
+                </Text>
+              </View>
             </View>
           </View>
 
