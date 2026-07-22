@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft, Pencil } from 'lucide-react-native';
-
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -20,6 +20,7 @@ export default function ProfileScreen() {
   const updateAvatar = useUpdateAvatar();
   const authUser = useAuthStore((state) => state.user);
   const profile = profileQuery.data ?? authUser;
+  const modal = useAppModal()
 
   const displayName = profile?.fullName ?? 'Account';
   const initials = useMemo(() => {
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
   const changeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow photo access to update your avatar.');
+      modal.alert(`Permission required`, `Allow photo access to update your avatar.`, 'info');
       return;
     }
 
@@ -58,78 +59,82 @@ export default function ProfileScreen() {
 
     try {
       await updateAvatar.mutateAsync(formData);
-      Alert.alert('Avatar updated', 'Your profile photo has been saved.');
+      modal.alert(`Avatar updated`, `Your profile picture has been saved.`, 'success')
+
     } catch (error) {
-      Alert.alert('Could not update avatar', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert(`Could not update avatar`, `${error instanceof Error ? error.message : 'Please try again.'}.`, 'error')
     }
   };
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-       <View style={styles.headerRow}>
-              <Pressable onPress={() => back()} style={[styles.backButton, {  borderColor: palette.border }]}>
-               <ChevronLeft size={20} color={palette.text} fill={"none"}  />
-              </Pressable>
-              <Text style={[styles.headerTitle, { color: palette.text }]}>Profile</Text>
-              <View style={styles.headerSpacer} />
-            </View>
+    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.xxxl, gap: Spacing.lg }} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => back()} style={[styles.backButton, { borderColor: palette.border }]}>
+          <ChevronLeft size={20} color={palette.text} fill={"none"} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: palette.text }]}>Profile</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
-      <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Pressable onPress={() => void changeAvatar()} style={({ pressed }) => [styles.avatarWrap, pressed ? { transform: [{ scale: 0.98 }] } : null]}>
-          <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
-            {profile?.avatarUrl ? (
-              <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Pressable onPress={() => void changeAvatar()} style={({ pressed }) => [styles.avatarWrap, pressed ? { transform: [{ scale: 0.98 }] } : null]}>
+            <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
+              {profile?.avatarUrl ? (
+                <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarText, { color: palette.card }]}>{initials}</Text>
+              )}
+            </View>
+          </Pressable>
+
+          <View style={styles.identityBlock}>
+            <Text style={[styles.name, { color: palette.text }]}>{displayName}</Text>
+            <Text style={[styles.username, { color: palette.textSecondary }]}>{username}</Text>
+            <View style={[styles.badge, { backgroundColor: verified ? 'rgba(48, 209, 88, 0.16)' : 'rgba(255, 214, 10, 0.16)' }]}>
+              <ShieldCheck size={12} color={verified ? palette.success : palette.warning} />
+              <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'KYC complete' : 'KYC required'}</Text>
+            </View>
+            {verified ? (
+              <View style={[styles.kycVerifiedCard, { backgroundColor: 'rgba(48,209,88,0.06)', borderColor: palette.success + '30' }]}>
+
+                <View style={styles.kycVerifiedTextWrap}>
+                  <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity Verified</Text>
+                  <Text style={[styles.kycVerifiedSubtitle, { color: palette.textSecondary }]}>Your NUBAN and bank payouts are fully unlocked.</Text>
+                </View>
+              </View>
             ) : (
-              <Text style={[styles.avatarText, { color: palette.card }]}>{initials}</Text>
+              <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: lightBg ? 'rgba(255,214,10,0.10)' : 'rgba(255,214,10,0.12)', borderColor: palette.border }]}>
+                <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC to unlock your NUBAN</Text>
+                <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Choose BVN or NIN and finish KYC in Settings.</Text>
+              </Pressable>
             )}
           </View>
-        </Pressable>
 
-        <View style={styles.identityBlock}>
-          <Text style={[styles.name, { color: palette.text }]}>{displayName}</Text>
-          <Text style={[styles.username, { color: palette.textSecondary }]}>{username}</Text>
-          <View style={[styles.badge, { backgroundColor: verified ? 'rgba(48, 209, 88, 0.16)' : 'rgba(255, 214, 10, 0.16)' }]}>
-            <ShieldCheck size={12} color={verified ? palette.success : palette.warning} />
-            <Text style={[styles.badgeText, { color: verified ? palette.success : palette.warning }]}>{verified ? 'KYC complete' : 'KYC required'}</Text>
-          </View>
-          {verified ? (
-            <View style={[styles.kycVerifiedCard, { backgroundColor: 'rgba(48,209,88,0.06)', borderColor: palette.success + '30' }]}>
-              <ShieldCheck size={18} color={palette.success} />
-              <View style={styles.kycVerifiedTextWrap}>
-                <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity Verified</Text>
-                <Text style={[styles.kycVerifiedSubtitle, { color: palette.textSecondary }]}>Your NUBAN and bank payouts are fully unlocked.</Text>
-              </View>
+          <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
+            <View style={[styles.referralIcon, { backgroundColor: palette.primary }]}>
+              <Gift size={20} color={palette.card} />
             </View>
-          ) : (
-            <Pressable onPress={() => router.push('/settings/kyc')} style={[styles.kycCallout, { backgroundColor: lightBg ? 'rgba(255,214,10,0.10)' : 'rgba(255,214,10,0.12)', borderColor: palette.border }]}>
-              <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC to unlock your NUBAN</Text>
-              <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>Choose BVN or NIN and finish KYC in Settings.</Text>
-            </Pressable>
-          )}
+            <View style={styles.referralCopy}>
+              <Text style={[styles.referralTitle, { color: palette.text }]}>Refer & Earn</Text>
+              <Text style={[styles.referralSubtitle, { color: palette.textSecondary }]}>Invite friends and earn rewards</Text>
+            </View>
+            <ChevronRight size={18} color={palette.textSecondary} />
+          </Pressable>
+
+          <Pressable onPress={() => router.push('/profile/edit')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
+            <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
+              <Pencil size={16} color={palette.card} />
+            </View>
+            <View style={styles.settingsCopy}>
+              <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
+              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit your profile information</Text>
+            </View>
+            <ChevronRight size={18} color={palette.textSecondary} />
+          </Pressable>
         </View>
-
-        <Pressable onPress={() => router.push('/referrals')} style={({ pressed }) => [styles.referralCard, { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border }, pressed ? styles.pressed : null]}>
-          <View style={[styles.referralIcon, { backgroundColor: palette.primary }]}> 
-            <Gift size={20} color={palette.card} />
-          </View>
-          <View style={styles.referralCopy}>
-            <Text style={[styles.referralTitle, { color: palette.text }]}>Refer & Earn</Text>
-            <Text style={[styles.referralSubtitle, { color: palette.textSecondary }]}>Invite friends and earn rewards</Text>
-          </View>
-          <ChevronRight size={18} color={palette.textSecondary} />
-        </Pressable>
-
-        <Pressable onPress={() => router.push('/profile/edit')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
-          <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
-            <Pencil size={16} color={palette.card} />
-          </View>
-          <View style={styles.settingsCopy}>
-            <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
-            <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit your profile information</Text>
-          </View>
-          <ChevronRight size={18} color={palette.textSecondary} />
-        </Pressable>
       </View>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </ScrollView>
   );
 }
@@ -140,7 +145,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
- backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   profileCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
   avatarWrap: { alignSelf: 'center' },
   avatar: { width: 80, height: 80, borderRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -166,8 +171,8 @@ const styles = StyleSheet.create({
   settingsTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   settingsSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
   pressed: { opacity: 0.92 },
-  kycVerifiedCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 10, flexDirection: 'row', alignItems: 'center' },
-  kycVerifiedTextWrap: { flex: 1, gap: 2 },
-  kycVerifiedTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  kycVerifiedSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
+  kycVerifiedCard: { width: '90%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 10, flexDirection: 'row', alignItems: 'center' },
+  kycVerifiedTextWrap: { flex: 1, gap: 1 },
+  kycVerifiedTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'center' },
+  kycVerifiedSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textAlign: 'center' },
 });

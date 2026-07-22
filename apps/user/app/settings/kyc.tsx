@@ -3,11 +3,13 @@ import { useRouter } from 'expo-router';
 import {
   AlertCircle,
   ArrowRight,
+  BadgeInfo,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   Copy,
   CreditCard,
+  Landmark,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -30,12 +32,13 @@ import { StateCard } from '@/components/ui/StateCard';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
 import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
-import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateProfile, useVerifyBvn } from '@/hooks/useProfile';
 import { useBanks, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
+import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
 
 function isOfAge(dateString: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
@@ -86,6 +89,7 @@ export default function KycScreen() {
   const wallet = walletQuery.data;
   const banks = (banksQuery.data ?? []) as BankItem[];
 
+  const modal = useAppModal();
   const [step, setStep] = useState<KycStep>(1);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -219,9 +223,9 @@ export default function KycScreen() {
     try {
       const Clipboard = await import('expo-clipboard');
       await Clipboard.setStringAsync(text);
-      Alert.alert(`${label} Copied!`, `${text} has been copied to your clipboard.`);
+      modal.alert(`${label} Copied!`, `${text} has been copied to your clipboard.`, 'success');
     } catch {
-      Alert.alert(label, text);
+      modal.alert(label, text, 'info');
     }
   };
 
@@ -237,7 +241,7 @@ export default function KycScreen() {
     return (
       <ScrollView
         style={[styles.screen, { backgroundColor: palette.bg }]}
-        contentContainerStyle={styles.centerContent}
+        contentContainerStyle={{ flexGrow: 1, padding: Spacing.lg, paddingBottom: Spacing.xxxl }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
@@ -251,88 +255,33 @@ export default function KycScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <Animated.View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border, transform: [{ scale: scaleAnim }] }]}>
-          <View style={[styles.verifiedBadgeGlow, { backgroundColor: 'rgba(48,209,88,0.14)', borderColor: palette.success }]}>
-            <ShieldCheck size={56} color={palette.success} />
-          </View>
-
-          <Text style={[styles.verifiedTitle, { color: palette.text }]}>You're Fully Verified!</Text>
-          <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
-            Your identity was successfully validated. Your dedicated bank account is active for transfers, deposits, and bill payments.
-          </Text>
-
-          {/* Dedicated Virtual Account Card */}
-          <View style={[styles.nubanCard, { backgroundColor: palette.primaryDark, borderColor: palette.border }]}>
-            <View style={styles.nubanCardHeader}>
-              <View style={styles.nubanHeaderLeft}>
-                <CreditCard size={20} color="#FFFFFF" />
-                <Text style={styles.nubanProviderLabel}>{bankName}</Text>
-              </View>
-              <View style={styles.activePill}>
-                <Text style={styles.activePillText}>ACTIVE NUBAN</Text>
-              </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Animated.View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border, transform: [{ scale: scaleAnim }] }]}>
+            <View style={[styles.verifiedBadgeGlow, { backgroundColor: 'rgba(48,209,88,0.14)', borderColor: palette.success }]}>
+              <ShieldCheck size={56} color={palette.success} />
             </View>
 
-            {nuban ? (
-              <View style={styles.nubanBody}>
-                <Text style={styles.nubanLabel}>DEDICATED ACCOUNT NUMBER</Text>
-                <View style={styles.nubanRow}>
-                  <Text style={styles.nubanNumber}>{nuban}</Text>
-                  <Pressable
-                    onPress={() => void copyToClipboard(nuban, 'Account Number')}
-                    style={({ pressed }) => [styles.copyBtn, pressed ? { opacity: 0.7 } : null]}
-                  >
-                    <Copy size={18} color="#FFFFFF" />
-                  </Pressable>
-                </View>
-                <Text style={styles.accountNameLabel}>ACCOUNT NAME: {profile?.fullName || 'Percel User'}</Text>
-              </View>
-            ) : (
-              <View style={styles.nubanBody}>
-                <Text style={styles.nubanLabel}>ACCOUNT PROVISIONING</Text>
-                <Text style={styles.nubanPendingText}>Generating your dedicated NUBAN account details…</Text>
-                <Pressable onPress={() => void walletQuery.refetch()} style={styles.refetchBtn}>
-                  <RefreshCw size={14} color="#FFFFFF" />
-                  <Text style={styles.refetchText}>Refresh Account Info</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
+            <Text style={[styles.verifiedTitle, { color: palette.text }]}>Verified!</Text>
+            <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
+              Your identity was successfully validated. Your dedicated bank account is active for transfers, deposits, and bill payments.
+            </Text>
 
-          {/* Quick Features List */}
-          <View style={[styles.featuresCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-            <View style={styles.featureItem}>
-              <CheckCircle2 size={18} color={palette.success} />
-              <Text style={[styles.featureText, { color: palette.text }]}>Unlimited Wallet Top-ups & Transfers</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <CheckCircle2 size={18} color={palette.success} />
-              <Text style={[styles.featureText, { color: palette.text }]}>Direct Bank Deposit Receiver</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <CheckCircle2 size={18} color={palette.success} />
-              <Text style={[styles.featureText, { color: palette.text }]}>Airtime, Data, Electricity & TV Bills</Text>
-            </View>
-          </View>
 
-          <View style={styles.actionGroup}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/wallet/transfer' as never)}
-              style={({ pressed }) => [styles.primaryAction, { backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
-            >
-              <Send size={18} color="#FFFFFF" />
-              <Text style={styles.primaryActionText}>Transfer Money</Text>
-            </Pressable>
 
-            <Pressable
-              onPress={() => router.push('/(tabs)/wallet/topup' as never)}
-              style={({ pressed }) => [styles.secondaryAction, { backgroundColor: palette.bg, borderColor: palette.border }, pressed && { opacity: 0.85 }]}
-            >
-              <Zap size={18} color={palette.text} />
-              <Text style={[styles.secondaryActionText, { color: palette.text }]}>Top Up Wallet</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+
+
+            <View style={styles.actionGroup}>
+              <Pressable
+                onPress={() => back()}
+                style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
+              >
+                <Text style={styles.primaryActionText}>Continue</Text>
+              </Pressable>
+
+
+            </View>
+          </Animated.View>
+        </View>
       </ScrollView>
     );
   }
@@ -347,7 +296,7 @@ export default function KycScreen() {
     return (
       <ScrollView
         style={[styles.screen, { backgroundColor: palette.bg }]}
-        contentContainerStyle={styles.centerContent}
+        contentContainerStyle={{ flexGrow: 1, padding: Spacing.lg, paddingBottom: Spacing.xxxl }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
@@ -361,51 +310,33 @@ export default function KycScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Animated.View
-            style={[
-              styles.pendingBadgeWrap,
-              { backgroundColor: 'rgba(255,159,10,0.12)', borderColor: '#FF9F0A', transform: [{ scale: pulseAnim }] },
-            ]}
-          >
-            <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <RefreshCw size={44} color="#FF9F0A" />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Animated.View
+              style={[
+                styles.pendingBadgeWrap,
+                { backgroundColor: 'rgba(255,159,10,0.12)', borderColor: '#FF9F0A', transform: [{ scale: pulseAnim }] },
+              ]}
+            >
+              <Animated.View >
+                <BadgeInfo size={44} color="#FF9F0A" />
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
 
-          <Text style={[styles.verifiedTitle, { color: palette.text }]}>Verification in Progress</Text>
-          <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
-            Our identity partner is validating your BVN and bank account details. Your dedicated NUBAN will be assigned automatically.
-          </Text>
-
-          <View style={[styles.infoBanner, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-            <View style={styles.liveIndicator}>
-              <View style={styles.pulseDot} />
-              <Text style={[styles.liveText, { color: palette.textSecondary }]}>Checking verification status automatically…</Text>
-            </View>
-            <Text style={[styles.infoSubtext, { color: palette.textSecondary }]}>
-              You don't need to stay on this screen. You will receive a system notification as soon as status confirms!
+            <Text style={[styles.verifiedTitle, { color: palette.text }]}>Verification in Progress</Text>
+            <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
+              Our identity partner is validating your BVN and bank account details. Your dedicated NUBAN will be assigned automatically.
             </Text>
+
+            <Pressable
+              onPress={() => back()}
+              style={({ pressed }) => [styles.secondaryAction, { width: '100%', backgroundColor: palette.bg, borderColor: palette.border }, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={[styles.secondaryActionText, { color: palette.text }]}>Back to Profile</Text>
+            </Pressable>
           </View>
-
-          <Pressable
-            onPress={() => {
-              void profileQuery.refetch();
-              void walletQuery.refetch();
-            }}
-            style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
-          >
-            <RefreshCw size={18} color="#FFFFFF" />
-            <Text style={styles.primaryActionText}>Check Status Now</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => back()}
-            style={({ pressed }) => [styles.secondaryAction, { width: '100%', backgroundColor: palette.bg, borderColor: palette.border }, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={[styles.secondaryActionText, { color: palette.text }]}>Back to Profile</Text>
-          </Pressable>
         </View>
+        <AppModal config={modal.config} onClose={modal.hide} />
       </ScrollView>
     );
   }
@@ -429,9 +360,10 @@ export default function KycScreen() {
 
   const submit = async () => {
     if (!canSubmit) {
-      Alert.alert(
+      modal.alert(
         'Complete all required fields',
         'Please enter your full name, residential address, date of birth, BVN, account number, bank, and consent before continuing.',
+        'warning',
       );
       return;
     }
@@ -460,10 +392,10 @@ export default function KycScreen() {
       ]);
 
       if (result.kycComplete || result.status === 'ACTIVE') {
-        Alert.alert('Verification Approved!', 'Your identity is verified and your dedicated account is ready.');
+        modal.alert('Verification Approved!', 'Your identity is verified and your dedicated account is ready.', 'success');
       }
     } catch (error) {
-      Alert.alert('Verification Failed', error instanceof Error ? error.message : 'Please check your details and try again.');
+      modal.alert('Verification Failed', error instanceof Error ? error.message : 'Please check your details and try again.', 'error');
     }
   };
 
@@ -759,6 +691,8 @@ export default function KycScreen() {
         onSelect={setDateOfBirth}
         initialValue={dateOfBirth}
       />
+
+      <AppModal config={modal.config} onClose={modal.hide} />
     </ScrollView>
   );
 }
@@ -838,7 +772,7 @@ const styles = StyleSheet.create({
   verifiedBadgeGlow: { width: 96, height: 96, borderRadius: 48, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   pendingBadgeWrap: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   verifiedTitle: { fontSize: 24, fontFamily: Typography.family.bold, textAlign: 'center', letterSpacing: -0.5 },
-  verifiedSub: { fontSize: Typography.sm, lineHeight: 22, textAlign: 'center' },
+  verifiedSub: { fontSize: Typography.sm, lineHeight: 22, textAlign: 'center', fontFamily: Typography.family.regular },
   nubanCard: { width: '100%', borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
   nubanCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nubanHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },

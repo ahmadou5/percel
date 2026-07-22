@@ -1,9 +1,10 @@
 import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ArrowLeft, Banknote, Copy, CreditCard, ExternalLink, Landmark, PlusCircle } from "lucide-react-native";
 
+import { AppModal, useAppModal } from "@/components/ui/AppModal";
 import { AmountInput } from "@/components/wallet/AmountInput";
 import { ConfirmSheet } from "@/components/wallet/ConfirmSheet";
 import { StateCard } from "@/components/ui/StateCard";
@@ -25,6 +26,7 @@ const quickAmounts = [1000, 2500, 5000, 10000] as const;
 type FundingMethod = "bank" | "paystack";
 
 export default function TopUpScreen() {
+  const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
   const back = useSafeBack("/wallet");
@@ -57,10 +59,10 @@ export default function TopUpScreen() {
     try {
       const Clipboard = await import("expo-clipboard");
       await Clipboard.setStringAsync(value);
-      Alert.alert(`${label} copied`, "You can paste it into your bank app now.");
+      modal.alert(`${label} copied`, "You can paste it into your bank app now.", "success");
       return;
     } catch {
-      Alert.alert(label, value || "Nothing to show yet.");
+      modal.alert(label, value || "Nothing to show yet.", "info");
     }
   };
 
@@ -369,6 +371,8 @@ export default function TopUpScreen() {
         onConfirm={submit}
         onCancel={() => setPreviewOpen(false)}
       />
+
+      <AppModal config={modal.config} onClose={modal.hide} />
     </ScrollView>
   );
 }

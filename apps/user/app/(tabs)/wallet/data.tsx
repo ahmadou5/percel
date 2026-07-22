@@ -1,5 +1,5 @@
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Globe, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useBeneficiaryStore } from '@/store/beneficiary.store';
@@ -19,6 +19,7 @@ import { triggerBiometricAuth } from '@/lib/localAuthentication';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { useAppPalette, isLight } from '@/lib/theme';
+import { AirtimeContactsSheet, type AirtimeContactsSheetRef } from '@/components/wallet/AirtimeContactsSheet';
 
 type ProviderSelection = {
   phone: string;
@@ -58,10 +59,28 @@ export default function DataScreen() {
   const dataContacts = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { translateX } = useSlideStepTransition(step);
   const back = useSafeBack("/wallet");
+  const contactsSheetRef = useRef<AirtimeContactsSheetRef>(null);
   useStepBackHandler(step, () => { if (step > 1) { setStep((current) => (current - 1) as typeof step); } });
 
   const TABS = ['Popular', 'Daily', 'Weekly', 'Monthly', 'Broad'] as const;
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>('Popular');
+
+
+  const handleContactSelect = (selection: { phone: string; serviceID?: string; providerName?: string }) => {
+    setPhone(selection.phone.replace(/^\+234/, '0'));
+    if (selection.serviceID && selection.providerName) {
+      const match = services.find((s) => s.serviceID === selection.serviceID);
+      if (match) setSelectedServiceID(match.serviceID);
+      setProviderValidation({
+        phone: selection.phone,
+        serviceID: selection.serviceID,
+        providerName: selection.providerName,
+        confidence: 'high',
+      });
+      setProviderStatus('success');
+      setStep(2);
+    }
+  };
 
   const selectedService = services.find((service) => service.serviceID === selectedServiceID) ?? services[0];
   const variationsQuery = useProviderVariations(selectedService?.serviceID);
@@ -293,20 +312,19 @@ export default function DataScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Data</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Resolve the network first, pick the bundle second, then review.</Text>
+
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
         <View style={styles.heroTop}>
           <View>
-            <Text style={styles.heroLabel}>Live provider check</Text>
+            <Text style={styles.heroLabel}>Provider</Text>
             <Text style={styles.heroValue}>{displayNetwork}</Text>
           </View>
           <View style={styles.heroIcon}>
             <Globe color="#fff" size={20} />
           </View>
         </View>
-        <Text style={styles.heroBody}>The number is checked first, then the live bundles load from VTpass with provider logos.</Text>
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
@@ -318,7 +336,6 @@ export default function DataScreen() {
                 <Smartphone size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider detection</Text>
                 <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number and we will auto-detect the network.</Text>
               </View>
             </View>
@@ -328,7 +345,7 @@ export default function DataScreen() {
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
-              placeholder="08012345678"
+              placeholder="Enter Number"
               leftElement={
                 <Pressable onPress={() => setProviderPickerOpen(true)} style={styles.providerPill}>
                   {selectedService ? <ProviderBadge serviceID={selectedService.serviceID} name={selectedService.name} logoUrl={selectedService.logoUrl ?? selectedService.logo ?? selectedService.image ?? null} size={22} /> : null}
@@ -338,7 +355,7 @@ export default function DataScreen() {
               }
               helperText="If lookup fails, you can pick the provider manually."
               rightElement={
-                <Pressable onPress={() => setDataContactsModalOpen(true)} style={styles.contactButton}>
+                <Pressable onPress={() => contactsSheetRef.current?.open()} style={styles.contactButton}>
                   <ContactRound size={18} color={palette.primary} />
                 </Pressable>
               }
@@ -383,8 +400,7 @@ export default function DataScreen() {
                 <Globe size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Bundle selection</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Pick a live bundle. The price follows the selected variation.</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select a data bundle.</Text>
               </View>
             </View>
 
@@ -478,8 +494,7 @@ export default function DataScreen() {
                 <CheckCircle2 size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the bundle and amount before you pay.</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the amount before you pay.</Text>
               </View>
             </View>
 
@@ -515,68 +530,7 @@ export default function DataScreen() {
         onClose={handleCloseResult}
       />
 
-      {/* Data Contacts Modal */}
-      <Modal visible={dataContactsModalOpen} transparent animationType="slide" onRequestClose={() => setDataContactsModalOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDataContactsModalOpen(false)} />
-          <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: palette.text }]}>Saved Contacts</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select a phone number to populate the field.</Text>
-              </View>
-              <Pressable onPress={() => setDataContactsModalOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
-                <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
-              </Pressable>
-            </View>
-            <FlatList
-              data={dataContacts}
-              keyExtractor={(item) => item.id}
-              ListEmptyComponent={
-                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-                  No saved contacts yet. Save a number from the Airtime screen first.
-                </Text>
-              }
-              renderItem={({ item }) => (
-                <View style={[styles.dataContactRow, { borderColor: palette.border }]}>
-                  <Pressable
-                    onPress={() => {
-                      void haptics.tap();
-                      setPhone(item.phone || '');
-                      setDataContactsModalOpen(false);
-                    }}
-                    style={styles.dataContactRowLeft}
-                  >
-                    <View style={[styles.dataContactAvatar, { backgroundColor: palette.bg, borderColor: palette.border }]}>
-                      <Text style={[styles.dataContactAvatarText, { color: palette.text }]}>
-                        {item.name.slice(0, 2).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text style={[styles.dataContactName, { color: palette.text }]}>{item.name}</Text>
-                      <Text style={[styles.dataContactPhone, { color: palette.textSecondary }]}>
-                        {item.phone} • {item.bankName || 'Network'}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      void haptics.warning();
-                      Alert.alert('Remove Contact', `Remove "${item.name}"?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Remove', style: 'destructive', onPress: () => removeBeneficiary(item.id) },
-                      ]);
-                    }}
-                    style={styles.dataContactDelete}
-                  >
-                    <Text style={{ color: palette.error, fontSize: Typography.xs, fontFamily: Typography.family.bold }}>Remove</Text>
-                  </Pressable>
-                </View>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+
 
       <PaymentPinModal
         visible={pinModalOpen}
@@ -653,6 +607,11 @@ export default function DataScreen() {
           </View>
         </View>
       </Modal>
+      <AirtimeContactsSheet
+        ref={contactsSheetRef}
+        selectedServiceID={selectedServiceID}
+        onSelect={handleContactSelect}
+      />
     </ScrollView>
   );
 }
@@ -677,8 +636,8 @@ const styles = StyleSheet.create({
   stepPill: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17 },
-  providerPill: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionSubtitle: { fontSize: Typography.xs, lineHeight: 16, fontFamily: Typography.family.medium },
+  providerPill: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 3, paddingHorizontal: Spacing.xs, marginRight: Spacing.sm, borderRadius: Spacing.xl },
   providerText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   statusCard: { borderWidth: 1, borderRadius: 18, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },
   statusCopy: { flex: 1, gap: 2 },

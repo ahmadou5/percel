@@ -27,11 +27,12 @@ import {
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useAuthStore } from '@/store/auth.store';
 import { useAppPalette, isLight } from '@/lib/theme';
 import { useReferralStats, useApplyReferralCode, type ReferralEntry } from '@/hooks/useReferrals';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 
 const NGN = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
 
@@ -54,6 +55,7 @@ function statusLabel(status: ReferralEntry['status']) {
 }
 
 export default function ReferralsScreen() {
+  const modal = useAppModal();
   const palette = useAppPalette();
   const lightBg = isLight(palette.bg);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -77,29 +79,29 @@ export default function ReferralsScreen() {
         message: `Join me on Percel – Nigeria's premium delivery platform. Use my referral code: ${code}\n\nYou'll get ${NGN.format(stats?.inviteeBonus ?? 200)} and I'll earn ${NGN.format(stats?.inviterBonus ?? 500)} when you complete your first delivery!`,
       });
     } catch {
-      Alert.alert('Could not share', 'Please try again.');
+      modal.alert('Could not share', 'Please try again.', 'error');
     }
   };
 
   const onCopy = async () => {
     await Clipboard.setStringAsync(code);
-    Alert.alert('Copied!', 'Referral code copied to clipboard.');
+    modal.alert('Copied!', 'Referral code copied to clipboard.', 'success');
   };
 
   const onApply = async () => {
     const trimmed = inputCode.trim().toUpperCase();
     if (trimmed.length < 4) {
-      Alert.alert('Invalid code', 'Please enter a valid referral code.');
+      modal.alert('Invalid code', 'Please enter a valid referral code.', 'warning');
       return;
     }
     try {
       const result = await applyMutation.mutateAsync(trimmed);
-      Alert.alert('Success! 🎉', `You've been referred by ${result.inviterName}. Complete your first order to unlock your ${NGN.format(stats?.inviteeBonus ?? 200)} welcome bonus!`);
+      modal.alert('Success! 🎉', `You've been referred by ${result.inviterName}. Complete your first order to unlock your ${NGN.format(stats?.inviteeBonus ?? 200)} welcome bonus!`, 'success');
       setInputCode('');
       setShowApply(false);
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong';
-      Alert.alert('Could not apply code', message);
+      modal.alert('Could not apply code', message, 'error');
     }
   };
 
@@ -308,6 +310,7 @@ export default function ReferralsScreen() {
           lightBg={lightBg}
         />
       </View>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </ScrollView>
   );
 }

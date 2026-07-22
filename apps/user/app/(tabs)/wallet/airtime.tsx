@@ -247,7 +247,7 @@ export default function AirtimeScreen() {
 
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Airtime</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Choose amount.</Text>
+
         </View>
 
         <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   sectionSubtitle: { fontSize: Typography.xs, lineHeight: 17, fontFamily: Typography.family.medium },
-  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.light.border, padding: 3, paddingHorizontal: Spacing.xs, marginRight: Spacing.sm, borderRadius: Spacing.xl },
+  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 3, paddingHorizontal: Spacing.xs, marginRight: Spacing.sm, borderRadius: Spacing.xl },
   networkText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   contactButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(10,132,255,0.10)', alignItems: 'center', justifyContent: 'center' },
   statusCard: { borderWidth: 1, borderRadius: 18, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },
