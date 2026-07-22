@@ -216,9 +216,6 @@ export class OrderService {
           active: true,
         },
       });
-      if (!serviceArea) {
-        throw new ValidationError(`Intra-state delivery is not yet available in ${pickup.city}.`);
-      }
     }
 
     const quoteKey = `cache:quote:${payload.size}:${route.distanceKm.toFixed(1)}:${Math.round(route.durationMin)}:${onlineDrivers}:${isIntrastate ? 'INTRASTATE' : 'INTERSTATE'}`;
@@ -343,9 +340,6 @@ export class OrderService {
           active: true,
         },
       });
-      if (!serviceArea) {
-        throw new ValidationError(`Intra-state delivery is not yet available in ${pickup.city}.`);
-      }
     }
 
     const onlineDrivers = await this.prisma.driver.count({ where: { isOnline: true, status: 'ACTIVE' } });

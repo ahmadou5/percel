@@ -50,52 +50,69 @@ import { formatMoney, type OrderQuoteResponse } from '@/lib/order';
 import { useAppPalette } from '@/lib/theme';
 import type { Hub } from '@/types/hubs';
 
-// ─── Preset search landmarks matching exact user screenshots ─────────────────
-const MOCK_LANDMARKS = [
+// ─── Preset search landmarks matching clean human-readable locations ─────────
+type LandmarkItem = {
+  description: string;
+  secondaryText: string;
+  placeId: string;
+  mainText: string;
+  lat?: number;
+  lng?: number;
+  icon: 'home' | 'recent';
+};
+
+const MOCK_LANDMARKS: LandmarkItem[] = [
   {
     description: 'Home',
-    secondaryText: '11.965038, 8.537130',
+    secondaryText: 'Saved Primary Address',
     placeId: 'mock-home',
+    mainText: 'Home',
+    icon: 'home',
+  },
+  {
+    description: 'Zoo Road, Kano',
+    secondaryText: 'Kano State, Nigeria',
+    placeId: 'mock-zoo-road-kano',
     lat: 11.965038,
     lng: 8.537130,
-    mainText: 'Home',
-    icon: 'home' as const,
+    mainText: 'Zoo Road, Kano',
+    icon: 'recent',
   },
   {
-    description: 'C. D AND ELECTRONIC SERVICES',
-    secondaryText: 'XG8P+4Q9, Hausawa Model Primary School Rd',
-    placeId: 'mock-cd-electronics',
-    lat: 10.2925,
-    lng: 11.1685,
-    mainText: 'C. D AND ELECTRONIC SERVICES',
-    icon: 'recent' as const,
+    description: 'Government House, Kano',
+    secondaryText: 'State Road, Kano',
+    placeId: 'mock-gov-house-kano',
+    lat: 11.9890,
+    lng: 8.5255,
+    mainText: 'Government House, Kano',
+    icon: 'recent',
   },
   {
-    description: 'ABUTH Parking Lot',
-    secondaryText: '5JG4+C57, A126',
-    placeId: 'mock-abuth',
-    lat: 11.0667,
-    lng: 7.7000,
-    mainText: 'ABUTH Parking Lot',
-    icon: 'recent' as const,
+    description: 'Central Market, Gombe',
+    secondaryText: 'Gombe, Gombe State',
+    placeId: 'mock-central-gombe',
+    lat: 10.2897,
+    lng: 11.1714,
+    mainText: 'Central Market, Gombe',
+    icon: 'recent',
   },
   {
-    description: 'Gombe State House of Assembly',
-    secondaryText: '747Q+P2G, Gombe',
-    placeId: 'mock-assembly',
-    lat: 10.2831,
-    lng: 11.1652,
-    mainText: 'Gombe State House of Assembly',
-    icon: 'recent' as const,
+    description: 'Victoria Island, Lagos',
+    secondaryText: 'Lagos State, Nigeria',
+    placeId: 'mock-vi-lagos',
+    lat: 6.4281,
+    lng: 3.4219,
+    mainText: 'Victoria Island, Lagos',
+    icon: 'recent',
   },
   {
-    description: 'Izala Mosque',
-    secondaryText: '75R6+RPP, Gombe',
-    placeId: 'mock-izala',
-    lat: 10.2798,
-    lng: 11.1712,
-    mainText: 'Izala Mosque',
-    icon: 'recent' as const,
+    description: 'Central Business District, Abuja',
+    secondaryText: 'FCT, Abuja, Nigeria',
+    placeId: 'mock-cbd-abuja',
+    lat: 9.0578,
+    lng: 7.4951,
+    mainText: 'Central Business District, Abuja',
+    icon: 'recent',
   },
 ];
 
@@ -104,8 +121,8 @@ type LocationTarget = 'pickup' | 'delivery';
 type MapPoint = { latitude: number; longitude: number };
 
 const DEFAULT_REGION: Region = {
-  latitude: 10.2897, // Centered around Gombe / Northern Nigeria region
-  longitude: 11.1714,
+  latitude: 11.9650, // Centered around Kano / Northern Nigeria
+  longitude: 8.5371,
   latitudeDelta: 0.025,
   longitudeDelta: 0.025,
 };
@@ -145,6 +162,7 @@ export default function SendOrderEntryScreen() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [pickupPoint, setPickupPoint] = useState<MapPoint | null>(null);
   const [deliveryPoint, setDeliveryPoint] = useState<MapPoint | null>(null);
+  const [userLocation, setUserLocation] = useState<MapPoint | null>(null);
   
   // ── search and picker states ─────────────────────────────────────────────
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -200,9 +218,11 @@ export default function SendOrderEntryScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const userPoint = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setUserLocation(userPoint);
           setMapRegion({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
+            latitude: userPoint.latitude,
+            longitude: userPoint.longitude,
             latitudeDelta: 0.015,
             longitudeDelta: 0.015,
           });
@@ -247,12 +267,14 @@ export default function SendOrderEntryScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const userPoint = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      setUserLocation(userPoint);
       const result = await reverseGeocodeMutation.mutateAsync({
         lat: loc.coords.latitude,
         lng: loc.coords.longitude,
       });
       setPickupAddress(result.formattedAddress);
-      setPickupPoint({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      setPickupPoint(userPoint);
     } catch {
       setErrorMsg('Could not fetch your current location. Try entering manually.');
     } finally {
@@ -281,7 +303,12 @@ export default function SendOrderEntryScreen() {
   // ── map picker triggers ──
   const openMapPicker = (target: LocationTarget) => {
     const point = target === 'pickup' ? pickupPoint : deliveryPoint;
-    setMapPickerRegion(point ? { ...DEFAULT_REGION, ...point } : DEFAULT_REGION);
+    const targetRegion = point
+      ? { ...DEFAULT_REGION, ...point }
+      : userLocation
+        ? { ...DEFAULT_REGION, latitude: userLocation.latitude, longitude: userLocation.longitude }
+        : DEFAULT_REGION;
+    setMapPickerRegion(targetRegion);
     setMapPickerTarget(target);
   };
 
@@ -291,15 +318,19 @@ export default function SendOrderEntryScreen() {
     setMapPickerResolving(true);
     setErrorMsg(null);
 
-    let address = `${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
+    let address = 'Selected Location';
     try {
       const result = await reverseGeocodeMutation.mutateAsync({ lat: point.latitude, lng: point.longitude });
       if (result?.formattedAddress) {
         address = result.formattedAddress;
+      } else if (result?.city) {
+        address = [result.city, result.state].filter(Boolean).join(', ');
+      } else {
+        address = `Location at ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
       }
     } catch (e) {
       console.warn('Reverse geocode fallback:', e);
-      address = `Location near ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
+      address = `Pin Location (${point.latitude.toFixed(3)}, ${point.longitude.toFixed(3)})`;
     } finally {
       if (mapPickerTarget === 'pickup') {
         setPickupAddress(address);
