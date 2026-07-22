@@ -87,7 +87,7 @@ export default function ElectricityScreen() {
     } catch (error) {
       setValidation(null);
       setValidationStatus('error');
-      setValidationError(error instanceof Error ? error.message : 'Check meter and provider.');
+      setValidationError(error instanceof Error ? error.message : 'Please check the meter number and provider.');
     }
   };
 
@@ -199,7 +199,7 @@ export default function ElectricityScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Electricity</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Pay electricity.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Pick the disco first, validate the meter, then choose the amount.</Text>
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
@@ -212,6 +212,7 @@ export default function ElectricityScreen() {
             <Zap size={20} color="#fff" />
           </View>
         </View>
+        <Text style={styles.heroBody}>Provider logos and validation status come from the provider APIs, and only one step stays visible at a time.</Text>
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
@@ -223,7 +224,8 @@ export default function ElectricityScreen() {
                 <Zap size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select provider and meter type.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider and validation</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select the disco, meter type, and validate the meter first.</Text>
               </View>
             </View>
 
@@ -264,7 +266,7 @@ export default function ElectricityScreen() {
               keyboardType="number-pad"
               placeholder="1234567890"
               leftElement={<Smartphone size={16} color={palette.textSecondary} />}
-              helperText="Validate before payment."
+              helperText="Validate the meter before payment so the customer name shows first."
             />
 
             <Pressable
@@ -276,7 +278,7 @@ export default function ElectricityScreen() {
             </Pressable>
 
             {validationStatus === 'loading' ? (
-              <StateCard loading title="Validating meter" description="Checking meter details." icon={<Search size={24} color={palette.textSecondary} />} />
+              <StateCard loading title="Validating meter" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
             ) : validationStatus === 'success' && validation ? (
               <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
                 <CheckCircle2 size={18} color={palette.success} />
@@ -290,11 +292,11 @@ export default function ElectricityScreen() {
                 <ShieldCheck size={18} color={palette.error} />
                 <View style={styles.statusCopy}>
                   <Text style={[styles.statusTitle, { color: palette.error }]}>Validation failed</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Check meter and provider.'}</Text>
+                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Please check the meter number and provider.'}</Text>
                 </View>
               </View>
             ) : (
-              <StateCard title="Enter a meter number" description="Subscriber appears before amount." icon={<Search size={24} color={palette.textSecondary} />} />
+              <StateCard title="Enter a meter number" description="The subscriber details will appear before the amount step." icon={<Search size={24} color={palette.textSecondary} />} />
             )}
           </View>
         ) : null}
@@ -306,7 +308,8 @@ export default function ElectricityScreen() {
                 <ArrowUpRight size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose or enter amount.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Amount</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a preset or enter a custom amount for the meter.</Text>
               </View>
             </View>
 
@@ -346,10 +349,10 @@ export default function ElectricityScreen() {
               leftElement={<Text style={[styles.prefix, { color: palette.textSecondary }]}>₦</Text>}
             />
 
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Amount: {amountValue ? formatNaira(amountValue) : '₦0'}</Text>
+            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected amount: {amountValue ? formatNaira(amountValue) : '₦0'}</Text>
 
             <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
-              <Text style={styles.primaryActionText}>Review payment</Text>
+              <Text style={styles.primaryActionText}>Review electricity payment</Text>
             </Pressable>
           </View>
         ) : null}
@@ -361,7 +364,8 @@ export default function ElectricityScreen() {
                 <CheckCircle2 size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm meter and amount.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the meter, provider, and amount before payment.</Text>
               </View>
             </View>
 
@@ -432,7 +436,7 @@ export default function ElectricityScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your disco.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your electricity disco below.</Text>
               </View>
               <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -468,7 +472,7 @@ export default function ElectricityScreen() {
                 }}
               />
             ) : (
-              <StateCard title="No electricity providers" description="No electricity providers found." icon={<Zap size={24} color={palette.textSecondary} />} />
+              <StateCard title="No electricity providers" description="VTpass did not return any electricity providers." icon={<Zap size={24} color={palette.textSecondary} />} />
             )}
           </View>
         </View>

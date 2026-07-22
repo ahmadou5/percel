@@ -105,7 +105,7 @@ export default function TvScreen() {
     } catch (error) {
       setValidation(null);
       setValidationStatus('error');
-      setValidationError(error instanceof Error ? error.message : 'Check provider and smartcard.');
+      setValidationError(error instanceof Error ? error.message : 'Please check the provider and smartcard number.');
     }
   };
 
@@ -216,7 +216,7 @@ export default function TvScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>TV Subscription</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Renew TV.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Choose the provider first, validate the smartcard, then pick a bouquet.</Text>
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
@@ -229,6 +229,7 @@ export default function TvScreen() {
             <Tv2 color="#fff" size={20} />
           </View>
         </View>
+        <Text style={styles.heroBody}>Validation keeps the subscriber details visible before payment while the old step labels stay out of the form body.</Text>
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
@@ -240,7 +241,8 @@ export default function TvScreen() {
                 <Tv2 size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select provider and smartcard.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider and validation</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Select the TV provider and validate the smartcard number first.</Text>
               </View>
             </View>
 
@@ -306,7 +308,7 @@ export default function TvScreen() {
               }}
               keyboardType="number-pad"
               placeholder="Enter smartcard number"
-              helperText="Validate before payment."
+              helperText="Validate the card before paying so the subscriber details are visible."
             />
 
             <Pressable
@@ -318,7 +320,7 @@ export default function TvScreen() {
             </Pressable>
 
             {validationStatus === 'loading' ? (
-              <StateCard loading title="Validating smartcard" description="Checking subscriber details." icon={<Search size={24} color={palette.textSecondary} />} />
+              <StateCard loading title="Validating smartcard" description="Checking the provider and subscriber details now." icon={<Search size={24} color={palette.textSecondary} />} />
             ) : validationStatus === 'success' && validation ? (
               <View style={[styles.statusCard, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: palette.success }]}>
                 <CheckCircle2 size={18} color={palette.success} />
@@ -332,13 +334,13 @@ export default function TvScreen() {
                 <ShieldCheck size={18} color={palette.error} />
                 <View style={styles.statusCopy}>
                   <Text style={[styles.statusTitle, { color: palette.error }]}>Validation failed</Text>
-                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Check provider and smartcard.'}</Text>
+                  <Text style={[styles.statusMeta, { color: palette.textSecondary }]}>{validationError || 'Please check the provider and smartcard number.'}</Text>
                 </View>
               </View>
             ) : (
               <StateCard
                 title="Enter a smartcard number"
-                description="Validate to continue."
+                description="Press validate after choosing the provider and entering the smartcard number."
                 icon={<Search size={24} color={palette.textSecondary} />}
               />
             )}
@@ -369,7 +371,8 @@ export default function TvScreen() {
                 <Radio size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a bouquet.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Bouquet selection</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose the live bouquet you want to renew.</Text>
               </View>
             </View>
 
@@ -379,10 +382,10 @@ export default function TvScreen() {
               <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayService}</Text>
             </View>
 
-            <Text style={[styles.sectionTitle, { color: palette.text }]}>Bouquets</Text>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>Live bouquets</Text>
             {selectedService ? (
               variationsQuery.isLoading ? (
-                <StateCard loading title="Loading bouquets" description="Fetching bouquets." icon={<Tv2 size={24} color={palette.textSecondary} />} />
+                <StateCard loading title="Loading bouquets" description="Fetching the current bouquet list from VTpass." icon={<Tv2 size={24} color={palette.textSecondary} />} />
               ) : variations.length ? (
                 <View style={styles.planList}>
                   {variations.map((variation) => {
@@ -399,11 +402,11 @@ export default function TvScreen() {
                   })}
                 </View>
               ) : (
-                <StateCard title="No bouquets available" description="No bouquets for this provider." icon={<Radio size={24} color={palette.textSecondary} />} />
+                <StateCard title="No bouquets available" description="VTpass did not return any TV variations for the selected provider." icon={<Radio size={24} color={palette.textSecondary} />} />
               )
             ) : null}
 
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Bouquet: {selectedVariation?.name ?? 'None'}</Text>
+            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected bouquet: {selectedVariation?.name ?? 'None'}</Text>
 
             <Pressable disabled={!canReview} onPress={() => setStep(3)} style={[styles.primaryAction, { backgroundColor: canReview ? palette.primary : palette.border }]}>
               <Text style={styles.primaryActionText}>Review subscription</Text>
@@ -418,7 +421,8 @@ export default function TvScreen() {
                 <CheckCircle2 size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm bouquet and amount.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the provider, bouquet, and amount before payment.</Text>
               </View>
             </View>
 
@@ -458,7 +462,7 @@ export default function TvScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Save Smartcard</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Name this smartcard.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Give this card a name so you can reuse it.</Text>
               </View>
               <Pressable onPress={() => { setSaveCardModalOpen(false); setSaveCardName(''); }} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Cancel</Text>
@@ -532,7 +536,7 @@ export default function TvScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your provider.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your TV provider below.</Text>
               </View>
               <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -571,7 +575,7 @@ export default function TvScreen() {
                 }}
               />
             ) : (
-              <StateCard title="No TV providers" description="No TV providers found." icon={<Tv2 size={24} color={palette.textSecondary} />} />
+              <StateCard title="No TV providers" description="VTpass did not return any TV providers." icon={<Tv2 size={24} color={palette.textSecondary} />} />
             )}
           </View>
         </View>

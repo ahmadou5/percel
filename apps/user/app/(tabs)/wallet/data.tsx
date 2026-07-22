@@ -72,12 +72,12 @@ export default function DataScreen() {
       const name = v.name;
       const sizeMatch = name.match(/(\d+(?:\.\d+)?\s*(?:GB|MB|KB|TB))/i);
       const size = sizeMatch ? sizeMatch[0] : name;
-      
+
       let duration = '30 Days';
       const lower = name.toLowerCase();
-      
+
       let category: 'popular' | 'daily' | 'weekly' | 'monthly' | 'broad' = 'popular';
-      
+
       if (lower.includes('broadband') || lower.includes('router') || lower.includes('mifi') || lower.includes('fiber') || lower.includes('unlimited')) {
         category = 'broad';
         duration = 'Broadband';
@@ -94,7 +94,7 @@ export default function DataScreen() {
         category = 'popular';
         duration = 'Monthly';
       }
-      
+
       const dayMatch = name.match(/(\d+\s*days?)/i);
       if (dayMatch) {
         duration = dayMatch[0];
@@ -103,7 +103,7 @@ export default function DataScreen() {
       } else if (category === 'weekly') {
         duration = '7 Days';
       }
-      
+
       return {
         ...v,
         size,
@@ -168,9 +168,9 @@ export default function DataScreen() {
           : resolved.includes('glo')
             ? services.find((service) => service.serviceID.toLowerCase().includes('glo'))
             : services.find((service) => {
-                const haystack = `${service.serviceID} ${service.name}`.toLowerCase();
-                return haystack.includes('9mobile') || haystack.includes('etisalat') || haystack.includes('t2');
-              });
+              const haystack = `${service.serviceID} ${service.name}`.toLowerCase();
+              return haystack.includes('9mobile') || haystack.includes('etisalat') || haystack.includes('t2');
+            });
       if (match) setSelectedServiceID(match.serviceID);
       setStep(2);
     } catch (error) {
@@ -293,7 +293,7 @@ export default function DataScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Data</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Choose bundle.</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Resolve the network first, pick the bundle second, then review.</Text>
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
@@ -306,6 +306,7 @@ export default function DataScreen() {
             <Globe color="#fff" size={20} />
           </View>
         </View>
+        <Text style={styles.heroBody}>The number is checked first, then the live bundles load from VTpass with provider logos.</Text>
         <FlowProgressDots currentStep={step} totalSteps={3} onStepPress={(targetStep) => { if (targetStep < step) setStep(targetStep as typeof step); }} />
       </View>
 
@@ -317,6 +318,7 @@ export default function DataScreen() {
                 <Smartphone size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Provider detection</Text>
                 <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Enter the phone number and we will auto-detect the network.</Text>
               </View>
             </View>
@@ -334,7 +336,7 @@ export default function DataScreen() {
                   <ChevronDown size={14} color={palette.textSecondary} />
                 </Pressable>
               }
-              helperText="Lookup fails? Select manually."
+              helperText="If lookup fails, you can pick the provider manually."
               rightElement={
                 <Pressable onPress={() => setDataContactsModalOpen(true)} style={styles.contactButton}>
                   <ContactRound size={18} color={palette.primary} />
@@ -369,7 +371,7 @@ export default function DataScreen() {
                 </View>
               </View>
             ) : (
-              <StateCard title="Enter a phone number" description="Network appears before bundles." icon={<Search size={24} color={palette.textSecondary} />} />
+              <StateCard title="Enter a phone number" description="The network will be detected before the bundle step appears." icon={<Search size={24} color={palette.textSecondary} />} />
             )}
           </View>
         ) : null}
@@ -381,7 +383,8 @@ export default function DataScreen() {
                 <Globe size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Choose a bundle.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Bundle selection</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Pick a live bundle. The price follows the selected variation.</Text>
               </View>
             </View>
 
@@ -391,10 +394,10 @@ export default function DataScreen() {
               <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{displayNetwork}</Text>
             </View>
 
-            
+            <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 8 }]}>Plans</Text>
             {selectedService ? (
               variationsQuery.isLoading ? (
-                <StateCard loading title="Loading plans" description="Fetching bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
+                <StateCard loading title="Loading plans" description="Fetching live data bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
               ) : variations.length ? (
                 <>
                   <View style={[styles.tabBarContainer, { borderBottomColor: lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>
@@ -424,7 +427,7 @@ export default function DataScreen() {
                         const cardBg = lightBg ? (active ? 'rgba(10,132,255,0.06)' : '#FFFFFF') : (active ? 'rgba(10,132,255,0.12)' : '#1E293B');
                         const cardText = lightBg ? '#0F172A' : '#FFFFFF';
                         const cardBorder = active ? palette.primary : (lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)');
-                        
+
                         return (
                           <Pressable
                             key={variation.variation_code}
@@ -452,11 +455,11 @@ export default function DataScreen() {
                   )}
                 </>
               ) : (
-                <StateCard title="No bundles" description="No plans for this provider." icon={<Globe size={24} color={palette.textSecondary} />} />
+                <StateCard title="No bundles" description="VTpass did not return any data plans for this provider." icon={<Globe size={24} color={palette.textSecondary} />} />
               )
             ) : null}
 
-            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Bundle: {selectedVariation?.name ?? 'None'}</Text>
+            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>Selected bundle: {selectedVariation?.name ?? 'None'}</Text>
 
             <Pressable
               disabled={!canReview}
@@ -475,7 +478,8 @@ export default function DataScreen() {
                 <CheckCircle2 size={16} color={palette.primary} />
               </View>
               <View style={styles.sectionCopy}>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm bundle and amount.</Text>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>Review</Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Confirm the bundle and amount before you pay.</Text>
               </View>
             </View>
 
@@ -519,7 +523,7 @@ export default function DataScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Saved Contacts</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Pick a saved number.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select a phone number to populate the field.</Text>
               </View>
               <Pressable onPress={() => setDataContactsModalOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -530,7 +534,7 @@ export default function DataScreen() {
               keyExtractor={(item) => item.id}
               ListEmptyComponent={
                 <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-                  No saved contacts yet.
+                  No saved contacts yet. Save a number from the Airtime screen first.
                 </Text>
               }
               renderItem={({ item }) => (
@@ -609,7 +613,7 @@ export default function DataScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a provider</Text>
-                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select your provider.</Text>
+                <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Select the network operator for this number.</Text>
               </View>
               <Pressable onPress={() => setProviderPickerOpen(false)} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
                 <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -644,7 +648,7 @@ export default function DataScreen() {
                 }}
               />
             ) : (
-              <StateCard title="No data providers" description="No data providers found." icon={<Globe size={24} color={palette.textSecondary} />} />
+              <StateCard title="No data providers" description="VTpass did not return any data providers." icon={<Globe size={24} color={palette.textSecondary} />} />
             )}
           </View>
         </View>
