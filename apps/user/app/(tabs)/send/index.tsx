@@ -47,8 +47,9 @@ import {
 } from '@/hooks/useOrder';
 import { getRouteWithHubs } from '@/lib/hubs';
 import { formatMoney, type OrderQuoteResponse } from '@/lib/order';
-import { useAppPalette } from '@/lib/theme';
+import { isLight, useAppPalette } from '@/lib/theme';
 import type { Hub } from '@/types/hubs';
+import { Colors } from '@/constants/palette';
 
 // ─── Preset search landmarks matching clean human-readable locations ─────────
 type LandmarkItem = {
@@ -150,28 +151,95 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.025,
 };
 
+const DARK_MAP_STYLE2 = [
+  { elementType: 'geometry', stylers: [{ color: Colors.dark.bg }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.dark.bg }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.text }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: Colors.dark.bg }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: Colors.dark.bg }] },
+  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: Colors.dark.card }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: Colors.light.text }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.border }] },
+];
+
+const LIGHT_MAP_STYLE2 = [
+  { elementType: 'geometry', stylers: [{ color: Colors.light.bg }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.bg }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.text }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#D2F1D2' }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'poi.park', elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.bg }] },
+  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#A9C4EB' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.border }] },
+];
+
+
 // Premium dark blue map theme
 const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#07111D' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8FA2C7' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#07111D' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#1D2A44' }] },
-  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#0D1728' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#0D1728' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#8FA2C7' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#101B2E' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1D2A44' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8FA2C7' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1D2A44' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#2C3D5A' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#050C14' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3E5780' }] },
+  { elementType: 'geometry', stylers: [{ color: Colors.dark.bg }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.dark.card }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: Colors.dark.card }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: Colors.dark.card }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: Colors.dark.card }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.textSecondary }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.dark.card }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: Colors.dark.border }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: Colors.light.text }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.dark.border }] },
+];
+
+const LIGHT_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: Colors.light.bg }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.textSecondary }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: Colors.light.card }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: Colors.light.border }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: Colors.light.text }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: Colors.light.border }] },
 ];
 
 export default function SendOrderEntryScreen() {
   const router = useRouter();
   const back = useSafeBack('/');
   const palette = useAppPalette();
+  const isLightTheme = isLight(palette.bg);
   const insets = useSafeAreaInsets();
 
   const quoteQuery = useGetQuote();
@@ -186,7 +254,7 @@ export default function SendOrderEntryScreen() {
   const [pickupPoint, setPickupPoint] = useState<MapPoint | null>(null);
   const [deliveryPoint, setDeliveryPoint] = useState<MapPoint | null>(null);
   const [userLocation, setUserLocation] = useState<MapPoint | null>(null);
-  
+
   // ── search and picker states ─────────────────────────────────────────────
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [searchTarget, setSearchTarget] = useState<LocationTarget | null>(null);
@@ -564,8 +632,9 @@ export default function SendOrderEntryScreen() {
         region={mapRegion}
         showsUserLocation
         showsCompass={false}
+
         toolbarEnabled={false}
-        customMapStyle={DARK_MAP_STYLE}
+        customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
       >
         {pickupPoint && (
           <Marker coordinate={pickupPoint} anchor={{ x: 0.5, y: 0.5 }}>
@@ -617,7 +686,7 @@ export default function SendOrderEntryScreen() {
           >
             <ChevronLeft size={18} color={palette.text} />
           </Pressable>
-          <Text style={[styles.screenTitle, { color: palette.text }]}>Send Parcel</Text>
+
         </View>
 
         {/* Delivery Mode Toggle */}
@@ -655,41 +724,41 @@ export default function SendOrderEntryScreen() {
         </View>
 
         {/* Address Card */}
-        <View style={[styles.addressCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          {/* Pickup address field */}
-          <Pressable
-            onPress={() => {
-              setSearchTarget('pickup');
-              setSearchText(pickupAddress);
-              setSearchModalVisible(true);
-            }}
-            style={styles.addressBtnRow}
-          >
-            <View style={[styles.dotOuter, { borderColor: palette.primary }]}>
-              <View style={[styles.dotInner, { backgroundColor: palette.primary }]} />
-            </View>
-            <View style={styles.addressBtnContent}>
-              <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
-                {mode === 'INTERSTATE' ? 'Local pickup address (optional)' : 'Pickup location'}
-              </Text>
-              {pickupAddress ? (
-                <>
-                  <Text style={[styles.addressValueText, { color: palette.text }]} numberOfLines={1}>
-                    {parseAddressDisplay(pickupAddress).title}
-                  </Text>
-                  {Boolean(parseAddressDisplay(pickupAddress).subtitle) && (
-                    <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.regular }} numberOfLines={1}>
-                      {parseAddressDisplay(pickupAddress).subtitle}
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={[styles.addressValueText, { color: palette.textSecondary }]} numberOfLines={1}>
-                  {mode === 'INTERSTATE' ? 'Your pickup address' : 'Enter pickup location'}
+        {mode === 'INTRASTATE' && (
+          <View style={[styles.addressCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            {/* Pickup address field */}
+            <Pressable
+              onPress={() => {
+                setSearchTarget('pickup');
+                setSearchText(pickupAddress);
+                setSearchModalVisible(true);
+              }}
+              style={styles.addressBtnRow}
+            >
+              <View style={[styles.dotOuter, { borderColor: palette.primary }]}>
+                <View style={[styles.dotInner, { backgroundColor: palette.primary }]} />
+              </View>
+              <View style={styles.addressBtnContent}>
+                <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
+                  Pickup location
                 </Text>
-              )}
-            </View>
-            {mode === 'INTRASTATE' && (
+                {pickupAddress ? (
+                  <>
+                    <Text style={[styles.addressValueText, { color: palette.text }]} numberOfLines={1}>
+                      {parseAddressDisplay(pickupAddress).title}
+                    </Text>
+                    {Boolean(parseAddressDisplay(pickupAddress).subtitle) && (
+                      <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.regular }} numberOfLines={1}>
+                        {parseAddressDisplay(pickupAddress).subtitle}
+                      </Text>
+                    )}
+                  </>
+                ) : (
+                  <Text style={[styles.addressValueText, { color: palette.textSecondary }]} numberOfLines={1}>
+                    Enter pickup location
+                  </Text>
+                )}
+              </View>
               <Pressable
                 onPress={fillGpsLocation}
                 disabled={gpsLoading}
@@ -705,58 +774,58 @@ export default function SendOrderEntryScreen() {
                   <Navigation2 size={12} color={palette.primary} />
                 )}
               </Pressable>
-            )}
-          </Pressable>
-
-          {/* Divider & Swap Button */}
-          <View style={styles.dividerRow}>
-            <View style={[styles.lineDivider, { backgroundColor: palette.border }]} />
-            <Pressable
-              onPress={swapAddresses}
-              style={({ pressed }) => [
-                styles.swapBtn,
-                { backgroundColor: palette.bg, borderColor: palette.border },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <ArrowDownUp size={14} color={palette.primary} />
             </Pressable>
-            <View style={[styles.lineDivider, { backgroundColor: palette.border }]} />
-          </View>
 
-          {/* Destination address field */}
-          <Pressable
-            onPress={() => {
-              setSearchTarget('delivery');
-              setSearchText(deliveryAddress);
-              setSearchModalVisible(true);
-            }}
-            style={styles.addressBtnRow}
-          >
-            <View style={[styles.squareDot, { backgroundColor: palette.primary }]} />
-            <View style={styles.addressBtnContent}>
-              <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
-                {mode === 'INTERSTATE' ? 'Recipient address' : 'Delivery address'}
-              </Text>
-              {deliveryAddress ? (
-                <>
-                  <Text style={[styles.addressValueText, { color: palette.text }]} numberOfLines={1}>
-                    {parseAddressDisplay(deliveryAddress).title}
-                  </Text>
-                  {Boolean(parseAddressDisplay(deliveryAddress).subtitle) && (
-                    <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.regular }} numberOfLines={1}>
-                      {parseAddressDisplay(deliveryAddress).subtitle}
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <Text style={[styles.addressValueText, { color: palette.textSecondary }]} numberOfLines={1}>
-                  Enter delivery destination
-                </Text>
-              )}
+            {/* Divider & Swap Button */}
+            <View style={styles.dividerRow}>
+              <View style={[styles.lineDivider, { backgroundColor: palette.border }]} />
+              <Pressable
+                onPress={swapAddresses}
+                style={({ pressed }) => [
+                  styles.swapBtn,
+                  { backgroundColor: palette.bg, borderColor: palette.border },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <ArrowDownUp size={14} color={palette.primary} />
+              </Pressable>
+              <View style={[styles.lineDivider, { backgroundColor: palette.border }]} />
             </View>
-          </Pressable>
-        </View>
+
+            {/* Destination address field */}
+            <Pressable
+              onPress={() => {
+                setSearchTarget('delivery');
+                setSearchText(deliveryAddress);
+                setSearchModalVisible(true);
+              }}
+              style={styles.addressBtnRow}
+            >
+              <View style={[styles.squareDot, { backgroundColor: palette.primary }]} />
+              <View style={styles.addressBtnContent}>
+                <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
+                  Delivery address
+                </Text>
+                {deliveryAddress ? (
+                  <>
+                    <Text style={[styles.addressValueText, { color: palette.text }]} numberOfLines={1}>
+                      {parseAddressDisplay(deliveryAddress).title}
+                    </Text>
+                    {Boolean(parseAddressDisplay(deliveryAddress).subtitle) && (
+                      <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.regular }} numberOfLines={1}>
+                        {parseAddressDisplay(deliveryAddress).subtitle}
+                      </Text>
+                    )}
+                  </>
+                ) : (
+                  <Text style={[styles.addressValueText, { color: palette.textSecondary }]} numberOfLines={1}>
+                    Enter delivery destination
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          </View>
+        )}
       </Animated.View>
 
       {/* Floating ETA Polyline label on the Map */}
