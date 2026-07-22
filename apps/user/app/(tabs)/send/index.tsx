@@ -385,35 +385,42 @@ export default function SendOrderEntryScreen() {
     setSearchText('');
     setSearchResults([]);
 
-    if (place.placeId.startsWith('mock-')) {
-      if (place.lat !== undefined && place.lng !== undefined) {
-        const point = { latitude: place.lat, longitude: place.lng };
-        if (searchTarget === 'pickup') {
-          setPickupAddress(place.description);
-          setPickupPoint(point);
-        } else {
-          setDeliveryAddress(place.description);
-          setDeliveryPoint(point);
-        }
-      }
-      setQuoteData(null);
-      return;
-    }
-
     try {
       setErrorMsg(null);
-      const details = await placeDetailsMutation.mutateAsync(place.placeId);
-      const point = { latitude: details.lat, longitude: details.lng };
-      if (searchTarget === 'pickup') {
-        setPickupAddress(details.formattedAddress);
-        setPickupPoint(point);
-      } else {
-        setDeliveryAddress(details.formattedAddress);
-        setDeliveryPoint(point);
+      let point: MapPoint | null = null;
+      let addressStr = place.description;
+
+      if (place.lat !== undefined && place.lng !== undefined) {
+        point = { latitude: place.lat, longitude: place.lng };
+      } else if (!place.placeId.startsWith('mock-')) {
+        const details = await placeDetailsMutation.mutateAsync(place.placeId);
+        point = { latitude: details.lat, longitude: details.lng };
+        if (details.formattedAddress) {
+          addressStr = details.formattedAddress;
+        }
+      }
+
+      if (point) {
+        if (searchTarget === 'pickup') {
+          setPickupAddress(addressStr);
+          setPickupPoint(point);
+        } else {
+          setDeliveryAddress(addressStr);
+          setDeliveryPoint(point);
+        }
+
+        // Center map view on the newly selected point
+        setMapRegion({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          latitudeDelta: 0.015,
+          longitudeDelta: 0.015,
+        });
       }
       setQuoteData(null);
     } catch (err) {
-      setErrorMsg('Failed to resolve coordinates. Set manually or pick another.');
+      console.warn('Could not resolve place details:', err);
+      setErrorMsg('Failed to resolve place coordinates. Pick location on map.');
     }
   };
 

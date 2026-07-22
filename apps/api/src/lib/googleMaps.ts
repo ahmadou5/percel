@@ -256,25 +256,48 @@ export async function autocompletePlaces(input: string, lat?: number, lng?: numb
 
 export async function getPlaceDetails(placeId: string) {
   try {
-    const { data } = await googleMaps.get('/geocode/json', {
+    // Try Place Details API first
+    const { data: placeData } = await googleMaps.get('/place/details/json', {
+      params: { place_id: placeId, key: env.GOOGLE_MAPS_API_KEY, fields: 'formatted_address,geometry,place_id,address_components' },
+    });
+
+    const result = placeData?.result;
+    const location = result?.geometry?.location;
+
+    if (result && location) {
+      const parts = String(result.formatted_address ?? '').split(',').map((part: string) => part.trim());
+      return {
+        street: parts[0] ?? 'Selected Location',
+        city: parts[1] ?? parts[0] ?? 'City',
+        state: parts[2] ?? parts[1] ?? 'State',
+        country: parts[3] ?? 'Nigeria',
+        lat: Number(location.lat),
+        lng: Number(location.lng),
+        formattedAddress: result.formatted_address ?? 'Selected Location',
+        placeId: String(result.place_id ?? placeId),
+      };
+    }
+
+    // Fallback to Geocoding API
+    const { data: geocodeData } = await googleMaps.get('/geocode/json', {
       params: { place_id: placeId, key: env.GOOGLE_MAPS_API_KEY },
     });
 
-    const result = data?.results?.[0];
-    const location = result?.geometry?.location;
-    if (!result || !location) throw new ValidationError('Unable to geocode place ID');
+    const geoResult = geocodeData?.results?.[0];
+    const geoLoc = geoResult?.geometry?.location;
+    if (!geoResult || !geoLoc) throw new ValidationError('Unable to geocode place ID');
 
-    const parts = String(result.formatted_address).split(',').map((part: string) => part.trim());
+    const parts = String(geoResult.formatted_address).split(',').map((part: string) => part.trim());
 
     return {
-      street: parts[0] ?? 'Unknown Street',
-      city: parts[1] ?? parts[0] ?? 'Unknown City',
-      state: parts[2] ?? parts[1] ?? 'Unknown State',
+      street: parts[0] ?? 'Selected Location',
+      city: parts[1] ?? parts[0] ?? 'City',
+      state: parts[2] ?? parts[1] ?? 'State',
       country: parts[3] ?? 'Nigeria',
-      lat: Number(location.lat),
-      lng: Number(location.lng),
-      formattedAddress: result.formatted_address,
-      placeId: String(result.place_id),
+      lat: Number(geoLoc.lat),
+      lng: Number(geoLoc.lng),
+      formattedAddress: geoResult.formatted_address,
+      placeId: String(geoResult.place_id ?? placeId),
     };
   } catch (error) {
     wrapError(error);

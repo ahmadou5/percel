@@ -117,6 +117,30 @@ export class OrderService {
     private readonly app: FastifyInstance,
   ) {}
 
+  private async findLocalServiceArea(city: string, state: string) {
+    let serviceArea = await this.prisma.localServiceArea.findFirst({
+      where: {
+        active: true,
+        OR: [
+          { city: { equals: city, mode: 'insensitive' } },
+          { state: { equals: state, mode: 'insensitive' } },
+          { city: { equals: state, mode: 'insensitive' } },
+          { state: { equals: city, mode: 'insensitive' } },
+          { city: { contains: city, mode: 'insensitive' } },
+          { state: { contains: state, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (!serviceArea) {
+      serviceArea = await this.prisma.localServiceArea.findFirst({
+        where: { active: true },
+      });
+    }
+
+    return serviceArea;
+  }
+
   async getQuote(payload: {
     size: OrderSize;
     originHubId?: string | null;
@@ -210,12 +234,7 @@ export class OrderService {
 
     let serviceArea = null;
     if (isIntrastate) {
-      serviceArea = await this.prisma.localServiceArea.findFirst({
-        where: {
-          city: { equals: pickup.city, mode: 'insensitive' },
-          active: true,
-        },
-      });
+      serviceArea = await this.findLocalServiceArea(pickup.city, pickup.state);
     }
 
     const quoteKey = `cache:quote:${payload.size}:${route.distanceKm.toFixed(1)}:${Math.round(route.durationMin)}:${onlineDrivers}:${isIntrastate ? 'INTRASTATE' : 'INTERSTATE'}`;
@@ -334,12 +353,7 @@ export class OrderService {
 
     let serviceArea = null;
     if (isIntrastate) {
-      serviceArea = await this.prisma.localServiceArea.findFirst({
-        where: {
-          city: { equals: pickup.city, mode: 'insensitive' },
-          active: true,
-        },
-      });
+      serviceArea = await this.findLocalServiceArea(pickup.city, pickup.state);
     }
 
     const onlineDrivers = await this.prisma.driver.count({ where: { isOnline: true, status: 'ACTIVE' } });
