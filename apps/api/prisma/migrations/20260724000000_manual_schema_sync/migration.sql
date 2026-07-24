@@ -1,10 +1,12 @@
--- AlterEnum
-ALTER TYPE "VehicleType" ADD VALUE 'TRICYCLE';
+-- AlterEnum safely
+ALTER TYPE "VehicleType" ADD VALUE IF NOT EXISTS 'TRICYCLE';
 
--- AlterTable
-ALTER TABLE "Order" ADD COLUMN     "recipientName" TEXT,
-ADD COLUMN     "recipientPhone" TEXT;
+-- AlterTable Order safely
+ALTER TABLE "Order" 
+ADD COLUMN IF NOT EXISTS "recipientName" TEXT,
+ADD COLUMN IF NOT EXISTS "recipientPhone" TEXT;
 
--- AlterTable
-ALTER TABLE "Wallet" ADD COLUMN     "dailyTransferUsage" DECIMAL(14,2) NOT NULL DEFAULT 0,
-ADD COLUMN     "lastTransferDate" TIMESTAMP(3);
+-- AlterTable Wallet safely
+ALTER TABLE "Wallet" 
+ADD COLUMN IF NOT EXISTS "dailyTransferUsage" DECIMAL(14,2) NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "lastTransferDate" TIMESTAMP(3);
