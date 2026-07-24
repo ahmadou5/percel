@@ -15,6 +15,7 @@ import { usePreferencesStore } from '@/store/preferences.store';
 import { StateCard } from '@/components/ui/StateCard';
 import { useTransactions, useWallet } from '@/hooks/useWallet';
 import { useNotifications } from '@/hooks/useNotifications';
+import { SkeletonGroup } from '@/components/ui/Skeleton';
 
 const quickActions = [
   { label: 'Airtime', href: '/wallet/airtime', Icon: Smartphone, bg: 'rgba(10, 132, 255, 0.14)' },
@@ -113,44 +114,45 @@ export default function HomeScreen() {
     return (
       <View style={[styles.screen, { backgroundColor: palette.bg }]}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.loadingContent}>
-          <View style={styles.loadingTopRow}>
-            <View style={[styles.loadingAvatar, { backgroundColor: palette.card }]} />
-            <View style={styles.loadingCopy}>
-              <View style={[styles.loadingLine, { width: 92, backgroundColor: palette.card }]} />
-              <View style={[styles.loadingLine, { width: 160, height: 20, backgroundColor: palette.card }]} />
-            </View>
-            <View style={[styles.loadingCircle, { backgroundColor: palette.card }]} />
-          </View>
-
-          <View style={[styles.loadingHero, { backgroundColor: palette.primaryDark }]}>
-            <View style={[styles.loadingLine, { width: 112, backgroundColor: 'rgba(255,255,255,0.16)' }]} />
-            <View style={[styles.loadingBalance, { width: '78%', backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-            <View style={styles.loadingRow}>
-              <View style={[styles.loadingPill, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-              <View style={[styles.loadingPill, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-            </View>
-            <View style={styles.loadingRow}>
-              <View style={[styles.loadingButton, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-              <View style={[styles.loadingButton, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-            </View>
-          </View>
-
-          <View style={styles.loadingGrid}>
-            {[0, 1, 2, 3].map((index) => (
-              <View key={index} style={[styles.loadingActionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                <View style={[styles.loadingActionIcon, { backgroundColor: palette.bg }]} />
-                <View style={[styles.loadingLine, { width: '64%', backgroundColor: palette.bg }]} />
+          <SkeletonGroup style={{ gap: Spacing.lg }}>
+            <View style={styles.loadingTopRow}>
+              <View style={[styles.loadingAvatar, { backgroundColor: palette.card }]} />
+              <View style={styles.loadingCopy}>
+                <View style={[styles.loadingLine, { width: 92, backgroundColor: palette.card }]} />
+                <View style={[styles.loadingLine, { width: 160, height: 20, backgroundColor: palette.card }]} />
               </View>
-            ))}
-          </View>
-
-          <View style={styles.loadingSection}>
-            <View style={[styles.loadingSectionHeader, { backgroundColor: palette.card }]} />
-            <View style={[styles.loadingTransactions, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <ActivityIndicator color={palette.primary} />
-              <Text style={[styles.loadingSectionText, { color: palette.textSecondary }]}>Loading your wallet…</Text>
+              <View style={[styles.loadingCircle, { backgroundColor: palette.card }]} />
             </View>
-          </View>
+
+            <View style={[styles.loadingHero, { backgroundColor: palette.primaryDark }]}>
+              <View style={[styles.loadingLine, { width: 112, backgroundColor: 'rgba(255,255,255,0.16)' }]} />
+              <View style={[styles.loadingBalance, { width: '78%', backgroundColor: 'rgba(255,255,255,0.12)' }]} />
+              <View style={styles.loadingRow}>
+                <View style={[styles.loadingPill, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
+                <View style={[styles.loadingPill, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
+              </View>
+              <View style={styles.loadingRow}>
+                <View style={[styles.loadingButton, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
+                <View style={[styles.loadingButton, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
+              </View>
+            </View>
+
+            <View style={styles.loadingGrid}>
+              {[0, 1, 2, 3].map((index) => (
+                <View key={index} style={[styles.loadingActionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                  <View style={[styles.loadingActionIcon, { backgroundColor: palette.bg }]} />
+                  <View style={[styles.loadingLine, { width: '64%', backgroundColor: palette.bg }]} />
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.loadingSection}>
+              <View style={[styles.loadingSectionHeader, { backgroundColor: palette.card }]} />
+              <View style={[styles.loadingTransactions, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                <Text style={[styles.loadingSectionText, { color: palette.textSecondary }]}>Loading your wallet…</Text>
+              </View>
+            </View>
+          </SkeletonGroup>
         </ScrollView>
       </View>
     );

@@ -10,6 +10,8 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useLogout } from '@/hooks/useAuth';
 
+import { AppVersionFooter } from '@/components/AppVersionFooter';
+
 const preferenceItems = [
   { title: 'Preferences', subtitle: 'Choose your theme and custom palette', href: '/settings/preferences', Icon: Palette },
 ] as const;

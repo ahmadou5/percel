@@ -25,6 +25,8 @@ export type Wallet = {
   bankCode?: string | null;
   kycComplete?: boolean;
   paymentProvider?: 'PAYSTACK' | 'MONNIFY' | 'SQUAD';
+  dailyLimit?: number;
+  dailyTransferUsage?: number;
 };
 
 export type WalletTransaction = {

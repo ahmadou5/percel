@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
+import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
+import { FormSkeleton } from '@/components/ui/Skeleton';
 import { KeyboardView } from '@/components/ui/KeyboardView';
 
 import { Spacing } from '@/constants/spacing';
@@ -222,7 +224,7 @@ export default function EditProfileScreen() {
         </View>
 
         {profileQuery.isLoading ? (
-          <StateCard loading title="Loading profile" description="We’re fetching your account details." icon={<Sparkles size={24} color={palette.textSecondary} />} />
+          <FormSkeleton count={4} />
         ) : profileQuery.isError ? (
           <StateCard
             title="Could not load profile"

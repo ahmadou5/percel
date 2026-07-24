@@ -60,6 +60,7 @@ import {
   useVerifyTransferPin,
 } from "@/hooks/useWallet";
 import { triggerBiometricAuth } from "@/lib/localAuthentication";
+import { FormSkeleton } from '@/components/ui/Skeleton';
 import { formatNaira } from "@/lib/wallet";
 import { usePreferencesStore } from "@/store/preferences.store";
 import { haptics } from "@/utils/haptics";
@@ -251,6 +252,28 @@ export default function TransferScreen() {
     receiptBusy;
   const stepOneLoading =
     mode === "BANK" ? walletQuery.isLoading || banksQuery.isLoading : false;
+
+  if (stepOneLoading) {
+    return (
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <View style={styles.content}>
+          <View style={styles.headerRow}>
+            <View style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} />
+            <View style={styles.headerSpacer} />
+          </View>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, { color: palette.primary }]}>
+              Send money
+            </Text>
+            <Text style={[styles.title, { color: palette.text }]}>
+              Move money with ease.
+            </Text>
+          </View>
+          <FormSkeleton count={4} />
+        </View>
+      </View>
+    );
+  }
 
   useEffect(() => {
     if (!allowScreenshots) {
@@ -795,14 +818,7 @@ export default function TransferScreen() {
                   </View>
                 )}
 
-                {stepOneLoading ? (
-                  <StateCard
-                    loading
-                    title="Loading transfer details"
-                    description="Fetching wallet and bank data before you continue."
-                    icon={<Search size={24} color={palette.textSecondary} />}
-                  />
-                ) : !wallet?.kycComplete ? (
+                {!wallet?.kycComplete ? (
                   <StateCard
                     title="KYC required for bank payouts"
                     description="Complete KYC in Settings before you can send to a bank account. Inter-app transfers still work."

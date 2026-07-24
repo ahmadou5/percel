@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { SkeletonGroup } from '@/components/ui/Skeleton';
 import {
   AlertCircle,
   ArrowRight,
@@ -35,7 +36,7 @@ import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useProfile, useUpdateProfile, useVerifyBvn } from '@/hooks/useProfile';
+import { useProfile, useUpdateProfile, useVerifyBvn, useVerifyNin } from '@/hooks/useProfile';
 import { useBanks, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
@@ -83,6 +84,7 @@ export default function KycScreen() {
   const walletQuery = useWallet();
   const updateProfile = useUpdateProfile();
   const verifyBvn = useVerifyBvn();
+  const verifyNin = useVerifyNin();
   const banksQuery = useBanks();
 
   const profile = profileQuery.data;
@@ -102,6 +104,8 @@ export default function KycScreen() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [nin, setNin] = useState('');
+  const [ninSubmitting, setNinSubmitting] = useState(false);
 
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack('/profile');
@@ -134,6 +138,13 @@ export default function KycScreen() {
 
     return () => clearInterval(interval);
   }, [verificationPending, profileQuery, walletQuery]);
+
+  // Fix: Reset submitted state when status resolves
+  useEffect(() => {
+    if (profile?.status === 'SUSPENDED' || profile?.status === 'ACTIVE') {
+      setSubmitted(false);
+    }
+  }, [profile?.status]);
 
   // Verified card animation
   useEffect(() => {
@@ -229,19 +240,49 @@ export default function KycScreen() {
     }
   };
 
+  const isInitialLoading = profileQuery.isLoading || walletQuery.isLoading;
+
+  if (isInitialLoading) {
+    return <KycSkeleton />;
+  }
+
   // 1. VERIFIED STATE VIEW
   if (kycComplete) {
     const nuban = wallet?.nuban;
     const bankName = wallet?.bankName ?? 'Percel Dedicated Account';
-    const spin = rotateAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['0deg', '360deg'],
-    });
+
+    const isTier3 = profile?.bvnVerified && profile?.ninVerified;
+    const isTier2 = profile?.bvnVerified || profile?.ninVerified;
+    const currentTier = isTier3 ? 3 : (isTier2 ? 2 : 1);
+    const tierLabel = `Tier ${currentTier}`;
+    const tierLimit = isTier3 ? '₦5,000,000' : (isTier2 ? '₦200,000' : '₦50,000');
+    const tierColor = isTier3 ? palette.success : (isTier2 ? '#FF9F0A' : palette.textSecondary);
+
+    const handleNinSubmit = async () => {
+      if (!/^\d{11}$/.test(nin.trim())) {
+        modal.alert('Invalid NIN', 'Please enter your valid 11-digit National Identification Number.', 'warning');
+        return;
+      }
+      setNinSubmitting(true);
+      try {
+        await verifyNin.mutateAsync({ nin: nin.trim() });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+          queryClient.invalidateQueries({ queryKey: ['wallet'] }),
+        ]);
+        modal.alert('NIN Verified!', 'Your limit has been upgraded to ₦5,000,000 daily. Welcome to Tier 3!', 'success');
+        setNin('');
+      } catch (error) {
+        modal.alert('NIN Verification Failed', error instanceof Error ? error.message : 'Please check your NIN and try again.', 'error');
+      } finally {
+        setNinSubmitting(false);
+      }
+    };
 
     return (
       <ScrollView
         style={[styles.screen, { backgroundColor: palette.bg }]}
-        contentContainerStyle={{ flexGrow: 1, padding: Spacing.lg, paddingBottom: Spacing.xxxl }}
+        contentContainerStyle={{ padding: Spacing.lg, paddingBottom: Spacing.xxxl, gap: Spacing.lg }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
@@ -255,33 +296,72 @@ export default function KycScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <Animated.View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border, transform: [{ scale: scaleAnim }] }]}>
-            <View style={[styles.verifiedBadgeGlow, { backgroundColor: 'rgba(48,209,88,0.14)', borderColor: palette.success }]}>
-              <ShieldCheck size={56} color={palette.success} />
+        {/* Verified badge card */}
+        <Animated.View style={[styles.verifiedCard, { backgroundColor: palette.card, borderColor: palette.border, transform: [{ scale: scaleAnim }] }]}>
+          <View style={[styles.verifiedBadgeGlow, { backgroundColor: 'rgba(48,209,88,0.14)', borderColor: palette.success }]}>
+            <ShieldCheck size={48} color={palette.success} />
+          </View>
+          <Text style={[styles.verifiedTitle, { color: palette.text }]}>Identity Verified</Text>
+          <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
+            Your dedicated bank account is active for transfers, deposits, and bill payments.
+          </Text>
+
+          {/* Tier badge */}
+          <View style={[styles.tierBadgeRow, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.tierBadgeLabel, { color: palette.textSecondary }]}>Current tier</Text>
+              <Text style={[styles.tierBadgeValue, { color: palette.text }]}>{tierLabel} — {tierLimit} daily limit</Text>
             </View>
-
-            <Text style={[styles.verifiedTitle, { color: palette.text }]}>Verified!</Text>
-            <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
-              Your identity was successfully validated. Your dedicated bank account is active for transfers, deposits, and bill payments.
-            </Text>
-
-
-
-
-
-            <View style={styles.actionGroup}>
-              <Pressable
-                onPress={() => back()}
-                style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
-              >
-                <Text style={styles.primaryActionText}>Continue</Text>
-              </Pressable>
-
-
+            <View style={[styles.tierBadgePill, { backgroundColor: tierColor + '22', borderColor: tierColor }]}>
+              <Text style={[styles.tierBadgePillText, { color: tierColor }]}>{tierLabel}</Text>
             </View>
-          </Animated.View>
-        </View>
+          </View>
+
+          <Pressable
+            onPress={() => back()}
+            style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={styles.primaryActionText}>Back to Profile</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* NIN Upgrade card — only show if not yet Tier 3 */}
+        {!isTier3 && (
+          <View style={[styles.upgradeCard, { backgroundColor: palette.card, borderColor: '#FF9F0A' }]}>
+            <View style={styles.upgradeCardHeader}>
+              <View style={[styles.upgradeIconWrap, { backgroundColor: 'rgba(255,159,10,0.14)' }]}>
+                <Zap size={22} color="#FF9F0A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.upgradeTitle, { color: palette.text }]}>Unlock Tier 3 — ₦5,000,000</Text>
+                <Text style={[styles.upgradeSub, { color: palette.textSecondary }]}>Add your NIN to double-verify your identity and unlock the maximum daily transfer limit.</Text>
+              </View>
+            </View>
+            <Input
+              label="National ID Number (NIN)"
+              value={nin}
+              onChangeText={setNin}
+              placeholder="11-digit NIN"
+              keyboardType="number-pad"
+              maxLength={11}
+              helperText="Your NIN is 11 digits found on your National ID card or slip."
+            />
+            <Pressable
+              onPress={() => void handleNinSubmit()}
+              disabled={ninSubmitting || nin.trim().length !== 11}
+              style={({ pressed }) => [
+                styles.primaryAction,
+                { width: '100%', backgroundColor: nin.trim().length === 11 ? '#FF9F0A' : palette.border },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={styles.primaryActionText}>{ninSubmitting ? 'Verifying…' : 'Verify NIN & Upgrade'}</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <AppModal config={modal.config} onClose={modal.hide} />
       </ScrollView>
     );
   }
@@ -714,6 +794,54 @@ function Row({
   );
 }
 
+function KycSkeleton() {
+  const palette = useAppPalette();
+
+  return (
+    <View style={[styles.screen, { backgroundColor: palette.bg, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl }]}>
+      <SkeletonGroup style={{ gap: Spacing.lg }}>
+        {/* Header Skeleton */}
+        <View style={styles.headerRow}>
+          <View style={[styles.backButton, { backgroundColor: palette.border, borderColor: 'transparent' }]} />
+          <View style={{ width: 150, height: 24, borderRadius: 12, backgroundColor: palette.border }} />
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Copy Skeleton */}
+        <View style={styles.headerCopy}>
+          <View style={{ width: 100, height: 16, borderRadius: 8, backgroundColor: palette.border, marginBottom: 4 }} />
+          <View style={{ width: '90%', height: 32, borderRadius: 16, backgroundColor: palette.border }} />
+          <View style={{ width: '70%', height: 32, borderRadius: 16, backgroundColor: palette.border }} />
+        </View>
+
+        {/* Hero Skeleton */}
+        <View style={[styles.hero, { backgroundColor: palette.border, height: 160 }]} />
+
+        {/* Card Skeleton */}
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.stepPill, { backgroundColor: palette.border, borderColor: 'transparent' }]} />
+            <View style={styles.sectionCopy}>
+              <View style={{ width: 120, height: 20, borderRadius: 10, backgroundColor: palette.border, marginBottom: 6 }} />
+              <View style={{ width: '100%', height: 14, borderRadius: 7, backgroundColor: palette.border, marginBottom: 4 }} />
+              <View style={{ width: '80%', height: 14, borderRadius: 7, backgroundColor: palette.border }} />
+            </View>
+          </View>
+          
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <View style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: palette.border }} />
+            <View style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: palette.border }} />
+          </View>
+          <View style={{ height: 56, borderRadius: 16, backgroundColor: palette.border }} />
+          <View style={{ height: 56, borderRadius: 16, backgroundColor: palette.border }} />
+          
+          <View style={{ height: 56, borderRadius: 16, backgroundColor: palette.border, marginTop: 10 }} />
+        </View>
+      </SkeletonGroup>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
@@ -800,4 +928,19 @@ const styles = StyleSheet.create({
   errorCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   errorTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   errorSub: { fontSize: Typography.xs, lineHeight: 16, marginTop: 2 },
+
+  // Tier badge styles
+  tierBadgeRow: { flexDirection: 'row', alignItems: 'center', width: '100%', gap: 12, borderRadius: 16, borderWidth: 1, padding: Spacing.md },
+  tierDot: { width: 10, height: 10, borderRadius: 5 },
+  tierBadgeLabel: { fontSize: Typography.xs, fontFamily: Typography.family.medium, textTransform: 'uppercase', letterSpacing: 0.6 },
+  tierBadgeValue: { fontSize: Typography.sm, fontFamily: Typography.family.bold, marginTop: 2 },
+  tierBadgePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  tierBadgePillText: { fontSize: Typography.xs, fontFamily: Typography.family.bold, letterSpacing: 0.4 },
+
+  // NIN upgrade card styles
+  upgradeCard: { borderRadius: 24, borderWidth: 1.5, padding: Spacing.lg, gap: 14 },
+  upgradeCardHeader: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  upgradeIconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  upgradeTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  upgradeSub: { fontSize: Typography.xs, lineHeight: 17, marginTop: 3 },
 });

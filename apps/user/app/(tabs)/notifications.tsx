@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
 import { NotificationDetailModal } from '@/components/NotificationDetailModal';
 import { StateCard } from '@/components/ui/StateCard';
+import { ListSkeleton } from '@/components/ui/Skeleton';
 import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -92,7 +93,7 @@ export default function NotificationsScreen() {
       </View>
 
       {query.isLoading ? (
-        <StateCard loading title="Loading notifications" description="We’re fetching your latest updates and wallet alerts." icon={<FileClock size={24} color={palette.textSecondary} />} />
+        <ListSkeleton />
       ) : query.isError ? (
         <StateCard
           title="Could not load notifications"

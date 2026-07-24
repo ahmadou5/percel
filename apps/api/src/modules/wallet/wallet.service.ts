@@ -86,6 +86,38 @@ export class WalletService {
     return new PaymentProviderService(this.prisma);
   }
 
+  private async enforceTransferLimit(trx: any, walletId: string, userId: string, amount: number) {
+    const user = await trx.user.findUnique({ where: { id: userId } });
+    const wallet = await trx.wallet.findUnique({ where: { id: walletId } });
+
+    if (!user || !wallet) throw new PaymentError('User or wallet not found');
+
+    const isTier3 = user.bvnVerified && user.ninVerified;
+    const isTier2 = user.bvnVerified || user.ninVerified;
+    const dailyLimit = isTier3 ? 5000000 : (isTier2 ? 200000 : 50000);
+
+    const now = new Date();
+    
+    let currentUsage = Number(wallet.dailyTransferUsage ?? 0);
+    const lastDate = wallet.lastTransferDate;
+
+    if (!lastDate || lastDate.getUTCFullYear() !== now.getUTCFullYear() || lastDate.getUTCMonth() !== now.getUTCMonth() || lastDate.getUTCDate() !== now.getUTCDate()) {
+      currentUsage = 0;
+    }
+
+    if (currentUsage + amount > dailyLimit) {
+      throw new PaymentError(`Daily transfer limit of ₦${(dailyLimit).toLocaleString()} exceeded. Remaining: ₦${(Math.max(0, dailyLimit - currentUsage)).toLocaleString()}`);
+    }
+
+    await trx.wallet.update({
+      where: { id: wallet.id },
+      data: {
+        dailyTransferUsage: currentUsage + amount,
+        lastTransferDate: now,
+      }
+    });
+  }
+
   private async createNotification(
     userId: string,
     type: PrismaNotificationType,
@@ -185,9 +217,24 @@ export class WalletService {
 
     if (!wallet) throw new NotFoundError('Wallet not found');
     const depositAccount = await this.ensureDepositAccount(wallet, profile ?? { id: userId, email: '', fullName: 'Percel User', phone: '', paystackCustomerCode: null, dateOfBirth: null, address: null, ninNumber: null, bvnNumber: null, ninVerified: false, bvnVerified: false, kycMethod: null });
+    
+    const isTier3 = profile?.bvnVerified && profile?.ninVerified;
+    const isTier2 = profile?.bvnVerified || profile?.ninVerified;
+    const dailyLimit = isTier3 ? 5000000 : (isTier2 ? 200000 : 50000);
+
+    const now = new Date();
+    let currentUsage = Number(wallet.dailyTransferUsage ?? 0);
+    const lastDate = wallet.lastTransferDate;
+
+    if (!lastDate || lastDate.getUTCFullYear() !== now.getUTCFullYear() || lastDate.getUTCMonth() !== now.getUTCMonth() || lastDate.getUTCDate() !== now.getUTCDate()) {
+      currentUsage = 0;
+    }
+    
     return {
       ...wallet,
       ...depositAccount,
+      dailyTransferUsage: currentUsage,
+      dailyLimit,
       walletPinSet: Boolean(user?.walletPinHash),
     };
   }
@@ -671,6 +718,7 @@ export class WalletService {
     const safeDescription = cleanText(description) ?? 'Wallet transfer';
 
     await this.prisma.$transaction(async (trx) => {
+      await this.enforceTransferLimit(trx, fromWallet.id, fromUserId, amount);
       const senderBefore = Number((await trx.wallet.findUnique({ where: { id: fromWallet.id } }))?.balance ?? 0);
       const recipientBefore = Number((await trx.wallet.findUnique({ where: { id: recipient.wallet!.id } }))?.balance ?? 0);
       if (senderBefore < amount) throw new PaymentError('Insufficient balance');
@@ -856,6 +904,7 @@ export class WalletService {
     });
 
     await this.prisma.$transaction(async (trx) => {
+      await this.enforceTransferLimit(trx, wallet.id, userId, data.amount);
       const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
       if (before < data.amount) throw new PaymentError('Insufficient balance');
       const after = before - data.amount;

@@ -8,6 +8,7 @@ import { AppModal, useAppModal } from "@/components/ui/AppModal";
 import { AmountInput } from "@/components/wallet/AmountInput";
 import { ConfirmSheet } from "@/components/wallet/ConfirmSheet";
 import { StateCard } from "@/components/ui/StateCard";
+import { FormSkeleton } from "@/components/ui/Skeleton";
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
 import { formatNaira } from "@/lib/wallet";
@@ -217,7 +218,7 @@ export default function TopUpScreen() {
               onActionPress={() => router.push('/settings/kyc')}
             />
           ) : walletQuery.isLoading ? (
-            <StateCard loading title="Loading wallet details" description="We’re fetching your deposit account details." icon={<Banknote size={24} color={palette.textSecondary} />} />
+            <FormSkeleton count={2} />
           ) : walletQuery.isError ? (
             <StateCard
               title="Could not load wallet"

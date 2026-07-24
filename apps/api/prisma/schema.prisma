@@ -327,6 +327,8 @@ model Wallet {
   bankCode      String?
   paymentProvider PaymentProvider?
   isActive      Boolean  @default(true)
+  dailyTransferUsage Decimal  @default(0) @db.Decimal(14, 2)
+  lastTransferDate   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

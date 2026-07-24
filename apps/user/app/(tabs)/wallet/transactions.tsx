@@ -5,6 +5,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
 import { haptics } from '@/utils/haptics';
 
+import { ListSkeleton } from '@/components/ui/Skeleton';
 import { StateCard } from '@/components/ui/StateCard';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -221,7 +222,7 @@ export default function TransactionsScreen() {
     {/* 🌟 FIX 2: List card takes up all remaining space cleanly */}
     <View style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border, flex: 1 }]}>
       {query.isLoading ? (
-        <StateCard loading title="Loading transactions" description="We're fetching your latest activity and payment history." icon={<Clock3 size={24} color={palette.textSecondary} />} />
+        <ListSkeleton />
       ) : query.isError ? (
         <StateCard
           title="Could not load transactions"

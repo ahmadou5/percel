@@ -19,6 +19,7 @@ import { formatNaira } from '@/lib/wallet';
 import { triggerBiometricAuth } from '@/lib/localAuthentication';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { ListSkeleton } from '@/components/ui/Skeleton';
 import { useAppPalette } from '@/lib/theme';
 import { useAppModal, AppModal } from '@/components/ui/AppModal';
 
@@ -397,7 +398,7 @@ export default function TvScreen() {
               <Text style={[styles.sectionTitle, { color: palette.text }]}>Live bouquets</Text>
               {selectedService ? (
                 variationsQuery.isLoading ? (
-                  <StateCard loading title="Loading bouquets" description="Fetching the current bouquet list from VTpass." icon={<Tv2 size={24} color={palette.textSecondary} />} />
+                  <ListSkeleton count={3} />
                 ) : variations.length ? (
                   <View style={styles.planList}>
                     {variations.map((variation) => {

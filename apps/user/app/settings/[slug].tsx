@@ -17,7 +17,6 @@ import { useAppModal, AppModal } from '@/components/ui/AppModal';
 
 const SLUGS = {
   kyc: { title: 'KYC', description: 'Verify your identity so your account stays compliant and ready for higher limits.', Icon: BadgeCheck },
-  'spending-limits': { title: 'Spending Limits', description: 'Manage the transaction limits that keep your account safe and predictable.', Icon: CreditCard },
   beneficiaries: { title: 'Beneficiaries', description: 'Review and manage the contacts and accounts you save for faster payments.', Icon: Users },
   notifications: { title: 'Notifications', description: 'Choose what updates you receive and when the app should alert you.', Icon: Bell },
   support: { title: 'Support', description: 'Reach the Percel team for help with deliveries, wallet issues, and account access.', Icon: HandCoins },

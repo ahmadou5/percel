@@ -19,6 +19,7 @@ import { formatNaira } from '@/lib/wallet';
 import { triggerBiometricAuth } from '@/lib/localAuthentication';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
+import { ListSkeleton } from '@/components/ui/Skeleton';
 import { useAppPalette, isLight } from '@/lib/theme';
 import { AirtimeContactsSheet, type AirtimeContactsSheetRef } from '@/components/wallet/AirtimeContactsSheet';
 
@@ -416,7 +417,7 @@ export default function DataScreen() {
               <Text style={[styles.sectionTitle, { color: palette.text, marginBottom: 8 }]}>Plans</Text>
               {selectedService ? (
                 variationsQuery.isLoading ? (
-                  <StateCard loading title="Loading plans" description="Fetching live data bundles." icon={<Globe size={24} color={palette.textSecondary} />} />
+                  <ListSkeleton count={3} />
                 ) : variations.length ? (
                   <>
                     <View style={[styles.tabBarContainer, { borderBottomColor: lightBg ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>

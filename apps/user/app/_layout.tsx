@@ -7,7 +7,7 @@ import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
@@ -20,6 +20,13 @@ import { useAuthStore } from "@/store/auth.store";
 import { usePreferencesStore } from "@/store/preferences.store";
 
 export { ErrorBoundary } from "@/components/AppErrorBoundary";
+
+let codePush: any = null;
+try {
+  codePush = require("@code-push-next/react-native-code-push");
+} catch {
+  // Safe fallback when running in web or dev mode without native CodePush binary
+}
 
 // Show notifications as banners even when the app is in the foreground.
 // Without this handler, Expo silently discards foreground notifications.
@@ -74,6 +81,10 @@ function RootLayout() {
   if (!loaded || isAuthLoading || preferencesLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.bg }}>
+        <Image
+          source={require("../assets/images/icons/icon-blue.png")}
+          style={{ width: 84, height: 84, resizeMode: "contain", marginBottom: 20 }}
+        />
         <FontAwesome name="spinner" size={20} color={palette.primary} />
       </View>
     );
@@ -90,10 +101,17 @@ function RootLayout() {
   );
 }
 
-export default function RootLayoutWithSentry() {
+function RootLayoutWithSentry() {
   initSentry();
   return <RootLayout />;
 }
+
+const codePushOptions = {
+  checkFrequency: codePush?.CheckFrequency?.ON_APP_RESUME ?? 1,
+  installMode: codePush?.InstallMode?.ON_NEXT_RESUME ?? 1,
+};
+
+export default codePush ? codePush(codePushOptions)(RootLayoutWithSentry) : RootLayoutWithSentry;
 
 function RootLayoutNav() {
   const palette = useAppPalette();

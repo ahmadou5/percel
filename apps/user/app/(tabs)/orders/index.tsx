@@ -7,6 +7,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useOrders } from '@/hooks/useOrder';
 import { useAppPalette } from '@/lib/theme';
+import { ListSkeleton } from '@/components/ui/Skeleton';
 
 const ACTIVE_STATUSES = ['CREATED', 'PENDING_MATCH', 'MATCHED', 'ACCEPTED', 'IN_TRANSIT', 'DELIVERED'] as const;
 const PAST_STATUSES = ['COMPLETED', 'CANCELLED', 'DISPUTED'] as const;
@@ -199,11 +200,7 @@ export default function OrdersScreen() {
 
       {/* List / empty / error states */}
       {query.isLoading ? (
-        <View style={[styles.stateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <ActivityIndicator color={palette.primary} size="large" />
-          <Text style={[styles.stateTitle, { color: palette.text }]}>Loading orders</Text>
-          <Text style={[styles.stateBody, { color: palette.textSecondary }]}>We're pulling your latest deliveries and statuses.</Text>
-        </View>
+        <ListSkeleton />
       ) : query.isError ? (
         <View style={[styles.stateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <BadgeCheck size={32} color="#EF4444" />

@@ -4,16 +4,17 @@
     "slug": "percel-user",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/app-icon.icon",
     "scheme": "percel",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/icons/icon-blue.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A84FF"
     },
     "ios": {
+      "icon": "./assets/app-icon.icon",
       "supportsTablet": true,
       "bundleIdentifier": "com.percel.user",
       "config": {
@@ -23,8 +24,9 @@
     "android": {
       "package": "com.percel.user",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/icons/android/android-icon-blue.png",
+        "backgroundImage": "./assets/images/icons/android/android-icon-blue.png",
+        "monochromeImage": "./assets/images/icons/android/android-icon-blue.png"
       },
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
@@ -42,11 +44,12 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withCodePush.js",
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/adaptive-icon.png",
-          "color": "#0EA5E9"
+          "icon": "./assets/images/icons/notification-icon.png",
+          "color": "#0A84FF"
         }
       ],
       [
@@ -54,6 +57,67 @@
         {
           "androidGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik",
           "iosGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
+        }
+      ],
+      [
+        "expo-alternate-app-icons",
+        {
+          "icons": [
+            {
+              "name": "icon-teal",
+              "ios": { "images": ["./assets/images/icons/icon-teal.png"] },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-teal.png",
+                "backgroundImage": "./assets/images/icons/android/android-icon-teal.png",
+                "monochromeImage": "./assets/images/icons/android/android-icon-teal.png"
+              }
+            },
+            {
+              "name": "icon-sky",
+              "ios": { "images": ["./assets/images/icons/icon-sky.png"] },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-sky.png",
+                "backgroundImage": "./assets/images/icons/android/android-icon-sky.png",
+                "monochromeImage": "./assets/images/icons/android/android-icon-sky.png"
+              }
+            },
+            {
+              "name": "icon-indigo",
+              "ios": { "images": ["./assets/images/icons/icon-indigo.png"] },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-indigo.png",
+                "backgroundImage": "./assets/images/icons/android/android-icon-indigo.png",
+                "monochromeImage": "./assets/images/icons/android/android-icon-indigo.png"
+              }
+            },
+            {
+              "name": "icon-amber",
+              "ios": { "images": ["./assets/images/icons/icon-amber.png"] },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-amber.png",
+                "backgroundImage": "./assets/images/icons/android/android-icon-amber.png",
+                "monochromeImage": "./assets/images/icons/android/android-icon-amber.png"
+              }
+            },
+            {
+              "name": "icon-red",
+              "ios": { "images": ["./assets/images/icons/icon-red.png"] },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-red.png",
+                "backgroundImage": "./assets/images/icons/android/android-icon-red.png",
+                "monochromeImage": "./assets/images/icons/android/android-icon-red.png"
+              }
+            },
+            {
+              "name": "icon-green",
+              "ios": { "images": ["./assets/images/icons/icon-green.png"] },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-green.png",
+                "backgroundImage": "./assets/images/icons/android/android-icon-green.png",
+                "monochromeImage": "./assets/images/icons/android/android-icon-green.png"
+              }
+            }
+          ]
         }
       ]
     ],

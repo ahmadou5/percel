@@ -8,6 +8,40 @@ try {
   // Safe fallback when native module throws during load
 }
 
+// Safe expo-alternate-app-icons wrapper — not available in Expo Go
+let alternateIcons: { setAlternateIconAsync: (name: string | null) => Promise<void> } | null = null;
+try {
+  alternateIcons = require("expo-alternate-app-icons");
+} catch {
+  // Not available in Expo Go or web — icon switching silently disabled
+}
+
+/** Maps each preset accent hex to its pre-bundled alternate icon name */
+const ACCENT_TO_ICON: Record<string, string> = {
+  "#14B8A6": "icon-teal",
+  "#0EA5E9": "icon-sky",
+  "#6366F1": "icon-indigo",
+  "#F59E0B": "icon-amber",
+  "#EF4444": "icon-red",
+  "#22C55E": "icon-green",
+};
+
+/** Switches the home screen icon to match the active theme. Silently no-ops in Expo Go. */
+async function syncAppIcon(mode: ThemeMode, accent: string): Promise<void> {
+  if (!alternateIcons) return;
+  try {
+    if (mode !== "custom") {
+      // light / dark / system all use the default blue icon
+      await alternateIcons.setAlternateIconAsync(null);
+    } else {
+      const iconName = ACCENT_TO_ICON[accent] ?? null;
+      await alternateIcons.setAlternateIconAsync(iconName);
+    }
+  } catch {
+    // Icon switching can fail if the app isn't built natively — swallow silently
+  }
+}
+
 const memoryStorage = new Map<string, string>();
 const AsyncStorage = {
   getItem: async (key: string) => {
@@ -162,12 +196,14 @@ async function setThemeMode(mode: ThemeMode) {
   state = { ...state, themeMode: mode };
   await AsyncStorage.setItem(THEME_MODE_KEY, mode);
   emit();
+  await syncAppIcon(mode, state.customTheme.accent);
 }
 
 async function setCustomTheme(theme: CustomTheme) {
   state = { ...state, customTheme: theme };
   await AsyncStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(theme));
   emit();
+  await syncAppIcon(state.themeMode, theme.accent);
 }
 
 async function setNotificationsEnabled(enabled: boolean) {
