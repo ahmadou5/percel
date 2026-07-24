@@ -4,7 +4,7 @@
     "slug": "percel-user",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/app-icon.icon",
+    "icon": "./assets/images/icons/icon-blue.png",
     "scheme": "percel",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
       "backgroundColor": "#0A84FF"
     },
     "ios": {
-      "icon": "./assets/app-icon.icon",
+      "icon": "./assets/images/icons/icon-blue.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.percel.user",
       "config": {

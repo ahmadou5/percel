@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
-import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
 import { FormSkeleton } from '@/components/ui/Skeleton';
 import { KeyboardView } from '@/components/ui/KeyboardView';
 
@@ -31,7 +30,7 @@ import { useAppPalette } from '@/lib/theme';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 
 import { usePreferencesStore } from '@/store/preferences.store';
-
+import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
 function toFormDate(value?: string | null) {
   return value ? value.slice(0, 10) : '';
 }
@@ -48,6 +47,7 @@ export default function EditProfileScreen() {
   const deleteAccount = useDeleteAccount();
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [dobModalVisible, setDobModalVisible] = useState(false);
   const [address, setAddress] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -160,7 +160,7 @@ export default function EditProfileScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.9,
@@ -218,9 +218,8 @@ export default function EditProfileScreen() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: palette.primary }]}>Profile</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Keep your account details current and secure.</Text>
-          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Your profile drives deliveries, support, and wallet verification. Update it here when anything changes.</Text>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Edit Profile</Text>
+
         </View>
 
         {profileQuery.isLoading ? (
@@ -248,8 +247,7 @@ export default function EditProfileScreen() {
                 <View style={styles.avatarCopy}>
                   <Text style={[styles.cardLabel, { color: palette.textSecondary }]}>Profile photo</Text>
                   <Text style={[styles.cardTitle, { color: palette.text }]}>{profile?.fullName ?? 'Percel User'}</Text>
-                  <Text style={[styles.cardMeta, { color: palette.textSecondary }]}>A clear photo helps support and delivery teams recognize your account.</Text>
-                  <Button title={updateAvatar.isPending ? 'Uploading…' : 'Change avatar'} variant="secondary" onPress={changeAvatar} loading={updateAvatar.isPending} />
+
                 </View>
               </View>
             </View>
@@ -260,7 +258,12 @@ export default function EditProfileScreen() {
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Profile details</Text>
               </View>
               <Input label="Full name" value={fullName} onChangeText={setFullName} placeholder="Your full name" />
-              <Input label="Date of birth" value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" helperText="Enter your birth date in ISO format." />
+              <DobDatePickerModal visible={dobModalVisible} onClose={() => setDobModalVisible(false)} onSelect={(date) => { setDateOfBirth(date); setDobModalVisible(false); }} />
+              <Pressable onPress={() => setDobModalVisible(true)}>
+                <View pointerEvents="none">
+                  <Input label="Date of birth" value={dateOfBirth} placeholder="YYYY-MM-DD" helperText="Enter your birth date in ISO format." />
+                </View>
+              </Pressable>
               <Input label="Address" value={address} onChangeText={setAddress} placeholder="Home or pickup address" multiline numberOfLines={3} />
               <Button title={updateProfile.isPending ? 'Saving…' : 'Save changes'} onPress={saveProfile} loading={updateProfile.isPending} disabled={!profileChanged || updateProfile.isPending} />
             </View>
