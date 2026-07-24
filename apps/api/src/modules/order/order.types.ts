@@ -47,6 +47,10 @@ export interface OrderSummary {
   deliveryType?: 'INTERSTATE' | 'INTRASTATE';
   courierLat?: number | null;
   courierLng?: number | null;
+  pickupLat: number;
+  pickupLng: number;
+  deliveryLat: number;
+  deliveryLng: number;
   etaMinutes?: number | null;
   pickupFormattedAddress: string;
   deliveryFormattedAddress: string;

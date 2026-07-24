@@ -21,6 +21,20 @@ export function useAvailableOrders() {
   });
 }
 
+export function useDriverActiveOrders() {
+  const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
+
+  return useQuery({
+    queryKey: ['driver-orders-active'],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const response = await http.get<ApiResponse<DriverOrder[]>>('/api/v1/driver/orders/active');
+      return response.data.data;
+    },
+    staleTime: 10_000,
+  });
+}
+
 export function useDriverRateOrder() {
   return useMutation({
     mutationFn: async (payload: { orderId: string; driverRating: number; driverComment?: string }) => {
@@ -50,6 +64,7 @@ export function useAcceptOrder() {
       await setCurrentOrder(data.order);
       emitDriverEvent('order_status_update', { orderId: data.order.id, status: data.order.status });
       await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['driver-orders-active'] });
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },
   });
@@ -92,6 +107,7 @@ export function useUpdateOrderStatus() {
       emitDriverEvent('order_status_update', { orderId: order.id, status: order.status });
       await setCurrentOrder(order.status === 'COMPLETED' ? null : order);
       await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+      await queryClient.invalidateQueries({ queryKey: ['driver-orders-active'] });
     },
   });
 }
@@ -107,5 +123,31 @@ export function useDriverOrdersHistory() {
       return response.data.data.data;
     },
     staleTime: 15_000,
+  });
+}
+
+export function useDriverOrderDetail(id: string | null | undefined) {
+  const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
+  const currentOrder = useDriverStore((state) => state.currentOrder);
+
+  return useQuery({
+    queryKey: ['driver-order-detail', id],
+    enabled: isAuthenticated && !!id,
+    queryFn: async () => {
+      try {
+        const response = await http.get<ApiResponse<DriverOrder>>(`/api/v1/driver/orders/${id}`);
+        return response.data.data;
+      } catch {
+        // If the endpoint doesn't exist, fall back to the current order from store
+        if (currentOrder && currentOrder.id === id) return currentOrder;
+        throw new Error('Order not found');
+      }
+    },
+    // Seed from current order store so the screen renders instantly while fetching
+    initialData: () => {
+      if (currentOrder && currentOrder.id === id) return currentOrder;
+      return undefined;
+    },
+    staleTime: 10_000,
   });
 }

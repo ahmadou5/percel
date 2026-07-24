@@ -83,6 +83,10 @@ function serializeOrder(order: OrderLike): OrderSummary {
     courierLat: order.courierLat ? asNumber(order.courierLat) : null,
     courierLng: order.courierLng ? asNumber(order.courierLng) : null,
     etaMinutes: order.etaMinutes ?? null,
+    pickupLat: asNumber(order.pickupLat),
+    pickupLng: asNumber(order.pickupLng),
+    deliveryLat: asNumber(order.deliveryLat),
+    deliveryLng: asNumber(order.deliveryLng),
     pickupFormattedAddress: order.pickupFormattedAddress,
     deliveryFormattedAddress: order.deliveryFormattedAddress,
     distanceKm: asNumber(order.distanceKm),
@@ -700,6 +704,19 @@ export class OrderService {
     }
 
     return serializeOrder(completed);
+  }
+
+  async getDriverActiveOrders(driverId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        driverId,
+        status: { in: [OrderStatus.ACCEPTED, OrderStatus.IN_TRANSIT] },
+      },
+      include: { driver: { include: { user: true } }, user: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return orders.map(serializeOrder);
   }
 
   async getAvailableOrders(driverId: string) {

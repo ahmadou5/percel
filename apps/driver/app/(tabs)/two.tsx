@@ -9,137 +9,20 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, Clock, DollarSign, Zap } from 'lucide-react-native';
+import { MapPin, Radar, Zap } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { useAcceptOrder, useAvailableOrders, useDeclineOrder } from '@/hooks/useDriverOrders';
 import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
-import type { DriverOrder } from '@/lib/types';
+import { DispatchOrderCard } from '@/components/orders/DispatchOrderCard';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 
 function formatNaira(value: number) {
-  return new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function StatusBadge({ status, palette }: { status: string; palette: ReturnType<typeof useAppPalette> }) {
-  const cfg: Record<string, { label: string; color: string }> = {
-    PENDING_MATCH: { label: 'Waiting', color: '#FFD60A' },
-    MATCHED:       { label: 'Offered to you', color: palette.primary },
-    ACCEPTED:      { label: 'Accepted', color: '#30D158' },
-    IN_TRANSIT:    { label: 'In transit', color: '#0A84FF' },
-    DELIVERED:     { label: 'Delivered', color: '#30D158' },
-    COMPLETED:     { label: 'Completed', color: '#30D158' },
-    CANCELLED:     { label: 'Cancelled', color: '#FF453A' },
-  };
-  const { label, color } = cfg[status] ?? { label: status, color: palette.textSecondary };
-  return (
-    <View style={[styles.statusBadge, { backgroundColor: hexToRgba(color, 0.14) }]}>
-      <View style={[styles.statusDot, { backgroundColor: color }]} />
-      <Text style={[styles.statusText, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
-function OrderCard({
-  order,
-  onAccept,
-  onDecline,
-  accepting,
-  declining,
-  palette,
-}: {
-  order: DriverOrder;
-  onAccept: () => void;
-  onDecline: () => void;
-  accepting: boolean;
-  declining: boolean;
-  palette: ReturnType<typeof useAppPalette>;
-}) {
-  const canAccept = order.status === 'PENDING_MATCH' || order.status === 'MATCHED';
-
-  return (
-    <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-      {/* Top row */}
-      <View style={styles.cardTop}>
-        <View style={styles.cardTopLeft}>
-          <Text style={[styles.trackingCode, { color: palette.primary }]}>{order.trackingCode}</Text>
-          <Text style={[styles.cardSize, { color: palette.text }]}>{order.size} package</Text>
-        </View>
-        <StatusBadge status={order.status} palette={palette} />
-      </View>
-
-      {/* Route */}
-      <View style={[styles.routeBox, { backgroundColor: palette.bg }]}>
-        <View style={styles.routeRow}>
-          <View style={[styles.routeDot, { backgroundColor: '#30D158' }]} />
-          <View style={styles.routeContent}>
-            <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>PICKUP</Text>
-            <Text style={[styles.routeAddr, { color: palette.text }]} numberOfLines={2}>
-              {order.pickupFormattedAddress}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
-        <View style={styles.routeRow}>
-          <View style={[styles.routeDot, { backgroundColor: '#FF9F0A' }]} />
-          <View style={styles.routeContent}>
-            <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>DROPOFF</Text>
-            <Text style={[styles.routeAddr, { color: palette.text }]} numberOfLines={2}>
-              {order.deliveryFormattedAddress}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        {[
-          { Icon: MapPin,    value: `${order.distanceKm.toFixed(1)} km`,       color: palette.primary },
-          { Icon: Clock,     value: `${order.estimatedDurationMin} min`,        color: '#FFD60A' },
-          { Icon: DollarSign, value: formatNaira(order.price),                 color: '#30D158' },
-        ].map(({ Icon, value, color }) => (
-          <View key={value} style={[styles.statChip, { backgroundColor: hexToRgba(color, 0.10) }]}>
-            <Icon size={13} color={color} />
-            <Text style={[styles.statText, { color }]}>{value}</Text>
-          </View>
-        ))}
-      </View>
-
-      {canAccept && (
-        <View style={styles.actionRow}>
-          <Pressable
-            onPress={onDecline}
-            disabled={declining || accepting}
-            style={({ pressed }) => [
-              styles.declineBtn,
-              { borderColor: palette.border, opacity: pressed || declining || accepting ? 0.75 : 1 },
-            ]}
-          >
-            {declining ? <ActivityIndicator color={palette.textSecondary} size="small" /> : <Text style={[styles.declineBtnText, { color: palette.textSecondary }]}>Decline</Text>}
-          </Pressable>
-          <Pressable
-            onPress={onAccept}
-            disabled={accepting || declining}
-            style={({ pressed }) => [
-              styles.acceptBtn,
-              { backgroundColor: palette.primary, opacity: pressed || accepting || declining ? 0.75 : 1 },
-            ]}
-          >
-            {accepting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.acceptBtnText}>Accept job</Text>
-            )}
-          </Pressable>
-        </View>
-      )}
-    </View>
-  );
+  return `₦${Math.max(0, value).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 }
 
 export default function DispatchBoardScreen() {
@@ -152,7 +35,7 @@ export default function DispatchBoardScreen() {
   const declineOrder = useDeclineOrder();
   const orders = ordersQuery.data ?? [];
 
-  // Live refresh: whenever the socket tells us there's a new order or status change, refetch
+  // Live refresh on socket events
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
   }, [queryClient]);
@@ -175,14 +58,15 @@ export default function DispatchBoardScreen() {
             tintColor={palette.primary}
           />
         }
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: 100 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg, paddingBottom: 120 }]}
       >
-        {/* Hero */}
+        {/* ── Hero ── */}
         <View style={[styles.hero, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.heroDecorA} />
           <View style={styles.heroDecorB} />
+
           <View style={styles.heroInner}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.heroEyebrow, { color: palette.primary }]}>DISPATCH BOARD</Text>
               <Text style={[styles.heroTitle, { color: palette.text }]}>
                 {isOnline ? 'Live jobs in range' : 'Go online to see jobs'}
@@ -195,21 +79,24 @@ export default function DispatchBoardScreen() {
               </Text>
             </View>
           </View>
-          <View style={styles.heroStats}>
-            <View style={styles.heroStat}>
+
+          {/* Stats chips */}
+          <View style={[styles.heroStats, { borderTopColor: palette.border }]}>
+            <View style={[styles.heroStatChip, { backgroundColor: hexToRgba(palette.primary, 0.1) }]}>
+              <Radar size={14} color={palette.primary} />
               <Text style={[styles.heroStatVal, { color: palette.text }]}>{orders.length}</Text>
               <Text style={[styles.heroStatLabel, { color: palette.textSecondary }]}>Available</Text>
             </View>
-            <View style={[styles.heroStatDivider, { backgroundColor: palette.border }]} />
-            <View style={styles.heroStat}>
-              <Text style={[styles.heroStatVal, { color: palette.text }]}>
+            <View style={[styles.heroStatChip, { backgroundColor: hexToRgba('#30D158', 0.1) }]}>
+              <Zap size={14} color="#30D158" />
+              <Text style={[styles.heroStatVal, { color: '#30D158' }]}>
                 {orders.length > 0 ? formatNaira(Math.max(...orders.map((o) => o.price))) : '—'}
               </Text>
               <Text style={[styles.heroStatLabel, { color: palette.textSecondary }]}>Top payout</Text>
             </View>
-            <View style={[styles.heroStatDivider, { backgroundColor: palette.border }]} />
-            <View style={styles.heroStat}>
-              <Text style={[styles.heroStatVal, { color: palette.text }]}>
+            <View style={[styles.heroStatChip, { backgroundColor: hexToRgba('#FFD60A', 0.1) }]}>
+              <MapPin size={14} color="#FFD60A" />
+              <Text style={[styles.heroStatVal, { color: '#FFD60A' }]}>
                 {orders.length > 0 ? `${Math.min(...orders.map((o) => o.distanceKm)).toFixed(1)} km` : '—'}
               </Text>
               <Text style={[styles.heroStatLabel, { color: palette.textSecondary }]}>Nearest</Text>
@@ -217,41 +104,62 @@ export default function DispatchBoardScreen() {
           </View>
         </View>
 
-        {/* Section header */}
+        {/* ── Section header ── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Available now</Text>
-          <Text style={[styles.sectionCaption, { color: palette.textSecondary }]}>
-            {ordersQuery.isFetching ? 'Refreshing…' : 'Pull to refresh'}
-          </Text>
+          {ordersQuery.isFetching && !ordersQuery.isLoading && (
+            <View style={[styles.refreshPill, { backgroundColor: hexToRgba(palette.primary, 0.1) }]}>
+              <ActivityIndicator size="small" color={palette.primary} />
+              <Text style={[styles.refreshText, { color: palette.primary }]}>Refreshing</Text>
+            </View>
+          )}
         </View>
 
-        {/* Loading state */}
+        {/* ── Content ── */}
         {ordersQuery.isLoading ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <ActivityIndicator color={palette.primary} />
-            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Loading dispatch board…</Text>
+          <View style={[styles.stateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <ActivityIndicator color={palette.primary} size="large" />
+            <Text style={[styles.stateText, { color: palette.textSecondary }]}>Loading dispatch board…</Text>
           </View>
         ) : orders.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Zap size={28} color={palette.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>No live jobs yet</Text>
-            <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-              {isOnline
-                ? 'When a pickup lands within your range, it will appear here automatically.'
-                : 'Go online on the Home tab to start receiving jobs.'}
-            </Text>
+          <View style={[styles.stateCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={[styles.emptyIconRing, { borderColor: hexToRgba(palette.primary, 0.15) }]}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+                <Radar size={30} color={palette.primary} />
+              </View>
+            </View>
+            <View style={styles.emptyCopy}>
+              <Text style={[styles.emptyTitle, { color: palette.text }]}>No live jobs yet</Text>
+              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
+                {isOnline
+                  ? 'When a pickup lands within your range, it will appear here automatically.'
+                  : 'Go online on the Home tab to start receiving jobs.'}
+              </Text>
+            </View>
+            {!isOnline && (
+              <Pressable
+                onPress={() => router.push('/(tabs)/home')}
+                style={({ pressed }) => [
+                  styles.goOnlineBtn,
+                  { backgroundColor: palette.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Text style={styles.goOnlineBtnText}>Go online on Home</Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <View style={styles.list}>
             {orders.map((order) => (
-              <OrderCard
+              <DispatchOrderCard
                 key={order.id}
                 order={order}
                 accepting={acceptOrder.isPending}
                 declining={declineOrder.isPending}
                 onAccept={() => acceptOrder.mutate(order.id)}
-                onDecline={() => declineOrder.mutate({ orderId: order.id, reason: 'Driver declined from dispatch board' })}
-                palette={palette}
+                onDecline={() =>
+                  declineOrder.mutate({ orderId: order.id, reason: 'Driver declined from dispatch board' })
+                }
               />
             ))}
           </View>
@@ -263,65 +171,85 @@ export default function DispatchBoardScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 20, gap: 16 },
+  content: { paddingHorizontal: Spacing.lg, gap: Spacing.md },
 
-  // hero card
-  hero: { borderRadius: 24, borderWidth: 1, padding: 20, gap: 16, overflow: 'hidden' },
+  // ── hero ──
+  hero: { borderRadius: 24, borderWidth: 1, padding: Spacing.xl, gap: Spacing.md, overflow: 'hidden' },
   heroDecorA: { position: 'absolute', top: -40, right: -20, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.04)' },
   heroDecorB: { position: 'absolute', bottom: -50, left: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.03)' },
-  heroInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 },
-  heroEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 0, textTransform: 'uppercase', marginBottom: 4 },
-  heroTitle: { fontSize: 20, fontWeight: '800' },
+  heroInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, zIndex: 1 },
+  heroEyebrow: { fontSize: 11, fontFamily: 'SpaceGrotesk_700Bold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+  heroTitle: { fontSize: Typography.lg, fontFamily: 'SpaceGrotesk_700Bold' },
   livePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   liveDot: { width: 7, height: 7, borderRadius: 4 },
-  liveText: { fontSize: 12, fontWeight: '700' },
-  heroStats: { flexDirection: 'row', alignItems: 'center', gap: 0, zIndex: 1 },
-  heroStat: { flex: 1, alignItems: 'center', gap: 2 },
-  heroStatVal: { fontSize: 18, fontWeight: '800' },
-  heroStatLabel: { fontSize: 11, fontWeight: '500' },
-  heroStatDivider: { width: 1, height: 36 },
+  liveText: { fontSize: Typography.xs, fontFamily: 'SpaceGrotesk_700Bold' },
+  heroStats: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    zIndex: 1,
+    borderTopWidth: 1,
+    paddingTop: Spacing.md,
+  },
+  heroStatChip: {
+    flex: 1,
+    borderRadius: 14,
+    padding: Spacing.sm,
+    gap: 2,
+    alignItems: 'center',
+  },
+  heroStatVal: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
+  heroStatLabel: { fontSize: 10, fontFamily: 'SpaceGrotesk_500Medium' },
 
-  // section header
+  // ── section header ──
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 17, fontWeight: '800' },
-  sectionCaption: { fontSize: 12, fontWeight: '500' },
+  sectionTitle: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
+  refreshPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  refreshText: { fontSize: Typography.xs, fontFamily: 'SpaceGrotesk_500Medium' },
 
-  // list
-  list: { gap: 12 },
+  // ── list ──
+  list: { gap: Spacing.md },
 
-  // order card
-  card: { borderRadius: 22, borderWidth: 1, padding: 16, gap: 12 },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  cardTopLeft: { flex: 1, gap: 2 },
-  trackingCode: { fontSize: 12, fontWeight: '800', letterSpacing: 0 },
-  cardSize: { fontSize: 16, fontWeight: '800' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  statusDot: { width: 7, height: 7, borderRadius: 4 },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  // ── state card ──
+  stateCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: Spacing.xxl,
+    alignItems: 'center',
+    gap: Spacing.xl,
+  },
+  stateText: { fontSize: Typography.sm, fontFamily: 'SpaceGrotesk_400Regular', textAlign: 'center' },
 
-  // route
-  routeBox: { borderRadius: 16, padding: 12, gap: 4 },
-  routeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  routeDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  routeContent: { flex: 1, gap: 1 },
-  routeLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0 },
-  routeAddr: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  routeLine: { width: 1, height: 14, marginLeft: 4 },
-
-  // stats
-  statsRow: { flexDirection: 'row', gap: 8 },
-  statChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7 },
-  statText: { fontSize: 12, fontWeight: '700' },
-
-  // accept/decline buttons
-  actionRow: { flexDirection: 'row', gap: 10 },
-  declineBtn: { flex: 1, minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  declineBtnText: { fontSize: 15, fontWeight: '800' },
-  acceptBtn: { flex: 1, minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  acceptBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-
-  // empty
-  emptyCard: { borderRadius: 22, borderWidth: 1, padding: 28, alignItems: 'center', gap: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: '800' },
-  emptyText: { fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  // ── empty state ──
+  emptyIconRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCopy: { alignItems: 'center', gap: Spacing.xs },
+  emptyTitle: { fontSize: Typography.lg, fontFamily: 'SpaceGrotesk_700Bold', textAlign: 'center' },
+  emptyText: {
+    fontSize: Typography.sm,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  goOnlineBtn: {
+    minHeight: 50,
+    borderRadius: 18,
+    paddingHorizontal: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goOnlineBtnText: { color: '#fff', fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
 });

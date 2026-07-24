@@ -25,6 +25,7 @@ const orderRoutes: FastifyPluginAsync = async (app) => {
   app.post('/orders/:id/rate', { preHandler: [app.authenticate], schema: { body: RateOrderBody } }, controller.rateOrder);
   app.post('/orders/:id/dispute', { preHandler: [app.authenticate], schema: { body: DisputeBody } }, controller.disputeOrder);
   app.get('/driver/orders', { preHandler: [app.authenticateDriver] }, controller.getAvailableOrders);
+  app.get('/driver/orders/active', { preHandler: [app.authenticateDriver] }, controller.getDriverActiveOrders);
   app.get('/driver/orders/history', { preHandler: [app.authenticateDriver] }, controller.getDriverOrdersHistory);
   app.post('/driver/orders/:id/accept', { preHandler: [app.authenticateDriver] }, controller.acceptOrder);
   app.post('/driver/orders/:id/decline', { preHandler: [app.authenticateDriver] }, controller.declineOrder);

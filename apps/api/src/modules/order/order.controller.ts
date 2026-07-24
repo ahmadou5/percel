@@ -79,6 +79,11 @@ export class OrderController {
     return success(await this.service.getAvailableOrders(driverId), 'Available orders fetched');
   };
 
+  getDriverActiveOrders = async (request: FastifyRequest) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    return success(await this.service.getDriverActiveOrders(driverId), 'Active orders fetched');
+  };
+
   acceptOrder = async (request: FastifyRequest) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
     const { id } = request.params as { id: string };

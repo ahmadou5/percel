@@ -78,6 +78,10 @@ export type DriverOrder = {
   price: number;
   currency: string;
   size: DriverOrderSize;
+  pickupLat: number;
+  pickupLng: number;
+  deliveryLat: number;
+  deliveryLng: number;
   pickupFormattedAddress: string;
   deliveryFormattedAddress: string;
   recipientName?: string | null;
