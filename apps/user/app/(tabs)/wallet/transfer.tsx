@@ -253,45 +253,6 @@ export default function TransferScreen() {
   const stepOneLoading =
     mode === "BANK" ? walletQuery.isLoading || banksQuery.isLoading : false;
 
-  if (stepOneLoading) {
-    return (
-      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-        <View style={styles.content}>
-          <View style={styles.headerRow}>
-            <View style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} />
-            <View style={styles.headerSpacer} />
-          </View>
-          <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, { color: palette.primary }]}>
-              Send money
-            </Text>
-            <Text style={[styles.title, { color: palette.text }]}>
-              Move money with ease.
-            </Text>
-          </View>
-          <FormSkeleton count={4} />
-        </View>
-      </View>
-    );
-  }
-
-  useEffect(() => {
-    if (!allowScreenshots) {
-      void ScreenCapture.preventScreenCaptureAsync();
-    } else {
-      void ScreenCapture.allowScreenCaptureAsync();
-    }
-    return () => {
-      void ScreenCapture.allowScreenCaptureAsync();
-    };
-  }, [allowScreenshots]);
-
-  useEffect(() => {
-    if (banks.length > 0 && !banks.some((item) => item.code === bankCode)) {
-      setBankCode(banks[0].code);
-    }
-  }, [banks, bankCode]);
-
   const resetForm = () => {
     setStep(1);
     setAmount("");
@@ -312,6 +273,23 @@ export default function TransferScreen() {
     setPhone("");
     setIsSavedBeneficiary(false);
   };
+
+  useEffect(() => {
+    if (!allowScreenshots) {
+      void ScreenCapture.preventScreenCaptureAsync();
+    } else {
+      void ScreenCapture.allowScreenCaptureAsync();
+    }
+    return () => {
+      void ScreenCapture.allowScreenCaptureAsync();
+    };
+  }, [allowScreenshots]);
+
+  useEffect(() => {
+    if (banks.length > 0 && !banks.some((item) => item.code === bankCode)) {
+      setBankCode(banks[0].code);
+    }
+  }, [banks, bankCode]);
 
   useEffect(() => {
     resetForm();
@@ -375,6 +353,28 @@ export default function TransferScreen() {
 
     return () => clearTimeout(timer);
   }, [mode, normalizedPhone, resolveRecipientAsync]);
+
+  if (stepOneLoading) {
+    return (
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <View style={styles.content}>
+          <View style={styles.headerRow}>
+            <View style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} />
+            <View style={styles.headerSpacer} />
+          </View>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, { color: palette.primary }]}>
+              Send money
+            </Text>
+            <Text style={[styles.title, { color: palette.text }]}>
+              Move money with ease.
+            </Text>
+          </View>
+          <FormSkeleton count={4} />
+        </View>
+      </View>
+    );
+  }
 
   const headerBack = () => {
     if (step > 1) {

@@ -89,7 +89,7 @@ export default function HomeScreen() {
   const hasPromptedForNotifications = useRef(false);
   const [pinPromptVisible, setPinPromptVisible] = useState(false);
   const [notificationPromptVisible, setNotificationPromptVisible] = useState(false);
-  const isInitialLoading = walletQuery.isLoading && !wallet && txQuery.isLoading;
+  const isInitialLoading = walletQuery.isLoading && !wallet;
 
   useEffect(() => {
     if (!walletQuery.isLoading && wallet && !wallet.walletPinSet && !hasPromptedForPin.current) {
