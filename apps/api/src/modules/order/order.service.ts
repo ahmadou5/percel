@@ -51,6 +51,10 @@ type OrderLike = {
   recipientPhone?: string | null;
   courierLat?: Prisma.Decimal | number | null;
   courierLng?: Prisma.Decimal | number | null;
+  pickupLat?: Prisma.Decimal | number | null;
+  pickupLng?: Prisma.Decimal | number | null;
+  deliveryLat?: Prisma.Decimal | number | null;
+  deliveryLng?: Prisma.Decimal | number | null;
   etaMinutes?: number | null;
   driver?: {
     id: string;

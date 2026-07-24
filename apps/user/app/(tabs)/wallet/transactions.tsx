@@ -222,7 +222,7 @@ export default function TransactionsScreen() {
     {/* 🌟 FIX 2: List card takes up all remaining space cleanly */}
     <View style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border, flex: 1 }]}>
       {query.isLoading ? (
-        <ListSkeleton />
+        <ListSkeleton style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }} />
       ) : query.isError ? (
         <StateCard
           title="Could not load transactions"

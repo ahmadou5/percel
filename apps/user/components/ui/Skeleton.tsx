@@ -40,11 +40,11 @@ export function SkeletonGroup({ children, style }: { children: React.ReactNode; 
 /**
  * A standard list skeleton to replace StateCard spinners on list screens.
  */
-export function ListSkeleton({ count = 5 }: { count?: number }) {
+export function ListSkeleton({ count = 5, style }: { count?: number; style?: any }) {
   const palette = useAppPalette();
   
   return (
-    <SkeletonGroup style={styles.listContainer}>
+    <SkeletonGroup style={[styles.listContainer, style]}>
       {Array.from({ length: count }).map((_, index) => (
         <View key={index} style={[styles.listRow, { borderBottomColor: palette.border }]}>
           <View style={[styles.avatar, { backgroundColor: palette.card }]} />
@@ -61,11 +61,11 @@ export function ListSkeleton({ count = 5 }: { count?: number }) {
 /**
  * A standard form skeleton to replace StateCard spinners on forms.
  */
-export function FormSkeleton({ count = 3 }: { count?: number }) {
+export function FormSkeleton({ count = 3, style }: { count?: number; style?: any }) {
   const palette = useAppPalette();
   
   return (
-    <SkeletonGroup style={styles.formContainer}>
+    <SkeletonGroup style={[styles.formContainer, style]}>
       {Array.from({ length: count }).map((_, index) => (
         <View key={index} style={styles.formField}>
           <View style={[styles.labelLine, { backgroundColor: palette.card }]} />
@@ -80,13 +80,12 @@ export function FormSkeleton({ count = 3 }: { count?: number }) {
 const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    gap: Spacing.md,
   },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: Spacing.md,
   },
@@ -105,8 +104,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
     gap: Spacing.lg,
   },
   formField: {
