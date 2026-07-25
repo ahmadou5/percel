@@ -357,7 +357,7 @@ export default function TransferScreen() {
   if (stepOneLoading) {
     return (
       <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-        <View style={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.headerRow}>
             <View style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} />
             <View style={styles.headerSpacer} />
@@ -370,8 +370,8 @@ export default function TransferScreen() {
               Move money with ease.
             </Text>
           </View>
-          <FormSkeleton count={4} />
-        </View>
+          <FormSkeleton count={3} />
+        </ScrollView>
       </View>
     );
   }

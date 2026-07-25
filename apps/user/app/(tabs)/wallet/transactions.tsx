@@ -83,13 +83,18 @@ export default function TransactionsScreen() {
 
   const selected = useMemo(() => transactions.find((item) => item.id === selectedId) ?? null, [selectedId, transactions]);
 
-  // Summary is derived from the full loaded set, not the filtered subset
+  // Summary uses full backend accumulation for the selected category filter, fallback to loaded transactions
   const summary = useMemo(() => {
+    const apiSummary = query.data?.pages[0]?.summary;
+    if (apiSummary) {
+      return {
+        credits: apiSummary.totalCredits,
+        debits: apiSummary.totalDebits,
+      };
+    }
     return transactions.reduce(
       (acc, item) => {
-        // Using Number() ensures "5000" becomes 5000 before adding
         const amount = Number(item.amount) || 0;
-
         if (item.type === 'CREDIT') {
           acc.credits += amount;
         } else {
@@ -99,7 +104,7 @@ export default function TransactionsScreen() {
       },
       { credits: 0, debits: 0 },
     );
-  }, [transactions]);
+  }, [query.data, transactions]);
 
   const renderFooter = () => {
     if (!query.isFetchingNextPage) return null;

@@ -247,7 +247,7 @@ export class WalletService {
       ...(query.category ? { category: query.category as WalletTransactionCategory } : {}),
     };
 
-    const [total, data] = await this.prisma.$transaction([
+    const [total, data, creditSum, debitSum] = await this.prisma.$transaction([
       this.prisma.walletTransaction.count({ where }),
       this.prisma.walletTransaction.findMany({
         where,
@@ -255,10 +255,22 @@ export class WalletService {
         skip: (page - 1) * limit,
         take: limit,
       }),
+      this.prisma.walletTransaction.aggregate({
+        where: { ...where, type: 'CREDIT' },
+        _sum: { amount: true },
+      }),
+      this.prisma.walletTransaction.aggregate({
+        where: { ...where, type: 'DEBIT' },
+        _sum: { amount: true },
+      }),
     ]);
 
     return {
       data,
+      summary: {
+        totalCredits: Number(creditSum._sum.amount ?? 0),
+        totalDebits: Number(debitSum._sum.amount ?? 0),
+      },
       pagination: {
         page,
         limit,

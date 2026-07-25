@@ -103,8 +103,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   formContainer: {
-    flex: 1,
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   formField: {
     gap: 8,
@@ -122,6 +121,5 @@ const styles = StyleSheet.create({
   submitButton: {
     height: 56,
     borderRadius: 16,
-    marginTop: Spacing.md,
   }
 });

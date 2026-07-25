@@ -51,6 +51,10 @@ export type WalletDetails = Wallet & {
 
 export type WalletTransactionsResponse = {
   data: WalletTransaction[];
+  summary?: {
+    totalCredits: number;
+    totalDebits: number;
+  };
   pagination: {
     page: number;
     limit: number;
