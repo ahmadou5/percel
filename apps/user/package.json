@@ -12,7 +12,8 @@
     "build": "expo export --platform all",
     "build:android": "eas build --platform android --profile production",
     "lint": "eslint . --ext .ts,.tsx",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate-icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
     "@code-push-next/react-native-code-push": "^10.4.2",
