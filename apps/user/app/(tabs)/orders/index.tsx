@@ -145,12 +145,12 @@ export default function OrdersScreen() {
     >
       {/* Back + title header */}
       <View style={styles.headerRow}>
-       
+
       </View>
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrowTitle, { color: palette.primary }]}>Orders</Text>
-        <Text style={[styles.titleText, { color: palette.text }]}>Track your deliveries with real-time status updates.</Text>
+
       </View>
 
       {/* Summary hero card */}

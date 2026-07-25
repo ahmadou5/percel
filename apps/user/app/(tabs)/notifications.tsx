@@ -62,7 +62,7 @@ export default function NotificationsScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Notifications</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Track payments, orders, and account updates in one place.</Text>
+
       </View>
 
       <View style={[styles.summaryCard, { backgroundColor: palette.primaryDark }]}>

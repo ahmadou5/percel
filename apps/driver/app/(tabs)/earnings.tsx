@@ -9,6 +9,8 @@ import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { useDriverStore } from '@/store/driver.store';
 
+import { PayoutModal } from '@/components/wallet/PayoutModal';
+
 const periods = ['Today', 'This Week', 'This Month'] as const;
 
 function formatCurrency(value: number) {
@@ -28,6 +30,7 @@ export default function EarningsScreen() {
   const [period, setPeriod] = useState<(typeof periods)[number]>('This Week');
   const [balanceHidden, setBalanceHidden] = useState(false);
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
+  const [payoutModalVisible, setPayoutModalVisible] = useState(false);
   const walletQuery = useWallet();
   const wallet = walletQuery.data;
   const transactions = wallet?.transactions ?? [];
@@ -131,7 +134,10 @@ export default function EarningsScreen() {
                 {balanceHidden ? '••••••••' : wallet ? formatCurrency(wallet.balance) : '---'}
               </Text>
             </View>
-            <Pressable style={[styles.cashOutBtn, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+            <Pressable
+              onPress={() => setPayoutModalVisible(true)}
+              style={[styles.cashOutBtn, { backgroundColor: 'rgba(255,255,255,0.18)' }]}
+            >
               <Download size={14} color="#fff" />
               <Text style={styles.cashOutText}>Withdraw →</Text>
             </Pressable>
@@ -334,6 +340,13 @@ export default function EarningsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <PayoutModal
+        visible={payoutModalVisible}
+        onClose={() => setPayoutModalVisible(false)}
+        availableBalance={wallet?.balance ?? 0}
+        onSuccess={() => void walletQuery.refetch()}
+      />
     </View>
   );
 }

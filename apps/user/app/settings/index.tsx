@@ -58,13 +58,13 @@ export default function SettingsScreen() {
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <Pressable onPress={() => back()} style={[styles.backButton, { borderColor: palette.border, backgroundColor: palette.card }]}>
-         <ChevronLeft size={20} color={palette.text} fill={'none'}  />
+          <ChevronLeft size={20} color={palette.text} fill={'none'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+      <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <SectionGroup label="Preferences" items={preferenceItems} palette={palette} onPress={openLink} />
         <View style={styles.groupSpacer} />
         <SectionGroup label="Account" items={accountItems} palette={palette} onPress={openLink} />
@@ -75,14 +75,16 @@ export default function SettingsScreen() {
       </View>
 
       <Pressable onPress={() => setLogoutVisible(true)} style={({ pressed }) => [styles.logoutButton, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.pressed : null]}>
-        <LogOut size={18} color={palette.error} />
+
         <Text style={[styles.logoutText, { color: palette.error }]}>Log out</Text>
       </Pressable>
+
+      <AppVersionFooter />
 
       <Modal visible={logoutVisible} transparent animationType="fade" onRequestClose={() => setLogoutVisible(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setLogoutVisible(false)} />
-          <View style={[styles.sheet, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <View style={[styles.sheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.sheetTitle, { color: palette.text }]}>Are you sure you want to log out?</Text>
             <Text style={[styles.sheetText, { color: palette.textSecondary }]}>You’ll need to sign in again to access your wallet and account settings.</Text>
             <View style={styles.sheetActions}>

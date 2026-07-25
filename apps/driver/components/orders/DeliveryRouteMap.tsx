@@ -1,12 +1,31 @@
 import { Navigation, Truck, MapPin } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Circle, Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { isLight, useAppPalette } from '@/lib/theme';
+
+let MapView: any = null;
+let Circle: any = null;
+let Marker: any = null;
+let Polyline: any = null;
+let PROVIDER_GOOGLE: any = null;
+type Region = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
+let hasNativeMaps = false;
+
+try {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default || Maps;
+  Circle = Maps.Circle;
+  Marker = Maps.Marker;
+  Polyline = Maps.Polyline;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+  hasNativeMaps = Boolean(MapView);
+} catch {
+  hasNativeMaps = false;
+}
 
 export type TrackingLocation = {
   latitude: number;
@@ -21,6 +40,38 @@ type Props = {
   destinationLocation: TrackingLocation;
   routeCoordinates: TrackingLocation[];
 };
+
+class MapErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.warn('[DeliveryRouteMap] Native map error captured:', error?.message);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+function MapFallbackView() {
+  const palette = useAppPalette();
+  return (
+    <View style={[styles.fallbackContainer, { backgroundColor: palette.card }]}>
+      <Navigation size={28} color={palette.primary} />
+      <Text style={[styles.fallbackTitle, { color: palette.text }]}>Live Route Navigation</Text>
+      <Text style={[styles.fallbackSub, { color: palette.textSecondary }]}>
+        Interactive Google Maps is available in native preview/release builds.
+      </Text>
+    </View>
+  );
+}
 
 const DARK_MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: Colors.dark.bg }] },
@@ -164,12 +215,24 @@ function SettledMarker({
   );
 }
 
-export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
+export function DeliveryRouteMap(props: Props) {
+  if (!hasNativeMaps || !MapView) {
+    return <MapFallbackView />;
+  }
+
+  return (
+    <MapErrorBoundary fallback={<MapFallbackView />}>
+      <RouteMapContent {...props} />
+    </MapErrorBoundary>
+  );
+}
+
+function RouteMapContent({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
   const palette = useAppPalette();
   const isLightTheme = isLight(palette.bg);
   // Phase counter that drives the native Circle pulse overlays (0-99, cycles ~every 2s)
   const pulsePhase = usePulsePhase();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
   // Track whether the user has manually moved the map so we don't fight them
   const userInteracted = useRef(false);
   const prevDriverLocation = useRef<TrackingLocation | null>(null);
@@ -481,5 +544,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
+  },
+  fallbackContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+    gap: Spacing.xs,
+  },
+  fallbackTitle: {
+    fontSize: Typography.md,
+    fontFamily: Typography.family.bold,
+    marginTop: 4,
+  },
+  fallbackSub: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.medium,
+    textAlign: 'center',
+    maxWidth: 220,
+    lineHeight: 16,
   },
 });

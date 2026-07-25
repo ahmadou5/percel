@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Phone,
@@ -27,11 +27,12 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
-import { useDriverRateOrder, useUpdateOrderStatus } from '@/hooks/useDriverOrders';
+import { useDriverRateOrder, useUpdateOrderStatus, useAvailableOrders } from '@/hooks/useDriverOrders';
 import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline';
 import { DeliveryRouteMap } from '@/components/orders/DeliveryRouteMap';
+import { ActiveOrdersCarousel } from '@/components/orders/ActiveOrdersCarousel';
 import { useDriverOrderDetail } from '@/hooks/useDriverOrders';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -148,6 +149,11 @@ export default function ActiveOrderScreen() {
     }
   };
 
+  const { data: allOrders } = useAvailableOrders();
+  const activeOrders = useMemo(() => {
+    return (allOrders ?? []).filter((o: DriverOrder) => o.status === 'ACCEPTED' || o.status === 'IN_TRANSIT');
+  }, [allOrders]);
+
   const isFinished = order.status === 'DELIVERED' || order.status === 'COMPLETED';
 
   return (
@@ -156,7 +162,13 @@ export default function ActiveOrderScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg, paddingBottom: 120 }]}
       >
-        {/* ── Hero ── */}
+        {/* ── Active Orders Switcher Carousel ── */}
+        <ActiveOrdersCarousel
+          orders={activeOrders}
+          selectedOrderId={order.id}
+          onSelectOrder={(selectedId) => router.replace({ pathname: '/(tabs)/orders/[id]', params: { id: selectedId } })}
+        />
+
         {/* ── Map Header ── */}
         <View style={styles.mapContainer}>
           <DeliveryRouteMap

@@ -15,12 +15,14 @@ import {
   Send,
   ShieldCheck,
   Zap,
+  X,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Alert,
   Easing,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -106,6 +108,7 @@ export default function KycScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [nin, setNin] = useState('');
   const [ninSubmitting, setNinSubmitting] = useState(false);
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
 
   const { opacity, translateX } = useSlideStepTransition(step);
   const back = useSafeBack('/profile');
@@ -256,7 +259,7 @@ export default function KycScreen() {
     const currentTier = isTier3 ? 3 : (isTier2 ? 2 : 1);
     const tierLabel = `Tier ${currentTier}`;
     const tierLimit = isTier3 ? '₦5,000,000' : (isTier2 ? '₦200,000' : '₦50,000');
-    const tierColor = isTier3 ? palette.success : (isTier2 ? '#FF9F0A' : palette.textSecondary);
+    const tierColor = isTier3 ? palette.success : (isTier2 ? palette.primary : palette.textSecondary);
 
     const handleNinSubmit = async () => {
       if (!/^\d{11}$/.test(nin.trim())) {
@@ -270,6 +273,7 @@ export default function KycScreen() {
           queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
           queryClient.invalidateQueries({ queryKey: ['wallet'] }),
         ]);
+        setUpgradeModalVisible(false);
         modal.alert('NIN Verified!', 'Your limit has been upgraded to ₦5,000,000 daily. Welcome to Tier 3!', 'success');
         setNin('');
       } catch (error) {
@@ -318,47 +322,103 @@ export default function KycScreen() {
             </View>
           </View>
 
+          {/* Action buttons */}
+          {!isTier3 && (
+            <Pressable
+              onPress={() => setUpgradeModalVisible(true)}
+              style={({ pressed }) => [
+                styles.primaryAction,
+                { width: '100%', backgroundColor: palette.primary, marginBottom: 2 },
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <Zap size={18} color="#FFF" />
+              <Text style={styles.primaryActionText}>Unlock Tier 3 (₦5,000,000/day)</Text>
+            </Pressable>
+          )}
+
           <Pressable
             onPress={() => back()}
-            style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary }, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [
+              styles.secondaryAction,
+              { width: '100%', backgroundColor: palette.bg, borderColor: palette.border },
+              pressed && { opacity: 0.85 },
+            ]}
           >
-            <Text style={styles.primaryActionText}>Back to Profile</Text>
+            <Text style={[styles.secondaryActionText, { color: palette.text }]}>Back to Profile</Text>
           </Pressable>
         </Animated.View>
 
-        {/* NIN Upgrade card — only show if not yet Tier 3 */}
+        {/* Bottom Sheet Modal for NIN Upgrade */}
         {!isTier3 && (
-          <View style={[styles.upgradeCard, { backgroundColor: palette.card, borderColor: '#FF9F0A' }]}>
-            <View style={styles.upgradeCardHeader}>
-              <View style={[styles.upgradeIconWrap, { backgroundColor: 'rgba(255,159,10,0.14)' }]}>
-                <Zap size={22} color="#FF9F0A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.upgradeTitle, { color: palette.text }]}>Unlock Tier 3 — ₦5,000,000</Text>
-                <Text style={[styles.upgradeSub, { color: palette.textSecondary }]}>Add your NIN to double-verify your identity and unlock the maximum daily transfer limit.</Text>
+          <Modal
+            visible={upgradeModalVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setUpgradeModalVisible(false)}
+          >
+            <View style={styles.bottomSheetBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setUpgradeModalVisible(false)} />
+              <View style={[styles.bottomSheetContainer, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                <View style={styles.dragHandle} />
+
+                <View style={styles.sheetHeaderRow}>
+                  <View style={[styles.upgradeIconWrap, { backgroundColor: 'rgba(10,132,255,0.14)' }]}>
+                    <Zap size={22} color={palette.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.upgradeTitle, { color: palette.text }]}>Unlock Tier 3 — ₦5,000,000</Text>
+                    <Text style={[styles.upgradeSub, { color: palette.textSecondary }]}>
+                      Add your NIN to double-verify your identity and unlock maximum daily transfer limits.
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setUpgradeModalVisible(false)}
+                    style={[styles.closeIconButton, { backgroundColor: palette.bg, borderColor: palette.border }]}
+                  >
+                    <X size={16} color={palette.text} />
+                  </Pressable>
+                </View>
+
+                <Input
+                  label="National ID Number (NIN)"
+                  value={nin}
+                  onChangeText={setNin}
+                  placeholder="11-digit NIN"
+                  keyboardType="number-pad"
+                  maxLength={11}
+                  helperText="Your NIN is 11 digits found on your National ID card or slip."
+                />
+
+                <Pressable
+                  onPress={() => void handleNinSubmit()}
+                  disabled={ninSubmitting || nin.trim().length !== 11}
+                  style={({ pressed }) => [
+                    styles.primaryAction,
+                    {
+                      width: '100%',
+                      backgroundColor: nin.trim().length === 11 ? palette.primary : palette.border,
+                      marginTop: 4,
+                    },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={styles.primaryActionText}>{ninSubmitting ? 'Verifying…' : 'Verify NIN & Upgrade'}</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setUpgradeModalVisible(false)}
+                  style={({ pressed }) => [
+                    styles.secondaryAction,
+                    { width: '100%', backgroundColor: palette.bg, borderColor: palette.border, marginTop: 4 },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={[styles.secondaryActionText, { color: palette.text }]}>Back</Text>
+                </Pressable>
               </View>
             </View>
-            <Input
-              label="National ID Number (NIN)"
-              value={nin}
-              onChangeText={setNin}
-              placeholder="11-digit NIN"
-              keyboardType="number-pad"
-              maxLength={11}
-              helperText="Your NIN is 11 digits found on your National ID card or slip."
-            />
-            <Pressable
-              onPress={() => void handleNinSubmit()}
-              disabled={ninSubmitting || nin.trim().length !== 11}
-              style={({ pressed }) => [
-                styles.primaryAction,
-                { width: '100%', backgroundColor: nin.trim().length === 11 ? '#FF9F0A' : palette.border },
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <Text style={styles.primaryActionText}>{ninSubmitting ? 'Verifying…' : 'Verify NIN & Upgrade'}</Text>
-            </Pressable>
-          </View>
+          </Modal>
         )}
 
         <AppModal config={modal.config} onClose={modal.hide} />
@@ -922,7 +982,7 @@ const styles = StyleSheet.create({
   actionGroup: { width: '100%', gap: 10 },
   infoBanner: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 8 },
   liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF9F0A' },
+  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0A84FF' },
   liveText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
   infoSubtext: { fontSize: Typography.xs, lineHeight: 17 },
   errorCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
@@ -943,4 +1003,40 @@ const styles = StyleSheet.create({
   upgradeIconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   upgradeTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   upgradeSub: { fontSize: Typography.xs, lineHeight: 17, marginTop: 3 },
+
+  // Bottom sheet modal styles
+  bottomSheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheetContainer: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    gap: Spacing.md,
+  },
+  dragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(150,150,150,0.4)',
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 4,
+  },
+  closeIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

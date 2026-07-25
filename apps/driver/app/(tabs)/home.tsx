@@ -465,7 +465,7 @@ export default function DriverHomeScreen() {
 
         {currentOrder ? (
           <Pressable
-            onPress={() => router.push('/(tabs)/active')}
+            onPress={() => router.push({ pathname: '/(tabs)/orders/[id]', params: { id: currentOrder.id } })}
             style={[styles.orderCard, { backgroundColor: palette.card, borderColor: palette.border }]}
           >
             <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primaryDark, 0.12) }]}>
@@ -492,7 +492,7 @@ export default function DriverHomeScreen() {
           </Pressable>
         ) : (
           <Pressable
-            onPress={() => router.push('/(tabs)/two')}
+            onPress={() => router.push('/(tabs)/dispatch')}
             style={[styles.emptyStateCard, { backgroundColor: palette.card, borderColor: palette.border }]}
           >
             <View style={styles.emptyStateIconWrap}>
@@ -518,7 +518,7 @@ export default function DriverHomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Available orders</Text>
-          <Pressable onPress={() => router.push('/(tabs)/two')} style={styles.sectionLink}>
+          <Pressable onPress={() => router.push('/(tabs)/dispatch')} style={styles.sectionLink}>
             <Text style={[styles.sectionLinkText, { color: palette.primary }]}>View all</Text>
             <ChevronRight size={14} color={palette.primary} />
           </Pressable>

@@ -111,7 +111,7 @@ const codePushOptions = {
   installMode: codePush?.InstallMode?.ON_NEXT_RESUME ?? 1,
 };
 
-export default codePush ? codePush(codePushOptions)(RootLayoutWithSentry) : RootLayoutWithSentry;
+export default (codePush && !__DEV__) ? codePush(codePushOptions)(RootLayoutWithSentry) : RootLayoutWithSentry;
 
 function RootLayoutNav() {
   const palette = useAppPalette();

@@ -11,6 +11,8 @@ import { useDriverSocketLifecycle } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import { usePreferencesStore } from '@/store/preferences.store';
 
+import { NewOrderAlertModal } from '@/components/orders/NewOrderAlertModal';
+
 export function DriverRuntime() {
   const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
   const token = useDriverStore((state) => state.tokens?.accessToken);
@@ -79,5 +81,5 @@ export function DriverRuntime() {
     };
   }, [isAuthenticated, token]);
 
-  return null;
+  return <NewOrderAlertModal />;
 }

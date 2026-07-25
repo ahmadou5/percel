@@ -93,7 +93,7 @@ export default function SpendingLimitsScreen() {
   const usage = wallet.dailyTransferUsage ?? 0;
   const remaining = Math.max(0, dailyLimit - usage);
   const percentage = Math.min(100, Math.max(0, (usage / dailyLimit) * 100));
-  const tierColor = isTier3 ? '#30D158' : (isTier2 ? '#FF9F0A' : '#8E8E93');
+  const tierColor = isTier3 ? '#30D158' : (isTier2 ? palette.primary : '#8E8E93');
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
@@ -136,25 +136,26 @@ export default function SpendingLimitsScreen() {
             const isActive = t.tier === currentTier;
             const isDone = t.tier < currentTier;
             const isNext = t.tier === currentTier + 1;
+            const itemColor = t.tier === 3 ? '#30D158' : (t.tier === 2 ? palette.primary : '#8E8E93');
             return (
               <View key={t.tier}>
-                <View style={[styles.tierRow, isActive && { backgroundColor: t.color + '11', borderRadius: 16, paddingHorizontal: 8 }]}>
-                  <View style={[styles.tierIconWrap, { backgroundColor: (isDone || isActive) ? t.color + '22' : palette.bg, borderColor: (isDone || isActive) ? t.color : palette.border }]}>
+                <View style={[styles.tierRow, isActive && { backgroundColor: itemColor + '11', borderRadius: 16, paddingHorizontal: 8 }]}>
+                  <View style={[styles.tierIconWrap, { backgroundColor: (isDone || isActive) ? itemColor + '22' : palette.bg, borderColor: (isDone || isActive) ? itemColor : palette.border }]}>
                     {isDone
-                      ? <CheckCircle2 size={18} color={t.color} />
+                      ? <CheckCircle2 size={18} color={itemColor} />
                       : isActive
-                        ? <View style={[styles.activeDot, { backgroundColor: t.color }]} />
+                        ? <View style={[styles.activeDot, { backgroundColor: itemColor }]} />
                         : <View style={[styles.emptyDot, { borderColor: palette.border }]} />
                     }
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <View style={styles.tierRowTop}>
                       <Text style={[styles.tierLabel, { color: isActive || isDone ? palette.text : palette.textSecondary }]}>{t.label}</Text>
-                      <Text style={[styles.tierLimitText, { color: isActive ? t.color : palette.textSecondary }]}>{formatNaira(t.limit)}/day</Text>
+                      <Text style={[styles.tierLimitText, { color: isActive ? itemColor : palette.textSecondary }]}>{formatNaira(t.limit)}/day</Text>
                     </View>
                     <Text style={[styles.tierReq, { color: palette.textSecondary }]}>{t.requirement}</Text>
                     {isNext && (
-                      <Text style={[styles.tierHint, { color: t.color }]}>{t.description}</Text>
+                      <Text style={[styles.tierHint, { color: itemColor }]}>{t.description}</Text>
                     )}
                   </View>
                 </View>
@@ -168,7 +169,7 @@ export default function SpendingLimitsScreen() {
         {!isTier3 && (
           <Pressable
             onPress={() => router.push('/settings/kyc')}
-            style={({ pressed }) => [styles.upgradeCta, { backgroundColor: isTier2 ? '#FF9F0A' : palette.primary }, pressed && { opacity: 0.88 }]}
+            style={({ pressed }) => [styles.upgradeCta, { backgroundColor: palette.primary }, pressed && { opacity: 0.88 }]}
           >
             <Zap size={20} color="#fff" />
             <Text style={styles.upgradeCtaText}>

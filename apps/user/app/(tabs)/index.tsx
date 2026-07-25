@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
 import { haptics } from '@/utils/haptics';
-import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, Plus, Smartphone, Globe, Tv2, Zap, CircleHelp, ShieldCheck } from 'lucide-react-native';
+import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, ArrowDownLeft, Plus, Smartphone, Globe, Tv2, Zap, CircleHelp, ShieldCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/palette';
@@ -39,13 +39,15 @@ function initialsFrom(text: string) {
 function TransactionRow({ transaction, palette, index }: { transaction: WalletTransaction; palette: (typeof Colors)[keyof typeof Colors]; index: number }) {
   const positive = transaction.type === 'CREDIT';
   const amount = `${positive ? '+' : '-'}${formatNaira(transaction.amount)}`;
-  const avatar = positive ? '↑' : initialsFrom(transaction.description || transaction.category);
+  const Icon = positive ? ArrowDownLeft : ArrowUpRight;
+  const iconColor = positive ? palette.success : palette.error;
+  const iconBg = positive ? 'rgba(48,209,88,0.12)' : 'rgba(255,69,58,0.12)';
 
   return (
     <AnimatedReveal index={index}>
       <View style={[styles.txRow, { borderBottomColor: palette.border }]}>
-      <View style={[styles.txAvatar, { backgroundColor: positive ? 'rgba(48, 209, 88, 0.14)' : 'rgba(255, 69, 58, 0.12)' }]}>
-        <Text style={[styles.txAvatarText, { color: positive ? palette.success : palette.text }]}>{avatar}</Text>
+      <View style={[styles.txAvatar, { backgroundColor: iconBg }]}>
+        <Icon size={18} color={iconColor} />
       </View>
       <View style={styles.txBody}>
         <Text style={[styles.txTitle, { color: palette.text }]}>{transaction.description}</Text>
@@ -54,7 +56,7 @@ function TransactionRow({ transaction, palette, index }: { transaction: WalletTr
         </Text>
       </View>
       <View style={styles.txAmountWrap}>
-        <Text style={[styles.txAmount, { color: positive ? palette.success : palette.error }]}>{amount}</Text>
+        <Text style={[styles.txAmount, { color: iconColor }]}>{amount}</Text>
         <Text style={[styles.txStatus, { color: palette.textSecondary }]}>{transaction.status.toLowerCase()}</Text>
       </View>
     </View>

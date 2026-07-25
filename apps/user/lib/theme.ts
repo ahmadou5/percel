@@ -99,6 +99,26 @@ export function getThemeLabel(mode: ThemeMode, systemScheme: keyof typeof Colors
   return mode.replace(/^./, (char) => char.toUpperCase());
 }
 
+export function getThemeIconSource(primaryHex: string) {
+  const hex = (primaryHex || '').toUpperCase();
+  switch (hex) {
+    case '#14B8A6':
+      return require('@/assets/images/icons/icon-teal.png');
+    case '#0EA5E9':
+      return require('@/assets/images/icons/icon-sky.png');
+    case '#6366F1':
+      return require('@/assets/images/icons/icon-indigo.png');
+    case '#F59E0B':
+      return require('@/assets/images/icons/icon-amber.png');
+    case '#EF4444':
+      return require('@/assets/images/icons/icon-red.png');
+    case '#22C55E':
+      return require('@/assets/images/icons/icon-green.png');
+    default:
+      return require('@/assets/images/icons/icon-blue.png');
+  }
+}
+
 export function buildNavigationTheme(palette: AppPalette): NavigationTheme {
   const dark = luminance(palette.bg) < 0.5;
   const base = dark ? DarkTheme : DefaultTheme;

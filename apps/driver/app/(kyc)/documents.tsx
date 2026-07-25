@@ -43,6 +43,7 @@ function mimeFor(uri: string) {
 }
 
 export default function KycDocumentsScreen() {
+  const [vehicleType, setVehicleType] = useState<'CAR' | 'BIKE' | 'TRICYCLE'>('BIKE');
   const [documents, setDocuments] = useState<Partial<Record<UploadKey, UploadedDocument>>>({});
   const [uploading, setUploading] = useState<UploadKey | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -50,9 +51,31 @@ export default function KycDocumentsScreen() {
   const driver = useDriverStore((state) => state.driver);
   const setDriver = useDriverStore((state) => state.setDriver);
 
+  const activeSlots = useMemo(() => {
+    if (vehicleType === 'CAR') {
+      return [
+        { key: 'license' as UploadKey, label: 'Driver License', helper: 'Capture the front side of your valid driver license.' },
+        { key: 'selfie' as UploadKey, label: 'Driver Selfie', helper: 'Take a clear headshot photo.', preferCamera: true },
+        { key: 'vehicle' as UploadKey, label: 'Car Photo & License Plate', helper: 'Capture the front view of your car clearly.' },
+      ];
+    }
+    if (vehicleType === 'TRICYCLE') {
+      return [
+        { key: 'license' as UploadKey, label: 'Rider Permit / ID', helper: 'Capture your valid rider permit or national ID.' },
+        { key: 'selfie' as UploadKey, label: 'Rider Selfie', helper: 'Take a clear headshot photo.', preferCamera: true },
+        { key: 'vehicle' as UploadKey, label: 'Tricycle Photo', helper: 'Capture your tricycle clearly showing the registration number.' },
+      ];
+    }
+    return [
+      { key: 'license' as UploadKey, label: 'Rider Permit / ID', helper: 'Capture your rider permit or national ID.' },
+      { key: 'selfie' as UploadKey, label: 'Rider Selfie', helper: 'Take a clear headshot photo.', preferCamera: true },
+      { key: 'vehicle' as UploadKey, label: 'Dispatch Bike Photo', helper: 'Capture your motorbike clearly.' },
+    ];
+  }, [vehicleType]);
+
   const completed = useMemo(
-    () => slots.filter((slot) => Boolean(documents[slot.key]?.remoteUrl)).length,
-    [documents],
+    () => activeSlots.filter((slot) => Boolean(documents[slot.key]?.remoteUrl)).length,
+    [documents, activeSlots],
   );
 
   const uploadDocument = async (slot: UploadSlot, asset: ImagePicker.ImagePickerAsset) => {
@@ -105,7 +128,7 @@ export default function KycDocumentsScreen() {
   const submit = async () => {
     setSubmitting(true);
     try {
-      await http.post('/api/v1/driver/kyc/submit');
+      await http.post('/api/v1/driver/kyc/submit', { vehicleType });
       if (driver) {
         setDriver({ ...driver, status: 'KYC_SUBMITTED' });
       }
@@ -121,11 +144,33 @@ export default function KycDocumentsScreen() {
   return (
     <Screen>
       <Card>
-        <SectionHeader title="Document upload" caption={`${completed}/${slots.length} uploaded`} />
-        <Text style={styles.copy}>Upload the required photos. Each document is sent securely before final submission.</Text>
+        <SectionHeader title="Document upload" caption={`${completed}/${activeSlots.length} uploaded`} />
+        <Text style={styles.copy}>Select your vehicle category and upload the required photos.</Text>
+
+        {/* Vehicle Segment Picker */}
+        <View style={styles.vehicleSegmentRow}>
+          {([
+            { type: 'BIKE' as const, label: 'Motorbike 🛵' },
+            { type: 'TRICYCLE' as const, label: 'Tricycle 🛺' },
+            { type: 'CAR' as const, label: 'Car 🚗' },
+          ]).map((v) => {
+            const active = vehicleType === v.type;
+            return (
+              <Pressable
+                key={v.type}
+                onPress={() => setVehicleType(v.type)}
+                style={[styles.vehicleSegmentBtn, active && styles.vehicleSegmentActive]}
+              >
+                <Text style={[styles.vehicleSegmentText, active && styles.vehicleSegmentTextActive]}>
+                  {v.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <View style={styles.documentList}>
-          {slots.map((slot) => {
+          {activeSlots.map((slot) => {
             const item = documents[slot.key];
             const busy = uploading === slot.key;
             return (
@@ -155,7 +200,7 @@ export default function KycDocumentsScreen() {
           })}
         </View>
 
-        <ActionButton title={submitting ? 'Submitting...' : 'Submit KYC'} onPress={submit} disabled={submitting || uploading !== null || completed < slots.length} />
+        <ActionButton title={submitting ? 'Submitting...' : 'Submit KYC'} onPress={submit} disabled={submitting || uploading !== null || completed < activeSlots.length} />
         <ActionButton title="Back to overview" variant="ghost" onPress={() => router.replace('/(kyc)')} />
       </Card>
     </Screen>
@@ -164,6 +209,33 @@ export default function KycDocumentsScreen() {
 
 const styles = StyleSheet.create({
   copy: { color: Colors.light.textSecondary, fontSize: Typography.sm, lineHeight: 21, fontFamily: Typography.family.regular },
+  vehicleSegmentRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 4,
+  },
+  vehicleSegmentBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehicleSegmentActive: {
+    borderColor: Colors.light.primary,
+    backgroundColor: 'rgba(10,132,255,0.12)',
+  },
+  vehicleSegmentText: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+    color: Colors.light.textSecondary,
+  },
+  vehicleSegmentTextActive: {
+    color: Colors.light.primary,
+  },
   documentList: { gap: 12 },
   documentCard: {
     borderRadius: 18,

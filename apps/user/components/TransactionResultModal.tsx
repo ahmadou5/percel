@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CheckCircle2, Clock3, XCircle } from 'lucide-react-native';
 
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
-import { useAppPalette } from "@/lib/theme";
+import { getThemeIconSource, useAppPalette } from "@/lib/theme";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { haptics } from "@/utils/haptics";
 interface TransactionResultModalProps {
@@ -86,6 +86,11 @@ export function TransactionResultModal({
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border, opacity, transform: [{ scale }] }]}>
+          <View style={styles.brandRow}>
+            <Image source={getThemeIconSource(palette.primary)} style={styles.brandLogo} />
+            <Text style={[styles.brandText, { color: palette.text }]}>Percel</Text>
+          </View>
+
           <View style={[styles.iconWrap, { backgroundColor: tone.backgroundColor }]}>
             <Icon size={26} color={tone.iconColor} />
           </View>
@@ -139,6 +144,23 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: Spacing.lg,
     gap: Spacing.md,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  brandLogo: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+  },
+  brandText: {
+    fontSize: Typography.md,
+    fontFamily: Typography.family.bold,
+    letterSpacing: 0.5,
   },
   iconWrap: {
     width: 64,

@@ -26,13 +26,13 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="home"     options={{ title: 'Home' }} />
-      <Tabs.Screen name="two"      options={{ title: 'Dispatch' }} />
-      <Tabs.Screen name="orders"   options={{ title: 'Orders' }} />
-      <Tabs.Screen name="history"  options={{ title: 'History' }} />
-      <Tabs.Screen name="earnings" options={{ title: 'Earnings' }} />
-      <Tabs.Screen name="profile"  options={{ title: 'Profile' }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
+      <Tabs.Screen name="home"         options={{ title: 'Home' }} />
+      <Tabs.Screen name="dispatch"     options={{ title: 'Dispatch' }} />
+      <Tabs.Screen name="orders"       options={{ title: 'Orders' }} />
+      <Tabs.Screen name="history"      options={{ title: 'History' }} />
+      <Tabs.Screen name="earnings"     options={{ title: 'Earnings' }} />
+      <Tabs.Screen name="profile"      options={{ title: 'Profile' }} />
+      <Tabs.Screen name="settings"     options={{ title: 'Settings' }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );

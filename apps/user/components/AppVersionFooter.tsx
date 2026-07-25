@@ -4,6 +4,7 @@ import * as Application from 'expo-application';
 import { useAppPalette } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { Spacing } from '@/constants/spacing';
+import { AppModal, useAppModal } from './ui/AppModal';
 
 let codePush: any = null;
 try {
@@ -22,6 +23,7 @@ interface CodePushMeta {
 
 export function AppVersionFooter() {
   const palette = useAppPalette();
+  const modal = useAppModal()
   const [codePushMeta, setCodePushMeta] = useState<CodePushMeta | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -30,7 +32,7 @@ export function AppVersionFooter() {
   const nativeBuild = Application.nativeBuildVersion ?? '1';
 
   const fetchCodePushMetadata = async () => {
-    if (!codePush?.getUpdateMetadata) return;
+    if (__DEV__ || !codePush?.getUpdateMetadata) return;
     try {
       const meta = await codePush.getUpdateMetadata();
       if (meta) {
@@ -52,8 +54,8 @@ export function AppVersionFooter() {
   }, []);
 
   const handleCheckForUpdates = () => {
-    if (!codePush?.sync) {
-      Alert.alert('Development Environment', 'CodePush over-the-air updates require a native production/preview build.');
+    if (__DEV__ || !codePush?.sync) {
+      modal.alert('Development Environment', 'CodePush over-the-air updates require a native production/preview build.', 'info');
       return;
     }
 
@@ -80,33 +82,33 @@ export function AppVersionFooter() {
           case codePush.SyncStatus?.UP_TO_DATE:
             setIsSyncing(false);
             setSyncStatus(null);
-            Alert.alert('Up to Date', "You're on the latest version of Percel.");
+            modal.alert('Up to Date', "You're on the latest version of Percel.", 'success');
             break;
           case codePush.SyncStatus?.UPDATE_INSTALLED:
             setIsSyncing(false);
             setSyncStatus(null);
             void fetchCodePushMetadata();
-            Alert.alert(
-              'Update Ready',
-              'Update downloaded successfully. Restart the app to apply changes.',
-              [
-                { text: 'Later', style: 'cancel' },
-                {
-                  text: 'Restart Now',
-                  onPress: () => {
-                    if (codePush?.restartApp) {
-                      codePush.restartApp();
-                    }
-                  },
-                },
-              ]
-            );
+            modal.show({
+              title: "Update Ready",
+              description: `Update downloaded successfully. Restart the app to apply changes.`,
+              type: "success",
+              primaryText: "Restart Now",
+              onPrimaryPress: () => {
+                if (codePush?.restartApp) {
+                  codePush.restartApp();
+                }
+                modal.hide();
+              },
+              secondaryText: "Later",
+              onSecondaryPress: () => modal.hide(),
+            });
+
             break;
           case codePush.SyncStatus?.UNKNOWN_ERROR:
           default:
             setIsSyncing(false);
             setSyncStatus(null);
-            Alert.alert('Check Failed', 'Could not check for updates. Please try again later.');
+            modal.alert('Check Failed', 'Could not check for updates. Please try again later.', 'error');
             break;
         }
       },
@@ -116,7 +118,7 @@ export function AppVersionFooter() {
     ).catch(() => {
       setIsSyncing(false);
       setSyncStatus(null);
-      Alert.alert('Check Failed', 'Unable to check for live updates right now.');
+      modal.alert('Check Failed', 'Unable to check for live updates right now.', 'error');
     });
   };
 
@@ -150,6 +152,7 @@ export function AppVersionFooter() {
           </Text>
         )}
       </Pressable>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

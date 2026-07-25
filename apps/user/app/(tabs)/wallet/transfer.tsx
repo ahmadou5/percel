@@ -639,14 +639,10 @@ export default function TransferScreen() {
               <Text style={styles.heroValue}>{modeLabel(mode)}</Text>
             </View>
             <View style={styles.heroIcon}>
-              <ArrowUpRight size={20} color="#fff" />
+              <Banknote size={20} color="#fff" />
             </View>
           </View>
-          <Text style={styles.heroBody}>
-            {mode === "BANK"
-              ? "Resolve the bank account first, then enter the amount, then review and confirm."
-              : "Resolve the recipient first, then enter the amount, then review and confirm."}
-          </Text>
+
           <FlowProgressDots
             currentStep={step}
             totalSteps={3}
@@ -1154,7 +1150,7 @@ export default function TransferScreen() {
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
-                  placeholder="Enter Percel Phone number"
+                  placeholder="Enter Percel number"
                   leftElement={
                     <Smartphone size={16} color={palette.textSecondary} />
                   }

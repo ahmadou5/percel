@@ -36,6 +36,11 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.percel.driver",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
+        }
+      },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -58,6 +63,13 @@
         {
           "icon": "./assets/images/adaptive-icon.png",
           "color": "#0EA5E9"
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik",
+          "iosGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
         }
       ],
       "expo-location"

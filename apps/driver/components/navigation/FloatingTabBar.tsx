@@ -58,7 +58,8 @@ const INACTIVE_ICON_SIZE = 44;
 
 function getFocusKey(pathname: string) {
   if (pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/') return 'home';
-  if (pathname.startsWith('/(tabs)/active') || pathname.startsWith('/active')) return 'active';
+  if (pathname.startsWith('/(tabs)/dispatch') || pathname.startsWith('/dispatch')) return 'dispatch';
+  if (pathname.startsWith('/(tabs)/orders') || pathname.startsWith('/orders') || pathname.startsWith('/(tabs)/active') || pathname.startsWith('/active')) return 'orders';
   if (pathname.startsWith('/(tabs)/history') || pathname.startsWith('/history')) return 'history';
   if (pathname.startsWith('/(tabs)/earnings') || pathname.startsWith('/earnings')) return 'earnings';
   if (pathname.startsWith('/(tabs)/profile') || pathname.startsWith('/profile')) return 'profile';
@@ -68,7 +69,7 @@ function getFocusKey(pathname: string) {
 
 function shouldShowDock(pathname: string) {
   const base = pathname.replace('/(tabs)', '').replace(/^\//, '');
-  return ['home', 'active', 'history', 'earnings', 'profile', 'settings', ''].some(
+  return ['home', 'dispatch', 'orders', 'active', 'history', 'earnings', 'profile', 'settings', ''].some(
     (seg) => base === seg || base.startsWith(seg + '/'),
   );
 }
