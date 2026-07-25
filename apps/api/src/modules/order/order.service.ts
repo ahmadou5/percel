@@ -1219,12 +1219,17 @@ export class OrderService {
   async getOrderMessages(orderId: string, actorId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, userId: true, driverId: true, driver: { select: { userId: true } } },
+      select: { id: true, userId: true, driverId: true, driver: { select: { id: true, userId: true } } },
     });
     if (!order) throw new NotFoundError('Order not found');
 
-    const isCustomer = order.userId === actorId;
-    const isDriver = order.driver?.userId === actorId || order.driverId === actorId;
+    const cleanActor = String(actorId ?? '').trim().toLowerCase();
+    const isCustomer = Boolean(order.userId && String(order.userId).trim().toLowerCase() === cleanActor);
+    const isDriver = Boolean(
+      (order.driver?.userId && String(order.driver.userId).trim().toLowerCase() === cleanActor) ||
+      (order.driver?.id && String(order.driver.id).trim().toLowerCase() === cleanActor) ||
+      (order.driverId && String(order.driverId).trim().toLowerCase() === cleanActor)
+    );
     if (!isCustomer && !isDriver) {
       throw new ForbiddenError('You are not authorized to view messages for this order');
     }
@@ -1251,12 +1256,17 @@ export class OrderService {
 
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, userId: true, driverId: true, driver: { select: { userId: true } } },
+      select: { id: true, userId: true, driverId: true, driver: { select: { id: true, userId: true } } },
     });
     if (!order) throw new NotFoundError('Order not found');
 
-    const isCustomer = order.userId === actorId;
-    const isDriver = order.driver?.userId === actorId || order.driverId === actorId;
+    const cleanActor = String(actorId ?? '').trim().toLowerCase();
+    const isCustomer = Boolean(order.userId && String(order.userId).trim().toLowerCase() === cleanActor);
+    const isDriver = Boolean(
+      (order.driver?.userId && String(order.driver.userId).trim().toLowerCase() === cleanActor) ||
+      (order.driver?.id && String(order.driver.id).trim().toLowerCase() === cleanActor) ||
+      (order.driverId && String(order.driverId).trim().toLowerCase() === cleanActor)
+    );
     if (!isCustomer && !isDriver) {
       throw new ForbiddenError('You are not authorized to chat on this order');
     }
@@ -1283,8 +1293,14 @@ export class OrderService {
 
     try {
       const realtimeApp = this.app as unknown as RealtimeApp;
-      if (realtimeApp.io) {
+      if (realtimeApp?.io) {
         realtimeApp.io.to(`order:${orderId}`).emit('chat_message', serializedMsg);
+        try {
+          realtimeApp.io.of('/user')?.to(`order:${orderId}`)?.emit('chat_message', serializedMsg);
+        } catch {}
+        try {
+          realtimeApp.io.of('/driver')?.to(`order:${orderId}`)?.emit('chat_message', serializedMsg);
+        } catch {}
       }
     } catch (err) {
       this.logger.warn({ err, orderId }, 'chat_message.broadcast_failed');

@@ -135,16 +135,18 @@ export class OrderController {
   };
 
   getMessages = async (request: FastifyRequest) => {
-    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const userPayload = request.user as { sub?: string; id?: string; driverId?: string } | null;
+    const actorId = String(userPayload?.sub ?? userPayload?.id ?? userPayload?.driverId ?? '').trim();
     const { id } = request.params as { id: string };
-    return success(await this.service.getOrderMessages(id, userId), 'Messages fetched');
+    return success(await this.service.getOrderMessages(id, actorId), 'Messages fetched');
   };
 
   sendMessage = async (request: FastifyRequest) => {
-    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const userPayload = request.user as { sub?: string; id?: string; driverId?: string } | null;
+    const actorId = String(userPayload?.sub ?? userPayload?.id ?? userPayload?.driverId ?? '').trim();
     const { id } = request.params as { id: string };
     const { text } = request.body as { text: string };
-    return success(await this.service.sendOrderMessage(id, userId, text), 'Message sent');
+    return success(await this.service.sendOrderMessage(id, actorId, text), 'Message sent');
   };
 
   getActiveHubs = async (request: FastifyRequest) => {

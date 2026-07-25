@@ -73,17 +73,27 @@ export function DriverChatModal({ visible, orderId, customerName = 'Customer', o
     const text = input.trim();
     if (!text || sending) return;
 
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      orderId,
+      senderId: 'me',
+      senderType: 'DRIVER',
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
     setInput('');
     setSending(true);
+    setMessages((prev) => [...prev, optimisticMsg]);
 
     try {
       const res = await http.post<{ data: ChatMessage }>(`/api/v1/orders/${orderId}/messages`, { text });
-      const newMsg = res.data.data;
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
-      });
-    } catch {
+      const newMsg = (res.data as any)?.data ?? (res.data as unknown as ChatMessage);
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? newMsg : m)));
+    } catch (err) {
+      console.error('Driver send message error:', err);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setInput(text);
     } finally {
       setSending(false);
