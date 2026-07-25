@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft, Pencil } from 'lucide-react-native';
+import { Camera, ChevronRight, Gift, ShieldCheck, Settings2, ChevronLeft, Pencil, MapPin } from 'lucide-react-native';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
@@ -118,6 +118,17 @@ export default function ProfileScreen() {
             <View style={styles.referralCopy}>
               <Text style={[styles.referralTitle, { color: palette.text }]}>Refer & Earn</Text>
               <Text style={[styles.referralSubtitle, { color: palette.textSecondary }]}>Invite friends and earn rewards</Text>
+            </View>
+            <ChevronRight size={18} color={palette.textSecondary} />
+          </Pressable>
+
+          <Pressable onPress={() => router.push('/settings/addresses')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
+            <View style={[styles.settingsIcon, { backgroundColor: palette.primary }]}>
+              <MapPin size={16} color="#FFFFFF" />
+            </View>
+            <View style={styles.settingsCopy}>
+              <Text style={[styles.settingsTitle, { color: palette.text }]}>Saved Addresses</Text>
+              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Manage Home, Office & frequent locations</Text>
             </View>
             <ChevronRight size={18} color={palette.textSecondary} />
           </Pressable>

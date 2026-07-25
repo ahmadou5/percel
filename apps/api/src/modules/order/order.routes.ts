@@ -19,6 +19,8 @@ const orderRoutes: FastifyPluginAsync = async (app) => {
   app.get('/orders', { preHandler: [app.authenticate], schema: { querystring: OrderQuery } }, controller.getUserOrders);
   app.get('/orders/:id', { preHandler: [app.authenticate] }, controller.getOrderDetail);
   app.get('/orders/:id/tracking', { preHandler: [app.authenticate] }, controller.getOrderTracking);
+  app.get('/orders/:id/messages', { preHandler: [app.authenticate] }, controller.getMessages);
+  app.post('/orders/:id/messages', { preHandler: [app.authenticate] }, controller.sendMessage);
   app.get('/orders/track/:code', controller.getOrderByTrackingCode);
   app.post('/orders/:id/cancel', { preHandler: [app.authenticate], schema: { body: CancelBody } }, controller.cancelOrder);
   app.post('/orders/:id/confirm', { preHandler: [app.authenticate] }, controller.confirmDelivery);

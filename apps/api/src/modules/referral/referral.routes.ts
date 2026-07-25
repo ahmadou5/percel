@@ -27,6 +27,9 @@ const referralRoutes: FastifyPluginAsync = async (app) => {
       return controller.applyCode(request);
     },
   );
+
+  /** Claim qualified referral rewards into wallet */
+  app.post('/referrals/claim', { preHandler: [app.authenticate] }, controller.claimRewards);
 };
 
 export default referralRoutes;

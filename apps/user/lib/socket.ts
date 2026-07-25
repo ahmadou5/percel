@@ -66,6 +66,13 @@ export function subscribeToDriverLocation(driverId: string, handler: EventHandle
   });
 }
 
+export function subscribeToOrderChat(orderId: string, handler: EventHandler) {
+  return subscribeUserSocket('chat_message', (payload: any) => {
+    if (!orderId || payload?.orderId !== orderId) return;
+    handler(payload);
+  });
+}
+
 export function emitUserEvent(event: string, payload: any) {
   emitLocal(event, payload);
   socket?.emit?.(event, payload);

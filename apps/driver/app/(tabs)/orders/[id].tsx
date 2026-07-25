@@ -23,7 +23,9 @@ import {
   ClipboardList,
   Navigation,
   CornerUpLeft,
+  MessageSquare,
 } from 'lucide-react-native';
+import { DriverChatModal } from '@/components/orders/DriverChatModal';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
@@ -70,11 +72,13 @@ function ContactCard({
   name,
   phone,
   palette,
+  onOpenChat,
 }: {
   title: string;
   name: string;
   phone?: string | null;
   palette: ReturnType<typeof useAppPalette>;
+  onOpenChat?: () => void;
 }) {
   return (
     <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -87,14 +91,24 @@ function ContactCard({
           <Text style={[styles.contactName, { color: palette.text }]}>{name}</Text>
           {phone ? <Text style={[styles.contactPhone, { color: palette.textSecondary }]}>{phone}</Text> : null}
         </View>
-        {phone ? (
-          <Pressable
-            style={[styles.callBtn, { backgroundColor: hexToRgba('#30D158', 0.14), borderColor: hexToRgba('#30D158', 0.24) }]}
-            onPress={() => void Linking.openURL(`tel:${phone}`)}
-          >
-            <Phone size={16} color="#30D158" />
-          </Pressable>
-        ) : null}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {onOpenChat ? (
+            <Pressable
+              style={[styles.callBtn, { backgroundColor: hexToRgba(palette.primary, 0.14), borderColor: hexToRgba(palette.primary, 0.24) }]}
+              onPress={onOpenChat}
+            >
+              <MessageSquare size={16} color={palette.primary} />
+            </Pressable>
+          ) : null}
+          {phone ? (
+            <Pressable
+              style={[styles.callBtn, { backgroundColor: hexToRgba('#30D158', 0.14), borderColor: hexToRgba('#30D158', 0.24) }]}
+              onPress={() => void Linking.openURL(`tel:${phone}`)}
+            >
+              <Phone size={16} color="#30D158" />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -112,6 +126,7 @@ export default function ActiveOrderScreen() {
   const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
   const [feedbackRating, setFeedbackRating] = useState<1 | 5>(5);
   const [feedbackComment, setFeedbackComment] = useState('');
+  const [chatModalOpen, setChatModalOpen] = useState(false);
 
   // Reflect external order status changes (cancellation, completion)
   // Realtime updates handled by react-query invalidation in useLiveTracking/useDriverOrderDetail, 
@@ -289,6 +304,7 @@ export default function ActiveOrderScreen() {
             name={order.customer.fullName}
             phone={order.customer.phone}
             palette={palette}
+            onOpenChat={() => setChatModalOpen(true)}
           />
         ) : null}
 
@@ -395,6 +411,15 @@ export default function ActiveOrderScreen() {
           </View>
         </View>
       </Modal>
+
+      {order ? (
+        <DriverChatModal
+          visible={chatModalOpen}
+          orderId={order.id}
+          customerName={order.customer?.fullName ?? 'Customer'}
+          onClose={() => setChatModalOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }

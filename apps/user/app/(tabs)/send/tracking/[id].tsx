@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { DeliveryRouteMap } from '@/components/order/DeliveryRouteMap';
 import { OrderTrackingSheet } from '@/components/order/OrderTrackingSheet';
+import { OrderChatModal } from '@/components/order/OrderChatModal';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Colors } from '@/constants/palette';
@@ -44,6 +45,7 @@ export default function TrackingScreen() {
   const { config: modalConfig, hide: hideModal, alert: showAlert } = useAppModal();
   const tracking = trackingQuery.data;
   const orderCode = order?.trackingCode ?? `#${id ?? ''}`;
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     void haptics.tap();
@@ -179,7 +181,16 @@ export default function TrackingScreen() {
         </View>
       ) : null}
 
-      {tracking ? <OrderTrackingSheet data={tracking} orderCode={orderCode} /> : null}
+      {tracking ? <OrderTrackingSheet data={tracking} orderCode={orderCode} onOpenChat={() => setChatOpen(true)} /> : null}
+
+      {order ? (
+        <OrderChatModal
+          visible={chatOpen}
+          orderId={order.id}
+          driverName={tracking?.driver?.name ?? (order.driver as any)?.user?.fullName ?? 'Driver'}
+          onClose={() => setChatOpen(false)}
+        />
+      ) : null}
     </GestureHandlerRootView>
   );
 }

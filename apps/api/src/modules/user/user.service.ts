@@ -521,4 +521,90 @@ export class UserService {
     this.logger.info({ userId }, 'user.account.deleted');
     return { deleted: true };
   }
+
+  async getSavedAddresses(userId: string) {
+    const addresses = await this.prisma.savedAddress.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return addresses.map((a) => ({
+      id: a.id,
+      label: a.label,
+      street: a.street,
+      city: a.city,
+      state: a.state,
+      country: a.country,
+      formattedAddress: a.formattedAddress,
+      placeId: a.placeId ?? undefined,
+      lat: Number(a.lat),
+      lng: Number(a.lng),
+      contactName: a.contactName ?? undefined,
+      contactPhone: a.contactPhone ?? undefined,
+      createdAt: a.createdAt.toISOString(),
+    }));
+  }
+
+  async createSavedAddress(userId: string, data: {
+    label: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    formattedAddress: string;
+    placeId?: string;
+    lat: number;
+    lng: number;
+    contactName?: string;
+    contactPhone?: string;
+  }) {
+    if (!data.label || !data.formattedAddress) {
+      throw new ValidationError('Label and formatted address are required');
+    }
+
+    const saved = await this.prisma.savedAddress.create({
+      data: {
+        userId,
+        label: data.label.trim(),
+        street: data.street || data.formattedAddress.split(',')[0] || 'Street',
+        city: data.city || 'Lagos',
+        state: data.state || 'Lagos',
+        country: data.country || 'Nigeria',
+        formattedAddress: data.formattedAddress,
+        placeId: data.placeId,
+        lat: data.lat,
+        lng: data.lng,
+        contactName: data.contactName,
+        contactPhone: data.contactPhone,
+      },
+    });
+
+    return {
+      id: saved.id,
+      label: saved.label,
+      street: saved.street,
+      city: saved.city,
+      state: saved.state,
+      country: saved.country,
+      formattedAddress: saved.formattedAddress,
+      placeId: saved.placeId ?? undefined,
+      lat: Number(saved.lat),
+      lng: Number(saved.lng),
+      contactName: saved.contactName ?? undefined,
+      contactPhone: saved.contactPhone ?? undefined,
+      createdAt: saved.createdAt.toISOString(),
+    };
+  }
+
+  async deleteSavedAddress(userId: string, addressId: string) {
+    const existing = await this.prisma.savedAddress.findUnique({
+      where: { id: addressId },
+      select: { userId: true },
+    });
+    if (!existing || existing.userId !== userId) {
+      throw new NotFoundError('Saved address not found');
+    }
+
+    await this.prisma.savedAddress.delete({ where: { id: addressId } });
+    return { deleted: true };
+  }
 }

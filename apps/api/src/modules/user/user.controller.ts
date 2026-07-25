@@ -68,4 +68,20 @@ export class UserController {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     return success(await this.service.deleteAccount(userId), 'Account deleted');
   };
+
+  getSavedAddresses = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    return success(await this.service.getSavedAddresses(userId));
+  };
+
+  createSavedAddress = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    return success(await this.service.createSavedAddress(userId, request.body as never), 'Address saved');
+  };
+
+  deleteSavedAddress = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.deleteSavedAddress(userId, id), 'Address deleted');
+  };
 }

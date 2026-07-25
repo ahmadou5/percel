@@ -2,7 +2,7 @@ import BottomSheet from '@gorhom/bottom-sheet';
 import { useMemo } from 'react';
 import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Phone } from 'lucide-react-native';
+import { MessageSquare, Phone } from 'lucide-react-native';
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 type Props = {
   data: TrackingData;
   orderCode: string;
+  onOpenChat?: () => void;
 };
 
 const STATUS_LABELS: Partial<Record<string, string>> = {
@@ -46,7 +47,7 @@ function initials(name: string) {
     .join('');
 }
 
-export function OrderTrackingSheet({ data, orderCode }: Props) {
+export function OrderTrackingSheet({ data, orderCode, onOpenChat }: Props) {
   const palette = useAppPalette();
   const user = useAuthStore((state) => state.user);
   const snapPoints = useMemo(() => ['10%','26%', '62%'], []);
@@ -144,19 +145,36 @@ export function OrderTrackingSheet({ data, orderCode }: Props) {
             </View>
           </View>
 
-          {data.driver.phone ? (
+          <View style={styles.actionRow}>
+            {data.driver.phone ? (
+              <Pressable
+                onPress={handleCall}
+                style={({ pressed }) => [
+                  styles.summaryActionBtn,
+                  { backgroundColor: palette.bg, borderColor: palette.border, borderWidth: 1 },
+                  pressed ? { opacity: 0.8 } : null,
+                ]}
+              >
+                <Phone size={16} color={palette.text} strokeWidth={2.5} />
+                <Text style={[styles.summaryActionBtnText, { color: palette.text }]}>Call</Text>
+              </Pressable>
+            ) : null}
+
             <Pressable
-              onPress={handleCall}
+              onPress={() => {
+                void haptics.press();
+                onOpenChat?.();
+              }}
               style={({ pressed }) => [
-                styles.summaryAction,
+                styles.summaryActionPrimary,
                 { backgroundColor: palette.primary },
                 pressed ? { opacity: 0.8 } : null,
               ]}
             >
-              <Phone size={16} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.summaryActionText}>Call Driver</Text>
+              <MessageSquare size={16} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={styles.summaryActionPrimaryText}>Chat with Driver</Text>
             </Pressable>
-          ) : null}
+          </View>
         </View>
       </BottomSheet>
     </>
@@ -280,16 +298,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summaryAction: {
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginTop: Spacing.md,
+  },
+  summaryActionBtn: {
+    paddingHorizontal: 16,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
   },
-  summaryActionText: {
+  summaryActionBtnText: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.bold,
+  },
+  summaryActionPrimary: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  summaryActionPrimaryText: {
     fontSize: Typography.sm,
     fontFamily: Typography.family.bold,
     color: '#FFFFFF',

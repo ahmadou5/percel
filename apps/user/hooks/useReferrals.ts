@@ -21,6 +21,7 @@ export type ReferralStats = {
   pending: number;
   qualified: number;
   rewarded: number;
+  unclaimedBonus?: number;
   totalEarned: number;
   inviterBonus: number;
   inviteeBonus: number;
@@ -65,6 +66,22 @@ export function useApplyReferralCode() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: referralKey });
+    },
+  });
+}
+
+export function useClaimReferralRewards() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await http.post<ApiResponse<{ claimedAmount: number; count: number }>>('/api/v1/referrals/claim');
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: referralKey });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
     },
   });
 }

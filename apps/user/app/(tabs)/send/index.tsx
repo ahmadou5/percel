@@ -16,7 +16,7 @@ import {
   Package,
   Map,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -54,6 +54,7 @@ import { getRouteWithHubs } from '@/lib/hubs';
 import { formatMoney, type OrderQuoteResponse } from '@/lib/order';
 import { isLight, useAppPalette } from '@/lib/theme';
 import type { Hub } from '@/types/hubs';
+import { useSavedAddresses } from '@/hooks/useSavedAddresses';
 import { Colors } from '@/constants/palette';
 
 // ─── Preset search landmarks matching clean human-readable locations ─────────
@@ -205,6 +206,19 @@ export default function SendOrderEntryScreen() {
   const autocompleteMutation = usePlaceAutocomplete();
   const placeDetailsMutation = usePlaceDetails();
   const { data: apiHubs, isLoading: hubsLoading } = useActiveHubs();
+  const { data: savedAddresses = [] } = useSavedAddresses();
+
+  const savedLandmarks: LandmarkItem[] = useMemo(() => {
+    return savedAddresses.map((sa) => ({
+      description: sa.formattedAddress,
+      secondaryText: `${sa.label} • ${sa.city}, ${sa.state}`,
+      placeId: sa.placeId || sa.id,
+      mainText: sa.label,
+      lat: sa.lat,
+      lng: sa.lng,
+      icon: 'home',
+    }));
+  }, [savedAddresses]);
 
   // ── location fields ──────────────────────────────────────────────────────
   const [pickupAddress, setPickupAddress] = useState('');
@@ -433,7 +447,7 @@ export default function SendOrderEntryScreen() {
   // ── Places Autocomplete API search ──
   useEffect(() => {
     if (!searchText || searchText.trim().length < 3) {
-      setSearchResults([]);
+      setSearchResults(savedLandmarks.length ? savedLandmarks : []);
       return;
     }
     const timer = setTimeout(async () => {
@@ -447,7 +461,8 @@ export default function SendOrderEntryScreen() {
         setSearchResults(res);
       } catch (err) {
         // Fallback to local landmark search
-        const filtered = MOCK_LANDMARKS.filter(item =>
+        const combined = [...savedLandmarks, ...MOCK_LANDMARKS];
+        const filtered = combined.filter(item =>
           item.description.toLowerCase().includes(searchText.toLowerCase())
         );
         setSearchResults(filtered);
@@ -456,7 +471,7 @@ export default function SendOrderEntryScreen() {
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [searchText, mapRegion.latitude, mapRegion.longitude]);
+  }, [searchText, mapRegion.latitude, mapRegion.longitude, savedLandmarks]);
 
   const handleSelectPlace = async (place: {
     description: string;

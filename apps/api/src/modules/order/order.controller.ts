@@ -122,7 +122,7 @@ export class OrderController {
   };
 
   updateCourierLocation = async (request: FastifyRequest) => {
-    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const driverId = String((request.user as { driverId?: string; sub?: string } | null)?.driverId ?? (request.user as { sub?: string } | null)?.sub ?? '');
     const { id } = request.params as { id: string };
     const body = request.body as { lat: number; lng: number; heading?: number; speed?: number };
     return success(await this.service.updateCourierLocation(driverId, id, body), 'Location updated');
@@ -131,7 +131,20 @@ export class OrderController {
   getCourierLocation = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const { id } = request.params as { id: string };
-    return success(await this.service.getCourierLocation(userId, id), 'Location fetched');
+    return success(await this.service.getCourierLocation(userId, id), 'Courier location fetched');
+  };
+
+  getMessages = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    return success(await this.service.getOrderMessages(id, userId), 'Messages fetched');
+  };
+
+  sendMessage = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { id } = request.params as { id: string };
+    const { text } = request.body as { text: string };
+    return success(await this.service.sendOrderMessage(id, userId, text), 'Message sent');
   };
 
   getActiveHubs = async (request: FastifyRequest) => {

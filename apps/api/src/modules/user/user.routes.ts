@@ -19,6 +19,9 @@ const userRoutes: FastifyPluginAsync = async (app) => {
   app.post('/user/avatar', { preHandler: [app.authenticate] }, controller.updateAvatar);
   app.post('/user/password', { preHandler: [app.authenticate], schema: { body: ChangePasswordBody } }, controller.changePassword);
   app.delete('/user/account', { preHandler: [app.authenticate] }, controller.deleteAccount);
+  app.get('/user/addresses', { preHandler: [app.authenticate] }, controller.getSavedAddresses);
+  app.post('/user/addresses', { preHandler: [app.authenticate] }, controller.createSavedAddress);
+  app.delete('/user/addresses/:id', { preHandler: [app.authenticate] }, controller.deleteSavedAddress);
 };
 
 export default userRoutes;

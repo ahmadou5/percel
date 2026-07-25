@@ -21,4 +21,9 @@ export class ReferralController {
     const { code } = request.body as { code: string };
     return success(await this.service.applyReferralCode(userId, code), 'Referral code applied');
   };
+
+  claimRewards = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    return success(await this.service.claimReferralRewards(userId), 'Referral rewards claimed');
+  };
 }

@@ -177,12 +177,17 @@ export class ReferralService {
     const qualified = referrals.filter((r) => r.status === 'QUALIFIED').length;
     const rewarded = referrals.filter((r) => r.status === 'REWARDED').length;
 
+    const unclaimedBonus = referrals
+      .filter((r) => r.status === 'QUALIFIED')
+      .reduce((sum, r) => sum + Number(r.inviterBonus || INVITER_BONUS), 0);
+
     return {
       code,
       totalReferred: referrals.length,
       pending,
       qualified,
       rewarded,
+      unclaimedBonus,
       totalEarned: Number(totalEarned._sum.inviterBonus ?? 0),
       inviterBonus: INVITER_BONUS,
       inviteeBonus: INVITEE_BONUS,
@@ -196,6 +201,60 @@ export class ReferralService {
         createdAt: r.createdAt.toISOString(),
       })),
     };
+  }
+
+  /**
+   * Claim all QUALIFIED referral rewards into user's main wallet.
+   */
+  async claimReferralRewards(userId: string): Promise<{ claimedAmount: number; count: number }> {
+    const qualifiedReferrals = await this.prisma.referral.findMany({
+      where: { inviterId: userId, status: 'QUALIFIED' },
+    });
+
+    if (qualifiedReferrals.length === 0) {
+      return { claimedAmount: 0, count: 0 };
+    }
+
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet) throw new NotFoundError('Wallet not found');
+
+    const totalClaiming = qualifiedReferrals.reduce((sum, r) => sum + Number(r.inviterBonus || INVITER_BONUS), 0);
+    const now = new Date();
+    const claimRef = `REF_CLAIM_${Date.now()}_${userId.slice(0, 6)}`;
+
+    await this.prisma.$transaction(async (trx) => {
+      const balanceBefore = Number(wallet.balance);
+      const balanceAfter = balanceBefore + totalClaiming;
+
+      await trx.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: balanceAfter, ledgerBalance: balanceAfter },
+      });
+
+      await trx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: totalClaiming,
+          type: WalletTransactionType.CREDIT,
+          category: WalletTransactionCategory.REFERRAL_BONUS,
+          status: WalletTransactionStatus.COMPLETED,
+          reference: claimRef,
+          description: `Referral reward claimed (${qualifiedReferrals.length} invitees)`,
+          metadata: { referralCount: qualifiedReferrals.length },
+          balanceBefore,
+          balanceAfter,
+        },
+      });
+
+      await trx.referral.updateMany({
+        where: { id: { in: qualifiedReferrals.map((r) => r.id) } },
+        data: { status: 'REWARDED', rewardedAt: now },
+      });
+    });
+
+    await deleteCache(this.app.redis, [`cache:wallet:balance:${wallet.id}`]);
+
+    return { claimedAmount: totalClaiming, count: qualifiedReferrals.length };
   }
 
   /**

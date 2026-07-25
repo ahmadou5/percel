@@ -1215,4 +1215,81 @@ export class OrderService {
   async getPlaceDetails(placeId: string) {
     return getPlaceDetails(placeId);
   }
+
+  async getOrderMessages(orderId: string, actorId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, userId: true, driverId: true, driver: { select: { userId: true } } },
+    });
+    if (!order) throw new NotFoundError('Order not found');
+
+    const isCustomer = order.userId === actorId;
+    const isDriver = order.driver?.userId === actorId || order.driverId === actorId;
+    if (!isCustomer && !isDriver) {
+      throw new ForbiddenError('You are not authorized to view messages for this order');
+    }
+
+    const messages = await this.prisma.orderChatMessage.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'asc' },
+      take: 100,
+    });
+
+    return messages.map((m) => ({
+      id: m.id,
+      orderId: m.orderId,
+      senderId: m.senderId,
+      senderType: m.senderType,
+      text: m.text,
+      createdAt: m.createdAt.toISOString(),
+    }));
+  }
+
+  async sendOrderMessage(orderId: string, actorId: string, text: string) {
+    const cleanMsg = (cleanText(text ?? '') ?? '').trim();
+    if (!cleanMsg) throw new ValidationError('Message text cannot be empty');
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, userId: true, driverId: true, driver: { select: { userId: true } } },
+    });
+    if (!order) throw new NotFoundError('Order not found');
+
+    const isCustomer = order.userId === actorId;
+    const isDriver = order.driver?.userId === actorId || order.driverId === actorId;
+    if (!isCustomer && !isDriver) {
+      throw new ForbiddenError('You are not authorized to chat on this order');
+    }
+
+    const senderType = isCustomer ? 'USER' : 'DRIVER';
+
+    const msg = await this.prisma.orderChatMessage.create({
+      data: {
+        orderId,
+        senderId: actorId,
+        senderType,
+        text: cleanMsg,
+      },
+    });
+
+    const serializedMsg = {
+      id: msg.id,
+      orderId: msg.orderId,
+      senderId: msg.senderId,
+      senderType: msg.senderType,
+      text: msg.text,
+      createdAt: msg.createdAt.toISOString(),
+    };
+
+    try {
+      const realtimeApp = this.app as unknown as RealtimeApp;
+      if (realtimeApp.io) {
+        realtimeApp.io.to(`order:${orderId}`).emit('chat_message', serializedMsg);
+      }
+    } catch (err) {
+      this.logger.warn({ err, orderId }, 'chat_message.broadcast_failed');
+    }
+
+    return serializedMsg;
+  }
 }

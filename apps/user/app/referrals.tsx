@@ -30,7 +30,7 @@ import * as Clipboard from 'expo-clipboard';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useAuthStore } from '@/store/auth.store';
 import { useAppPalette, isLight } from '@/lib/theme';
-import { useReferralStats, useApplyReferralCode, type ReferralEntry } from '@/hooks/useReferrals';
+import { useReferralStats, useApplyReferralCode, useClaimReferralRewards, type ReferralEntry } from '@/hooks/useReferrals';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 
@@ -64,11 +64,25 @@ export default function ReferralsScreen() {
 
   const statsQuery = useReferralStats();
   const applyMutation = useApplyReferralCode();
+  const claimMutation = useClaimReferralRewards();
   const [inputCode, setInputCode] = useState('');
   const [showApply, setShowApply] = useState(false);
 
   const stats = statsQuery.data;
   const code = stats?.code ?? '------';
+
+  const onClaim = async () => {
+    try {
+      const res = await claimMutation.mutateAsync();
+      if (res.claimedAmount > 0) {
+        modal.alert('Reward Claimed! 💰', `${NGN.format(res.claimedAmount)} has been added directly to your Percel wallet balance.`, 'success');
+      } else {
+        modal.alert('No rewards to claim', 'Keep inviting friends! Once they complete their first delivery, your rewards will be ready to claim.', 'info');
+      }
+    } catch {
+      modal.alert('Claim Failed', 'Unable to process reward claim right now.', 'error');
+    }
+  };
 
   if (!isAuthenticated) return <Redirect href='/(auth)/welcome' />;
   if (!isUnlocked) return <Redirect href='/auth-lock' />;
@@ -195,6 +209,28 @@ export default function ReferralsScreen() {
           />
         </View>
       )}
+
+      {/* Unclaimed bonus card */}
+      {stats && ((stats.unclaimedBonus ?? 0) > 0 || (stats.qualified ?? 0) > 0) ? (
+        <View style={[styles.earnedCard, { backgroundColor: `${palette.primary}12`, borderColor: `${palette.primary}33` }]}>
+          <View style={[styles.earnedIcon, { backgroundColor: palette.primary }]}>
+            <Sparkles size={20} color="#FFFFFF" />
+          </View>
+          <View style={styles.earnedCopy}>
+            <Text style={[styles.earnedLabel, { color: palette.textSecondary }]}>Unclaimed Referral Rewards</Text>
+            <Text style={[styles.earnedAmount, { color: palette.primary }]}>
+              {NGN.format(stats.unclaimedBonus || ((stats.qualified ?? 0) * (stats.inviterBonus || 500)))}
+            </Text>
+          </View>
+          <Pressable
+            disabled={claimMutation.isPending}
+            onPress={onClaim}
+            style={[styles.claimButton, { backgroundColor: palette.primary }]}
+          >
+            <Text style={styles.claimButtonText}>{claimMutation.isPending ? 'Claiming...' : 'Claim to Wallet'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Total earned */}
       {stats && stats.totalEarned > 0 && (
@@ -391,6 +427,8 @@ const styles = StyleSheet.create({
   earnedCopy: { flex: 1, gap: 2 },
   earnedLabel: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   earnedAmount: { fontSize: 22, fontFamily: Typography.family.bold },
+  claimButton: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  claimButtonText: { color: '#FFFFFF', fontSize: Typography.xs, fontFamily: Typography.family.bold },
 
   applyToggle: { borderRadius: 22, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 12 },
   applyIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

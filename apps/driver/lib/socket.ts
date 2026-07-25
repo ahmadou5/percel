@@ -63,6 +63,13 @@ export function subscribeDriverSocket(event: string, handler: EventHandler) {
   };
 }
 
+export function subscribeToDriverOrderChat(orderId: string, handler: EventHandler) {
+  return subscribeDriverSocket('chat_message', (payload: any) => {
+    if (!orderId || payload?.orderId !== orderId) return;
+    handler(payload);
+  });
+}
+
 export function listenForOrders(handler: EventHandler) {
   return subscribeDriverSocket('new_order_available', handler);
 }
