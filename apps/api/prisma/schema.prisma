@@ -168,6 +168,7 @@ model User {
   referredUsers     User[]     @relation("UserReferrals")
   sentReferrals     Referral[] @relation("ReferralInviter")
   receivedReferral  Referral?  @relation("ReferralInvitee")
+  savedAddresses    SavedAddress[]
 }
 
 model AppConfig {
@@ -284,6 +285,7 @@ model Order {
   rating        OrderRating?
   transactions  WalletTransaction[]
   earnings      DriverEarning[]
+  chatMessages  OrderChatMessage[]
 
   @@index([userId])
   @@index([driverId])
@@ -507,4 +509,41 @@ model Route {
 
   @@unique([originHubId, destinationHubId])
 }
+
+model OrderChatMessage {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId    String   @db.Uuid
+  senderId   String   @db.Uuid
+  senderType String
+  text       String
+  createdAt  DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model SavedAddress {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId           String   @db.Uuid
+  label            String
+  street           String
+  city             String
+  state            String
+  country          String   @default("Nigeria")
+  formattedAddress String
+  placeId          String?
+  lat              Decimal  @db.Decimal(10, 7)
+  lng              Decimal  @db.Decimal(10, 7)
+  contactName      String?
+  contactPhone     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
 

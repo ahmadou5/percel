@@ -609,7 +609,7 @@ export class WalletService {
         category: WalletTransactionCategory.TOP_UP,
         status: WalletTransactionStatus.PENDING,
         reference: data.reference,
-        description: `${provider.toLowerCase()} wallet funding`,
+        description: `Wallet Top Up (${provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase()})`,
         metadata: { gateway: provider.toLowerCase(), accountNumber: data.accountNumber ?? null, customerIdentifier: data.customerIdentifier ?? null },
         balanceBefore: 0,
         balanceAfter: 0,
@@ -956,12 +956,13 @@ export class WalletService {
     else if (lower.includes('9mobile') || lower.includes('etisalat')) resolvedServiceId = '9mobile-airtime';
     else resolvedServiceId = lower.endsWith('-airtime') ? lower : `${lower}-airtime`;
 
+    const netName = lower.includes('mtn') ? 'MTN' : lower.includes('glo') ? 'Glo' : lower.includes('airtel') ? 'Airtel' : '9mobile';
     return this.buyUtility(userId, {
       serviceID: resolvedServiceId,
       billersCode: normalizeNigerianPhone(phone),
       amount,
       phone,
-      description: `${network} airtime`,
+      description: `${netName} Airtime`,
       category: WalletTransactionCategory.AIRTIME,
     });
   }
@@ -977,25 +978,29 @@ export class WalletService {
       else resolvedServiceId = lower.endsWith('-data') ? lower : `${lower}-data`;
     }
 
+    const lowerNet = network.toLowerCase();
+    const netName = lowerNet.includes('mtn') ? 'MTN' : lowerNet.includes('glo') ? 'Glo' : lowerNet.includes('airtel') ? 'Airtel' : '9mobile';
     return this.buyUtility(userId, {
       serviceID: resolvedServiceId,
       billersCode: normalizeNigerianPhone(phone),
       amount,
       phone,
-      description: `${network} data plan: ${plan}`,
+      description: `${netName} Data Plan`,
       category: WalletTransactionCategory.DATA,
       variation_code: variationCode,
     });
   }
 
   async buyElectricity(userId: string, meterNumber: string, amount: number, disco: string, type?: 'prepaid' | 'postpaid') {
+    const dLower = disco.toLowerCase();
+    const discoName = dLower.includes('eko') ? 'Eko' : dLower.includes('ikeja') ? 'Ikeja' : dLower.includes('abuja') ? 'Abuja' : dLower.includes('kano') ? 'Kano' : dLower.includes('port harcourt') ? 'Port Harcourt' : disco;
     return this.buyUtility(userId, {
       serviceID: disco,
       billersCode: meterNumber,
       amount,
       phone: meterNumber,
       type,
-      description: `${disco} electricity`,
+      description: `${discoName} Electricity Bill`,
       category: WalletTransactionCategory.ELECTRICITY,
     });
   }
@@ -1010,12 +1015,30 @@ export class WalletService {
       else if (lower.includes('showmax')) resolvedServiceId = 'showmax';
     }
 
+    const pLower = provider.toLowerCase();
+    const vLower = (variationCode || '').toLowerCase();
+    let brand = pLower.includes('dstv') ? 'DStv' : pLower.includes('gotv') ? 'GOtv' : pLower.includes('startimes') ? 'StarTimes' : 'Showmax';
+    let packagePlan = '';
+    if (vLower.includes('ppadi') || vLower.includes('padi')) packagePlan = 'Padi';
+    else if (vLower.includes('yanga')) packagePlan = 'Yanga';
+    else if (vLower.includes('confam')) packagePlan = 'Confam';
+    else if (vLower.includes('compact-plus')) packagePlan = 'Compact Plus';
+    else if (vLower.includes('compact')) packagePlan = 'Compact';
+    else if (vLower.includes('premium')) packagePlan = 'Premium';
+    else if (vLower.includes('jolli')) packagePlan = 'Jolli';
+    else if (vLower.includes('jinja')) packagePlan = 'Jinja';
+    else if (vLower.includes('smallie')) packagePlan = 'Smallie';
+    else if (vLower.includes('max')) packagePlan = 'Max';
+    else if (vLower.includes('supa')) packagePlan = 'Supa';
+
+    const cleanTitle = packagePlan ? `${brand} ${packagePlan} Subscription` : `${brand} Subscription`;
+
     return this.buyUtility(userId, {
       serviceID: resolvedServiceId,
       billersCode: smartcardNumber,
       amount,
       phone: phone ?? smartcardNumber,
-      description: `${provider} ${variationCode}`,
+      description: cleanTitle,
       category: WalletTransactionCategory.TV,
       variation_code: variationCode,
     });

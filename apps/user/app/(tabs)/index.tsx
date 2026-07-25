@@ -9,7 +9,7 @@ import { Colors } from '@/constants/palette';
 import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { formatNaira, formatTxnDate, safeBalance, titleize, type WalletTransaction } from '@/lib/wallet';
+import { formatNaira, formatTransactionTitle, formatTxnDate, safeBalance, titleize, type WalletTransaction } from '@/lib/wallet';
 import { useAuthStore } from '@/store/auth.store';
 import { usePreferencesStore } from '@/store/preferences.store';
 import { StateCard } from '@/components/ui/StateCard';
@@ -50,7 +50,7 @@ function TransactionRow({ transaction, palette, index }: { transaction: WalletTr
         <Icon size={18} color={iconColor} />
       </View>
       <View style={styles.txBody}>
-        <Text style={[styles.txTitle, { color: palette.text }]}>{transaction.description}</Text>
+        <Text style={[styles.txTitle, { color: palette.text }]}>{formatTransactionTitle(transaction.description, transaction.category, transaction.type, transaction.metadata)}</Text>
         <Text style={[styles.txMeta, { color: palette.textSecondary }]}>
           {titleize(transaction.category)} • {formatTxnDate(transaction.createdAt)}
         </Text>

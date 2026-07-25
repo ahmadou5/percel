@@ -6,7 +6,7 @@ import { AnimatedReveal } from '@/components/ui/AnimatedReveal';
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { formatNaira, formatTxnDate, titleize, type WalletTransaction } from '@/lib/wallet';
+import { formatNaira, formatTransactionTitle, formatTxnDate, titleize, type WalletTransaction } from '@/lib/wallet';
 import { haptics } from '@/utils/haptics';
 
 type Props = {
@@ -44,7 +44,7 @@ function TransactionItemBase({ transaction, onPress }: Props) {
           <FontAwesome name={icon as keyof typeof FontAwesome.glyphMap} size={16} color={isCredit ? Colors.light.success : Colors.light.error} />
         </View>
         <View style={styles.body}>
-          <Text style={styles.title}>{transaction.description}</Text>
+          <Text style={styles.title}>{formatTransactionTitle(transaction.description, transaction.category, transaction.type, transaction.metadata)}</Text>
           <Text style={styles.subtitle}>
             {titleize(transaction.category)} • {formatTxnDate(transaction.createdAt)}
           </Text>

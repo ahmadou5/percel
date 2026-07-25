@@ -16,8 +16,9 @@ import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTransactions } from '@/hooks/useWallet';
-import { formatNaira, formatTxnDate, titleize, walletCategories } from '@/lib/wallet';
+import { formatNaira, formatTransactionTitle, formatTxnDate, titleize, walletCategories, type WalletTransaction } from '@/lib/wallet';
 import { getThemeIconSource, useAppPalette } from '@/lib/theme';
+import { useAuthStore } from '@/store/auth.store';
 
 function DashedDivider() {
   return (
@@ -82,6 +83,37 @@ export default function TransactionsScreen() {
   }, [search, transactions]);
 
   const selected = useMemo(() => transactions.find((item) => item.id === selectedId) ?? null, [selectedId, transactions]);
+  const user = useAuthStore((state) => state.user);
+
+  const selectedParties = useMemo(() => {
+    if (!selected) return { sender: '—', recipient: '—' };
+    const isCredit = selected.type === 'CREDIT';
+    const meta = (selected.metadata || {}) as Record<string, any>;
+    let sender = isCredit
+      ? String(meta.senderName || meta.fromName || meta.fromPhone || meta.gateway || 'Percel Platform')
+      : (user?.fullName || 'Percel Account');
+
+    let recipient = isCredit
+      ? (user?.fullName || 'Percel Account')
+      : String(
+          meta.accountName ||
+          meta.recipientName ||
+          meta.toName ||
+          meta.recipientPhone ||
+          meta.toPhone ||
+          meta.phone ||
+          meta.accountNumber ||
+          'Recipient'
+        );
+
+    if (meta.accountName && meta.bankName) {
+      recipient = `${meta.accountName} (${meta.bankName})`;
+    } else if (meta.accountNumber && meta.bankName) {
+      recipient = `${meta.bankName} - ${meta.accountNumber}`;
+    }
+
+    return { sender, recipient };
+  }, [selected, user]);
 
   // Summary uses full backend accumulation for the selected category filter, fallback to loaded transactions
   const summary = useMemo(() => {
@@ -165,13 +197,12 @@ export default function TransactionsScreen() {
               <div class="date">${formatTxnDate(selected.createdAt)}</div>
             </div>
             <table class="table">
-              <tr><td class="td-label">Transaction Type</td><td class="td-value">${titleize(selected.category)}</td></tr>
+              <tr><td class="td-label">Transaction Type</td><td class="td-value">${formatTransactionTitle(selected.description, selected.category, selected.type, selected.metadata)}</td></tr>
+              <tr><td class="td-label">Sender</td><td class="td-value">${selectedParties.sender}</td></tr>
+              <tr><td class="td-label">Recipient</td><td class="td-value">${selectedParties.recipient}</td></tr>
               <tr><td class="td-label">Status</td><td class="td-value">${selected.status}</td></tr>
               <tr><td class="td-label">Reference ID</td><td class="td-value" style="font-family: monospace;">${selected.reference}</td></tr>
               <tr><td class="td-label">Payment Type</td><td class="td-value">${selected.type}</td></tr>
-              ${selected.metadata?.phone || selected.metadata?.recipientPhone || selected.metadata?.accountNumber ? `
-                <tr><td class="td-label">Recipient Account</td><td class="td-value">${selected.metadata?.phone || selected.metadata?.recipientPhone || selected.metadata?.accountNumber}</td></tr>
-              ` : ''}
             </table>
             <div class="footer">Official Receipt &bull; Percel Logistics</div>
           </div>
@@ -291,51 +322,54 @@ export default function TransactionsScreen() {
       <Modal visible={Boolean(selected)} transparent animationType="fade" onRequestClose={() => setSelectedId(null)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedId(null)} />
-          <View ref={receiptRef} collapsable={false} style={[styles.receiptCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={[styles.receiptCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
             {selected ? (
               <>
-                <View style={styles.receiptHeader}>
-                  <View style={styles.receiptLogoBox}>
-                    <Image source={getThemeIconSource(palette.primary)} style={styles.brandIconImage} />
-                    <Text style={[styles.receiptLogoText, { color: palette.text }]}>Percel</Text>
+                <View ref={receiptRef} collapsable={false} style={[styles.receiptPrintable, { backgroundColor: palette.card }]}>
+                  <View style={styles.receiptHeader}>
+                    <View style={styles.receiptLogoBox}>
+                      <Image source={getThemeIconSource(palette.primary)} style={styles.brandIconImage} />
+                      <Text style={[styles.receiptLogoText, { color: palette.text }]}>Percel</Text>
+                    </View>
+                    <View style={[styles.receiptBadgeWrap, { backgroundColor: palette.bg }]}>
+                      {selected.category === 'AIRTIME' || selected.category === 'DATA' ? (
+                        <Smartphone size={16} color={palette.textSecondary} />
+                      ) : selected.type === 'CREDIT' ? (
+                        <ArrowDownLeft size={16} color={palette.success} />
+                      ) : (
+                        <ArrowUpRight size={16} color={palette.error} />
+                      )}
+                    </View>
                   </View>
-                  <View style={[styles.receiptBadgeWrap, { backgroundColor: palette.bg }]}>
-                    {selected.category === 'AIRTIME' || selected.category === 'DATA' ? (
-                      <Smartphone size={16} color={palette.textSecondary} />
-                    ) : selected.type === 'CREDIT' ? (
-                      <ArrowDownLeft size={16} color={palette.success} />
-                    ) : (
-                      <ArrowUpRight size={16} color={palette.error} />
-                    )}
+
+                  <View style={styles.receiptAmountSection}>
+                    <Text style={[styles.receiptAmountText, { color: selected.type === 'CREDIT' ? palette.success : palette.text }]}>
+                      {selected.type === 'CREDIT' ? '+' : '-'}{formatNaira(selected.amount)}
+                    </Text>
+                    <Text style={[styles.receiptTimestamp, { color: palette.textSecondary }]}>
+                      {formatTxnDate(selected.createdAt)}
+                    </Text>
+                  </View>
+
+                  <DashedDivider />
+
+                  <View style={styles.receiptDetails}>
+                    <ReceiptRow label="Transaction Type" value={formatTransactionTitle(selected.description, selected.category, selected.type, selected.metadata)} palette={palette} />
+                    <ReceiptRow label="Sender" value={selectedParties.sender} palette={palette} />
+                    <ReceiptRow label="Recipient" value={selectedParties.recipient} palette={palette} />
+                    <ReceiptRow label="Status" value={selected.status} isStatus statusType={selected.status} palette={palette} />
+                    <ReceiptRow label="Reference ID" value={selected.reference} palette={palette} />
+                    <ReceiptRow label="Payment Type" value={selected.type} palette={palette} />
+                  </View>
+
+                  <DashedDivider />
+
+                  <View style={styles.scallopedContainer}>
+                    {Array.from({ length: 18 }).map((_, i) => (
+                      <View key={i} style={styles.scallopCircle} />
+                    ))}
                   </View>
                 </View>
-
-                <View style={styles.receiptAmountSection}>
-                  <Text style={[styles.receiptAmountText, { color: selected.type === 'CREDIT' ? palette.success : palette.text }]}>
-                    {selected.type === 'CREDIT' ? '+' : '-'}{formatNaira(selected.amount)}
-                  </Text>
-                  <Text style={[styles.receiptTimestamp, { color: palette.textSecondary }]}>
-                    {formatTxnDate(selected.createdAt)}
-                  </Text>
-                </View>
-
-                <DashedDivider />
-
-                <View style={styles.receiptDetails}>
-                  <ReceiptRow label="Transaction Type" value={titleize(selected.category)} palette={palette} />
-                  <ReceiptRow label="Status" value={selected.status} isStatus statusType={selected.status} palette={palette} />
-                  <ReceiptRow label="Reference ID" value={selected.reference} palette={palette} />
-                  <ReceiptRow label="Payment Type" value={selected.type} palette={palette} />
-                  {selected.metadata?.phone || selected.metadata?.recipientPhone || selected.metadata?.accountNumber ? (
-                    <ReceiptRow
-                      label="Recipient Account"
-                      value={String(selected.metadata?.phone || selected.metadata?.recipientPhone || selected.metadata?.accountNumber)}
-                      palette={palette}
-                    />
-                  ) : null}
-                </View>
-
-                <DashedDivider />
 
                 <View style={styles.receiptActions}>
                   <Pressable onPress={handleShareImage} style={[styles.receiptActionButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
@@ -351,12 +385,6 @@ export default function TransactionsScreen() {
                 <Pressable onPress={() => setSelectedId(null)} style={[styles.receiptCloseButton, { backgroundColor: palette.primary }]}>
                   <Text style={styles.receiptCloseButtonText}>Close</Text>
                 </Pressable>
-
-                <View style={styles.scallopedContainer}>
-                  {Array.from({ length: 18 }).map((_, i) => (
-                    <View key={i} style={styles.scallopCircle} />
-                  ))}
-                </View>
               </>
             ) : null}
           </View>
@@ -382,7 +410,7 @@ function TransactionRow({
   onPress,
   palette,
 }: {
-  item: { id: string; description: string; reference: string; category: string; createdAt: string; amount: number; status: string; type: 'CREDIT' | 'DEBIT' };
+  item: WalletTransaction;
   index: number;
   onPress: () => void;
   palette: ReturnType<typeof useAppPalette>;
@@ -399,7 +427,7 @@ function TransactionRow({
           <Icon size={18} color={iconColor} />
         </View>
         <View style={styles.rowBody}>
-          <Text style={[styles.rowTitle, { color: palette.text }]}>{item.description}</Text>
+          <Text style={[styles.rowTitle, { color: palette.text }]}>{formatTransactionTitle(item.description, item.category, item.type, item.metadata)}</Text>
           <Text style={[styles.rowMeta, { color: palette.textSecondary }]}>
             {titleize(item.category)} • {formatTxnDate(item.createdAt)}
           </Text>
@@ -469,13 +497,19 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    padding: 24,
-    gap: 16,
+    padding: 16,
+    gap: 14,
     width: '100%',
     maxWidth: 380,
     alignSelf: 'center',
     position: 'relative',
     overflow: 'hidden',
+  },
+  receiptPrintable: {
+    borderRadius: 20,
+    padding: 12,
+    gap: 12,
+    position: 'relative',
   },
   dashedContainer: {
     flexDirection: 'row',

@@ -1,15 +1,40 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, CircleArrowRight, MapPin, Package, ShieldCheck, Info, XCircle, CheckCircle2, AlertTriangle } from 'lucide-react-native';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ChevronLeft, CircleArrowRight, MapPin, Package, ShieldCheck, Info, XCircle, CheckCircle2, AlertTriangle, Receipt, Share2, FileDown } from 'lucide-react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
+import { captureRef } from 'react-native-view-shot';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { DriverCard } from '@/components/order/DriverCard';
 import { StatusTimeline } from '@/components/order/StatusTimeline';
+import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useCancelOrder, useConfirmDelivery, useOrderDetail } from '@/hooks/useOrder';
-import { useAppPalette } from '@/lib/theme';
+import { getThemeIconSource, useAppPalette } from '@/lib/theme';
+import { formatNaira } from '@/lib/wallet';
+import { useAuthStore } from '@/store/auth.store';
+
+function DashedDivider() {
+  return (
+    <View style={styles.dashedContainer}>
+      {Array.from({ length: 30 }).map((_, i) => (
+        <View key={i} style={styles.dash} />
+      ))}
+    </View>
+  );
+}
+
+function ReceiptRow({ label, value, palette }: { label: string; value: string; palette: ReturnType<typeof useAppPalette> }) {
+  return (
+    <View style={styles.receiptRow}>
+      <Text style={[styles.receiptLabel, { color: palette.textSecondary }]}>{label}</Text>
+      <Text style={[styles.receiptValue, { color: palette.text }]} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+}
 
 function getStatusConfig(status: string) {
   const s = status.toUpperCase();
@@ -40,7 +65,87 @@ export default function OrderDetailScreen() {
   const cancelMutation = useCancelOrder();
   const confirmDeliveryMutation = useConfirmDelivery();
   const order = query.data;
+  const user = useAuthStore((state) => state.user);
   const [confirmDeliveryVisible, setConfirmDeliveryVisible] = useState(false);
+  const [orderReceiptOpen, setOrderReceiptOpen] = useState(false);
+  const orderReceiptRef = useRef<View>(null);
+  const [receiptResult, setReceiptResult] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string }>(null);
+
+  const handleShareOrderImage = async () => {
+    if (!order) return;
+    if (!orderReceiptRef.current) {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt unavailable', message: 'Re-open the order receipt and try again.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+      return;
+    }
+    try {
+      if (!(await Sharing.isAvailableAsync())) {
+        setReceiptResult({ visible: true, type: 'failed', title: 'Sharing unavailable', message: 'Your device cannot share receipt images right now.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+        return;
+      }
+      const uri = await captureRef(orderReceiptRef, { format: 'png', quality: 1 });
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share delivery receipt image' });
+      setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The order receipt image is ready to share.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+    } catch {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt export failed', message: 'Unable to create the receipt image on this device.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+    }
+  };
+
+  const handleShareOrderPdf = async () => {
+    if (!order) return;
+    try {
+      const itemsListHtml = (order.items ?? []).length
+        ? (order.items ?? []).map((i) => `<tr><td class="td-label">${i.description}</td><td class="td-value">x${i.quantity}</td></tr>`).join('')
+        : '<tr><td class="td-label">Package</td><td class="td-value">Standard Parcel</td></tr>';
+
+      const html = `
+        <html><head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #0F172A; background: #FAFAFA; }
+            .container { max-width: 480px; margin: 0 auto; background: #FFFFFF; border-radius: 20px; padding: 32px; border: 1px solid #E2E8F0; }
+            .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px dashed #E2E8F0; }
+            .brand { font-weight: 800; font-size: 22px; color: ${palette.primary}; }
+            .amount { font-size: 32px; font-weight: 800; color: #0F172A; margin-bottom: 4px; }
+            .date { font-size: 12px; color: #64748B; margin-bottom: 24px; }
+            .table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            .td-label { padding: 12px 0; color: #64748B; font-size: 13px; border-bottom: 1px solid #F1F5F9; }
+            .td-value { padding: 12px 0; text-align: right; font-weight: 700; font-size: 13px; color: #0F172A; border-bottom: 1px solid #F1F5F9; }
+            .footer { font-size: 11px; color: #94A3B8; text-align: center; margin-top: 32px; letter-spacing: 0.5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="brand">Percel</div>
+              <div style="font-size: 12px; color: #64748B; font-weight: 700;">DELIVERY RECEIPT</div>
+            </div>
+            <div style="text-align: center;">
+              <div class="amount">${formatNaira(Number(order.price))}</div>
+              <div class="date">${new Date(order.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+            <table class="table">
+              <tr><td class="td-label">Tracking Code</td><td class="td-value" style="font-family: monospace;">${order.trackingCode}</td></tr>
+              <tr><td class="td-label">Status</td><td class="td-value">${order.status}</td></tr>
+              <tr><td class="td-label">Sender</td><td class="td-value">${user?.fullName || 'Sender'}</td></tr>
+              <tr><td class="td-label">Pickup Address</td><td class="td-value">${order.pickupFormattedAddress}</td></tr>
+              <tr><td class="td-label">Recipient</td><td class="td-value">${order.recipientName || 'Recipient'}</td></tr>
+              <tr><td class="td-label">Delivery Address</td><td class="td-value">${order.deliveryFormattedAddress}</td></tr>
+              ${itemsListHtml}
+            </table>
+            <div class="footer">Official Receipt &bull; Percel Logistics</div>
+          </div>
+        </body></html>
+      `;
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: '.pdf' });
+        setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The PDF delivery receipt is ready to share.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+      } else {
+        setReceiptResult({ visible: true, type: 'success', title: 'Receipt exported', message: 'The PDF delivery receipt was saved to your device.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+      }
+    } catch {
+      setReceiptResult({ visible: true, type: 'failed', title: 'Receipt export failed', message: 'Unable to create the delivery receipt PDF on this device.', amount: formatNaira(Number(order.price)), reference: order.trackingCode });
+    }
+  };
 
   const [modalConfig, setModalConfig] = useState<{
     visible: boolean;
@@ -154,8 +259,21 @@ export default function OrderDetailScreen() {
           >
             <ChevronLeft size={18} color={palette.text} />
           </Pressable>
-          <View style={[styles.heroBadge, { backgroundColor: `${palette.primary}1A` }]}>
-            <Package size={18} color={palette.primary} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable
+              onPress={() => setOrderReceiptOpen(true)}
+              style={({ pressed }) => [
+                styles.receiptBtn,
+                { backgroundColor: `${palette.primary}1A`, borderColor: `${palette.primary}33` },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Receipt size={16} color={palette.primary} />
+              <Text style={[styles.receiptBtnText, { color: palette.primary }]}>Receipt</Text>
+            </Pressable>
+            <View style={[styles.heroBadge, { backgroundColor: `${palette.primary}1A` }]}>
+              <Package size={18} color={palette.primary} />
+            </View>
           </View>
         </View>
 
@@ -434,6 +552,83 @@ export default function OrderDetailScreen() {
         </View>
       </View>
     </Modal>
+
+    <Modal visible={orderReceiptOpen} transparent animationType="fade" onRequestClose={() => setOrderReceiptOpen(false)}>
+      <View style={styles.modalBackdropCenter}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setOrderReceiptOpen(false)} />
+        <View style={[styles.receiptCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          {order ? (
+            <>
+              <View ref={orderReceiptRef} collapsable={false} style={[styles.receiptPrintable, { backgroundColor: palette.card }]}>
+                <View style={styles.receiptHeader}>
+                  <View style={styles.receiptLogoBox}>
+                    <Image source={getThemeIconSource(palette.primary)} style={styles.brandIconImage} />
+                    <Text style={[styles.receiptLogoText, { color: palette.text }]}>Percel</Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+                    <View style={[styles.statusDot, { backgroundColor: statusConfig.text }]} />
+                    <Text style={[styles.statusBadgeText, { color: statusConfig.text }]}>{statusConfig.label}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.receiptAmountSection}>
+                  <Text style={[styles.receiptAmountText, { color: palette.text }]}>
+                    {formatNaira(Number(order.price))}
+                  </Text>
+                  <Text style={[styles.receiptTimestamp, { color: palette.textSecondary }]}>
+                    {new Date(order.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+
+                <DashedDivider />
+
+                <View style={styles.receiptDetails}>
+                  <ReceiptRow label="Tracking Code" value={order.trackingCode} palette={palette} />
+                  <ReceiptRow label="Sender" value={user?.fullName || 'Sender'} palette={palette} />
+                  <ReceiptRow label="Pickup" value={order.pickupFormattedAddress} palette={palette} />
+                  <ReceiptRow label="Recipient" value={order.recipientName || 'Recipient'} palette={palette} />
+                  <ReceiptRow label="Delivery" value={order.deliveryFormattedAddress} palette={palette} />
+                  {order.recipientPhone ? <ReceiptRow label="Recipient Phone" value={order.recipientPhone} palette={palette} /> : null}
+                </View>
+
+                <DashedDivider />
+
+                <View style={styles.scallopedContainer}>
+                  {Array.from({ length: 18 }).map((_, i) => (
+                    <View key={i} style={styles.scallopCircle} />
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.receiptActions}>
+                <Pressable onPress={handleShareOrderImage} style={[styles.receiptActionButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                  <Share2 size={16} color={palette.text} />
+                  <Text style={[styles.receiptActionText, { color: palette.text }]}>Share Image</Text>
+                </Pressable>
+                <Pressable onPress={handleShareOrderPdf} style={[styles.receiptActionButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                  <FileDown size={16} color={palette.text} />
+                  <Text style={[styles.receiptActionText, { color: palette.text }]}>Share PDF</Text>
+                </Pressable>
+              </View>
+
+              <Pressable onPress={() => setOrderReceiptOpen(false)} style={[styles.receiptCloseButton, { backgroundColor: palette.primary }]}>
+                <Text style={styles.receiptCloseButtonText}>Close</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+
+    <TransactionResultModal
+      visible={Boolean(receiptResult?.visible)}
+      type={receiptResult?.type ?? 'pending'}
+      title={receiptResult?.title ?? ''}
+      message={receiptResult?.message ?? ''}
+      amount={receiptResult?.amount}
+      reference={receiptResult?.reference}
+      onClose={() => setReceiptResult(null)}
+    />
   </View>
   );
 }
@@ -537,4 +732,158 @@ const styles = StyleSheet.create({
   modalSecondaryBtnText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   modalPrimaryBtn: { flex: 1, minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalPrimaryBtnText: { color: '#FFFFFF', fontSize: Typography.md, fontFamily: Typography.family.bold },
+  receiptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  receiptBtnText: {
+    fontSize: Typography.xs,
+    fontFamily: Typography.family.bold,
+  },
+  modalBackdropCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.50)',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  receiptCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    gap: 14,
+    width: '100%',
+    maxWidth: 380,
+    alignSelf: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  receiptPrintable: {
+    borderRadius: 20,
+    padding: 12,
+    gap: 12,
+    position: 'relative',
+  },
+  dashedContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    marginVertical: 8,
+    height: 1.5,
+  },
+  dash: {
+    width: 6,
+    height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  receiptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  receiptLogoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  brandIconImage: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+  },
+  receiptLogoText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: Typography.family.bold,
+  },
+  receiptAmountSection: {
+    alignItems: 'center',
+    marginVertical: 10,
+    gap: 4,
+  },
+  receiptAmountText: {
+    color: '#fff',
+    fontSize: 32,
+    fontFamily: Typography.family.bold,
+  },
+  receiptTimestamp: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontFamily: Typography.family.regular,
+  },
+  receiptDetails: {
+    gap: 10,
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  receiptLabel: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontFamily: Typography.family.regular,
+  },
+  receiptValue: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Typography.family.bold,
+    textAlign: 'right',
+    flex: 1,
+  },
+  receiptActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  receiptActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  receiptActionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Typography.family.bold,
+  },
+  receiptCloseButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  receiptCloseButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: Typography.family.bold,
+  },
+  scallopedContainer: {
+    position: 'absolute',
+    bottom: -6,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    zIndex: 10,
+  },
+  scallopCircle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
 });
