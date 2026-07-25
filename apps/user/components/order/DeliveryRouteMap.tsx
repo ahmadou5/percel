@@ -113,7 +113,7 @@ function hexToRgba(hex: string, alpha: number): string {
 function usePulsePhase() {
   const [phase, setPhase] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setPhase((p) => (p + 1) % 100), 20);
+    const id = setInterval(() => setPhase((p) => (p + 2) % 100), 100);
     return () => clearInterval(id);
   }, []);
   return phase;

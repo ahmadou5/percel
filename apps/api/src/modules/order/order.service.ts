@@ -1217,8 +1217,9 @@ export class OrderService {
   }
 
   async getOrderMessages(orderId: string, actorId: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    const order = await this.prisma.order.findFirst({
+      where: isUuid ? { OR: [{ id: orderId }, { trackingCode: orderId }] } : { trackingCode: orderId },
       select: { id: true, userId: true, driverId: true, driver: { select: { id: true, userId: true } } },
     });
     if (!order) throw new NotFoundError('Order not found');
@@ -1235,7 +1236,7 @@ export class OrderService {
     }
 
     const messages = await this.prisma.orderChatMessage.findMany({
-      where: { orderId },
+      where: { orderId: order.id },
       orderBy: { createdAt: 'asc' },
       take: 100,
     });
@@ -1254,8 +1255,9 @@ export class OrderService {
     const cleanMsg = (cleanText(text ?? '') ?? '').trim();
     if (!cleanMsg) throw new ValidationError('Message text cannot be empty');
 
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    const order = await this.prisma.order.findFirst({
+      where: isUuid ? { OR: [{ id: orderId }, { trackingCode: orderId }] } : { trackingCode: orderId },
       select: { id: true, userId: true, driverId: true, driver: { select: { id: true, userId: true } } },
     });
     if (!order) throw new NotFoundError('Order not found');
@@ -1275,7 +1277,7 @@ export class OrderService {
 
     const msg = await this.prisma.orderChatMessage.create({
       data: {
-        orderId,
+        orderId: order.id,
         senderId: actorId,
         senderType,
         text: cleanMsg,

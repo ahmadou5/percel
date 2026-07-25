@@ -447,7 +447,11 @@ export default function SendOrderEntryScreen() {
   // ── Places Autocomplete API search ──
   useEffect(() => {
     if (!searchText || searchText.trim().length < 3) {
-      setSearchResults(savedLandmarks.length ? savedLandmarks : []);
+      setSearchResults((prev) => {
+        const fallback = savedLandmarks.length ? savedLandmarks : [];
+        if (prev === fallback || (prev.length === 0 && fallback.length === 0)) return prev;
+        return fallback;
+      });
       return;
     }
     const timer = setTimeout(async () => {
