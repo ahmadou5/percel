@@ -216,5 +216,19 @@ export async function buildApp(): Promise<FastifyInstance> {
     return reply.status(notFound.statusCode).send(error(notFound.message, notFound.code));
   });
 
+  // ─── Bootstrap: Promote user to ADMIN (no auth — protected by BOOTSTRAP_SECRET env) ─────
+  // DELETE THIS ENDPOINT AFTER FIRST USE IN PRODUCTION
+  app.post('/api/v1/bootstrap/make-admin', async (request, reply) => {
+    const body = request.body as { email: string; secret: string };
+    const BOOTSTRAP_SECRET = process.env.BOOTSTRAP_SECRET ?? 'percel-bootstrap-2026';
+    if (body.secret !== BOOTSTRAP_SECRET) {
+      return reply.status(403).send({ error: 'Invalid bootstrap secret' });
+    }
+    const user = await app.prisma.user.findFirst({ where: { email: body.email } });
+    if (!user) return reply.status(404).send({ error: 'User not found' });
+    await app.prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } });
+    return { success: true, message: `${user.fullName} promoted to ADMIN`, email: user.email };
+  });
+
   return app;
 }

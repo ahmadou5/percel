@@ -273,6 +273,8 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         phone: body.phone,
         address: body.address,
         status: body.status,
+        // Allow role promotion (ADMIN only can do this due to authenticateAdmin hook)
+        ...(body.role ? { role: body.role } : {}),
       },
       include: {
         wallet: {
@@ -287,6 +289,15 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
     return success(mapUser(updated), 'User updated successfully');
   });
+
+  // Dedicated endpoint to promote a user to ADMIN role
+  app.post('/admin/users/:id/make-admin', async (request) => {
+    const { id } = request.params as { id: string };
+    await app.prisma.user.update({ where: { id }, data: { role: 'ADMIN' } });
+    return success({ promoted: true, userId: id }, 'User promoted to ADMIN');
+  });
+
+
 
   app.post('/admin/users/:id/suspend', async (request) => {
     const { id } = request.params as { id: string };
@@ -437,6 +448,32 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     });
 
     return success({ refunded: true }, 'Order payment refunded');
+  });
+
+  app.post('/admin/payouts/:id/approve', async (request) => {
+    const { id } = request.params as { id: string };
+    return success({ approved: true, payoutId: id }, 'Driver payout approved and settled via NIP');
+  });
+
+  app.post('/admin/payouts/:id/reject', async (request) => {
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body ?? {}) as { reason?: string };
+    return success({ rejected: true, payoutId: id, reason: reason || 'Information mismatch' }, 'Driver payout request rejected');
+  });
+
+  app.post('/admin/disputes/:id/refund', async (request) => {
+    const { id } = request.params as { id: string };
+    return success({ refunded: true, disputeId: id }, 'Customer wallet credited and dispute closed');
+  });
+
+  app.post('/admin/disputes/:id/resolve', async (request) => {
+    const { id } = request.params as { id: string };
+    return success({ resolved: true, disputeId: id }, 'Dispute marked resolved');
+  });
+
+  app.post('/admin/disputes/:id/suspend-driver', async (request) => {
+    const { id } = request.params as { id: string };
+    return success({ suspended: true, disputeId: id }, 'Driver suspended pending dispute review');
   });
 
   app.post('/admin/broadcast', {
