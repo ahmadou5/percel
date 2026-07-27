@@ -5,8 +5,8 @@ import './globals.css';
 import { ADMIN_APP_TITLE } from '@/lib/session';
 import { ThemeProvider } from '@/components/theme-provider';
 
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
-const ibmPlexMono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-mono' });
+const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-sans', display: 'swap', fallback: ['system-ui', 'sans-serif'] });
+const ibmPlexMono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-mono', display: 'swap', fallback: ['monospace'] });
 
 export const metadata: Metadata = {
   title: ADMIN_APP_TITLE,
