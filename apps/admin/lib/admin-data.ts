@@ -353,6 +353,10 @@ export async function loadDriverPayouts() {
   return adminFetch<AdminPayout[]>('/payouts');
 }
 
+export async function loadDisputes() {
+  return adminFetch<any[]>('/disputes');
+}
+
 export async function loadConnectedUsers() {
   return adminFetch<AdminConnectedUser[]>('/connected-users');
 }

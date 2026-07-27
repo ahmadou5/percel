@@ -124,7 +124,7 @@ export default function KycScreen() {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   const kycComplete = Boolean(
-    profile?.kycComplete || profile?.bvnVerified || profile?.ninVerified || profile?.status === 'ACTIVE',
+    profile?.kycComplete || profile?.bvnVerified || profile?.ninVerified,
   );
   const verificationPending =
     (profile?.status === 'PENDING_VERIFICATION' || submitted) && !kycComplete;
@@ -144,10 +144,10 @@ export default function KycScreen() {
 
   // Fix: Reset submitted state when status resolves
   useEffect(() => {
-    if (profile?.status === 'SUSPENDED' || profile?.status === 'ACTIVE') {
+    if (profile?.status === 'SUSPENDED' || kycComplete) {
       setSubmitted(false);
     }
-  }, [profile?.status]);
+  }, [profile?.status, kycComplete]);
 
   // Verified card animation
   useEffect(() => {
@@ -531,7 +531,7 @@ export default function KycScreen() {
         queryClient.invalidateQueries({ queryKey: ['banks'] }),
       ]);
 
-      if (result.kycComplete || result.status === 'ACTIVE') {
+      if (result.kycComplete || result.bvnVerified || result.ninVerified) {
         modal.alert('Verification Approved!', 'Your identity is verified and your dedicated account is ready.', 'success');
       }
     } catch (error) {

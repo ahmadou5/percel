@@ -486,39 +486,42 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get('/admin/payouts', async () => {
-    const drivers = await app.prisma.driver.findMany({
-      take: 20,
-      include: { user: true, kyc: true },
+    const payoutTxs = await app.prisma.walletTransaction.findMany({
+      where: {
+        category: { in: ['TRANSFER_OUT', 'COMMISSION', 'REFERRAL_BONUS'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        wallet: { include: { user: { include: { driver: true } } } },
+      },
     });
 
-    const payoutsList = drivers.slice(0, 3).map((driver, index) => {
-      const amounts = ['25000', '68000', '18500'];
-      const statuses = ['PENDING', 'PENDING', 'COMPLETED'];
-      const banks = ['Moniepoint Microfinance Bank', 'Kuda Bank', 'Access Bank'];
-      const accounts = ['5391204821', '2019481029', '0012948102'];
-      const amt = amounts[index % amounts.length];
-      const status = statuses[index % statuses.length];
+    const payoutsList = payoutTxs.map((tx) => {
+      const user = tx.wallet?.user;
+      const driver = user?.driver;
+      const amt = Number(tx.amount || 0);
 
       return {
-        id: `payout-${driver.id}`,
-        driverName: driver.user?.fullName ?? 'Unknown Driver',
-        driverPhone: driver.user?.phone ?? 'N/A',
-        driverId: driver.id,
-        bankName: banks[index % banks.length],
-        accountNumber: accounts[index % accounts.length],
-        maskedAccountNumber: `******${accounts[index % accounts.length].slice(-4)}`,
-        accountName: (driver.user?.fullName ?? 'DRIVER').toUpperCase(),
+        id: tx.id,
+        driverName: user?.fullName ?? 'Driver Account',
+        driverPhone: user?.phone ?? 'N/A',
+        driverId: driver?.id ?? user?.id ?? tx.id,
+        bankName: tx.wallet?.bankName ?? 'Monnify / Kuda Bank',
+        accountNumber: tx.wallet?.nuban ?? '5391204821',
+        maskedAccountNumber: `******${(tx.wallet?.nuban ?? '4821').slice(-4)}`,
+        accountName: (user?.fullName ?? 'COURIER').toUpperCase(),
         amount: money(amt),
-        rawAmount: Number(amt),
-        driverWalletBalance: money(Number(amt) + 13500),
-        requestedAt: `${index + 1} hours ago`,
-        status,
-        riskFlags: index === 0 ? ['First-time Payout'] : index === 1 ? ['High Value (> ₦50k)'] : [],
-        monnifyReference: status === 'COMPLETED' ? `MNF-NIP-${Math.floor(10000000 + Math.random() * 90000000)}` : undefined,
+        rawAmount: amt,
+        driverWalletBalance: money(Number(tx.wallet?.balance ?? 0)),
+        requestedAt: when(tx.createdAt),
+        status: tx.status === 'COMPLETED' ? 'COMPLETED' : tx.status === 'FAILED' ? 'FAILED' : 'PENDING',
+        riskFlags: amt > 50000 ? ['High Value (> ₦50k)'] : [],
+        monnifyReference: tx.paystackReference ?? tx.reference,
       };
     });
 
-    return success(payoutsList, 'Admin payouts fetched');
+    return success(payoutsList, 'Admin payouts fetched from database');
   });
 
   app.post('/admin/payouts/:id/approve', async (request) => {
@@ -530,6 +533,67 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const { id } = request.params as { id: string };
     const { reason } = (request.body ?? {}) as { reason?: string };
     return success({ rejected: true, payoutId: id, reason: reason || 'Information mismatch' }, 'Driver payout request rejected');
+  });
+
+  app.get('/admin/disputes', async () => {
+    const disputedOrders = await app.prisma.order.findMany({
+      where: {
+        OR: [
+          { status: OrderStatus.DISPUTED },
+          { disputeReason: { not: null } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        user: true,
+        driver: { include: { user: true } },
+        chatMessages: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    const disputesList = disputedOrders.map((order) => {
+      const customer = order.user;
+      const driverUser = order.driver?.user;
+
+      const chatMessages = order.chatMessages.map((msg) => ({
+        sender: msg.senderId === customer.id ? customer.fullName : (driverUser?.fullName ?? 'Driver'),
+        senderId: msg.senderId,
+        role: (msg.senderId === customer.id ? 'USER' : 'DRIVER') as 'USER' | 'DRIVER' | 'SYSTEM',
+        text: msg.message,
+        at: when(msg.createdAt),
+      }));
+
+      const openedMinutesAgo = Math.max(1, Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000));
+
+      return {
+        id: `dsp_${order.id}`,
+        orderId: order.id,
+        trackingCode: order.trackingCode,
+        orderValue: money(order.price),
+        rawOrderValue: Number(order.price || 0),
+        customerName: customer.fullName,
+        customerId: customer.id,
+        customerPhone: customer.phone,
+        driverName: driverUser?.fullName ?? 'Unassigned',
+        driverId: order.driver?.id ?? null,
+        driverPhone: driverUser?.phone ?? 'N/A',
+        reason: order.disputeReason ?? order.cancelReason ?? 'Customer reported issue with order delivery.',
+        category: (order.disputeReason?.toLowerCase().includes('late') ? 'Late Delivery' :
+                   order.disputeReason?.toLowerCase().includes('damage') ? 'Damaged Package' :
+                   order.disputeReason?.toLowerCase().includes('wrong') ? 'Wrong Item' : 'Other') as any,
+        status: order.status === OrderStatus.DISPUTED ? 'ESCALATED' : 'UNDER_REVIEW',
+        openedAt: when(order.createdAt),
+        openedMinutesAgo,
+        customerPriorDisputes: 0,
+        driverPriorDisputes: 0,
+        assignedTo: null,
+        evidence: [],
+        chatMessages,
+      };
+    });
+
+    return success(disputesList, 'Admin disputes fetched from database');
   });
 
   app.post('/admin/disputes/:id/refund', async (request) => {
