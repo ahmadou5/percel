@@ -753,7 +753,7 @@ export function DriverCashoutsTable({
 
             <p className="text-xs text-muted-foreground leading-relaxed">
               Rejecting will refund <span className="font-bold text-foreground">{rejectingPayout.amount}</span> back to{' '}
-              <span className="font-bold text-foreground">{rejectingPayout.driverName}</span>'s wallet balance.
+              <span className="font-bold text-foreground">{rejectingPayout.driverName}</span>&apos;s wallet balance.
             </p>
 
             <div className="space-y-3">

@@ -161,6 +161,17 @@ export type AdminDashboardSnapshot = {
   walletStats: Array<{ label: string; value: string; delta: string }>;
 };
 
+export type PricingAuditRecord = {
+  id: string;
+  serviceAreaId: string;
+  cityName: string;
+  adminName: string;
+  field: string;
+  oldValue: number | string;
+  newValue: number | string;
+  timestamp: string;
+};
+
 export type AdminServiceArea = {
   id: string;
   city: string;
@@ -168,7 +179,22 @@ export type AdminServiceArea = {
   active: boolean;
   baseFareNgn: number;
   perKmNgn: number;
+  minFareNgn?: number;
+  maxFareNgn?: number;
   driverCount: number;
+  recentOrdersCount?: number;
+  activeOrdersCount?: number;
+  auditHistory?: PricingAuditRecord[];
+};
+
+export type AdminInterstateRoute = {
+  id: string;
+  originState: string;
+  destinationState: string;
+  baseFareNgn: number;
+  perKmNgn: number;
+  estHours: number;
+  active: boolean;
 };
 
 export type AdminHub = {

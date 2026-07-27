@@ -728,6 +728,16 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
             status: 'ACTIVE',
           },
         });
+        const activeOrdersCount = await app.prisma.order.count({
+          where: {
+            status: { in: ['PENDING_MATCH', 'DRIVER_ASSIGNED', 'IN_TRANSIT'] },
+          },
+        });
+        const recentOrdersCount = await app.prisma.order.count({
+          where: {
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+          },
+        });
         return {
           id: area.id,
           city: area.city,
@@ -735,7 +745,11 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
           active: area.active,
           baseFareNgn: Number(area.baseFareNgn),
           perKmNgn: Number(area.perKmNgn),
+          minFareNgn: 1000,
+          maxFareNgn: 25000,
           driverCount,
+          recentOrdersCount,
+          activeOrdersCount,
         };
       })
     );

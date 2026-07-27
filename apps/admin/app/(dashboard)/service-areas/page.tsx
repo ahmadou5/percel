@@ -1,5 +1,5 @@
 import { AdminServiceArea, loadServiceAreas } from '@/lib/admin-data';
-import { ServiceAreasList } from '@/components/service-areas-list';
+import { ServiceAreasManager } from '@/components/service-areas-manager';
 
 export default async function ServiceAreasPage() {
   let areas: AdminServiceArea[] = [];
@@ -12,14 +12,14 @@ export default async function ServiceAreasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Local Service Areas</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Service Areas & Pricing</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage cities where intra-state same-day delivery is available. The app auto-detects the
-          delivery type from pickup and drop-off addresses and uses these rates for per-km pricing.
+          Configure base fares and per-km rates for intra-state same-day delivery and interstate routes. Customers select their order type explicitly (intra-state vs interstate) in the mobile app.
         </p>
       </div>
 
-      <ServiceAreasList initialAreas={areas} />
+      <ServiceAreasManager initialAreas={areas} />
     </div>
   );
 }
+
