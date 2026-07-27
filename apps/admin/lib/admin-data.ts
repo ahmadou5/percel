@@ -15,12 +15,22 @@ export type AdminUser = {
   phone: string;
   status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
   joined: string;
+  createdAt?: string;
+  updatedAt?: string;
+  lastActive?: string;
   orders: string;
   wallet: string;
   walletBalance?: string;
+  rawWalletBalance?: number;
   city: string;
+  address?: string;
   avatarInitial: string;
   avatarUrl?: string;
+  role?: 'USER' | 'ADMIN' | 'SYSTEM';
+  isDriver?: boolean;
+  isSystem?: boolean;
+  accountType?: 'Customer' | 'Driver-linked' | 'System';
+  kycStatus?: 'COMPLETE' | 'PARTIAL' | 'INCOMPLETE';
   recentOrders?: AdminOrder[];
   walletTransactions?: AdminWalletTransaction[];
   supportNote?: string;
@@ -41,6 +51,12 @@ export type AdminDriver = {
   assignedOrders?: AdminOrder[];
   reviews?: Array<{ id: string; user: string; rating: string; comment: string }>;
   kycDocuments?: Array<{ label: string; value: string }>;
+  reviewCount?: number;
+  completedDeliveries?: number;
+  lastActive?: string;
+  walletBalance?: string;
+  hasPendingPayout?: boolean;
+  vehicleType?: 'Bike' | 'Car' | 'Van' | 'Truck';
 };
 
 export type AdminOrder = {
@@ -70,6 +86,7 @@ export type AdminOrder = {
   customerNote?: string;
   recipientName?: string;
   recipientPhone?: string;
+  cancellationReason?: string;
 };
 
 export type AdminNotification = {
@@ -77,6 +94,7 @@ export type AdminNotification = {
   channel: string;
   title: string;
   body: string;
+  desc?: string;
   sentAt: string;
 };
 

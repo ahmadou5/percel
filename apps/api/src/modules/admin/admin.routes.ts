@@ -59,6 +59,21 @@ function mapOrder(order: any) {
 }
 
 function mapUser(user: any) {
+  const isSystem =
+    user.id === '00000000-0000-0000-0000-000000000000' ||
+    user.email === 'system@percel.app' ||
+    (user.fullName && user.fullName.toLowerCase().includes('percel system'));
+  const isDriver = !!user.driver;
+  const role = user.role ?? 'USER';
+  const accountType = isSystem ? 'System' : isDriver ? 'Driver-linked' : 'Customer';
+  const rawWalletBalance = Number(user.wallet?.balance ?? 0);
+  const kycStatus =
+    user.ninVerified && user.bvnVerified
+      ? 'COMPLETE'
+      : user.address && user.address !== 'Not set'
+      ? 'PARTIAL'
+      : 'INCOMPLETE';
+
   return {
     id: user.id,
     name: user.fullName,
@@ -66,12 +81,22 @@ function mapUser(user: any) {
     phone: user.phone,
     status: user.status,
     joined: when(user.createdAt),
+    createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : undefined,
+    updatedAt: user.updatedAt ? when(user.updatedAt) : undefined,
+    lastActive: user.updatedAt ? when(user.updatedAt) : when(user.createdAt),
     orders: String(user._count?.orders ?? user.orders?.length ?? 0),
     wallet: money(user.wallet?.balance ?? 0),
     walletBalance: money(user.wallet?.balance ?? 0),
+    rawWalletBalance,
     city: user.address ?? 'Not set',
+    address: user.address ?? undefined,
     avatarInitial: initials(user.fullName),
     avatarUrl: user.avatarUrl ?? null,
+    role,
+    isDriver,
+    isSystem,
+    accountType,
+    kycStatus,
     supportNote: user.status === 'SUSPENDED' ? 'Account is paused pending review.' : 'Account is active.',
     recentOrders: (user.orders ?? []).map(mapOrder),
     walletTransactions: (user.wallet?.transactions ?? []).map(mapWalletTransaction),
@@ -92,6 +117,8 @@ function mapDriver(driver: any) {
     avatarUrl: driver.user?.avatarUrl ?? null,
     kycReason: driver.kyc?.rejectionReason ?? undefined,
     assignedOrders: (driver.orders ?? []).map(mapOrder),
+    completedDeliveries: driver._count?.orders ?? driver.orders?.length ?? 0,
+    reviewCount: driver._count?.ratings ?? driver.ratings?.length ?? 0,
     reviews: (driver.ratings ?? []).map((rating: any) => ({
       id: rating.id,
       user: rating.user?.fullName ?? 'Customer',
@@ -129,7 +156,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: { wallet: true, _count: { select: { orders: true } } },
+      include: { wallet: true, driver: true, _count: { select: { orders: true } } },
     });
     return success(users.map(mapUser), 'Admin users fetched');
   });
@@ -155,7 +182,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const drivers = await app.prisma.driver.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: { user: true, kyc: true },
+      include: { user: true, kyc: true, _count: { select: { orders: true, ratings: true } } },
     });
     return success(drivers.map(mapDriver), 'Admin drivers fetched');
   });

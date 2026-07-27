@@ -1,83 +1,50 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { Radar, Package } from 'lucide-react';
 
-import { Card } from '@/components/ui/card';
 import { loadDashboardOrders } from '@/lib/admin-data';
-
-const statusTone: Record<string, string> = {
-  COMPLETED: 'border-success/20 bg-success/10 text-success',
-  IN_TRANSIT: 'border-primary/20 bg-primary/10 text-primary',
-  PENDING_MATCH: 'border-warning/25 bg-warning/10 text-warning',
-  CANCELLED: 'border-muted bg-muted text-muted-foreground',
-  DISPUTED: 'border-destructive/20 bg-destructive/10 text-destructive',
-};
+import { OrderRegistryTable } from '@/components/order-registry-table';
 
 export default async function OrdersPage() {
   const rows = await loadDashboardOrders();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
+      {/* Header Bar */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Order management</h2>
+          <div className="flex items-center gap-3">
+            <Package className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl font-extrabold tracking-tight text-foreground">Order Registry</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              LIVE TELEMETRY
+            </span>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Live shipment status, prices, disputes, and delivery history from the Percel API.
+            Complete shipment ledger, live status badges, dispute tracking, pricing analytics, and driver assignments.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/orders/live-map"
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 text-xs font-bold text-primary shadow-xs transition-colors hover:bg-primary/20"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 text-xs font-bold text-primary shadow-xs transition-all hover:bg-primary/20 hover:scale-[1.02] active:scale-95 cursor-pointer"
           >
-            📡 Open Live Fleet Radar Map
+            <Radar className="h-4 w-4 animate-pulse text-primary" /> 📡 Open Live Fleet Radar Map
           </Link>
         </div>
       </div>
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              <tr>
-                <th className="px-5 py-4">Tracking</th>
-                <th className="px-5 py-4">Status</th>
-                <th className="px-5 py-4">Sender</th>
-                <th className="px-5 py-4">Driver</th>
-                <th className="px-5 py-4">Price</th>
-                <th className="px-5 py-4">Dispatch Map</th>
-                <th className="px-5 py-4">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((order) => (
-                <tr key={order.id} className="border-b border-border/70 last:border-b-0 hover:bg-muted/30">
-                  <td className="px-5 py-4 font-mono text-xs tabular-nums text-foreground">{order.trackingCode}</td>
-                  <td className="px-5 py-4">
-                    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusTone[order.status] ?? 'border-border bg-muted text-muted-foreground'}`}>
-                      {order.status?.replaceAll('_', ' ') ?? 'UNKNOWN'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="font-medium">{order.user}</div>
-                    {order.userEmail && <div className="text-xs text-muted-foreground">{order.userEmail}</div>}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="font-medium">{order.driver}</div>
-                    {order.driverVehicle && <div className="text-xs text-muted-foreground">{order.driverVehicle}</div>}
-                  </td>
-                  <td className="px-5 py-4 font-mono tabular-nums">{order.price}</td>
-                  <td className="px-5 py-4">
-                    <Link className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted" href={`/orders/${order.id}`}>
-                      🗺️ View Map
-                    </Link>
-                  </td>
-                  <td className="px-5 py-4">
-                    <Link className="text-primary hover:underline font-medium" href={`/orders/${order.id}`}>Open order</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+
+      {/* Main Order Registry Table with Suspense for URL Query Params */}
+      <Suspense
+        fallback={
+          <div className="h-96 w-full rounded-2xl border border-border bg-card/50 animate-pulse flex items-center justify-center text-sm font-bold text-muted-foreground">
+            Loading Order Registry...
+          </div>
+        }
+      >
+        <OrderRegistryTable initialOrders={rows} />
+      </Suspense>
     </div>
   );
 }
