@@ -346,10 +346,10 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-xs">
-                <Users className="h-5 w-5" />
+                <Users className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Total Users</p>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Users</p>
                 <p className="mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight text-foreground">
                   {summaryStats.totalUsersCount}
                 </p>
@@ -365,21 +365,19 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
         </Card>
 
         {/* Active vs Pending Card */}
-        <Card className="group relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border-border/80 bg-card/90 backdrop-blur-md">
+        <Card className="group relative overflow-hidden py-4 px-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border-border/80 bg-card/90 backdrop-blur-md">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl border shadow-xs ${
-                summaryStats.hasPendingUrgency
-                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-600'
-                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'
-              }`}>
-                {summaryStats.hasPendingUrgency ? <AlertTriangle className="h-5 w-5" /> : <UserCheck className="h-5 w-5" />}
+              <div className={`grid h-10 w-10 place-items-center rounded-xl border shadow-xs ${summaryStats.hasPendingUrgency
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-600'
+                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'
+                }`}>
+                {summaryStats.hasPendingUrgency ? <AlertTriangle className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Active / Pending</p>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">status</p>
                 <p className="mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight text-foreground">
-                  {summaryStats.activeCount} <span className="text-xs font-normal text-muted-foreground">active</span>
-                </p>
+                  {summaryStats.activeCount} </p>
               </div>
             </div>
             {summaryStats.pendingCount > 0 ? (
@@ -399,7 +397,7 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
         </Card>
 
         {/* New Signups with 7d / 30d Toggle */}
-        <Card className="group relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border-border/80 bg-card/90 backdrop-blur-md">
+        <Card className="group relative overflow-hidden py-4 px-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border-border/80 bg-card/90 backdrop-blur-md">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-xs">
@@ -417,18 +415,16 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
               <button
                 type="button"
                 onClick={() => setSignupWindow('7d')}
-                className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                  signupWindow === '7d' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${signupWindow === '7d' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 7d
               </button>
               <button
                 type="button"
                 onClick={() => setSignupWindow('30d')}
-                className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                  signupWindow === '30d' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${signupWindow === '30d' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 30d
               </button>
@@ -440,14 +436,14 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
         </Card>
 
         {/* Total Wallet Liquidity Card */}
-        <Card className="group relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border-border/80 bg-card/90 backdrop-blur-md">
+        <Card className="group relative overflow-hidden py-4 px-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg border-border/80 bg-card/90 backdrop-blur-md">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl border border-warning/30 bg-warning/10 text-warning shadow-xs">
                 <Wallet className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Customer Liquidity</p>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Liquidity</p>
                 <p className="mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight text-foreground">
                   {formatCompactNaira(summaryStats.customerLiquidity)}
                 </p>
@@ -503,11 +499,10 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
             <button
               type="button"
               onClick={() => handleStatusTabChange('ALL')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                statusFilter === 'ALL'
-                  ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === 'ALL'
+                ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
             >
               All Users
               <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] ${statusFilter === 'ALL' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-muted-foreground'}`}>
@@ -518,11 +513,10 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
             <button
               type="button"
               onClick={() => handleStatusTabChange('ACTIVE')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                statusFilter === 'ACTIVE'
-                  ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === 'ACTIVE'
+                ? 'bg-emerald-600 text-white shadow-xs font-semibold'
+                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
+                }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Active
@@ -534,11 +528,10 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
             <button
               type="button"
               onClick={() => handleStatusTabChange('PENDING_VERIFICATION')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                statusFilter === 'PENDING_VERIFICATION'
-                  ? 'bg-amber-600 text-white shadow-xs font-semibold'
-                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === 'PENDING_VERIFICATION'
+                ? 'bg-amber-600 text-white shadow-xs font-semibold'
+                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
+                }`}
             >
               <AlertTriangle className="h-3 w-3 text-amber-500" />
               Pending
@@ -550,11 +543,10 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
             <button
               type="button"
               onClick={() => handleStatusTabChange('SUSPENDED')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                statusFilter === 'SUSPENDED'
-                  ? 'bg-rose-600 text-white shadow-xs font-semibold'
-                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === 'SUSPENDED'
+                ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20'
+                }`}
             >
               Suspended
               <span className="ml-1 rounded-full bg-background/40 px-1.5 py-0.2 text-[10px]">
@@ -566,11 +558,10 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
             <button
               type="button"
               onClick={() => handleStatusTabChange('SYSTEM')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-dashed ${
-                statusFilter === 'SYSTEM'
-                  ? 'bg-purple-600 text-white border-purple-500 shadow-xs font-semibold'
-                  : 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-dashed ${statusFilter === 'SYSTEM'
+                ? 'bg-purple-600 text-white border-purple-500 shadow-xs font-semibold'
+                : 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
+                }`}
             >
               <ShieldCheck className="h-3 w-3 text-purple-500" />
               System Accounts
@@ -589,12 +580,7 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
                 <th className="px-5 py-3.5">User</th>
                 <th className="px-5 py-3.5">Account Type</th>
                 <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 cursor-pointer hover:text-foreground" onClick={() => handleSort('joined')}>
-                  <div className="flex items-center gap-1">
-                    Joined / Active
-                    <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </th>
+
                 <th className="px-5 py-3.5 cursor-pointer hover:text-foreground" onClick={() => handleSort('orders')}>
                   <div className="flex items-center gap-1">
                     Orders
@@ -633,20 +619,17 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
                   return (
                     <tr
                       key={user.id}
-                      className={`transition-colors border-b border-border/70 last:border-b-0 ${
-                        isPending
-                          ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08] border-l-4 border-l-amber-500'
-                          : isSystem
+                      className={`transition-colors border-b border-border/70 last:border-b-0 ${isPending
+                        ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08] border-l-4 border-l-amber-500'
+                        : isSystem
                           ? 'bg-purple-500/[0.03] hover:bg-purple-500/[0.06] border-l-2 border-l-purple-500/50'
                           : 'hover:bg-muted/40'
-                      }`}
+                        }`}
                     >
                       {/* Name & Contact */}
                       <td className="px-5 py-3.5">
                         <AvatarCell name={user.name} avatarUrl={user.avatarUrl} initial={user.avatarInitial} />
-                        <div className="mt-0.5 ml-12 text-xs text-muted-foreground font-mono">
-                          {user.email} {user.phone ? `· ${user.phone}` : ''}
-                        </div>
+
                       </td>
 
                       {/* Account Type / Role */}
@@ -677,7 +660,7 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
                         {user.status === 'PENDING_VERIFICATION' && (
                           <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-semibold inline-flex items-center">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mr-1 shrink-0 animate-pulse" />
-                            PENDING VERIFICATION
+                            PENDING
                           </Badge>
                         )}
                         {user.status === 'SUSPENDED' && (
@@ -687,15 +670,8 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
                         )}
                       </td>
 
-                      {/* Joined Date / Last Active */}
-                      <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
-                        <div>{user.joined}</div>
-                        {user.lastActive && user.lastActive !== user.joined && (
-                          <div className="text-[10px] text-muted-foreground/80 mt-0.5">
-                            Active: {user.lastActive}
-                          </div>
-                        )}
-                      </td>
+
+
 
                       {/* Orders Count */}
                       <td className="px-5 py-3.5 font-mono tabular-nums font-medium">
@@ -763,7 +739,7 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
                           href={`/users/${user.id}`}
                         >
                           View profile
-                          <ExternalLink className="h-3 w-3" />
+
                         </Link>
                       </td>
                     </tr>

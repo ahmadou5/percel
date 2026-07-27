@@ -35,6 +35,7 @@ export type AdminUser = {
   walletTransactions?: AdminWalletTransaction[];
   supportNote?: string;
   segments?: string[];
+  auditLogs?: Array<{ id: string; adminName: string; action: string; details: string; reason?: string; timestamp: string }>;
 };
 
 export type AdminDriver = {
@@ -49,14 +50,17 @@ export type AdminDriver = {
   avatarUrl?: string;
   kycReason?: string;
   assignedOrders?: AdminOrder[];
-  reviews?: Array<{ id: string; user: string; rating: string; comment: string }>;
+  reviews?: Array<{ id: string; user: string; rating: string; comment: string; createdAt?: string; isFlagged?: boolean; responseNote?: string }>;
   kycDocuments?: Array<{ label: string; value: string }>;
+  detailedKycDocs?: Array<{ key: string; label: string; status: 'VERIFIED' | 'SUBMITTED' | 'REJECTED' | 'MISSING'; url?: string; value?: string; rejectionReason?: string; verifiedAt?: string }>;
   reviewCount?: number;
   completedDeliveries?: number;
   lastActive?: string;
   walletBalance?: string;
   hasPendingPayout?: boolean;
   vehicleType?: 'Bike' | 'Car' | 'Van' | 'Truck';
+  walletTransactions?: AdminWalletTransaction[];
+  auditLogs?: Array<{ id: string; adminName: string; action: string; details: string; reason?: string; timestamp: string }>;
 };
 
 export type AdminOrder = {
@@ -103,10 +107,16 @@ export type AdminWalletTransaction = {
   type: string;
   category: string;
   amount: string;
+  rawAmount?: number;
   status: string;
   reference: string;
   note: string;
   createdAt: string;
+  userName?: string;
+  userId?: string;
+  userRole?: 'USER' | 'DRIVER';
+  isAnomalous?: boolean;
+  anomalyReason?: string;
 };
 
 export type AdminPayout = {
@@ -116,10 +126,18 @@ export type AdminPayout = {
   driverId: string;
   bankName: string;
   accountNumber: string;
+  maskedAccountNumber?: string;
   accountName: string;
   amount: string;
+  rawAmount?: number;
+  driverWalletBalance?: string;
   requestedAt: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'FAILED';
+  riskFlags?: string[];
+  monnifyReference?: string;
+  rejectionReason?: string;
+  failureReason?: string;
+  processedAt?: string;
 };
 
 export type AdminConnectedUser = {
