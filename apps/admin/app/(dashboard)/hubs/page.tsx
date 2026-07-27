@@ -1,4 +1,4 @@
-import { HubsList } from '@/components/hubs-list';
+import { HubsRoutesManager } from '@/components/hubs-routes-manager';
 import { loadHubs, loadRoutes, type AdminHub, type AdminRoute } from '@/lib/admin-data';
 
 export default async function HubsPage() {
@@ -18,11 +18,12 @@ export default async function HubsPage() {
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">Hubs & Connecting Routes</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Configure interstate parcel hubs and routes. Set transit times, hub base pricing modifiers, and establish active paths.
+          Configure interstate parcel hubs and routes. Set transit times, hub base pricing modifiers, and inspect network topology.
         </p>
       </div>
 
-      <HubsList initialHubs={hubs} initialRoutes={routes} />
+      <HubsRoutesManager initialHubs={hubs} initialRoutes={routes} />
     </div>
   );
 }
+

@@ -11,6 +11,5 @@ export default withSentryConfig(nextConfig, {
   project: "percel",
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  hideSourceMaps: true,
   disableLogger: true,
 });

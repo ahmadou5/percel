@@ -974,6 +974,56 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     await app.prisma.route.delete({ where: { id } });
     return success({ deleted: true }, 'Route deleted');
   });
+
+  // Admin Settings Persistence via AppSetting
+  app.get('/admin/settings', async () => {
+    const settingsKeys = ['settings:admin_roles', 'settings:ops_thresholds', 'settings:global_audit_trail', 'settings:broadcast_templates'];
+    const settings = await app.prisma.appSetting.findMany({
+      where: { key: { in: settingsKeys } },
+    });
+
+    const settingsMap: Record<string, any> = {};
+    settings.forEach((s) => {
+      settingsMap[s.key] = s.value;
+    });
+
+    return success({
+      adminRoles: settingsMap['settings:admin_roles'] ?? [
+        { id: 'usr-1', name: 'Ahmadou SuperAdmin', email: 'ahmadou@percel.app', role: 'Super Admin', lastActive: '2m ago', status: 'ACTIVE' },
+        { id: 'usr-2', name: 'Zainab Finance', email: 'zainab@percel.app', role: 'Finance', lastActive: '1h ago', status: 'ACTIVE' },
+        { id: 'usr-3', name: 'Ibrahim Dispatch', email: 'ibrahim@percel.app', role: 'Dispatch', lastActive: '15m ago', status: 'ACTIVE' },
+        { id: 'usr-4', name: 'Fatima Support', email: 'fatima@percel.app', role: 'Support', lastActive: 'Just now', status: 'ACTIVE' },
+      ],
+      opsThresholds: settingsMap['settings:ops_thresholds'] ?? [
+        { id: 'th-1', key: 'disputes_depth', label: 'Dispute Queue Depth', currentVal: 2, thresholdVal: 10, unit: 'disputes', channel: 'BANNER' },
+        { id: 'th-2', key: 'daily_refunds', label: 'Daily Refund Volume', currentVal: 45000, thresholdVal: 250000, unit: '₦', channel: 'EMAIL' },
+        { id: 'th-3', key: 'kyc_pending', label: 'KYC Pending Review Depth', currentVal: 4, thresholdVal: 15, unit: 'drivers', channel: 'BANNER' },
+        { id: 'th-4', key: 'cashout_volume', label: 'Pending Cashout Volume', currentVal: 120000, thresholdVal: 500000, unit: '₦', channel: 'SLACK' },
+      ],
+      globalAuditLog: settingsMap['settings:global_audit_trail'] ?? [
+        { id: 'aud-s1', adminName: 'Super Admin', category: 'Payment Provider', action: 'Switch Active Rail', oldValue: 'MONNIFY', newValue: 'PAYSTACK', reason: 'Monnify API maintenance window', timestamp: 'Jul 26, 2026, 02:30 PM' },
+        { id: 'aud-s2', adminName: 'Operations Admin', category: 'Maintenance Mode', action: 'Enable Maintenance', oldValue: 'Disabled', newValue: 'Enabled (Duration: 30m)', reason: 'Database schema migration', timestamp: 'Jul 24, 2026, 03:00 AM' },
+      ],
+      broadcastTemplates: settingsMap['settings:broadcast_templates'] ?? [
+        { id: 'tmpl-1', name: 'Scheduled Maintenance Notice', title: 'Scheduled System Maintenance', body: "We'll be conducting brief platform maintenance tonight from 2:00 AM to 3:00 AM. Active deliveries will not be affected.", audience: 'all', deepLink: '/support' },
+        { id: 'tmpl-2', name: 'Weekend Free Top-Up Promo', title: 'Weekend Special Offer! 🎁', body: 'Enjoy zero wallet top-up fees this weekend for all customer deposits. Tap to top up your Percel wallet now.', audience: 'users', deepLink: '/wallet/topup' },
+        { id: 'tmpl-3', name: 'Driver High Demand Zone', title: '🔥 High Order Surge in Ikeja & VI', body: 'Delivery demand is surging in Lagos Island & Ikeja. Head to these hot zones now for bonus earnings per completed delivery.', audience: 'drivers', deepLink: '/fleet/hotspots' },
+      ],
+    }, 'Admin settings retrieved');
+  });
+
+  app.post('/admin/settings', async (request) => {
+    const { key, value } = request.body as { key: string; value: any };
+    if (!key) throw new Error('Key is required');
+
+    const updated = await app.prisma.appSetting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+
+    return success(updated, 'Admin setting saved');
+  });
 };
 
 export default adminRoutes;

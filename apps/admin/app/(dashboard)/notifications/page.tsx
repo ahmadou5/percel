@@ -1,56 +1,20 @@
-import { Card } from '@/components/ui/card';
-import { BroadcastForm } from '@/components/broadcast-form';
 import { loadDashboardNotifications } from '@/lib/admin-data';
+import { NotificationsManager } from '@/components/notifications-manager';
 
 export default async function NotificationsPage() {
-  const rows = await loadDashboardNotifications();
+  const notifications = await loadDashboardNotifications();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Notifications</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">Broadcast Alerts & Notifications</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Broadcast push notifications to your users and drivers, and view recent notification history.
+          Compose manual push broadcast campaigns, preview mobile lock screen alerts, manage saved templates, and view system transactional logs.
         </p>
       </div>
 
-      {/* Broadcast composer */}
-      <BroadcastForm />
-
-      {/* History table */}
-      <div className="space-y-3">
-        <h3 className="text-base font-semibold tracking-tight">Recent history</h3>
-        <Card className="overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              <tr>
-                <th className="px-5 py-4">Audience</th>
-                <th className="px-5 py-4">Title</th>
-                <th className="px-5 py-4">Body</th>
-                <th className="px-5 py-4">Sent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">
-                    No notifications sent yet.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((item) => (
-                  <tr key={item.id} className="border-b border-border/70 last:border-b-0">
-                    <td className="px-5 py-4 font-medium">{item.channel}</td>
-                    <td className="px-5 py-4">{item.title}</td>
-                    <td className="px-5 py-4 text-muted-foreground">{item.body}</td>
-                    <td className="px-5 py-4 text-muted-foreground">{item.sentAt}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </Card>
-      </div>
+      <NotificationsManager initialNotifications={notifications} />
     </div>
   );
 }
+

@@ -93,6 +93,15 @@ export type AdminOrder = {
   cancellationReason?: string;
 };
 
+export type NotificationRecipientLog = {
+  userId: string;
+  name: string;
+  email: string;
+  pushToken: string;
+  status: 'DELIVERED' | 'FAILED' | 'PENDING';
+  sentAt: string;
+};
+
 export type AdminNotification = {
   id: string;
   channel: string;
@@ -100,6 +109,54 @@ export type AdminNotification = {
   body: string;
   desc?: string;
   sentAt: string;
+  campaignId?: string;
+  isTransactional?: boolean;
+  totalRecipients?: number;
+  deliveredCount?: number;
+  failedCount?: number;
+  openRatePct?: number;
+  scheduledFor?: string;
+  deepLink?: string;
+  recipientsList?: NotificationRecipientLog[];
+};
+
+export type BroadcastTemplate = {
+  id: string;
+  name: string;
+  title: string;
+  body: string;
+  audience: 'all' | 'users' | 'drivers';
+  deepLink?: string;
+};
+
+export type AdminRoleUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Super Admin' | 'Finance' | 'Dispatch' | 'Support';
+  lastActive: string;
+  status: 'ACTIVE' | 'INVITED' | 'REVOKED';
+};
+
+export type OpsThresholdConfig = {
+  id: string;
+  key: string;
+  label: string;
+  currentVal: number;
+  thresholdVal: number;
+  unit: string;
+  channel: 'EMAIL' | 'BANNER' | 'SLACK';
+};
+
+export type SettingsAuditEntry = {
+  id: string;
+  adminName: string;
+  category: string;
+  action: string;
+  oldValue: string;
+  newValue: string;
+  reason?: string;
+  timestamp: string;
 };
 
 export type AdminWalletTransaction = {
@@ -209,7 +266,8 @@ export type AdminHub = {
   contactPhone?: string;
   isActive: boolean;
   basePricingModifier: number;
-  createdAt: string;
+  createdAt?: string;
+  auditHistory?: PricingAuditRecord[];
 };
 
 export type AdminRoute = {
@@ -221,6 +279,7 @@ export type AdminRoute = {
   isActive: boolean;
   originHub?: AdminHub;
   destinationHub?: AdminHub;
+  auditHistory?: PricingAuditRecord[];
 };
 
 type ApiEnvelope<T> = { success: boolean; data: T; message?: string };
@@ -373,6 +432,15 @@ export async function loadHubs() {
 
 export async function loadRoutes() {
   return adminFetch<AdminRoute[]>('/routes');
+}
+
+export async function loadSettings() {
+  return adminFetch<{
+    adminRoles: AdminRoleUser[];
+    opsThresholds: OpsThresholdConfig[];
+    globalAuditLog: SettingsAuditEntry[];
+    broadcastTemplates: BroadcastTemplate[];
+  }>('/settings');
 }
 
 export async function loadDriverPayouts() {
