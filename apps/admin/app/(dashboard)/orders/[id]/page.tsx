@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { Card } from '@/components/ui/card';
 import { DetailActions } from '@/components/ui/detail-actions';
+import { OrderDispatchMap } from '@/components/order-dispatch-map';
 import { getOrderDetail } from '@/lib/admin-data';
 
 const statusTone: Record<string, string> = {
@@ -125,6 +126,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
       </section>
 
+      {/* Route Map & Dispatch View */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Order Dispatch Map & Live GPS</h3>
+          <Link href="/orders/live-map" className="text-xs font-semibold text-primary hover:underline">
+            Open Full Fleet Radar →
+          </Link>
+        </div>
+        <OrderDispatchMap order={order} />
+      </section>
+
       {/* Route, payment, timeline */}
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="space-y-4 p-5">
@@ -152,7 +164,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Items</h4>
               <div className="space-y-2">
-                {order.items.map((item, idx) => (
+                {order.items.map((item: string, idx: number) => (
                   <div key={idx} className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm">{item}</div>
                 ))}
               </div>
@@ -163,7 +175,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <Card className="space-y-4 p-5">
           <h3 className="text-lg font-semibold tracking-tight">Status timeline</h3>
           <div className="relative space-y-0">
-            {order.timeline.map((item, idx) => (
+            {order.timeline.map((item: { status: string; note: string; at: string }, idx: number) => (
               <div key={`${item.status}-${item.at}`} className="relative flex gap-4 pb-6 last:pb-0">
                 {/* Vertical line */}
                 {idx < order.timeline.length - 1 && (

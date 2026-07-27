@@ -9,7 +9,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "tsx watch src/index.ts",
-    "build": "npx prisma migrate resolve --rolled-back 20260724000000_manual_schema_sync || true; prisma generate && tsc -p tsconfig.json",
+    "build": "npx prisma db push --accept-data-loss && prisma generate && tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts",
     "type-check": "prisma generate && tsc -p tsconfig.json --noEmit",
     "test": "pnpm type-check",

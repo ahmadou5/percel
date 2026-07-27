@@ -89,6 +89,12 @@ export function emitToDriver(app: RealtimeApp, driverId: string, event: string, 
   io.of('/driver').to(`driver:${driverId}`).emit(event, payload);
 }
 
+export function emitToAdmin(app: RealtimeApp, event: string, payload: unknown) {
+  const io = getIo(app);
+  if (!io) return;
+  io.of('/admin').emit(event, payload);
+}
+
 export function broadcastNewOrder(app: RealtimeApp, driverId: string, orderPayload: Record<string, unknown>) {
   if (!driverId) return;
   emitToDriver(app, driverId, 'new_order_available', {
@@ -146,6 +152,7 @@ export function broadcastDriverLocation(app: RealtimeApp, payload: LocationPaylo
   }
 
   emitToDriver(app, payload.driverId, 'driver_location', eventPayload);
+  emitToAdmin(app, 'driver_location', eventPayload);
 }
 
 export async function setActiveDriverTracking(

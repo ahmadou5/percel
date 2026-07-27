@@ -16,11 +16,21 @@ export default async function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Order management</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Live shipment status, prices, disputes, and delivery history from the Percel API.
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Order management</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Live shipment status, prices, disputes, and delivery history from the Percel API.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/orders/live-map"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 text-xs font-bold text-primary shadow-xs transition-colors hover:bg-primary/20"
+          >
+            📡 Open Live Fleet Radar Map
+          </Link>
+        </div>
       </div>
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -32,6 +42,7 @@ export default async function OrdersPage() {
                 <th className="px-5 py-4">Sender</th>
                 <th className="px-5 py-4">Driver</th>
                 <th className="px-5 py-4">Price</th>
+                <th className="px-5 py-4">Dispatch Map</th>
                 <th className="px-5 py-4">Details</th>
               </tr>
             </thead>
@@ -54,7 +65,12 @@ export default async function OrdersPage() {
                   </td>
                   <td className="px-5 py-4 font-mono tabular-nums">{order.price}</td>
                   <td className="px-5 py-4">
-                    <Link className="text-primary hover:underline" href={`/orders/${order.id}`}>Open order</Link>
+                    <Link className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted" href={`/orders/${order.id}`}>
+                      🗺️ View Map
+                    </Link>
+                  </td>
+                  <td className="px-5 py-4">
+                    <Link className="text-primary hover:underline font-medium" href={`/orders/${order.id}`}>Open order</Link>
                   </td>
                 </tr>
               ))}

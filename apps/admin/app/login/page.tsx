@@ -47,8 +47,13 @@ function LoginForm() {
       <div className="absolute inset-0 bg-brand-grid opacity-40" aria-hidden="true" />
       <Card className="relative w-full max-w-md overflow-hidden border-border/70 bg-card/90 p-8 shadow-glow backdrop-blur">
         <div className="mb-8 space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Operations console
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-border/70 bg-card p-1.5 shadow-md">
+              <img src="/logo-transparent.png" alt="Percel" className="h-9 w-9 object-contain" />
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Operations console
+            </div>
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Percel Admin</h1>
           <p className="max-w-sm text-sm leading-6 text-muted-foreground">

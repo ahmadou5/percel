@@ -38,6 +38,7 @@ export default fp(async (app) => {
     const driverService = new DriverService(app.prisma, app.log, app);
     const userNamespace = io.of('/user');
     const driverNamespace = io.of('/driver');
+    const adminNamespace = io.of('/admin');
 
     const authenticateSocket = async (
       socket: { handshake: { auth?: { token?: string }; headers: Record<string, unknown> }; data: Record<string, unknown> },
@@ -67,6 +68,7 @@ export default fp(async (app) => {
 
     userNamespace.use(authenticateSocket);
     driverNamespace.use(authenticateSocket);
+    adminNamespace.use(authenticateSocket);
 
     userNamespace.on('connection', (socket) => {
       const userId = String(socket.data.userId ?? '');
@@ -75,6 +77,15 @@ export default fp(async (app) => {
       socket.on('disconnect', () => {
         socket.leave(`user:${userId}`);
       });
+    });
+
+    adminNamespace.on('connection', (socket) => {
+      if (socket.data.role !== 'ADMIN') {
+        socket.disconnect(true);
+        return;
+      }
+      
+      socket.join('admin:room');
     });
 
     driverNamespace.on('connection', async (socket) => {
