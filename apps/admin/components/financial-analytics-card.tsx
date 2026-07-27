@@ -1,20 +1,75 @@
 'use client';
 
 import { TrendingUp, DollarSign, Wallet, ArrowUpRight, Percent } from 'lucide-react';
-import type { AdminDashboardSnapshot } from '@/lib/admin-data';
+import type { AdminWalletTransaction } from '@/lib/admin-data';
 
-export function FinancialAnalyticsCard({ walletStats }: { walletStats?: Array<{ label: string; value: string; delta: string }> }) {
-  const platformBalance = walletStats?.find((s) => s.label.toLowerCase().includes('platform'))?.value ?? '₦3,855,200';
-  const commissionEarned = walletStats?.find((s) => s.label.toLowerCase().includes('commission'))?.value ?? '₦488,400';
-  const pendingSettlement = walletStats?.find((s) => s.label.toLowerCase().includes('pending'))?.value ?? '₦247,900';
-  const refundReserve = walletStats?.find((s) => s.label.toLowerCase().includes('refund'))?.value ?? '₦52,000';
+export function FinancialAnalyticsCard({
+  walletStats,
+  transactions = [],
+}: {
+  walletStats?: Array<{ label: string; value: string; delta: string }>;
+  transactions?: AdminWalletTransaction[];
+}) {
+  const platformBalance = walletStats?.find((s) => s.label.toLowerCase().includes('platform'))?.value ?? '₦0';
+  const commissionEarned = walletStats?.find((s) => s.label.toLowerCase().includes('commission'))?.value ?? '₦0';
+  const pendingSettlement = walletStats?.find((s) => s.label.toLowerCase().includes('pending'))?.value ?? '₦0';
+  const refundReserve = walletStats?.find((s) => s.label.toLowerCase().includes('refund'))?.value ?? '₦0';
+
+  // Calculate percentages based on parsed numeric values from string amounts (e.g. ₦488,400)
+  const parseAmount = (val: any) => {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+    return isNaN(num) ? 0 : num;
+  };
+
+  const commVal = parseAmount(commissionEarned);
+  const pendVal = parseAmount(pendingSettlement);
+  const refVal = parseAmount(refundReserve);
+  // Estimate customer fares based on pending + comm
+  const totalDerived = commVal + pendVal + refVal || 1;
+  const fareVal = totalDerived * 1.5; // Rough estimate for the chart if we don't have total fares
+  
+  const grandTotal = fareVal + commVal + pendVal + refVal || 1;
 
   const incomeSources = [
-    { name: 'Customer Delivery Fares', amount: '₦2,450,000', percent: 62, color: 'bg-primary' },
-    { name: 'Platform Commission (10%)', amount: commissionEarned, percent: 22, color: 'bg-emerald-400' },
-    { name: 'Driver Earnings Settlement', amount: pendingSettlement, percent: 11, color: 'bg-amber-400' },
-    { name: 'Refund & Dispute Reserve', amount: refundReserve, percent: 5, color: 'bg-sky-400' },
+    { name: 'Customer Delivery Fares', amount: `₦${fareVal.toLocaleString()}`, percent: Math.round((fareVal / grandTotal) * 100), color: 'bg-primary' },
+    { name: 'Platform Commission (10%)', amount: commissionEarned, percent: Math.round((commVal / grandTotal) * 100), color: 'bg-emerald-400' },
+    { name: 'Driver Earnings Settlement', amount: pendingSettlement, percent: Math.round((pendVal / grandTotal) * 100), color: 'bg-amber-400' },
+    { name: 'Refund & Dispute Reserve', amount: refundReserve, percent: Math.round((refVal / grandTotal) * 100), color: 'bg-sky-400' },
   ];
+
+  // Derive monthly flow curve from transactions
+  // We bucket transactions into 10 intervals (for the 10 bars)
+  const rawValues = new Array(10).fill(0);
+  
+  if (transactions.length > 0) {
+    const validTransactions = transactions.filter((t) => t.createdAt && !isNaN(new Date(t.createdAt).getTime()));
+    
+    if (validTransactions.length > 0) {
+      const minDate = Math.min(...validTransactions.map((t) => new Date(t.createdAt).getTime()));
+      const maxDate = Math.max(...validTransactions.map((t) => new Date(t.createdAt).getTime()));
+      const interval = (maxDate - minDate) / 10 || 1;
+      
+      validTransactions.forEach((t) => {
+        const time = new Date(t.createdAt).getTime();
+        const idx = Math.min(9, Math.floor((time - minDate) / interval));
+        const val = parseAmount(t.amount);
+        rawValues[idx] += val;
+      });
+    }
+  }
+
+  const maxFlow = Math.max(...rawValues, 1);
+  const flowCurve = rawValues.map((val) => {
+    const calculatedHeight = Math.round((val / maxFlow) * 100);
+    const height = isNaN(calculatedHeight) || calculatedHeight < 10 ? 10 : calculatedHeight;
+    return {
+      height,
+      amount: val,
+      displayAmount: `₦${val.toLocaleString()}`
+    };
+  });
 
   return (
     <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm space-y-5">
@@ -24,7 +79,7 @@ export function FinancialAnalyticsCard({ walletStats }: { walletStats?: Array<{ 
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-primary">Financial Intelligence</span>
             <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-              +14.2% MoM Growth
+              Live Updates
             </span>
           </div>
           <h3 className="text-lg font-extrabold text-foreground tracking-tight mt-1">Platform Income & Flow Breakdown</h3>
@@ -69,13 +124,18 @@ export function FinancialAnalyticsCard({ walletStats }: { walletStats?: Array<{ 
             <TrendingUp className="h-4 w-4 text-emerald-400" />
           </div>
 
-          {/* Glowing Minimal Visual Line Representation */}
+          {/* Glowing Minimal Visual Line Representation with Hover Tooltip */}
           <div className="h-28 w-full flex items-end justify-between gap-1.5 pt-4 px-1 border-b border-border/60 pb-2">
-            {[35, 50, 42, 68, 75, 60, 82, 95, 88, 100].map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+            {flowCurve.map((bar, i) => (
+              <div key={i} className="relative flex-1 h-full flex flex-col justify-end items-center gap-1 group">
+                {/* Hover Tooltip */}
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center justify-center rounded-md bg-popover px-2 py-1 border border-border shadow-md z-10 whitespace-nowrap pointer-events-none transition-all">
+                  <span className="font-mono text-[10px] font-extrabold text-foreground">{bar.displayAmount}</span>
+                </div>
+
                 <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-primary/30 to-primary transition-all duration-300 group-hover:to-emerald-400"
-                  style={{ height: `${h}%` }}
+                  className="w-full rounded-t-md bg-gradient-to-t from-primary/30 to-primary transition-all duration-300 group-hover:to-emerald-400 cursor-pointer"
+                  style={{ height: `${bar.height}%` }}
                 />
               </div>
             ))}

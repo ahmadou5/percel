@@ -20,13 +20,8 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
 
   const initial = driver.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
   const isSuspended = driver.status === 'SUSPENDED';
-  const kycPending = driver.kyc === 'SUBMITTED' || driver.kyc === 'PENDING';
 
   const actions = [
-    ...(kycPending ? [
-      { label: 'Approve KYC', tone: 'default' as const, actionUrl: `/api/admin/drivers/${id}/approve-kyc`, successMessage: `${driver.name} KYC approved.` },
-      { label: 'Reject KYC', tone: 'danger' as const, prompt: 'Rejection reason', actionUrl: `/api/admin/drivers/${id}/reject-kyc`, successMessage: `${driver.name} KYC rejected.` },
-    ] : []),
     ...(isSuspended ? [
       { label: 'Reactivate driver', tone: 'secondary' as const, actionUrl: `/api/admin/drivers/${id}/reactivate`, successMessage: `${driver.name} reactivated.` },
     ] : [

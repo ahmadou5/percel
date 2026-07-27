@@ -99,17 +99,17 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="border-b border-border/80 bg-[#0C0F17] px-4 py-5 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:flex lg:flex-col lg:border-b-0 lg:border-r">
+    <aside className="border-b border-border/80 bg-background px-4 py-5 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:flex lg:flex-col lg:border-b-0 lg:border-r">
       <div className="flex flex-col h-full overflow-y-auto pr-1">
         <div className="space-y-6 flex-1">
           {/* Brand Header */}
           <div className="flex items-center gap-3 px-2 pt-1">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border/80 bg-[#131825] p-1.5 shadow-sm">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
               <img src="/logo-transparent.png" alt="Percel Logo" className="h-6 w-6 object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm tracking-tight text-white">{ADMIN_APP_TITLE}</span>
+                <span className="font-extrabold text-sm tracking-tight text-foreground">{ADMIN_APP_TITLE}</span>
                 <span className="rounded-full bg-primary/20 border border-primary/40 px-1.5 py-[1px] text-[9px] font-bold text-primary">
                   PRO
                 </span>
@@ -135,7 +135,7 @@ export function Sidebar() {
                         className={cn(
                           'group flex min-h-9 items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150',
                           active
-                            ? 'bg-[#1D2536] text-white border border-primary/30 shadow-sm font-bold'
+                            ? 'bg-muted text-foreground border border-primary/30 shadow-sm font-bold'
                             : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',
                         )}
                       >
@@ -159,13 +159,13 @@ export function Sidebar() {
 
         {/* Admin User Profile Card — Reads from session cookie */}
         <div className="mt-4 pt-4 border-t border-border/70 shrink-0">
-          <div className="flex items-center justify-between rounded-xl border border-border/80 bg-[#131825] p-2.5 shadow-sm">
+          <div className="flex items-center justify-between rounded-xl border border-border/80 bg-card p-2.5 shadow-sm">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/20 text-xs font-extrabold text-primary border border-primary/30 shrink-0">
                 {adminUser?.initials ?? 'AD'}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-white">{adminUser?.name ?? '…'}</p>
+                <p className="truncate text-xs font-bold text-foreground">{adminUser?.name ?? '…'}</p>
                 <p className="truncate text-[10px] text-muted-foreground">{adminUser?.email ?? '…'}</p>
               </div>
             </div>

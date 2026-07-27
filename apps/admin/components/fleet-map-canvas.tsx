@@ -97,39 +97,26 @@ export function FleetMapCanvas({
   };
 
   const [liveDriversData, setLiveDriversData] = useState<FleetDriverMarker[]>(() => {
-    return drivers.map((d, index) => {
+    return drivers.map((d) => {
       const activeOrder = orders.find((o) => o.driverId === d.id || o.driver === d.name);
-      const isTransit = Boolean(activeOrder) || index % 2 === 0;
-
-      const hubCities = ['Lagos', 'Abuja', 'Port Harcourt', 'Kano', 'Ibadan'];
-      const hubCity = hubCities[index % hubCities.length];
-
-      const baseCoords: [number, number] = [
-        hubCity === 'Lagos' ? 6.5244 + (index * 0.015 - 0.03) : hubCity === 'Abuja' ? 9.0765 + (index * 0.015 - 0.025) : hubCity === 'Port Harcourt' ? 4.8156 + (index * 0.01 - 0.02) : hubCity === 'Kano' ? 12.0022 + (index * 0.01 - 0.02) : 7.3775 + (index * 0.01 - 0.02),
-        hubCity === 'Lagos' ? 3.3792 + (index * 0.02 - 0.04) : hubCity === 'Abuja' ? 7.3986 + (index * 0.015 - 0.03) : hubCity === 'Port Harcourt' ? 7.0498 + (index * 0.015 - 0.02) : hubCity === 'Kano' ? 8.592 + (index * 0.015 - 0.02) : 3.947 + (index * 0.015 - 0.02),
-      ];
-
-      const orderType: 'Intra-state' | 'Interstate' = index % 3 === 0 ? 'Interstate' : 'Intra-state';
-      const pickupCoords: [number, number] = [baseCoords[0] - 0.02, baseCoords[1] - 0.02];
-      const dropoffCoords: [number, number] = [baseCoords[0] + 0.03, baseCoords[1] + 0.03];
-
+      
       return {
         ...d,
-        lat: baseCoords[0],
-        lng: baseCoords[1],
-        speedKmH: isTransit ? 32 + ((index * 7) % 28) : 0,
-        heading: ['NE', 'N', 'SE', 'SW', 'E'][index % 5],
-        lastPing: `${(index * 3) % 15 + 2}s ago`,
-        orderType,
-        activeOrderCode: activeOrder?.trackingCode ?? (isTransit ? `PCL-${770000 + index * 123}` : undefined),
-        activeOrderId: activeOrder?.id ?? `ord_${index + 1}`,
-        pickupCity: activeOrder?.pickup ?? `${hubCity} Pickup Depot`,
-        dropoffCity: activeOrder?.dropoff ?? `${orderType === 'Interstate' ? 'Abuja Central' : 'Victoria Island, Lagos'}`,
-        pickupCoords,
-        dropoffCoords,
-        etaMins: isTransit ? 12 + ((index * 5) % 25) : 0,
-        distanceKm: isTransit ? 3.8 + ((index * 2.4) % 12) : 0,
-        hubCity,
+        lat: 0,
+        lng: 0,
+        speedKmH: 0,
+        heading: 'N/A',
+        lastPing: 'Awaiting signal...',
+        orderType: 'Intra-state', // Default, to be updated by real data if available
+        activeOrderCode: activeOrder?.trackingCode,
+        activeOrderId: activeOrder?.id,
+        pickupCity: activeOrder?.pickup,
+        dropoffCity: activeOrder?.dropoff,
+        pickupCoords: undefined,
+        dropoffCoords: undefined,
+        etaMins: 0,
+        distanceKm: 0,
+        hubCity: 'N/A',
       };
     });
   });

@@ -79,7 +79,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusTone[order.status] ?? 'border-border bg-muted text-muted-foreground'}`}>
-              {order.status.replaceAll('_', ' ')}
+              {order.status?.replaceAll('_', ' ') ?? 'UNKNOWN'}
             </span>
             {order.riskLevel === 'High' && (
               <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive">
@@ -186,7 +186,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-medium text-sm">{item.status.replaceAll('_', ' ')}</div>
+                    <div className="font-medium text-sm">{item.status?.replaceAll('_', ' ') ?? item.status}</div>
                     <span className="text-xs text-muted-foreground shrink-0">{item.at}</span>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">{item.note}</p>

@@ -52,7 +52,7 @@ export default async function OrdersPage() {
                   <td className="px-5 py-4 font-mono text-xs tabular-nums text-foreground">{order.trackingCode}</td>
                   <td className="px-5 py-4">
                     <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusTone[order.status] ?? 'border-border bg-muted text-muted-foreground'}`}>
-                      {order.status.replaceAll('_', ' ')}
+                      {order.status?.replaceAll('_', ' ') ?? 'UNKNOWN'}
                     </span>
                   </td>
                   <td className="px-5 py-4">
