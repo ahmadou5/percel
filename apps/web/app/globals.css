@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── PERCEL BRAND THEME (Dark Default) ─────────────────────── */
+:root {
+  --background: 224 35% 5%;       /* #07111D */
+  --foreground: 210 40% 98%;      /* #EAF0FF */
+  --card: 222 30% 9%;             /* #101B2E */
+  --card-foreground: 210 40% 98%;
+  --popover: 222 30% 9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 239 84% 67%;         /* Electric Cobalt #5B8CFF / #6366F1 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 24% 14%;       /* Elevated Surface #0D1728 */
+  --secondary-foreground: 210 40% 98%;
+  --muted: 222 24% 13%;
+  --muted-foreground: 215 20% 65%;/* #8FA2C7 */
+  --accent: 187 92% 43%;          /* Cyan Accent #06B6D4 */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 350 89% 60%;     /* #FB7185 */
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 22% 16%;          /* #1D2A44 */
+  --input: 222 22% 16%;
+  --ring: 239 84% 67%;
+  --success: 160 84% 39%;         /* Emerald #2DD4BF / #10B981 */
+  --warning: 38 92% 50%;          /* Amber #F0B35A */
+  --radius: 1rem;
+
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-foreground antialiased font-sans selection:bg-primary/30 selection:text-primary;
+  min-height: 100vh;
+  background-color: #07111D;
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.06) 0%, transparent 45%);
+}
+
+/* Glassmorphism & Card Utilities */
+.glass-panel {
+  background: rgba(16, 27, 46, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(29, 42, 68, 0.8);
+}
+
+.glass-card {
+  background: rgba(13, 23, 40, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(29, 42, 68, 0.6);
+}
+
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Micro Animations & Custom Scrollbar */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #07111D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(143, 162, 199, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.6);
+}
