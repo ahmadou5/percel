@@ -122,17 +122,6 @@ export default function ProfileScreen() {
             <ChevronRight size={18} color={palette.textSecondary} />
           </Pressable>
 
-          <Pressable onPress={() => router.push('/settings/addresses')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
-            <View style={[styles.settingsIcon, { backgroundColor: palette.primary }]}>
-              <MapPin size={16} color="#FFFFFF" />
-            </View>
-            <View style={styles.settingsCopy}>
-              <Text style={[styles.settingsTitle, { color: palette.text }]}>Saved Addresses</Text>
-              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Manage Home, Office & frequent locations</Text>
-            </View>
-            <ChevronRight size={18} color={palette.textSecondary} />
-          </Pressable>
-
           <Pressable onPress={() => router.push('/profile/edit')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
             <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
               <Pencil size={16} color={palette.card} />

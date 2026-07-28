@@ -281,8 +281,81 @@ export class UserService {
   }
 
   async verifyUserNin(userId: string, nin: string) {
-    this.logger.info({ userId, ninLength: nin.length }, 'verifyUserNin called');
-    throw new ValidationError('NIN verification is not available in the customer app');
+    const trimmedNin = nin.trim();
+    if (!/^\d{11}$/.test(trimmedNin)) {
+      throw new ValidationError('NIN must be an 11-digit number');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        bvnVerified: true,
+      },
+    });
+
+    if (!user) throw new NotFoundError('User not found');
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ninNumber: trimmedNin,
+        ninVerified: true,
+        kycMethod: user.bvnVerified ? 'BVN' : 'NIN',
+        status: UserStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        dateOfBirth: true,
+        address: true,
+        ninNumber: true,
+        ninVerified: true,
+        bvnNumber: true,
+        bvnVerified: true,
+        kycMethod: true,
+        status: true,
+        walletPinHash: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    await this.createNotification(
+      userId,
+      NotificationType.SYSTEM,
+      'NIN Verification Approved',
+      'Your National Identification Number (NIN) has been verified successfully.',
+      { nin: trimmedNin },
+    );
+
+    this.logger.info({ userId, nin: trimmedNin }, 'user.kyc.nin_verified');
+
+    return {
+      id: updated.id,
+      fullName: updated.fullName,
+      email: updated.email,
+      phone: updated.phone,
+      avatarUrl: updated.avatarUrl,
+      dateOfBirth: toIso(updated.dateOfBirth),
+      address: updated.address,
+      ninNumber: updated.ninNumber,
+      ninVerified: updated.ninVerified,
+      bvnNumber: updated.bvnNumber,
+      bvnVerified: updated.bvnVerified,
+      kycMethod: updated.kycMethod,
+      status: updated.status,
+      walletPinSet: Boolean(updated.walletPinHash),
+      kycComplete: isKycComplete(updated),
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    };
   }
 
   async verifyUserBvn(

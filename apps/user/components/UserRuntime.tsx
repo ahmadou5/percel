@@ -88,12 +88,15 @@ export function UserRuntime() {
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       const auth = useAuthStore.getState();
-      if (nextState !== "active") {
-        if (auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet) auth.lock();
+      // Only lock when app actually transitions to background, avoiding transient OS permission modals (inactive state)
+      if (nextState === "background") {
+        if (auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet) {
+          auth.lock();
+        }
         return;
       }
 
-      if (auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet && !auth.isUnlocked) {
+      if (nextState === "active" && auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet && !auth.isUnlocked) {
         router.replace("/auth-lock");
       }
     };

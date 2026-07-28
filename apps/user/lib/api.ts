@@ -35,8 +35,10 @@ api.interceptors.response.use(
           const { data } = await axios.post(`${baseURL}/api/v1/auth/refresh`, { refreshToken });
           await auth.setTokens(data.data);
           return data.data.accessToken as string;
-        } catch {
-          await auth.logout();
+        } catch (refreshErr) {
+          if (axios.isAxiosError(refreshErr) && (refreshErr.response?.status === 401 || refreshErr.response?.status === 403)) {
+            await auth.logout();
+          }
           return null;
         } finally {
           refreshing = null;

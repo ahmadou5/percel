@@ -10,7 +10,7 @@ import { sendSMS } from '../../utils/sms.js';
 import type { AuthResponse, AuthTokens, SafeUser } from './auth.types.js';
 
 const ACCESS_EXPIRES = '2h';
-const REFRESH_EXPIRES = '7d';
+const REFRESH_EXPIRES = '15d';
 
 type JwtSigner = {
   sign: (
@@ -433,12 +433,22 @@ export class AuthService {
       },
     });
 
-    await sendEmail({
-      to: user.email,
-      subject: 'Reset your Percel Password',
-      text: `Your password reset code is: ${otpCode}. It is valid for 15 minutes.`,
-      html: `<p>Your password reset code is: <strong>${otpCode}</strong>.</p><p>It is valid for 15 minutes.</p>`,
-    });
+    const isPhoneIdentifier = !identifier.includes('@');
+    if (isPhoneIdentifier && user.phone) {
+      await sendSMS({
+        to: user.phone,
+        message: `Your Percel password reset code is: ${otpCode}. Valid for 15 minutes.`,
+      });
+    }
+
+    if (user.email) {
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your Percel Password',
+        text: `Your password reset code is: ${otpCode}. It is valid for 15 minutes.`,
+        html: `<p>Your password reset code is: <strong>${otpCode}</strong>.</p><p>It is valid for 15 minutes.</p>`,
+      });
+    }
 
     this.logger.info({ userId: user.id }, 'auth.forgot_password.sent');
   }

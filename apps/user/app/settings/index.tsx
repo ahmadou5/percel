@@ -1,7 +1,7 @@
 import { useState, type ComponentType } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BadgeCheck, Bell, ChevronLeft, ChevronRight, CircleHelp, CreditCard, History, LogOut, Palette, Shield, User, Users } from 'lucide-react-native';
+import { BadgeCheck, Bell, ChevronLeft, ChevronRight, CircleHelp, CreditCard, History, LogOut, MapPin, Palette, Shield, User, Users } from 'lucide-react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { useAppPalette } from '@/lib/theme';
@@ -21,6 +21,7 @@ const accountItems = [
   { title: 'KYC', subtitle: 'Verify your identity', href: '/settings/kyc', Icon: BadgeCheck },
   { title: 'Spending Limits', subtitle: 'Manage your transaction limits', href: '/settings/spending-limits', Icon: CreditCard },
   { title: 'Beneficiaries', subtitle: 'Manage saved bank accounts', href: '/settings/beneficiaries', Icon: Users },
+  { title: 'Saved Addresses', subtitle: 'Manage Home, Office & frequent locations', href: '/settings/addresses', Icon: MapPin },
 ] as const;
 
 const activityItems = [

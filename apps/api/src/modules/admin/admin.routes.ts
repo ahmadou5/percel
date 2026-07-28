@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { DriverEarningStatus, NotificationType, Prisma, WalletTransactionCategory, WalletTransactionStatus } from '@prisma/client';
+import { DriverEarningStatus, NotificationType, OrderStatus, Prisma, WalletTransactionCategory, WalletTransactionStatus } from '@prisma/client';
 
 import { sendPushNotification } from '../../lib/notifications.js';
 import { success } from '../../utils/response.js';
@@ -560,7 +560,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         sender: msg.senderId === customer.id ? customer.fullName : (driverUser?.fullName ?? 'Driver'),
         senderId: msg.senderId,
         role: (msg.senderId === customer.id ? 'USER' : 'DRIVER') as 'USER' | 'DRIVER' | 'SYSTEM',
-        text: msg.message,
+        text: msg.text,
         at: when(msg.createdAt),
       }));
 
@@ -730,7 +730,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         });
         const activeOrdersCount = await app.prisma.order.count({
           where: {
-            status: { in: ['PENDING_MATCH', 'DRIVER_ASSIGNED', 'IN_TRANSIT'] },
+            status: { in: ['PENDING_MATCH', 'MATCHED', 'ACCEPTED', 'IN_TRANSIT'] },
           },
         });
         const recentOrdersCount = await app.prisma.order.count({

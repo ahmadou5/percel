@@ -3,7 +3,7 @@ import { useAppPalette, isLight } from '@/lib/theme';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { ChevronRight, CreditCard, ShieldCheck, Zap, CheckCircle2 } from 'lucide-react-native';
+import { CheckCircle2, ChevronRight, CreditCard, Lock, Shield, ShieldCheck, Sparkles, Zap } from 'lucide-react-native';
 import { useWallet } from '@/hooks/useWallet';
 import { useProfile } from '@/hooks/useProfile';
 import { formatNaira } from '@/lib/wallet';
@@ -130,105 +130,110 @@ export default function SpendingLimitsScreen() {
         </View>
 
         {/* Tier ladder */}
-        {/* Tier ladder - Route Card Pattern */}
-        <Text style={[styles.sectionTitle, { color: palette.text }]}>Verification Tiers</Text>
-        <View style={[styles.tiersCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          {TIERS.map((t, idx) => {
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Verification Tiers</Text>
+          <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Unlock higher daily transfer limits</Text>
+        </View>
+
+        <View style={styles.tierCardsContainer}>
+          {TIERS.map((t) => {
             const isActive = t.tier === currentTier;
-            const isDone = t.tier < currentTier;
+            const isUnlocked = t.tier <= currentTier;
             const isNext = t.tier === currentTier + 1;
-            const itemColor = t.tier === 3 ? '#30D158' : (t.tier === 2 ? palette.primary : '#8E8E93');
-            const isLast = idx === TIERS.length - 1;
+            const tierAccent = t.tier === 3 ? '#30D158' : (t.tier === 2 ? palette.primary : '#8E8E93');
 
             return (
-              <View key={t.tier} style={styles.tierRouteRow}>
-                {/* Vertical Route Connector Column */}
-                <View style={styles.routeConnectorCol}>
-                  <View
-                    style={[
-                      styles.tierNodeBadge,
-                      {
-                        backgroundColor: (isDone || isActive) ? `${itemColor}1F` : palette.bg,
-                        borderColor: (isDone || isActive) ? itemColor : palette.border,
-                      },
-                    ]}
-                  >
-                    {isDone ? (
-                      <CheckCircle2 size={16} color={itemColor} strokeWidth={2.5} />
-                    ) : isActive ? (
-                      <View style={[styles.activeDotInner, { backgroundColor: itemColor }]} />
+              <View
+                key={t.tier}
+                style={[
+                  styles.tierCard,
+                  {
+                    backgroundColor: palette.card,
+                    borderColor: isActive ? tierAccent : palette.border,
+                    borderWidth: isActive ? 1.5 : 1,
+                  },
+                ]}
+              >
+                {/* Header row: Tier Badge, Label, Status Pill */}
+                <View style={styles.tierCardHeader}>
+                  <View style={[styles.tierIconBox, { backgroundColor: `${tierAccent}18` }]}>
+                    {t.tier === 3 ? (
+                      <Sparkles size={20} color={tierAccent} />
+                    ) : t.tier === 2 ? (
+                      <ShieldCheck size={20} color={tierAccent} />
                     ) : (
-                      <View style={[styles.emptyDotInner, { borderColor: palette.border }]} />
+                      <Shield size={20} color={tierAccent} />
                     )}
                   </View>
-                  {!isLast && (
-                    <View
-                      style={[
-                        styles.routeConnectorLine,
-                        { backgroundColor: isDone ? itemColor : palette.border },
-                      ]}
-                    />
+
+                  <View style={styles.tierTitleWrap}>
+                    <Text style={[styles.tierTitleText, { color: palette.text }]}>{t.label}</Text>
+                    <Text style={[styles.tierReqText, { color: palette.textSecondary }]}>{t.requirement}</Text>
+                  </View>
+
+                  {isActive ? (
+                    <View style={[styles.statusBadgePill, { backgroundColor: `${tierAccent}22`, borderColor: tierAccent }]}>
+                      <View style={[styles.statusBadgeDot, { backgroundColor: tierAccent }]} />
+                      <Text style={[styles.statusBadgeText, { color: tierAccent }]}>CURRENT</Text>
+                    </View>
+                  ) : isUnlocked ? (
+                    <View style={[styles.statusBadgePill, { backgroundColor: 'rgba(48,209,88,0.12)', borderColor: '#30D158' }]}>
+                      <CheckCircle2 size={12} color="#30D158" />
+                      <Text style={[styles.statusBadgeText, { color: '#30D158' }]}>UNLOCKED</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.statusBadgePill, { backgroundColor: isLight(palette.bg) ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)', borderColor: palette.border }]}>
+                      <Lock size={12} color={palette.textSecondary} />
+                      <Text style={[styles.statusBadgeText, { color: palette.textSecondary }]}>LOCKED</Text>
+                    </View>
                   )}
                 </View>
 
-                {/* Tier Details Column */}
+                {/* Limit Callout Banner */}
                 <View
                   style={[
-                    styles.tierDetailsCol,
-                    isActive && {
-                      backgroundColor: isLight(palette.bg) ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)',
-                      borderColor: `${itemColor}44`,
-                      borderWidth: 1,
-                      borderRadius: 16,
-                      padding: 12,
-                      marginBottom: 8,
+                    styles.limitBanner,
+                    {
+                      backgroundColor: isActive
+                        ? `${tierAccent}12`
+                        : isLight(palette.bg)
+                        ? 'rgba(0,0,0,0.02)'
+                        : 'rgba(255,255,255,0.03)',
+                      borderColor: isActive ? `${tierAccent}30` : palette.border,
                     },
-                    !isActive && !isLast && { paddingBottom: 16 },
                   ]}
                 >
-                  <View style={styles.tierHeaderRow}>
-                    <View style={styles.tierTitleBadgeGroup}>
-                      <Text style={[styles.tierLabelText, { color: isActive || isDone ? palette.text : palette.textSecondary }]}>
-                        {t.label}
-                      </Text>
-                      {isActive && (
-                        <View style={[styles.activeTagBadge, { backgroundColor: `${itemColor}22`, borderColor: itemColor }]}>
-                          <Text style={[styles.activeTagBadgeText, { color: itemColor }]}>ACTIVE TIER</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <Text style={[styles.tierLimitTextVal, { color: isActive ? itemColor : palette.text }]}>
-                      {formatNaira(t.limit)}<Text style={[styles.perDaySubtext, { color: palette.textSecondary }]}>/day</Text>
+                  <View>
+                    <Text style={[styles.limitBannerLabel, { color: palette.textSecondary }]}>Daily Limit</Text>
+                    <Text style={[styles.limitBannerValue, { color: isActive ? tierAccent : palette.text }]}>
+                      {formatNaira(t.limit)}
                     </Text>
                   </View>
 
-                  <Text style={[styles.tierReqSub, { color: palette.textSecondary }]}>{t.requirement}</Text>
-                  
-                  {(isActive || isNext) && (
-                    <Text style={[styles.tierDescriptionNote, { color: isActive ? palette.text : palette.textSecondary }]}>
-                      {t.description}
-                    </Text>
+                  {isNext && (
+                    <Pressable
+                      onPress={() => router.push('/settings/kyc')}
+                      style={({ pressed }) => [
+                        styles.inlineUpgradeBtn,
+                        { backgroundColor: palette.primary },
+                        pressed && { opacity: 0.88 },
+                      ]}
+                    >
+                      <Zap size={14} color="#FFF" />
+                      <Text style={styles.inlineUpgradeBtnText}>Upgrade</Text>
+                      <ChevronRight size={14} color="#FFF" />
+                    </Pressable>
                   )}
                 </View>
+
+                {/* Description */}
+                <Text style={[styles.tierCardDesc, { color: palette.textSecondary }]}>
+                  {t.description}
+                </Text>
               </View>
             );
           })}
         </View>
-
-        {/* Upgrade CTA */}
-        {!isTier3 && (
-          <Pressable
-            onPress={() => router.push('/settings/kyc')}
-            style={({ pressed }) => [styles.upgradeCta, { backgroundColor: palette.primary }, pressed && { opacity: 0.88 }]}
-          >
-            <Zap size={20} color="#fff" />
-            <Text style={styles.upgradeCtaText}>
-              {isTier2 ? 'Add NIN to unlock Tier 3 (₦5,000,000/day)' : 'Start KYC to unlock Tier 2 (₦200,000/day)'}
-            </Text>
-            <ChevronRight size={18} color="rgba(255,255,255,0.7)" />
-          </Pressable>
-        )}
       </ScrollView>
     </View>
   );
@@ -257,26 +262,28 @@ const styles = StyleSheet.create({
   resetHint: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: Spacing.sm, borderRadius: 10, borderWidth: 1 },
   resetHintText: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
 
+  sectionHeaderRow: { gap: 2 },
   sectionTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  tiersCard: { borderRadius: 24, borderWidth: 1, padding: Spacing.lg, gap: 0 },
-  tierRouteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  routeConnectorCol: { alignItems: 'center', width: 32 },
-  tierNodeBadge: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  activeDotInner: { width: 10, height: 10, borderRadius: 5 },
-  emptyDotInner: { width: 8, height: 8, borderRadius: 4, borderWidth: 1.5 },
-  routeConnectorLine: { flex: 1, width: 2, marginVertical: 4, minHeight: 28 },
+  sectionSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
 
-  tierDetailsCol: { flex: 1, gap: 4 },
-  tierHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tierTitleBadgeGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tierLabelText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  activeTagBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
-  activeTagBadgeText: { fontSize: 9, fontFamily: Typography.family.bold, letterSpacing: 0.5 },
-  tierLimitTextVal: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  perDaySubtext: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
-  tierReqSub: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
-  tierDescriptionNote: { fontSize: Typography.xs, fontFamily: Typography.family.regular, lineHeight: 18, marginTop: 2 },
+  tierCardsContainer: { gap: 14 },
+  tierCard: { borderRadius: 24, padding: Spacing.lg, gap: 12 },
+  tierCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tierIconBox: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tierTitleWrap: { flex: 1, gap: 2 },
+  tierTitleText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  tierReqText: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
 
-  upgradeCta: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, paddingHorizontal: Spacing.lg, minHeight: 58 },
-  upgradeCtaText: { flex: 1, color: '#fff', fontSize: Typography.sm, fontFamily: Typography.family.bold, lineHeight: 18 },
+  statusBadgePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  statusBadgeDot: { width: 6, height: 6, borderRadius: 3 },
+  statusBadgeText: { fontSize: 10, fontFamily: Typography.family.bold, letterSpacing: 0.5 },
+
+  limitBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
+  limitBannerLabel: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textTransform: 'uppercase', letterSpacing: 0.5 },
+  limitBannerValue: { fontSize: 20, fontFamily: Typography.family.bold, letterSpacing: -0.4, marginTop: 2 },
+
+  inlineUpgradeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
+  inlineUpgradeBtnText: { color: '#FFF', fontSize: Typography.xs, fontFamily: Typography.family.bold },
+
+  tierCardDesc: { fontSize: Typography.xs, fontFamily: Typography.family.regular, lineHeight: 18 },
 });

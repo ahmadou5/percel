@@ -50,6 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isUnlocked: false,
   setUser: (user) => {
     set({ user, isAuthenticated: Boolean(user && get().tokens) });
+    void persistUser(user);
     Sentry.setUser(user ? { id: user.id, email: user.email } : null);
   },
   setTokens: async (tokens) => {
