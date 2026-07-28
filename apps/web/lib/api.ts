@@ -68,7 +68,7 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://percelapi-production.up.railway.app';
 
 export async function fetchTrackedOrder(trackingCode: string): Promise<TrackedOrder> {
-  const cleanCode = trackingCode.trim().toUpperCase();
+  const cleanCode = trackingCode.trim();
   const url = `${API_BASE_URL}/orders/track/${encodeURIComponent(cleanCode)}`;
 
   const res = await fetch(url, {

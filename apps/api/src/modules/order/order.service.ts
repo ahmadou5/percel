@@ -570,9 +570,17 @@ export class OrderService {
   }
 
   async getOrderByTrackingCode(trackingCode: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { trackingCode },
+    const cleanCode = trackingCode.trim();
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [
+          { trackingCode: cleanCode },
+          { trackingCode: cleanCode.toUpperCase() },
+          { id: cleanCode },
+        ],
+      },
       include: {
+        user: true,
         driver: { include: { user: true } },
         statusHistory: { orderBy: { createdAt: 'asc' } },
         items: true,
