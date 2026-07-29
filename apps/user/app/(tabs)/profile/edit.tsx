@@ -4,7 +4,7 @@ import * as ScreenCapture from 'expo-screen-capture';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
-import { Camera, ChevronLeft, CircleAlert, ShieldCheck, Sparkles, UserPen } from 'lucide-react-native';
+import { Camera, CheckCircle2, ChevronLeft, CircleAlert, Mail, Phone, ShieldCheck, Sparkles, UserPen } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
@@ -101,6 +101,22 @@ export default function EditProfileScreen() {
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Verification failed. Please try again.';
       modal.alert('Error', msg, 'error');
+      setVerifyError(msg);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setVerifyError(null);
+    setVerifyOtp('');
+    try {
+      if (verifyType === 'EMAIL') {
+        await reqEmailVerify.mutateAsync();
+      } else if (verifyType === 'PHONE') {
+        await reqPhoneVerify.mutateAsync();
+      }
+      modal.alert('Code Sent', `A new verification code was requested for your ${verifyType === 'EMAIL' ? 'email' : 'phone number'}.`, 'success');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Could not resend verification code.';
       setVerifyError(msg);
     }
   };
@@ -270,6 +286,7 @@ export default function EditProfileScreen() {
               <Button title={updateProfile.isPending ? 'Saving…' : 'Save changes'} onPress={saveProfile} loading={updateProfile.isPending} disabled={!profileChanged || updateProfile.isPending} />
             </View>
 
+            {/* Verification Status Card */}
             <View style={[styles.formCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.sectionHeader}>
                 <ShieldCheck size={18} color={palette.primary} />
@@ -280,7 +297,7 @@ export default function EditProfileScreen() {
               <View style={styles.verificationRow}>
                 <View style={styles.verificationCopy}>
                   <Text style={[styles.verificationLabel, { color: palette.text }]}>Email Address</Text>
-                  <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.email}</Text>
+                  <Text style={[styles.verificationValue, { color: palette.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">{profile?.email}</Text>
                 </View>
                 {profile?.emailVerified ? (
                   <View style={styles.verifiedBadge}>
@@ -303,10 +320,10 @@ export default function EditProfileScreen() {
               </View>
 
               {/* Phone Verification Row */}
-              <View style={styles.verificationRow}>
+              <View style={[styles.verificationRow, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
                 <View style={styles.verificationCopy}>
                   <Text style={[styles.verificationLabel, { color: palette.text }]}>Phone Number</Text>
-                  <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.phone}</Text>
+                  <Text style={[styles.verificationValue, { color: palette.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">{profile?.phone}</Text>
                 </View>
                 {profile?.phoneVerified ? (
                   <View style={styles.verifiedBadge}>
@@ -377,6 +394,15 @@ export default function EditProfileScreen() {
               onChangeText={setVerifyOtp}
             />
             {verifyError ? <Text style={styles.modalError}>{verifyError}</Text> : null}
+            <Pressable
+              onPress={() => void handleResendCode()}
+              disabled={reqEmailVerify.isPending || reqPhoneVerify.isPending}
+              style={{ alignSelf: 'center', paddingVertical: 4 }}
+            >
+              <Text style={{ color: palette.primary, fontSize: Typography.sm, fontFamily: Typography.family.bold }}>
+                {reqEmailVerify.isPending || reqPhoneVerify.isPending ? 'Resending code…' : 'Didn\'t get code? Resend'}
+              </Text>
+            </Pressable>
             <View style={styles.modalActions}>
               <Button
                 title="Cancel"
@@ -425,13 +451,13 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 42 },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.92 },
-  verificationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255, 255, 255, 0.1)', paddingBottom: 12, marginBottom: 4 },
-  verificationCopy: { flex: 1, gap: 2 },
+  verificationRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255, 255, 255, 0.1)', paddingBottom: 12, marginBottom: 4 },
+  verificationCopy: { flex: 1, gap: 2, overflow: 'hidden' },
   verificationLabel: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   verificationValue: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
-  verifiedBadge: { backgroundColor: 'rgba(48, 209, 88, 0.16)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  verifiedBadge: { backgroundColor: 'rgba(48, 209, 88, 0.16)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexShrink: 0 },
   verifiedText: { color: '#30d158', fontSize: 12, fontFamily: Typography.family.bold },
-  verifyButton: { backgroundColor: 'rgba(10, 132, 255, 0.12)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  verifyButton: { backgroundColor: 'rgba(10, 132, 255, 0.12)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, flexShrink: 0, minWidth: 68, alignItems: 'center' },
   verifyButtonText: { fontSize: 12, fontFamily: Typography.family.bold },
   modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', maxWidth: 400, borderRadius: 24, padding: 24, gap: 16 },

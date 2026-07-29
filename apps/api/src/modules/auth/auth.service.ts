@@ -382,7 +382,7 @@ export class AuthService {
     // Send SMS in background without blocking response if provider hangs or is slow
     void sendSMS({
       to: user.phone,
-      message: `Your Percel phone verification code is: ${otpCode}. Valid for 15 minutes.`,
+      message: `Your Twilio verification code is: ${otpCode}`,
     }).catch((err) => {
       this.logger.error({ userId, err: err?.message || err }, 'auth.phone_verification.send_failed');
     });
@@ -445,7 +445,7 @@ export class AuthService {
     if (isPhoneIdentifier && user.phone) {
       await sendSMS({
         to: user.phone,
-        message: `Your Percel password reset code is: ${otpCode}. Valid for 15 minutes.`,
+        message: `Your Twilio verification code is: ${otpCode}`,
       });
     }
 

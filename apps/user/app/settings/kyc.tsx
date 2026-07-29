@@ -123,11 +123,13 @@ export default function KycScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
+  const [forceEdit, setForceEdit] = useState(false);
+
   const kycComplete = Boolean(
     profile?.kycComplete || profile?.bvnVerified || profile?.ninVerified,
   );
   const verificationPending =
-    (profile?.status === 'PENDING_VERIFICATION' || submitted) && !kycComplete;
+    (profile?.status === 'PENDING_VERIFICATION' || submitted) && !kycComplete && !forceEdit;
   const verificationRejected = profile?.status === 'SUSPENDED';
 
   // Polling when verification is pending
@@ -467,6 +469,31 @@ export default function KycScreen() {
             <Text style={[styles.verifiedSub, { color: palette.textSecondary }]}>
               Our identity partner is validating your BVN and bank account details. Your dedicated NUBAN will be assigned automatically.
             </Text>
+
+            <Pressable
+              onPress={async () => {
+                const res = await profileQuery.refetch();
+                if (res.data?.kycComplete || res.data?.bvnVerified || res.data?.ninVerified) {
+                  modal.alert('Verification Complete', 'Your identity has been verified!', 'success');
+                } else {
+                  modal.alert('Verification Pending', 'Your details are still being processed by our partner. Please check back in a few moments.', 'info');
+                }
+              }}
+              style={({ pressed }) => [styles.primaryAction, { width: '100%', backgroundColor: palette.primary, marginBottom: 8 }, pressed && { opacity: 0.9 }]}
+            >
+              <Text style={styles.primaryActionText}>Check Status</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                setForceEdit(true);
+                setSubmitted(false);
+                setStep(1);
+              }}
+              style={({ pressed }) => [styles.secondaryAction, { width: '100%', backgroundColor: palette.bg, borderColor: palette.border, marginBottom: 8 }, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={[styles.secondaryActionText, { color: palette.text }]}>Re-enter / Change Details</Text>
+            </Pressable>
 
             <Pressable
               onPress={() => back()}
