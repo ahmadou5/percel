@@ -440,7 +440,7 @@ export default function EditProfileScreen() {
                 onPress={() => setVerifyType(null)}
               />
               <Button
-                title="Confirm Code"
+                title="Confirm"
                 style={styles.modalBtn}
                 disabled={verifyOtp.length < 6 || confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
                 loading={confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
@@ -488,8 +488,8 @@ const styles = StyleSheet.create({
   verifiedText: { color: '#30d158', fontSize: 12, fontFamily: Typography.family.bold },
   verifyButton: { backgroundColor: 'rgba(10, 132, 255, 0.12)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, flexShrink: 0, minWidth: 68, alignItems: 'center' },
   verifyButtonText: { fontSize: 12, fontFamily: Typography.family.bold },
-  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl },
-  modalContent: { width: '90%', maxWidth: 360, borderRadius: 24, padding: Spacing.lg, gap: 16, alignSelf: 'center' },
+  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.lg },
+  modalContent: { width: '88%', maxWidth: 336, borderRadius: 24, padding: Spacing.lg, gap: 16, alignSelf: 'center' },
   modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
   modalDescription: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20 },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8, width: '100%' },

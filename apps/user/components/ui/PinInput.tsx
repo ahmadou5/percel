@@ -119,7 +119,7 @@ export function PinInput({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.boxContainer, { gap: length > 4 ? 8 : 14 }]}>
+      <View style={[styles.boxContainer, { gap: length > 4 ? 6 : 14 }]}>
         {Array.from({ length }).map((_, index) => {
           const isFocused = focusedIndex === index;
           const hasValue = !!code[index];
@@ -131,7 +131,7 @@ export function PinInput({
               style={[
                 styles.pinBox,
                 {
-                  width: length > 4 ? 44 : 52,
+                  width: length > 4 ? 42 : 52,
                   height: length > 4 ? 48 : 52,
                   borderColor: error
                     ? palette.error
