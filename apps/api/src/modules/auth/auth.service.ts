@@ -443,18 +443,22 @@ export class AuthService {
 
     const isPhoneIdentifier = !identifier.includes('@');
     if (isPhoneIdentifier && user.phone) {
-      await sendSMS({
+      void sendSMS({
         to: user.phone,
         message: `Your Twilio verification code is: ${otpCode}`,
+      }).catch((err) => {
+        this.logger.error({ userId: user.id, err: err?.message || err }, 'auth.forgot_password.sms_failed');
       });
     }
 
     if (user.email) {
-      await sendEmail({
+      void sendEmail({
         to: user.email,
         subject: 'Reset your Percel Password',
         text: `Your password reset code is: ${otpCode}. It is valid for 15 minutes.`,
         html: `<p>Your password reset code is: <strong>${otpCode}</strong>.</p><p>It is valid for 15 minutes.</p>`,
+      }).catch((err) => {
+        this.logger.error({ userId: user.id, err: err?.message || err }, 'auth.forgot_password.email_failed');
       });
     }
 
