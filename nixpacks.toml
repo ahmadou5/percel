@@ -1,0 +1,8 @@
+[providers]
+providers = ['node']
+
+[phases.setup]
+nixPkgs = ['nodePackages.pnpm']
+
+[phases.install]
+cmds = ['pnpm install']
