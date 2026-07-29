@@ -46,7 +46,7 @@ export async function sendSMS({ to, message }: { to: string; message: string }) 
           const trialParams = new URLSearchParams();
           trialParams.append('To', to);
           trialParams.append('From', from);
-          trialParams.append('Body', `Your verification code is: ${extractedOtp}`);
+          trialParams.append('Body', `Your Twilio verification code is: ${extractedOtp}`);
 
           const trialController = new AbortController();
           const trialTimeout = setTimeout(() => trialController.abort(), 5000);
