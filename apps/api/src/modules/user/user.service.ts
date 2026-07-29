@@ -461,9 +461,9 @@ export class UserService {
       data: {
         fullName: firstName + ' ' + lastName,
         bvnNumber: bvn,
-        bvnVerified: alreadyValidated ? true : false,
+        bvnVerified: true,
         kycMethod: 'BVN',
-        status: alreadyValidated ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION,
+        status: UserStatus.ACTIVE,
         paystackCustomerCode: customerCode,
       },
       select: {

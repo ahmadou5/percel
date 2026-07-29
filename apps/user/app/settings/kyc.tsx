@@ -551,7 +551,6 @@ export default function KycScreen() {
         lastName: lastName.trim(),
       });
 
-      setSubmitted(true);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['wallet'] }),
         queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
@@ -560,6 +559,8 @@ export default function KycScreen() {
 
       if (result.kycComplete || result.bvnVerified || result.ninVerified) {
         modal.alert('Verification Approved!', 'Your identity is verified and your dedicated account is ready.', 'success');
+      } else {
+        setSubmitted(true);
       }
     } catch (error) {
       modal.alert('Verification Failed', error instanceof Error ? error.message : 'Please check your details and try again.', 'error');
