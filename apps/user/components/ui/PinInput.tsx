@@ -59,7 +59,25 @@ export function PinInput({
       return;
     }
 
-    const digit = cleaned[cleaned.length - 1]; // Get last character typed
+    if (cleaned.length > 1) {
+      // Auto-paste full or partial OTP code
+      const nextCode = [...code];
+      const chars = cleaned.slice(0, length - index).split('');
+      chars.forEach((char, i) => {
+        if (index + i < length) {
+          nextCode[index + i] = char;
+        }
+      });
+      const newValue = nextCode.join('');
+      onChangeText(newValue);
+      void haptics.tap();
+
+      const nextFocus = Math.min(index + chars.length, length - 1);
+      refs.current[nextFocus]?.focus();
+      return;
+    }
+
+    const digit = cleaned[0];
     const nextCode = [...code];
     nextCode[index] = digit;
     const newValue = nextCode.join('');
@@ -101,7 +119,7 @@ export function PinInput({
 
   return (
     <View style={styles.container}>
-      <View style={styles.boxContainer}>
+      <View style={[styles.boxContainer, { gap: length > 4 ? 8 : 14 }]}>
         {Array.from({ length }).map((_, index) => {
           const isFocused = focusedIndex === index;
           const hasValue = !!code[index];
@@ -113,6 +131,8 @@ export function PinInput({
               style={[
                 styles.pinBox,
                 {
+                  width: length > 4 ? 44 : 52,
+                  height: length > 4 ? 48 : 52,
                   borderColor: error
                     ? palette.error
                     : isFocused
@@ -148,8 +168,8 @@ export function PinInput({
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 onFocus={() => setFocusedIndex(index)}
                 onBlur={() => setFocusedIndex(null)}
-                keyboardType="numeric"
-                maxLength={1}
+                keyboardType="number-pad"
+                maxLength={length}
                 style={styles.hiddenInput}
                 caretHidden
                 selectTextOnFocus

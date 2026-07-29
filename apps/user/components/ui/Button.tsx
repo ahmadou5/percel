@@ -59,13 +59,13 @@ export function Button({ title, onPress, disabled, loading, variant = 'primary',
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <Pressable
         onPress={onPress}
         onPressIn={pressIn}
         onPressOut={pressOut}
         disabled={disabled || loading}
-        style={({ pressed }) => [styles.base, variantStyles(theme)[variant], sizeStyles[size], disabled ? styles.disabled : null, pressed ? styles.pressed : null, style]}
+        style={({ pressed }) => [styles.base, variantStyles(theme)[variant], sizeStyles[size], disabled ? styles.disabled : null, pressed ? styles.pressed : null]}
       >
         <View style={styles.row}>
           {loading ? <ActivityIndicator color={variant === 'ghost' ? theme.primary : '#fff'} /> : null}

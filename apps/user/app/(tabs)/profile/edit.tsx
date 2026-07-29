@@ -9,6 +9,7 @@ import { Camera, CheckCircle2, ChevronLeft, CircleAlert, Mail, Phone, ShieldChec
 import { Button } from '@/components/ui/Button';
 import { ConfirmSheet } from '@/components/wallet/ConfirmSheet';
 import { Input } from '@/components/ui/Input';
+import { PinInput } from '@/components/ui/PinInput';
 import { StateCard } from '@/components/ui/StateCard';
 import { FormSkeleton } from '@/components/ui/Skeleton';
 import { KeyboardView } from '@/components/ui/KeyboardView';
@@ -57,11 +58,21 @@ export default function EditProfileScreen() {
   const [verifyType, setVerifyType] = useState<'EMAIL' | 'PHONE' | null>(null);
   const [verifyOtp, setVerifyOtp] = useState('');
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(30);
 
   const reqEmailVerify = useRequestEmailVerification();
   const confirmEmailVerify = useConfirmEmailVerification();
   const reqPhoneVerify = useRequestPhoneVerification();
   const confirmPhoneVerify = useConfirmPhoneVerification();
+
+  useEffect(() => {
+    if (verifyType === null) return;
+    setResendTimer(30);
+    const interval = setInterval(() => {
+      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [verifyType]);
 
   const handleStartEmailVerify = async () => {
     setVerifyError(null);
@@ -100,12 +111,12 @@ export default function EditProfileScreen() {
       modal.alert('Success', `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`, 'success');
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Verification failed. Please try again.';
-      modal.alert('Error', msg, 'error');
       setVerifyError(msg);
     }
   };
 
   const handleResendCode = async () => {
+    if (resendTimer > 0) return;
     setVerifyError(null);
     setVerifyOtp('');
     try {
@@ -114,7 +125,8 @@ export default function EditProfileScreen() {
       } else if (verifyType === 'PHONE') {
         await reqPhoneVerify.mutateAsync();
       }
-      modal.alert('Code Sent', `A new verification code was requested for your ${verifyType === 'EMAIL' ? 'email' : 'phone number'}.`, 'success');
+      setResendTimer(30);
+      modal.alert('Code Sent', `A new verification code was sent to your ${verifyType === 'EMAIL' ? 'email' : 'phone number'}.`, 'success');
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Could not resend verification code.';
       setVerifyError(msg);
@@ -380,29 +392,46 @@ export default function EditProfileScreen() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { backgroundColor: palette.card, borderColor: palette.border, borderWidth: 1 }]}>
             <Text style={[styles.modalTitle, { color: palette.text }]}>
-              Verify Your {verifyType === 'EMAIL' ? 'Email' : 'Phone'}
+              Verify Your {verifyType === 'EMAIL' ? 'Email Address' : 'Phone Number'}
             </Text>
             <Text style={[styles.modalDescription, { color: palette.textSecondary }]}>
-              We sent a 6-digit verification code to your {verifyType === 'EMAIL' ? 'email' : 'phone number'}. Enter it below to verify.
+              Enter the 6-digit code sent to{' '}
+              <Text style={{ fontFamily: Typography.family.bold, color: palette.text }}>
+                {verifyType === 'EMAIL' ? profile?.email : profile?.phone}
+              </Text>
             </Text>
-            <Input
-              label="Verification Code"
-              placeholder="e.g. 123456"
-              keyboardType="number-pad"
-              maxLength={6}
+
+            <PinInput
+              length={6}
+              secureTextEntry={false}
               value={verifyOtp}
-              onChangeText={setVerifyOtp}
+              onChangeText={(val) => {
+                setVerifyOtp(val);
+                if (verifyError) setVerifyError(null);
+              }}
+              error={verifyError ?? undefined}
             />
-            {verifyError ? <Text style={styles.modalError}>{verifyError}</Text> : null}
+
             <Pressable
               onPress={() => void handleResendCode()}
-              disabled={reqEmailVerify.isPending || reqPhoneVerify.isPending}
-              style={{ alignSelf: 'center', paddingVertical: 4 }}
+              disabled={resendTimer > 0 || reqEmailVerify.isPending || reqPhoneVerify.isPending}
+              style={{ alignSelf: 'center', paddingVertical: 6 }}
             >
-              <Text style={{ color: palette.primary, fontSize: Typography.sm, fontFamily: Typography.family.bold }}>
-                {reqEmailVerify.isPending || reqPhoneVerify.isPending ? 'Resending code…' : 'Didn\'t get code? Resend'}
+              <Text
+                style={{
+                  color: resendTimer > 0 ? palette.textSecondary : palette.primary,
+                  fontSize: Typography.sm,
+                  fontFamily: Typography.family.bold,
+                }}
+              >
+                {reqEmailVerify.isPending || reqPhoneVerify.isPending
+                  ? 'Sending new code…'
+                  : resendTimer > 0
+                  ? `Resend code in ${resendTimer}s`
+                  : "Didn't get code? Resend"}
               </Text>
             </Pressable>
+
             <View style={styles.modalActions}>
               <Button
                 title="Cancel"
@@ -411,7 +440,7 @@ export default function EditProfileScreen() {
                 onPress={() => setVerifyType(null)}
               />
               <Button
-                title="Confirm"
+                title="Confirm Code"
                 style={styles.modalBtn}
                 disabled={verifyOtp.length < 6 || confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
                 loading={confirmEmailVerify.isPending || confirmPhoneVerify.isPending}
@@ -459,11 +488,11 @@ const styles = StyleSheet.create({
   verifiedText: { color: '#30d158', fontSize: 12, fontFamily: Typography.family.bold },
   verifyButton: { backgroundColor: 'rgba(10, 132, 255, 0.12)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, flexShrink: 0, minWidth: 68, alignItems: 'center' },
   verifyButtonText: { fontSize: 12, fontFamily: Typography.family.bold },
-  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { width: '100%', maxWidth: 400, borderRadius: 24, padding: 24, gap: 16 },
+  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl },
+  modalContent: { width: '90%', maxWidth: 360, borderRadius: 24, padding: Spacing.lg, gap: 16, alignSelf: 'center' },
   modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
   modalDescription: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20 },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8, width: '100%' },
   modalBtn: { flex: 1 },
   modalError: { color: '#ff453a', fontSize: Typography.sm, textAlign: 'center' },
 });
