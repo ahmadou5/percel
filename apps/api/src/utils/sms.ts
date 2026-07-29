@@ -1,7 +1,7 @@
 export async function sendSMS({ to, message }: { to: string; message: string }) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM;
+  const from = process.env.TWILIO_FROM || process.env.TWILIO_FROM_NUMBER;
 
   if (!accountSid || !authToken || !from) {
     console.log('----------------------------------------');
@@ -20,6 +20,9 @@ export async function sendSMS({ to, message }: { to: string; message: string }) 
     params.append('From', from);
     params.append('Body', message);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -27,7 +30,9 @@ export async function sendSMS({ to, message }: { to: string; message: string }) 
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errText = await response.text();

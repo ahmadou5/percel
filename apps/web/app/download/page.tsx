@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { Download, ShieldCheck, CheckCircle2, AlertTriangle, Smartphone, ArrowLeft, FileText, Lock } from 'lucide-react';
+import { Download, ShieldCheck, AlertTriangle, Smartphone, ArrowLeft } from 'lucide-react';
 
 export const metadata = {
   title: 'Download Percel APK - Android Mobile App',
-  description: 'Download the official Percel Android APK directly. Safe, fast, and verified mobile delivery application for Nigeria.',
+  description: 'Download the official Percel Android APK directly. Safe, fast, and verified mobile delivery application.',
 };
 
 export default function DownloadPage() {
@@ -11,7 +11,7 @@ export default function DownloadPage() {
     process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL || '/downloads/percel-v1.0.0.apk';
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8 space-y-12">
+    <div className="mx-auto max-w-4xl px-4 py-12 pt-24 sm:pt-28 sm:px-6 lg:px-8 space-y-10">
       {/* Back Link */}
       <div>
         <Link
@@ -40,7 +40,7 @@ export default function DownloadPage() {
           </h1>
 
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Get the latest version of Percel directly to your Android phone to book instant intra-state dispatches and track interstate deliveries across Nigeria.
+            Get the latest version of Percel directly to your Android phone to book instant intra-state dispatches and track interstate deliveries across major state hubs.
           </p>
 
           {/* Release Specs */}
@@ -80,7 +80,7 @@ export default function DownloadPage() {
           <span>Why is Percel installed via APK download?</span>
         </div>
         <p className="leading-relaxed">
-          Percel is currently completing its final compliance review for Google Play Store listing in Nigeria. To ensure senders and riders can access logistics immediately, we provide our official, signed APK directly.
+          Percel is currently completing its final compliance review for Google Play Store listing. To ensure senders and riders can access logistics immediately, we provide our official, signed APK directly.
         </p>
       </div>
 

@@ -307,6 +307,7 @@ export class AuthService {
   async requestEmailVerification(userId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ValidationError('User not found');
+    if (!user.email) throw new ValidationError('No email address associated with this account');
 
     const otpCode = generateOTP();
     const expiry = otpExpiry();
@@ -319,14 +320,17 @@ export class AuthService {
       } as any,
     });
 
-    await sendEmail({
+    // Send email in background without blocking response if SMTP hangs or is slow
+    void sendEmail({
       to: user.email,
       subject: 'Verify your Percel email address',
       text: `Your Percel email verification code is: ${otpCode}. Valid for 15 minutes.`,
       html: `<p>Your Percel email verification code is: <strong>${otpCode}</strong>.</p><p>Valid for 15 minutes.</p>`,
+    }).catch((err) => {
+      this.logger.error({ userId, err: err?.message || err }, 'auth.email_verification.send_failed');
     });
 
-    this.logger.info({ userId }, 'auth.email_verification.requested');
+    this.logger.info({ userId, otpCode }, 'auth.email_verification.requested');
   }
 
   async confirmEmailVerification(userId: string, otp: string): Promise<{ verified: boolean }> {
@@ -362,6 +366,7 @@ export class AuthService {
   async requestPhoneVerification(userId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ValidationError('User not found');
+    if (!user.phone) throw new ValidationError('No phone number associated with this account');
 
     const otpCode = generateOTP();
     const expiry = otpExpiry();
@@ -374,12 +379,15 @@ export class AuthService {
       },
     });
 
-    await sendSMS({
+    // Send SMS in background without blocking response if provider hangs or is slow
+    void sendSMS({
       to: user.phone,
       message: `Your Percel phone verification code is: ${otpCode}. Valid for 15 minutes.`,
+    }).catch((err) => {
+      this.logger.error({ userId, err: err?.message || err }, 'auth.phone_verification.send_failed');
     });
 
-    this.logger.info({ userId }, 'auth.phone_verification.requested');
+    this.logger.info({ userId, otpCode }, 'auth.phone_verification.requested');
   }
 
   async confirmPhoneVerification(userId: string, otp: string): Promise<{ verified: boolean }> {

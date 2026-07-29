@@ -70,7 +70,8 @@ export default function EditProfileScreen() {
       await reqEmailVerify.mutateAsync();
       setVerifyType('EMAIL');
     } catch (err: any) {
-      modal.alert(`Error`, `${err.message || 'Could not send verification code.'}`, 'error')
+      const msg = err?.response?.data?.message || err?.message || 'Could not send verification code.';
+      modal.alert('Error', msg, 'error');
     }
   };
 
@@ -81,7 +82,8 @@ export default function EditProfileScreen() {
       await reqPhoneVerify.mutateAsync();
       setVerifyType('PHONE');
     } catch (err: any) {
-      modal.alert(`Error`, `${err.message || 'Could not send verification code.'}`, `error`)
+      const msg = err?.response?.data?.message || err?.message || 'Could not send verification code.';
+      modal.alert('Error', msg, 'error');
     }
   };
 
@@ -95,11 +97,11 @@ export default function EditProfileScreen() {
         await confirmPhoneVerify.mutateAsync(verifyOtp);
       }
       setVerifyType(null);
-      modal.alert(`Success`, `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`, `success`)
-
+      modal.alert('Success', `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`, 'success');
     } catch (err: any) {
-      modal.alert(`Error`, `${err.message || 'Verification failed. Please try again.'}`, `error`)
-      setVerifyError(err.message || 'Verification failed. Please try again.');
+      const msg = err?.response?.data?.message || err?.message || 'Verification failed. Please try again.';
+      modal.alert('Error', msg, 'error');
+      setVerifyError(msg);
     }
   };
 
@@ -285,8 +287,17 @@ export default function EditProfileScreen() {
                     <Text style={styles.verifiedText}>Verified</Text>
                   </View>
                 ) : (
-                  <Pressable onPress={handleStartEmailVerify} style={styles.verifyButton}>
-                    <Text style={[styles.verifyButtonText, { color: palette.primary }]}>Verify</Text>
+                  <Pressable
+                    onPress={handleStartEmailVerify}
+                    disabled={reqEmailVerify.isPending}
+                    style={({ pressed }) => [
+                      styles.verifyButton,
+                      (pressed || reqEmailVerify.isPending) ? styles.pressed : null,
+                    ]}
+                  >
+                    <Text style={[styles.verifyButtonText, { color: palette.primary }]}>
+                      {reqEmailVerify.isPending ? 'Sending…' : 'Verify'}
+                    </Text>
                   </Pressable>
                 )}
               </View>
@@ -302,8 +313,17 @@ export default function EditProfileScreen() {
                     <Text style={styles.verifiedText}>Verified</Text>
                   </View>
                 ) : (
-                  <Pressable onPress={handleStartPhoneVerify} style={styles.verifyButton}>
-                    <Text style={[styles.verifyButtonText, { color: palette.primary }]}>Verify</Text>
+                  <Pressable
+                    onPress={handleStartPhoneVerify}
+                    disabled={reqPhoneVerify.isPending}
+                    style={({ pressed }) => [
+                      styles.verifyButton,
+                      (pressed || reqPhoneVerify.isPending) ? styles.pressed : null,
+                    ]}
+                  >
+                    <Text style={[styles.verifyButtonText, { color: palette.primary }]}>
+                      {reqPhoneVerify.isPending ? 'Sending…' : 'Verify'}
+                    </Text>
                   </Pressable>
                 )}
               </View>

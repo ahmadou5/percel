@@ -59,7 +59,7 @@ export default function TrackDetailPage({ params }: PageProps) {
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [loadOrder, order?.status]);
+  }, [loadOrder, order]);
 
   const handleCopyLink = () => {
     if (typeof window !== 'undefined') {
@@ -118,7 +118,7 @@ export default function TrackDetailPage({ params }: PageProps) {
 
   // 3. Success State with Live Map & Details
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-6xl px-4 py-10 pt-24 sm:pt-28 sm:px-6 lg:px-8 space-y-8">
       {/* Top Header Navigation & Refresh Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border/80 pb-5">
         <div className="space-y-1">

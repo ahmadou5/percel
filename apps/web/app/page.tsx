@@ -1,27 +1,26 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { Download, Search, ShieldCheck, MapPin, Truck, Zap, RefreshCw, Smartphone, CheckCircle, ArrowRight } from 'lucide-react';
+import { Download, Search, ShieldCheck, MapPin, Truck, Zap, RefreshCw, Smartphone } from 'lucide-react';
 import { PhoneMockup } from '@/components/hero/PhoneMockup';
 
 export default function HomePage() {
   return (
-    <div className="space-y-24 pb-20">
+    <div className="space-y-16 sm:space-y-20 pb-16 pt-24 sm:pt-28">
       {/* ─── HERO SECTION ──────────────────────────────────────── */}
-      <section className="relative overflow-hidden pt-12 lg:pt-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12">
+      <section className="relative overflow-hidden pt-4 sm:pt-6 mb-12 sm:mb-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
             {/* Hero Text Content */}
             <div className="space-y-6 text-center lg:col-span-7 lg:text-left">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary shadow-xs">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary shadow-xs">
                 <span className="h-2 w-2 rounded-full bg-primary animate-ping" />
-                <span>Next-Gen Nigerian Delivery Platform</span>
+                <span>Next-Gen Mobile Delivery Platform</span>
               </div>
 
-              <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl leading-[1.1]">
-                Swift Intra & Interstate Delivery Across <span className="bg-gradient-to-r from-primary via-indigo-400 to-accent bg-clip-text text-transparent">Nigeria</span>
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl leading-[1.15]">
+                Swift Intra & Interstate Delivery <span className="text-primary font-black">Made Simple</span>
               </h1>
 
-              <p className="mx-auto max-w-2xl text-base text-muted-foreground lg:mx-0 sm:text-lg leading-relaxed">
+              <p className="mx-auto max-w-2xl text-sm text-muted-foreground lg:mx-0 sm:text-base leading-relaxed">
                 Percel powers door-to-door intra-state dispatch and hub-to-hub interstate freight with KYC-verified couriers, live GPS order tracking, and escrow wallet security.
               </p>
 
@@ -51,8 +50,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Hero Phone Mockup */}
-            <div className="lg:col-span-5 flex justify-center">
+            {/* Hero Phone Mockup with Generous Spacing */}
+            <div className="lg:col-span-5 flex justify-center pt-6 lg:pt-0">
               <PhoneMockup />
             </div>
           </div>
@@ -60,20 +59,20 @@ export default function HomePage() {
       </section>
 
       {/* ─── HOW IT WORKS SECTION ─────────────────────────────── */}
-      <section id="how-it-works" className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section id="how-it-works" className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
         <div className="text-center space-y-3">
           <span className="text-xs font-extrabold uppercase tracking-widest text-primary">
             Simple 4-Step Process
           </span>
-          <h2 className="text-3xl font-extrabold text-foreground sm:text-4xl">
+          <h2 className="text-2xl font-extrabold text-foreground sm:text-3xl">
             How Delivery Works on Percel
           </h2>
-          <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-            Whether sending a small parcel across Lagos or freight from Ojota to Utako Hub in Abuja.
+          <p className="mx-auto max-w-xl text-xs sm:text-sm text-muted-foreground">
+            Whether sending a small parcel within state or interstate waybill freight across hubs.
           </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
               step: '01',
@@ -102,11 +101,11 @@ export default function HomePage() {
           ].map((item) => (
             <div
               key={item.step}
-              className="group relative overflow-hidden rounded-3xl border border-border/80 bg-card/60 p-6 backdrop-blur-xl transition-all hover:border-primary/50 hover:bg-card/90"
+              className="group relative overflow-hidden rounded-3xl border border-border/80 bg-card/60 p-6 backdrop-blur-xl transition-all hover:border-primary/50 hover:bg-card/90 shadow-sm"
             >
               <div className="flex items-center justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white transition-colors">
-                  <item.icon className="h-6 w-6" />
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white transition-colors">
+                  <item.icon className="h-5 w-5" />
                 </div>
                 <span className="font-mono text-2xl font-black text-muted-foreground/30">
                   {item.step}
@@ -119,21 +118,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── FEATURES GRID SECTION ─────────────────────────────── */}
-      <section id="features" className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-border/80 bg-slate-900/60 p-8 sm:p-12 backdrop-blur-2xl">
-          <div className="text-center space-y-3">
+      {/* ─── FEATURES GRID SECTION (Adapts to Theme) ─────────── */}
+      <section id="features" className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+        <div className="rounded-3xl border border-border/80 bg-card/85 p-8 sm:p-12 backdrop-blur-2xl shadow-xl space-y-8">
+          <div className="text-center space-y-2.5">
             <span className="text-xs font-extrabold uppercase tracking-widest text-accent">
               Core Capabilities
             </span>
-            <h2 className="text-3xl font-extrabold text-foreground sm:text-4xl">
-              Engineered for Nigerian Logistics Realities
+            <h2 className="text-2xl font-extrabold text-foreground sm:text-3xl">
+              Engineered for Modern Logistics Realities
             </h2>
           </div>
 
-          <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="space-y-3 rounded-2xl border border-border/60 bg-slate-950/60 p-6">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 text-primary">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="space-y-3 rounded-2xl border border-border/80 bg-background/80 p-6 shadow-sm">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary border border-primary/30">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <h3 className="text-base font-bold text-foreground">KYC-Verified Couriers</h3>
@@ -142,18 +141,18 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="space-y-3 rounded-2xl border border-border/60 bg-slate-950/60 p-6">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/20 text-accent">
+            <div className="space-y-3 rounded-2xl border border-border/80 bg-background/80 p-6 shadow-sm">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent/15 text-accent border border-accent/30">
                 <Truck className="h-5 w-5" />
               </div>
               <h3 className="text-base font-bold text-foreground">Interstate Freight Hubs</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Connect major urban centers (Lagos, Abuja, Port Harcourt, Ibadan) with reliable hub-to-hub cargo logistics.
+                Connect major urban centers (Lagos, Abuja, Port Harcourt, Kano, Ibadan) with reliable hub-to-hub cargo logistics.
               </p>
             </div>
 
-            <div className="space-y-3 rounded-2xl border border-border/60 bg-slate-950/60 p-6">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
+            <div className="space-y-3 rounded-2xl border border-border/80 bg-background/80 p-6 shadow-sm">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-success/15 text-success border border-success/30">
                 <Zap className="h-5 w-5" />
               </div>
               <h3 className="text-base font-bold text-foreground">In-App Escrow Wallet</h3>
@@ -166,7 +165,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── TRUST & METRICS SECTION ────────────────────────────── */}
-      <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
             { metric: '15,000+', label: 'Successful Deliveries' },
@@ -176,28 +175,28 @@ export default function HomePage() {
           ].map((stat, idx) => (
             <div
               key={idx}
-              className="rounded-2xl border border-border/80 bg-card/40 p-6 text-center backdrop-blur-xl"
+              className="rounded-3xl border border-border/80 bg-card/60 p-6 text-center backdrop-blur-xl shadow-sm"
             >
-              <p className="font-extrabold text-2xl sm:text-3xl text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <p className="font-black text-2xl sm:text-3xl text-primary">
                 {stat.metric}
               </p>
-              <p className="mt-1 text-xs font-semibold text-muted-foreground">{stat.label}</p>
+              <p className="mt-1.5 text-xs font-semibold text-muted-foreground">{stat.label}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ─── DOWNLOAD CTA SECTION ──────────────────────────────── */}
-      <section className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-gradient-to-br from-primary/20 via-slate-900 to-slate-950 p-8 sm:p-14 shadow-2xl">
+      {/* ─── DOWNLOAD CTA CARD (Adapts to Theme) ───────────────── */}
+      <section className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
+        <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-gradient-to-br from-primary/15 via-card to-background p-8 sm:p-12 shadow-2xl">
           <div className="max-w-2xl space-y-5">
-            <span className="rounded-full bg-accent/20 border border-accent/40 px-3 py-1 text-xs font-bold text-accent">
+            <span className="rounded-full bg-accent/20 border border-accent/40 px-3.5 py-1 text-xs font-bold text-accent">
               Direct Android APK Available
             </span>
-            <h2 className="text-3xl font-extrabold text-foreground sm:text-4xl">
+            <h2 className="text-2xl font-extrabold text-foreground sm:text-4xl">
               Get Started with Percel Mobile App
             </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               Percel is currently distributed via direct APK download while Google Play store listing is pending. Installation takes under 60 seconds!
             </p>
             <div className="pt-2 flex flex-col sm:flex-row gap-4">

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, ArrowRight, Package, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
 
 export default function TrackSearchPage() {
   const router = useRouter();
@@ -12,12 +12,12 @@ export default function TrackSearchPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackingCode.trim()) return;
-    const cleanCode = trackingCode.trim().toUpperCase();
+    const cleanCode = trackingCode.trim();
     router.push(`/track/${encodeURIComponent(cleanCode)}`);
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8 space-y-12">
+    <div className="mx-auto max-w-3xl px-4 py-12 pt-24 sm:pt-28 sm:px-6 lg:px-8 space-y-10">
       {/* Back Link */}
       <div>
         <Link
@@ -40,7 +40,7 @@ export default function TrackSearchPage() {
             Track Your Delivery
           </h1>
           <p className="mx-auto max-w-md text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            Enter your Percel Order ID or Tracking Code (e.g. <span className="font-mono font-bold text-foreground">PCL-8921-XK</span>) to check live courier location and status.
+            Enter your Percel Order ID or Tracking Code (e.g. <span className="font-mono font-bold text-foreground">TRK-AAFE9195</span>) to check live courier location and status.
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export default function TrackSearchPage() {
               type="text"
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value)}
-              placeholder="e.g. PCL-8921-XK or Order ID"
+              placeholder="e.g. TRK-AAFE9195 or Order ID"
               className="w-full rounded-2xl border border-border/80 bg-slate-900/90 px-5 py-4 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-inner"
               required
             />
@@ -71,7 +71,7 @@ export default function TrackSearchPage() {
             <span>Public real-time GPS tracking</span>
           </div>
           <p className="text-[11px]">
-            Tracking code is sent via SMS when your order is placed.
+            Tracking code is provided when your order is placed.
           </p>
         </div>
       </div>

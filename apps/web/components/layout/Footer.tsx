@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Download, ShieldCheck, MapPin, Mail, Phone, Lock, Heart } from 'lucide-react';
+import { Download, ShieldCheck, MapPin, Lock, Heart } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -22,7 +22,7 @@ export function Footer() {
               <span className="font-extrabold text-xl tracking-tight text-foreground">Percel</span>
             </Link>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Nigeria&apos;s premier intra-state and interstate mobile delivery platform. Fast, transparent, and KYC-verified logistics connecting senders and riders across major cities.
+              Premier intra-state and interstate mobile delivery platform. Fast, transparent, and KYC-verified logistics connecting senders and riders across major cities.
             </p>
             <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
               <ShieldCheck className="h-4 w-4" />
@@ -68,7 +68,7 @@ export function Footer() {
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 text-primary" />
-                <span>Lagos, Abuja, Port Harcourt & Ibadan</span>
+                <span>Lagos, Abuja, Port Harcourt & Kano</span>
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 text-accent" />
@@ -85,7 +85,7 @@ export function Footer() {
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Get the App</h4>
             <p className="text-xs text-muted-foreground">
-              Currently available via direct Android APK download while our Google Play submission is processed.
+              Currently available via direct Android APK download while Google Play listing is processing.
             </p>
             <Link
               href="/download"
@@ -99,9 +99,9 @@ export function Footer() {
 
         {/* Bottom copyright line */}
         <div className="mt-12 pt-6 border-t border-border/60 flex flex-col items-center justify-between gap-4 text-xs text-muted-foreground sm:flex-row">
-          <p>© {new Date().getFullYear()} Percel Logistics Nigeria. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Percel Logistics. All rights reserved.</p>
           <div className="flex items-center gap-1">
-            <span>Built for Nigerian Logistics with</span>
+            <span>Built with passion for logistics</span>
             <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500 inline" />
           </div>
         </div>

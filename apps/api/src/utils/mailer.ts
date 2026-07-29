@@ -20,6 +20,9 @@ export async function sendEmail({ to, subject, html, text }: { to: string; subje
     host,
     port,
     secure: port === 465,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 5000,
     auth: {
       user,
       pass,

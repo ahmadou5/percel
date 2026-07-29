@@ -207,7 +207,7 @@ export function useRequestEmailVerification() {
   return useMutation({
     mutationFn: async () => {
       Sentry.addBreadcrumb({ category: 'profile', message: 'user.email_verify_requested', level: 'info' });
-      const response = await http.post<ApiResponse<{ sent: boolean }>>('/api/v1/auth/email/verify/request');
+      const response = await http.post<ApiResponse<{ sent: boolean }>>('/api/v1/auth/email/verify/request', {});
       return response.data.data;
     },
   });
@@ -227,7 +227,7 @@ export function useConfirmEmailVerification() {
       await queryClient.invalidateQueries({ queryKey: profileKey });
       const auth = useAuthStore.getState();
       if (auth.user) {
-        const nextUser = { ...auth.user };
+        const nextUser = { ...auth.user, emailVerified: true };
         auth.setUser(nextUser);
         await persistUser(nextUser);
       }
@@ -239,7 +239,7 @@ export function useRequestPhoneVerification() {
   return useMutation({
     mutationFn: async () => {
       Sentry.addBreadcrumb({ category: 'profile', message: 'user.phone_verify_requested', level: 'info' });
-      const response = await http.post<ApiResponse<{ sent: boolean }>>('/api/v1/auth/phone/verify/request');
+      const response = await http.post<ApiResponse<{ sent: boolean }>>('/api/v1/auth/phone/verify/request', {});
       return response.data.data;
     },
   });
@@ -256,6 +256,12 @@ export function useConfirmPhoneVerification() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: profileKey });
+      const auth = useAuthStore.getState();
+      if (auth.user) {
+        const nextUser = { ...auth.user, phoneVerified: true };
+        auth.setUser(nextUser);
+        await persistUser(nextUser);
+      }
     },
   });
 }
