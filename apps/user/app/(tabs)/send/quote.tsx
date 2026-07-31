@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { PriceBreakdown } from '@/components/order/PriceBreakdown';
@@ -20,6 +20,7 @@ import type { Order } from '@/lib/order';
 type PackageItem = {
   description: string;
   quantity: number;
+  imageUrl?: string;
 };
 
 export default function QuoteScreen() {
@@ -81,16 +82,23 @@ export default function QuoteScreen() {
         .map((item) => ({
           description: String(item.description ?? '').trim(),
           quantity: Number(item.quantity ?? 1) || 1,
+          imageUrl: item.imageUrl ? String(item.imageUrl) : undefined,
         }))
-        .filter((item) => item.description.length > 0 || item.quantity > 0);
+        .filter((item) => item.description.length > 0 || item.quantity > 0 || item.imageUrl);
     } catch {
       return [];
     }
   }, [params.items]);
 
   const orderItems = packageItems.length
-    ? packageItems.map((item) => ({ description: item.description || 'Package', quantity: Math.max(1, item.quantity), weightKg: 1, fragile }))
-    : [{ description: 'Package', quantity: 1, weightKg: 1, fragile }];
+    ? packageItems.map((item) => ({
+        description: item.description || 'Package',
+        quantity: Math.max(1, item.quantity),
+        weightKg: 1,
+        fragile,
+        imageUrl: item.imageUrl ?? null,
+      }))
+    : [{ description: 'Package', quantity: 1, weightKg: 1, fragile, imageUrl: null }];
 
   const quote = quoteQuery.data;
 
@@ -198,13 +206,29 @@ export default function QuoteScreen() {
       </View>
 
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup summary</Text>
-        <Text style={[styles.cardText, { color: palette.text }]}>{pickupAddress || 'Add the pickup landmark near the origin hub.'}</Text>
-        <Text style={[styles.cardSub, { color: palette.textSecondary }]}>{deliveryAddress || 'Destination hub will be used for the interstate leg.'}</Text>
+        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Package & Contact summary</Text>
+        <Text style={[styles.cardText, { color: palette.text }]}>{pickupAddress || 'Origin hub'}</Text>
+        <Text style={[styles.cardSub, { color: palette.textSecondary }]}>To: {deliveryAddress || 'Destination hub'}</Text>
+        <Text style={[styles.cardSub, { color: palette.primary, fontFamily: Typography.family.bold, marginTop: 4 }]}>Recipient: {recipientName}{recipientPhone ? ` (${recipientPhone})` : ''}</Text>
         {(contactName || contactPhone || pickupNote) ? (
           <View style={styles.metaGroup}>
-            {contactName ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Contact: {contactName}{contactPhone ? ` • ${contactPhone}` : ''}</Text> : null}
+            {contactName ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Pickup Contact: {contactName}{contactPhone ? ` • ${contactPhone}` : ''}</Text> : null}
             {pickupNote ? <Text style={[styles.metaLine, { color: palette.textSecondary }]}>Pickup note: {pickupNote}</Text> : null}
+          </View>
+        ) : null}
+
+        {packageItems.some((item) => item.imageUrl) ? (
+          <View style={{ marginTop: 10, gap: 6 }}>
+            <Text style={[styles.metaLine, { color: palette.textSecondary, fontFamily: Typography.family.bold }]}>Attached Package Photos:</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {packageItems.map((item, idx) =>
+                item.imageUrl ? (
+                  <View key={`img-${idx}`} style={{ width: 60, height: 60, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: palette.border }}>
+                    <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} />
+                  </View>
+                ) : null
+              )}
+            </View>
           </View>
         ) : null}
       </View>

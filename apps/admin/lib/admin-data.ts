@@ -85,6 +85,7 @@ export type AdminOrder = {
   pickup: string;
   dropoff: string;
   items: string[];
+  packageImages?: string[];
   timeline: Array<{ status: string; note: string; at: string }>;
   riskLevel?: string;
   customerNote?: string;

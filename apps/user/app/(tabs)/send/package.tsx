@@ -1,11 +1,13 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CheckCircle2, ChevronLeft, Package } from 'lucide-react-native';
+import { Camera, CheckCircle2, ChevronLeft, Image as ImageIcon, Package, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useUploadPackageImage } from '@/hooks/useOrder';
 import { composeDeliveryAddress, composePickupAddress, formatHubLocation, formatHubType, getHubById, getRouteById } from '@/lib/hubs';
 import { formatMoney, orderSizes } from '@/lib/order';
 import { useAppPalette } from '@/lib/theme';
@@ -14,6 +16,8 @@ export default function PackageDetailsScreen() {
   const router = useRouter();
   const back = useSafeBack('/send');
   const palette = useAppPalette();
+  const uploadPackageImage = useUploadPackageImage();
+
   const params = useLocalSearchParams<{
     originHubId?: string;
     destinationHubId?: string;
@@ -36,7 +40,10 @@ export default function PackageDetailsScreen() {
   const [size, setSize] = useState<'SMALL' | 'MEDIUM' | 'LARGE'>('SMALL');
   const [fragile, setFragile] = useState(false);
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState([{ description: 'Parcel Item', quantity: 1 }]);
+  const [items, setItems] = useState<Array<{ description: string; quantity: number; imageUrl?: string }>>([
+    { description: 'Parcel Item', quantity: 1 },
+  ]);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
 
@@ -45,10 +52,48 @@ export default function PackageDetailsScreen() {
   const routeUnavailable = !isIntrastate && Boolean(originHub && destinationHub && !route);
 
   const addItem = () => setItems((current) => [...current, { description: '', quantity: 1 }]);
-  const updateItem = (index: number, key: 'description' | 'quantity', value: string) => {
-    setItems((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: key === 'quantity' ? Number(value || 1) : value } : item)));
+  const updateItem = (index: number, key: 'description' | 'quantity' | 'imageUrl', value: unknown) => {
+    setItems((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: key === 'quantity' ? Number(value || 1) : value } : item
+      )
+    );
   };
   const removeItem = (index: number) => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+
+  const handlePickPackagePhoto = async (index: number) => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    const asset = result.assets[0];
+    const formData = new FormData();
+    formData.append('file', {
+      uri: asset.uri,
+      name: asset.fileName ?? `package_${Date.now()}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+    } as never);
+
+    try {
+      setUploadingIndex(index);
+      const res = await uploadPackageImage.mutateAsync(formData);
+      updateItem(index, 'imageUrl', res.imageUrl);
+    } catch {
+      // Fallback to local URI preview if offline
+      updateItem(index, 'imageUrl', asset.uri);
+    } finally {
+      setUploadingIndex(null);
+    }
+  };
 
   return (
     <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -138,31 +183,66 @@ export default function PackageDetailsScreen() {
 
       <View style={[styles.itemsCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Items</Text>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Parcel Items & Photos</Text>
           <Pressable onPress={addItem}>
-            <Text style={[styles.link, { color: palette.primary }]}>Add item</Text>
+            <Text style={[styles.link, { color: palette.primary }]}>+ Add item</Text>
           </Pressable>
         </View>
         {items.map((item, index) => (
-          <View key={`item-row-${index}`} style={[styles.itemRow, { borderBottomColor: palette.border }]}>
-            <TextInput
-              value={item.description}
-              onChangeText={(value) => updateItem(index, 'description', value)}
-              placeholder="Description"
-              placeholderTextColor={palette.textSecondary}
-              style={[styles.itemInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-            />
-            <TextInput
-              value={String(item.quantity)}
-              onChangeText={(value) => updateItem(index, 'quantity', value)}
-              keyboardType="number-pad"
-              placeholder="Qty"
-              placeholderTextColor={palette.textSecondary}
-              style={[styles.itemInput, styles.qtyInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-            />
-            <Pressable onPress={() => removeItem(index)} style={styles.removeButton}>
-              <Text style={[styles.removeText, { color: palette.error }]}>Remove</Text>
-            </Pressable>
+          <View key={`item-row-${index}`} style={[styles.itemCardRow, { borderColor: palette.border, backgroundColor: palette.bg }]}>
+            <View style={styles.itemMainInputs}>
+              <TextInput
+                value={item.description}
+                onChangeText={(value) => updateItem(index, 'description', value)}
+                placeholder="Item description (e.g. Phone, Documents)"
+                placeholderTextColor={palette.textSecondary}
+                style={[styles.itemInput, { flex: 1, color: palette.text, borderColor: palette.border, backgroundColor: palette.card }]}
+              />
+              <TextInput
+                value={String(item.quantity)}
+                onChangeText={(value) => updateItem(index, 'quantity', value)}
+                keyboardType="number-pad"
+                placeholder="Qty"
+                placeholderTextColor={palette.textSecondary}
+                style={[styles.itemInput, styles.qtyInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.card }]}
+              />
+            </View>
+
+            <View style={styles.itemPhotoRow}>
+              {item.imageUrl ? (
+                <View style={styles.imagePreviewWrap}>
+                  <Image source={{ uri: item.imageUrl }} style={styles.imagePreviewThumb} />
+                  <Pressable onPress={() => updateItem(index, 'imageUrl', undefined)} style={[styles.removeImgBadge, { backgroundColor: palette.error }]}>
+                    <Trash2 size={12} color="#fff" />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  disabled={uploadingIndex === index}
+                  onPress={() => void handlePickPackagePhoto(index)}
+                  style={({ pressed }) => [
+                    styles.photoAttachButton,
+                    { borderColor: palette.border, backgroundColor: palette.card },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  {uploadingIndex === index ? (
+                    <ActivityIndicator size="small" color={palette.primary} />
+                  ) : (
+                    <>
+                      <Camera size={16} color={palette.primary} />
+                      <Text style={[styles.photoAttachText, { color: palette.primary }]}>Add Photo</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
+
+              {items.length > 1 && (
+                <Pressable onPress={() => removeItem(index)} style={styles.removeButton}>
+                  <Text style={[styles.removeText, { color: palette.error }]}>Remove</Text>
+                </Pressable>
+              )}
+            </View>
           </View>
         ))}
       </View>
@@ -281,10 +361,18 @@ const styles = StyleSheet.create({
   itemsCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   link: { fontFamily: Typography.family.semibold },
+  itemCardRow: { borderRadius: 16, borderWidth: 1, padding: Spacing.md, gap: 10 },
+  itemMainInputs: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  itemPhotoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  photoAttachButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+  photoAttachText: { fontSize: Typography.xs, fontFamily: Typography.family.semibold },
+  imagePreviewWrap: { position: 'relative', width: 56, height: 56, borderRadius: 12, overflow: 'hidden' },
+  imagePreviewThumb: { width: 56, height: 56, borderRadius: 12 },
+  removeImgBadge: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   itemRow: { gap: Spacing.sm, paddingBottom: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
   itemInput: { minHeight: 46, borderRadius: 14, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: Typography.md, fontFamily: Typography.family.regular },
-  qtyInput: { width: 90 },
-  removeButton: { alignSelf: 'flex-start' },
+  qtyInput: { width: 80 },
+  removeButton: { paddingVertical: 6, paddingHorizontal: 8 },
   removeText: { fontSize: Typography.sm, fontFamily: Typography.family.semibold },
   notesCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.sm },
   notesInput: { minHeight: 100, borderRadius: 14, borderWidth: 1, padding: Spacing.md, fontSize: Typography.md, fontFamily: Typography.family.regular, textAlignVertical: 'top' },

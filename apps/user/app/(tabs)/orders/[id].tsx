@@ -365,12 +365,19 @@ export default function OrderDetailScreen() {
 
       {/* Items card */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionTitle, { color: palette.text }]}>Items</Text>
+        <Text style={[styles.sectionTitle, { color: palette.text }]}>Items & Package Photos</Text>
         {(order.items ?? []).length ? (
           (order.items ?? []).map((item, index) => (
-            <View key={`${item.description}-${index}`} style={[styles.itemRow, { borderTopColor: palette.border }]}>
-              <Text style={[styles.itemText, { color: palette.text }]}>{item.description}</Text>
-              <Text style={[styles.itemQty, { color: palette.textSecondary }]}>x{item.quantity}</Text>
+            <View key={`${item.description}-${index}`} style={[styles.itemRow, { borderTopColor: palette.border, flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.itemText, { color: palette.text }]}>{item.description}</Text>
+                <Text style={[styles.itemQty, { color: palette.textSecondary }]}>x{item.quantity}</Text>
+              </View>
+              {item.imageUrl ? (
+                <View style={{ width: 90, height: 90, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: palette.border, marginTop: 4 }}>
+                  <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                </View>
+              ) : null}
             </View>
           ))
         ) : (

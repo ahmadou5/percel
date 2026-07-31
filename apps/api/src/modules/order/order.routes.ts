@@ -15,6 +15,7 @@ const orderRoutes: FastifyPluginAsync = async (app) => {
   app.get('/orders/autocomplete', { preHandler: [app.authenticate] }, controller.autocomplete);
   app.get('/orders/place-details', { preHandler: [app.authenticate] }, controller.getPlaceDetails);
   app.post('/orders/quote', { preHandler: [app.authenticate], schema: { body: QuoteBody } }, controller.getQuote);
+  app.post('/orders/upload-image', { preHandler: [app.authenticate] }, controller.uploadPackageImage);
   app.post('/orders', { preHandler: [app.authenticate], schema: { body: CreateOrderBody } }, controller.createOrder);
   app.get('/orders', { preHandler: [app.authenticate], schema: { querystring: OrderQuery } }, controller.getUserOrders);
   app.get('/orders/:id', { preHandler: [app.authenticate] }, controller.getOrderDetail);

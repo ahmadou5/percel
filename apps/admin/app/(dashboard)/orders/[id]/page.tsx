@@ -159,13 +159,25 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               </div>
             )}
           </div>
-          {/* Items */}
+          {/* Items & Photos */}
           {order.items.length > 0 && (
             <div>
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Items</h4>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Parcel Items & Photos</h4>
               <div className="space-y-2">
                 {order.items.map((item: string, idx: number) => (
                   <div key={idx} className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm">{item}</div>
+                ))}
+              </div>
+            </div>
+          )}
+          {order.packageImages && order.packageImages.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Attached Package Photos</h4>
+              <div className="flex flex-wrap gap-2">
+                {order.packageImages.map((img: string, idx: number) => (
+                  <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-xl border border-border hover:opacity-90">
+                    <img src={img} alt={`Package photo ${idx + 1}`} className="h-full w-full object-cover" />
+                  </a>
                 ))}
               </div>
             </div>

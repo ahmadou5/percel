@@ -1,5 +1,6 @@
 import {
   Alert,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -296,6 +297,28 @@ export default function ActiveOrderScreen() {
             palette={palette}
           />
         </View>
+
+        {/* ── Package items & photos ── */}
+        {(order.items ?? []).length ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <SectionLabel palette={palette}>PARCEL ITEMS & PHOTOS</SectionLabel>
+            <View style={{ gap: 10, marginTop: 4 }}>
+              {(order.items ?? []).map((item, idx) => (
+                <View key={`driver-item-${idx}`} style={{ gap: 4 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: palette.text }}>{item.description}</Text>
+                    <Text style={{ fontSize: 14, color: palette.textSecondary }}>x{item.quantity}</Text>
+                  </View>
+                  {item.imageUrl ? (
+                    <View style={{ width: 100, height: 100, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: palette.border, marginTop: 4 }}>
+                      <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {/* ── Customer contact ── */}
         {order.customer ? (

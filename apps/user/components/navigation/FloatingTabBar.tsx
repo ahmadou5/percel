@@ -1,4 +1,3 @@
-import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { usePathname, useRouter } from 'expo-router';
 import { ClipboardList, House, Plus, Settings } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
@@ -204,7 +203,12 @@ function CreateOrderFab({ theme, onPress }: { theme: ThemeTokens; onPress: () =>
   );
 }
 
-export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+export type FloatingTabBarProps = {
+  state: any;
+  navigation: any;
+};
+
+export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -265,7 +269,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
             const onPress = () => {
               if (item.routeName) {
-                const route = state.routes.find((candidate) => candidate.name === item.routeName);
+                const route = state.routes.find((candidate: any) => candidate.name === item.routeName);
                 if (!route) return;
 
                 const event = navigation.emit({
@@ -284,7 +288,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
             const onLongPress = () => {
               if (!item.routeName) return;
-              const route = state.routes.find((candidate) => candidate.name === item.routeName);
+              const route = state.routes.find((candidate: any) => candidate.name === item.routeName);
               if (!route) return;
               navigation.emit({ type: 'tabLongPress', target: route.key });
             };
@@ -308,10 +312,10 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       <CreateOrderFab
         theme={theme}
         onPress={() => {
-          navigation.navigate('send', {
+          (navigation.navigate as (name: string, options?: unknown) => void)('send', {
             screen: 'index',
             params: undefined,
-          } as never);
+          });
         }}
       />
     </Animated.View>

@@ -14,6 +14,7 @@ export type OrderItem = {
   quantity: number;
   weightKg: number;
   fragile: boolean;
+  imageUrl?: string | null;
 };
 
 export type OrderSize = 'SMALL' | 'MEDIUM' | 'LARGE';
@@ -71,6 +72,7 @@ export type OrderSummary = {
     vehiclePlate: string;
     isOnline: boolean;
   } | null;
+  items?: OrderItem[];
 };
 
 export type Order = OrderSummary;

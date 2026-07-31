@@ -193,3 +193,14 @@ export function useRateOrder() {
     },
   });
 }
+
+export function useUploadPackageImage() {
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await http.post<{ data: { imageUrl: string } }>('/api/v1/orders/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data.data;
+    },
+  });
+}

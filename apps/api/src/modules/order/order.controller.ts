@@ -169,4 +169,12 @@ export class OrderController {
     const { placeId } = request.query as { placeId: string };
     return success(await this.service.getPlaceDetails(placeId), 'Place details fetched');
   };
+
+  uploadPackageImage = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const file = await request.file();
+    if (!file) throw new Error('Package image file required');
+    const buffer = await file.toBuffer();
+    return success(await this.service.uploadPackageImage(userId, buffer), 'Package image uploaded');
+  };
 }

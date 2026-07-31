@@ -92,6 +92,7 @@ export type DriverOrder = {
   createdAt: string;
   driver?: DriverOrderDriver | null;
   customer?: DriverOrderCustomer | null;
+  items?: Array<{ description: string; quantity: number; weightKg?: number; fragile?: boolean; imageUrl?: string | null }>;
 };
 
 export type WalletTransaction = {

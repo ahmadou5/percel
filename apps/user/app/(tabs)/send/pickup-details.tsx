@@ -40,8 +40,8 @@ export default function PickupDetailsScreen() {
   const [recipientPhone, setRecipientPhone] = useState('');
 
   const canContinue = isIntrastate
-    ? Boolean(contactName.trim() && contactPhone.trim() && recipientName.trim() && recipientPhone.trim())
-    : Boolean(originHub && destinationHub && localPickupAddress.trim() && contactName.trim() && contactPhone.trim() && recipientName.trim() && recipientPhone.trim());
+    ? Boolean(recipientName.trim() && recipientPhone.trim())
+    : Boolean(originHub && destinationHub && recipientName.trim() && recipientPhone.trim());
 
   const preview = useMemo(() => {
     if (isIntrastate) {
@@ -99,9 +99,7 @@ export default function PickupDetailsScreen() {
       </View>
 
       <View style={styles.hero}>
-        <Text style={[styles.eyebrow, { color: palette.primary }]}>Pickup details</Text>
-
-
+        <Text style={[styles.eyebrow, { color: palette.primary }]}>Pickup & Contact Details</Text>
       </View>
 
       {/* Route card */}
@@ -131,56 +129,16 @@ export default function PickupDetailsScreen() {
         </View>
       </View>
 
-      {/* Landmark (interstate only) */}
-      {!isIntrastate && (
-        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup landmark</Text>
-          <TextInput
-            value={localPickupAddress}
-            onChangeText={setLocalPickupAddress}
-            placeholder="Landmark, street, or area near the origin hub"
-            placeholderTextColor={palette.textSecondary}
-            style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-          />
-          <Text style={[styles.helper, { color: palette.textSecondary }]}>Example: Ojuelegba bus stop or Ring Road junction.</Text>
+      {/* Recipient Contact (REQUIRED) */}
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Recipient Contact</Text>
+          <Text style={{ fontSize: 11, fontFamily: Typography.family.bold, color: palette.primary }}>REQUIRED</Text>
         </View>
-      )}
-
-      {/* Pickup Contact */}
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup contact</Text>
-        <TextInput
-          value={contactName}
-          onChangeText={setContactName}
-          placeholder="Sender / Pickup contact name"
-          placeholderTextColor={palette.textSecondary}
-          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-        />
-        <TextInput
-          value={contactPhone}
-          onChangeText={setContactPhone}
-          keyboardType="phone-pad"
-          placeholder="Pickup phone number"
-          placeholderTextColor={palette.textSecondary}
-          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-        />
-        <TextInput
-          value={pickupNote}
-          onChangeText={setPickupNote}
-          placeholder="Optional pickup note for the driver"
-          placeholderTextColor={palette.textSecondary}
-          style={[styles.noteInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-          multiline
-        />
-      </View>
-
-      {/* Recipient Contact */}
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Recipient contact</Text>
         <TextInput
           value={recipientName}
           onChangeText={setRecipientName}
-          placeholder="Recipient full name"
+          placeholder="Recipient full name *"
           placeholderTextColor={palette.textSecondary}
           style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
         />
@@ -188,11 +146,60 @@ export default function PickupDetailsScreen() {
           value={recipientPhone}
           onChangeText={setRecipientPhone}
           keyboardType="phone-pad"
-          placeholder="Recipient phone number"
+          placeholder="Recipient phone number *"
           placeholderTextColor={palette.textSecondary}
           style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
         />
       </View>
+
+      {/* Pickup Contact (OPTIONAL) */}
+      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup contact</Text>
+          <Text style={{ fontSize: 11, fontFamily: Typography.family.medium, color: palette.textSecondary }}>OPTIONAL</Text>
+        </View>
+        <TextInput
+          value={contactName}
+          onChangeText={setContactName}
+          placeholder="Sender / Pickup contact name (optional)"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+        />
+        <TextInput
+          value={contactPhone}
+          onChangeText={setContactPhone}
+          keyboardType="phone-pad"
+          placeholder="Pickup phone number (optional)"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+        />
+        <TextInput
+          value={pickupNote}
+          onChangeText={setPickupNote}
+          placeholder="Optional pickup note for driver"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.noteInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+          multiline
+        />
+      </View>
+
+      {/* Landmark (interstate only - OPTIONAL) */}
+      {!isIntrastate && (
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup landmark</Text>
+            <Text style={{ fontSize: 11, fontFamily: Typography.family.medium, color: palette.textSecondary }}>OPTIONAL</Text>
+          </View>
+          <TextInput
+            value={localPickupAddress}
+            onChangeText={setLocalPickupAddress}
+            placeholder="Landmark or area near origin hub (optional)"
+            placeholderTextColor={palette.textSecondary}
+            style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+          />
+          <Text style={[styles.helper, { color: palette.textSecondary }]}>Example: Ojuelegba bus stop or Ring Road junction.</Text>
+        </View>
+      )}
 
       {preview ? (
         <View style={[styles.previewCard, { backgroundColor: palette.card, borderColor: palette.border }]}>

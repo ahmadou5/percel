@@ -12,6 +12,7 @@ import { getPriceQuote } from '../../lib/pricing.js';
 import { addOrderMatchingJob } from '../../queues/index.js';
 import { haversineDistanceKm } from '../../utils/helpers.js';
 import { cleanText } from '../../utils/sanitize.js';
+import { uploadImageBuffer } from '../../lib/cloudinary.js';
 import { ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
 import type { WalletService } from '../wallet/wallet.service.js';
 import { ReferralService } from '../referral/referral.service.js';
@@ -349,6 +350,9 @@ export class OrderService {
     const pickupNote = cleanText(data.pickupNote);
     const recipientName = cleanText(data.recipientName);
     const recipientPhone = cleanText(data.recipientPhone);
+    if (!recipientName || !recipientPhone) {
+      throw new ValidationError('Recipient name and recipient phone number are required');
+    }
     const notesParts = [
       cleanText(data.notes),
       pickupNote ? `Pickup note: ${pickupNote}` : null,
@@ -1317,5 +1321,17 @@ export class OrderService {
     }
 
     return serializedMsg;
+  }
+
+  async uploadPackageImage(userId: string, buffer: Buffer): Promise<{ imageUrl: string }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new NotFoundError('User not found');
+
+    const uploaded = await uploadImageBuffer(buffer, {
+      folder: `percel/users/${userId}/packages`,
+      transformation: 'c_limit,q_auto,w_1200',
+    });
+
+    return { imageUrl: uploaded.secure_url };
   }
 }
