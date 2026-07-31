@@ -1,5 +1,7 @@
 import * as ExpoLocalAuthentication from 'expo-local-authentication';
 
+import { useAuthStore } from '@/store/auth.store';
+
 export type BiometricPromptResult =
   | { success: true }
   | { success: false; reason: 'unavailable' | 'cancelled' | 'failed'; message: string };
@@ -21,9 +23,12 @@ export const LocalAuthentication = {
   },
   authenticateAsync: async (options?: ExpoLocalAuthentication.LocalAuthenticationOptions) => {
     try {
+      useAuthStore.getState().setBiometricPromptActive(true);
       return await ExpoLocalAuthentication.authenticateAsync(options);
     } catch (err) {
       return { success: false, error: 'failed' };
+    } finally {
+      useAuthStore.getState().setBiometricPromptActive(false);
     }
   },
   supportedAuthenticationTypesAsync: async () => {

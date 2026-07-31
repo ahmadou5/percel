@@ -35,6 +35,10 @@ const envSchema = z.object({
   GIT_SHA: z.string().optional().default(''),
   CORS_ORIGIN: z.string().default('*'),
   PLATFORM_COMMISSION_PERCENT: z.coerce.number().min(0).max(100).default(10),
+  RESEND_API_KEY: z.string().optional().default(''),
+  WHATSAPP_TOKEN: z.string().optional().default(''),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(''),
+  WHATSAPP_TEMPLATE_NAME: z.string().optional().default('percel_otp'),
 });
 
 const parsed = envSchema.safeParse(process.env);

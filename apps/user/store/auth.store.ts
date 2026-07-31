@@ -31,11 +31,13 @@ type AuthState = {
   isLoading: boolean;
   isAuthenticated: boolean;
   isUnlocked: boolean;
+  isBiometricPromptActive: boolean;
   setUser: (user: AuthUser | null) => void;
   setTokens: (tokens: AuthTokens | null) => Promise<void>;
   hydrate: () => Promise<void>;
   unlock: () => void;
   lock: () => void;
+  setBiometricPromptActive: (active: boolean) => void;
   logout: () => Promise<void>;
 };
 
@@ -48,6 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   isAuthenticated: false,
   isUnlocked: false,
+  isBiometricPromptActive: false,
   setUser: (user) => {
     set({ user, isAuthenticated: Boolean(user && get().tokens) });
     void persistUser(user);
@@ -90,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   unlock: () => set({ isUnlocked: true }),
   lock: () => set({ isUnlocked: false }),
+  setBiometricPromptActive: (active) => set({ isBiometricPromptActive: active }),
   logout: async () => {
     await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY), SecureStore.deleteItemAsync(USER_KEY)]);
     set({ user: null, tokens: null, isAuthenticated: false, isLoading: false, isUnlocked: false });

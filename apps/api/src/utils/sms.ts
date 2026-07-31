@@ -1,11 +1,76 @@
 export async function sendSMS({ to, message }: { to: string; message: string }) {
+  const whatsappToken = process.env.WHATSAPP_TOKEN;
+  const whatsappPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const whatsappTemplate = process.env.WHATSAPP_TEMPLATE_NAME || 'percel_otp';
+
+  // Format recipient phone to international digits without leading '+'
+  const cleanPhone = to.replace(/\D/g, '');
+
+  // 1. Try WhatsApp OTP via Meta Cloud API if WHATSAPP_TOKEN & WHATSAPP_PHONE_NUMBER_ID are configured
+  if (whatsappToken && whatsappPhoneId && cleanPhone) {
+    try {
+      const extractedOtp = message.match(/\b\d{6}\b/)?.[0];
+      const url = `https://graph.facebook.com/v18.0/${whatsappPhoneId}/messages`;
+
+      let payload: Record<string, any>;
+
+      if (extractedOtp && whatsappTemplate) {
+        payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'template',
+          template: {
+            name: whatsappTemplate,
+            language: { code: 'en_US' },
+            components: [
+              {
+                type: 'body',
+                parameters: [{ type: 'text', text: extractedOtp }],
+              },
+            ],
+          },
+        };
+      } else {
+        payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'text',
+          text: { body: message },
+        };
+      }
+
+      const waRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${whatsappToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (waRes.ok) {
+        const waData = await waRes.json();
+        console.log(`[WHATSAPP META OTP SUCCESS] Sent WhatsApp message to ${to}, ID: ${waData?.messages?.[0]?.id}`);
+        return;
+      }
+
+      const waErr = await waRes.text();
+      console.warn(`[WHATSAPP META OTP WARN] Status ${waRes.status}, falling back to SMS: ${waErr}`);
+    } catch (waException) {
+      console.error('[WHATSAPP META OTP EXCEPTION]', waException);
+    }
+  }
+
+  // 2. Try Twilio SMS Provider
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM || process.env.TWILIO_FROM_NUMBER;
 
   if (!accountSid || !authToken || !from) {
     console.log('----------------------------------------');
-    console.log(`[MOCK SMS] To: ${to}`);
+    console.log(`[MOCK SMS / WHATSAPP] To: ${to}`);
     console.log(`Message: ${message}`);
     console.log('----------------------------------------');
     return;

@@ -87,13 +87,27 @@ export async function getDistanceAndDuration(
     const durationMin = Number((element?.duration?.value ?? 0) / 60);
 
     if (distanceKm > 0 && durationMin > 0) {
-      return { distanceKm, durationMin };
+      return { distanceKm: Number(distanceKm.toFixed(2)), durationMin: Math.ceil(durationMin) };
     }
   } catch (error) {
-    console.warn('[googleMaps] Distance Matrix error/fallback:', error);
+    console.warn('[googleMaps] Distance Matrix API error/fallback:', error);
   }
 
-  // Fallback: Haversine distance with estimated driving speed (30km/h)
+  // 1. OSRM Free Turn-by-Turn Road Distance & ETA Fallback
+  try {
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
+    const { data: osrmData } = await axios.get(osrmUrl, { timeout: 4000 });
+    const osrmRoute = osrmData?.routes?.[0];
+    if (osrmRoute?.distance && osrmRoute?.duration) {
+      const distanceKm = Math.max(0.5, Number((osrmRoute.distance / 1000).toFixed(2)));
+      const durationMin = Math.max(5, Math.ceil(osrmRoute.duration / 60));
+      return { distanceKm, durationMin };
+    }
+  } catch (osrmErr) {
+    console.warn('[googleMaps] OSRM Distance Matrix fallback error:', osrmErr);
+  }
+
+  // 2. Haversine distance with estimated driving speed (30km/h) fallback
   const dist = haversineDistanceKm(originLat, originLng, destLat, destLng);
   const distanceKm = Math.max(0.5, Number(dist.toFixed(2)));
   const durationMin = Math.max(10, Math.ceil((distanceKm / 30) * 60));
@@ -149,16 +163,8 @@ export async function geocodeAddress(address: string) {
 }
 
 /**
- * Fetch a road-following route between two coordinates via the Google Directions API.
- *
- * Strategy:
- *  1. Validate inputs — guard against NaN/Infinity from upstream DB reads.
- *  2. Call Directions API (driving mode).
- *  3. Decode step-level polylines from every leg for maximum road accuracy,
- *     falling back to the lower-resolution overview_polyline if steps are absent.
- *  4. On ANY failure, log the exact API status + error_message so the caller
- *     can diagnose permission issues (REQUEST_DENIED = Directions API not enabled
- *     for the key) vs quota/network errors, then return a straight-line fallback.
+ * Fetch a road-following route between two coordinates via Google Directions API
+ * or OpenSource Routing Machine (OSRM) street navigation engine.
  */
 export async function getDirectionsRoute(
   originLat: number,
@@ -191,49 +197,46 @@ export async function getDirectionsRoute(
       },
     });
 
-    // ── Diagnose failures immediately ────────────────────────────────────────
-    if (data?.status !== 'OK') {
-      console.warn(
-        '[googleMaps] getDirectionsRoute: Directions API did not return OK.',
-        `\n  status        : ${data?.status ?? 'unknown'}`,
-        `\n  error_message : ${data?.error_message ?? '(none)'}`,
-        '\n  Possible causes:',
-        '\n    REQUEST_DENIED  → Directions API not enabled for this key in Google Cloud Console',
-        '\n    ZERO_RESULTS    → No drivable route between these coordinates',
-        '\n    OVER_QUERY_LIMIT → Daily quota exhausted',
-        `\n  origin      : ${originLat},${originLng}`,
-        `\n  destination : ${destLat},${destLng}`,
-      );
-      return straight;
-    }
+    if (data?.status === 'OK' && Array.isArray(data.routes) && data.routes.length > 0) {
+      const route = data.routes[0];
+      const legs: Array<{ steps?: Array<{ polyline?: { points?: string } }> }> = route?.legs ?? [];
+      const stepPoints: Array<{ latitude: number; longitude: number }> = [];
 
-    const route = data.routes[0];
-
-    // ── Prefer step-level polylines (highest resolution) ────────────────────
-    const legs: Array<{ steps?: Array<{ polyline?: { points?: string } }> }> = route?.legs ?? [];
-    const stepPoints: Array<{ latitude: number; longitude: number }> = [];
-
-    for (const leg of legs) {
-      for (const step of leg.steps ?? []) {
-        const encoded = step?.polyline?.points;
-        if (encoded) {
-          stepPoints.push(...decodePolyline(encoded));
+      for (const leg of legs) {
+        for (const step of leg.steps ?? []) {
+          const encoded = step?.polyline?.points;
+          if (encoded) {
+            stepPoints.push(...decodePolyline(encoded));
+          }
         }
       }
+
+      if (stepPoints.length > 1) return stepPoints;
+
+      const overviewPolyline: string | undefined = route?.overview_polyline?.points;
+      if (overviewPolyline) return decodePolyline(overviewPolyline);
     }
-
-    if (stepPoints.length > 1) return stepPoints;
-
-    // ── Fallback: overview_polyline (lower resolution but always present) ───
-    const overviewPolyline: string | undefined = route?.overview_polyline?.points;
-    if (overviewPolyline) return decodePolyline(overviewPolyline);
-
-    console.warn('[googleMaps] getDirectionsRoute: route present but no polyline data found');
-    return straight;
   } catch (err) {
-    console.error('[googleMaps] getDirectionsRoute: network/unexpected error', err);
-    return straight;
+    console.warn('[googleMaps] Google Directions API error/fallback:', err);
   }
+
+  // High-precision OSRM Street & Highway Navigation Engine Fallback
+  try {
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+    const { data: osrmData } = await axios.get(osrmUrl, { timeout: 5000 });
+    const coordinates: Array<[number, number]> = osrmData?.routes?.[0]?.geometry?.coordinates ?? [];
+
+    if (Array.isArray(coordinates) && coordinates.length > 1) {
+      return coordinates.map(([lng, lat]) => ({
+        latitude: lat,
+        longitude: lng,
+      }));
+    }
+  } catch (osrmErr) {
+    console.warn('[googleMaps] OSRM street directions fallback error:', osrmErr);
+  }
+
+  return straight;
 }
 
 export async function reverseGeocode(lat: number, lng: number) {
@@ -345,40 +348,140 @@ export async function reverseGeocode(lat: number, lng: number) {
 }
 
 export async function autocompletePlaces(input: string, lat?: number, lng?: number) {
-  if (!input) return [];
+  if (!input || !input.trim()) return [];
+  const cleanInput = input.trim();
+
+  let googlePredictions: Array<{
+    description: string;
+    placeId: string;
+    mainText: string;
+    secondaryText: string;
+    lat?: number;
+    lng?: number;
+  }> = [];
+
+  // 1. Try Google Maps Places Autocomplete API with location bias, radius, and origin
   try {
     const params: Record<string, string | number> = {
-      input,
+      input: cleanInput,
       key: env.GOOGLE_MAPS_API_KEY,
       components: 'country:ng',
     };
 
     if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
       params.location = `${lat},${lng}`;
-      params.radius = 50000;
+      params.radius = 30000; // 30km radius for local delivery precision
+      params.origin = `${lat},${lng}`; // Origin weighting from user GPS
     }
 
     const { data } = await googleMaps.get('/place/autocomplete/json', { params });
 
-    if (data?.status !== 'OK' && data?.status !== 'ZERO_RESULTS') {
+    if (data?.status === 'OK' && Array.isArray(data.predictions)) {
+      googlePredictions = data.predictions.map((pred: any) => ({
+        description: pred.description,
+        placeId: pred.place_id,
+        mainText: pred.structured_formatting?.main_text ?? pred.description,
+        secondaryText: pred.structured_formatting?.secondary_text ?? '',
+      }));
+    } else if (data?.status !== 'ZERO_RESULTS') {
       console.warn('[googleMaps] autocompletePlaces returned status:', data?.status, data?.error_message);
-      return [];
+    }
+  } catch (error) {
+    console.error('[googleMaps] autocompletePlaces Google API error:', error);
+  }
+
+  if (googlePredictions.length > 0) {
+    return googlePredictions;
+  }
+
+  // 2. High-precision OpenStreetMap Nominatim Search API fallback for Nigerian landmarks & streets
+  try {
+    const params: Record<string, string | number> = {
+      q: cleanInput,
+      countrycodes: 'ng',
+      format: 'json',
+      addressdetails: 1,
+      limit: 6,
+    };
+
+    if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+      const delta = 0.25; // ~25km viewbox
+      params.viewbox = `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`;
     }
 
-    const predictions = data?.predictions ?? [];
-    return predictions.map((pred: any) => ({
-      description: pred.description,
-      placeId: pred.place_id,
-      mainText: pred.structured_formatting?.main_text ?? pred.description,
-      secondaryText: pred.structured_formatting?.secondary_text ?? '',
-    }));
-  } catch (error) {
-    console.error('[googleMaps] autocompletePlaces error:', error);
-    return [];
+    const osmRes = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params,
+      headers: { 'User-Agent': 'PercelDeliveryApp/1.0' },
+      timeout: 4000,
+    });
+
+    const results: any[] = osmRes.data ?? [];
+    if (Array.isArray(results) && results.length > 0) {
+      return results.map((item) => {
+        const addr = item.address || {};
+        const main =
+          addr.road ||
+          addr.pedestrian ||
+          addr.suburb ||
+          addr.neighbourhood ||
+          addr.amenity ||
+          addr.building ||
+          item.display_name.split(',')[0];
+        const city = addr.city || addr.town || addr.county || addr.state_district || 'Nigeria';
+        const state = addr.state || 'Nigeria';
+        const secondary = `${city}, ${state}`;
+        const itemLat = parseFloat(item.lat);
+        const itemLng = parseFloat(item.lon);
+
+        return {
+          description: `${main}, ${secondary}`,
+          placeId: `osm-${item.place_id ?? Math.random().toString(36).slice(2)}`,
+          mainText: main,
+          secondaryText: secondary,
+          lat: itemLat,
+          lng: itemLng,
+        };
+      });
+    }
+  } catch (osmErr) {
+    console.warn('[googleMaps] Nominatim autocomplete fallback error:', osmErr);
   }
+
+  return [];
 }
 
 export async function getPlaceDetails(placeId: string) {
+  if (!placeId) throw new ValidationError('Place ID is required');
+
+  // Handle custom coordinates / OSM place IDs
+  if (placeId.startsWith('geo-')) {
+    const parts = placeId.split('-');
+    const lat = parseFloat(parts[1]);
+    const lng = parseFloat(parts[2]);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      return reverseGeocode(lat, lng);
+    }
+  }
+
+  if (placeId.startsWith('osm-')) {
+    const parts = placeId.split('-');
+    const osmId = parts[1];
+    try {
+      const osmRes = await axios.get('https://nominatim.openstreetmap.org/details', {
+        params: { place_id: osmId, format: 'json', addressdetails: 1 },
+        headers: { 'User-Agent': 'PercelDeliveryApp/1.0' },
+        timeout: 4000,
+      });
+      if (osmRes.data && osmRes.data.lat && osmRes.data.lon) {
+        const lat = parseFloat(osmRes.data.lat);
+        const lng = parseFloat(osmRes.data.lon);
+        return reverseGeocode(lat, lng);
+      }
+    } catch {
+      // Fall through to geocode or reverse geocode
+    }
+  }
+
   try {
     // Try Place Details API first
     const { data: placeData } = await googleMaps.get('/place/details/json', {
@@ -409,22 +512,24 @@ export async function getPlaceDetails(placeId: string) {
 
     const geoResult = geocodeData?.results?.[0];
     const geoLoc = geoResult?.geometry?.location;
-    if (!geoResult || !geoLoc) throw new ValidationError('Unable to geocode place ID');
-
-    const parts = String(geoResult.formatted_address).split(',').map((part: string) => part.trim());
-
-    return {
-      street: parts[0] ?? 'Selected Location',
-      city: parts[1] ?? parts[0] ?? 'City',
-      state: parts[2] ?? parts[1] ?? 'State',
-      country: parts[3] ?? 'Nigeria',
-      lat: Number(geoLoc.lat),
-      lng: Number(geoLoc.lng),
-      formattedAddress: geoResult.formatted_address,
-      placeId: String(geoResult.place_id ?? placeId),
-    };
+    if (geoResult && geoLoc) {
+      const parts = String(geoResult.formatted_address).split(',').map((part: string) => part.trim());
+      return {
+        street: parts[0] ?? 'Selected Location',
+        city: parts[1] ?? parts[0] ?? 'City',
+        state: parts[2] ?? parts[1] ?? 'State',
+        country: parts[3] ?? 'Nigeria',
+        lat: Number(geoLoc.lat),
+        lng: Number(geoLoc.lng),
+        formattedAddress: geoResult.formatted_address,
+        placeId: String(geoResult.place_id ?? placeId),
+      };
+    }
   } catch (error) {
-    wrapError(error);
+    console.warn('[googleMaps] getPlaceDetails Google API error/fallback for:', placeId, error);
   }
+
+  // Final resilient fallback
+  return geocodeAddress(placeId);
 }
 

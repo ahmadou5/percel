@@ -79,6 +79,9 @@ export function UserRuntime() {
     };
   }, [isAuthenticated, notificationsEnabled, token]);
 
+  const lastBackgroundTimeRef = useRef<number | null>(null);
+  const LOCK_GRACE_PERIOD_MS = 300000; // 5 minutes (300,000ms)
+
   useEffect(() => {
     if (isAuthenticated && walletAccessBiometricEnabled && walletReady && walletPinSet && !isUnlocked) {
       router.replace("/auth-lock");
@@ -88,16 +91,27 @@ export function UserRuntime() {
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       const auth = useAuthStore.getState();
-      // Only lock when app actually transitions to background, avoiding transient OS permission modals (inactive state)
-      if (nextState === "background") {
-        if (auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet) {
-          auth.lock();
+
+      if (nextState === "background" || nextState === "inactive") {
+        if (!lastBackgroundTimeRef.current) {
+          lastBackgroundTimeRef.current = Date.now();
         }
         return;
       }
 
-      if (nextState === "active" && auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet && !auth.isUnlocked) {
-        router.replace("/auth-lock");
+      if (nextState === "active") {
+        const bgDuration = lastBackgroundTimeRef.current ? Date.now() - lastBackgroundTimeRef.current : 0;
+        lastBackgroundTimeRef.current = null;
+
+        // Ignore lock logic if biometrics prompt is active or app was backgrounded for under 30s
+        if (auth.isBiometricPromptActive || bgDuration < LOCK_GRACE_PERIOD_MS) {
+          return;
+        }
+
+        if (auth.isAuthenticated && walletAccessBiometricEnabled && walletPinSet && !auth.isUnlocked) {
+          auth.lock();
+          router.replace("/auth-lock");
+        }
       }
     };
 

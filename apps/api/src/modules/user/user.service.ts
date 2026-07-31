@@ -299,6 +299,17 @@ export class UserService {
 
     if (!user) throw new NotFoundError('User not found');
 
+    const existingNinUser = await this.prisma.user.findFirst({
+      where: {
+        ninNumber: trimmedNin,
+        ninVerified: true,
+        NOT: { id: userId },
+      },
+    });
+    if (existingNinUser) {
+      throw new ValidationError('This NIN is already registered and verified on another account');
+    }
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -382,6 +393,40 @@ export class UserService {
     const bvn = input.bvn.trim();
     const accountNumber = input.accountNumber.trim();
     const bankCode = input.bankCode.trim();
+
+    const existingBvnUser = await this.prisma.user.findFirst({
+      where: {
+        bvnNumber: bvn,
+        bvnVerified: true,
+        NOT: { id: userId },
+      },
+    });
+    if (existingBvnUser) {
+      throw new ValidationError('This BVN is already registered and verified on another account');
+    }
+
+    try {
+      const providers = new PaymentProviderService(this.prisma);
+      const activeProvider = await providers.getActiveProvider();
+      const accountDetails = await providers.resolveBankAccount(activeProvider, accountNumber, bankCode);
+      if (accountDetails?.accountName) {
+        const resName = accountDetails.accountName.toUpperCase();
+        const fName = firstName.toUpperCase();
+        const lName = lastName.toUpperCase();
+
+        const matchFirst = resName.includes(fName);
+        const matchLast = resName.includes(lName);
+
+        if (!matchFirst && !matchLast) {
+          throw new ValidationError(
+            `Bank account name (${accountDetails.accountName}) does not match your provided name (${firstName} ${lastName})`
+          );
+        }
+      }
+    } catch (err) {
+      if (err instanceof ValidationError) throw err;
+      this.logger.warn({ err, accountNumber, bankCode }, 'Bank account resolution check skipped or failed');
+    }
 
     let result;
     let alreadyValidated = false;

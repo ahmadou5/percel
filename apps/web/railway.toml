@@ -1,9 +1,0 @@
-[build]
-builder = "NIXPACKS"
-buildCommand = "pnpm --filter @percel/web build"
-watchPatterns = ["/apps/web/**", "/packages/**"]
-
-[deploy]
-startCommand = "pnpm --filter @percel/web start -p ${PORT:-3002}"
-healthcheckPath = "/"
-restartPolicyType = "ON_FAILURE"

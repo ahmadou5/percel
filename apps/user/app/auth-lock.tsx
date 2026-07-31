@@ -28,6 +28,7 @@ export default function AuthLockScreen() {
   const walletPinSet = Boolean(walletQuery.data?.walletPinSet);
   const walletReady = !walletQuery.isLoading && !walletQuery.isFetching;
   const appLockEnabled = usePreferencesStore((state) => state.appLockEnabled);
+  const setBiometricPromptActive = useAuthStore((state) => state.setBiometricPromptActive);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [biometricBusy, setBiometricBusy] = useState(false);
@@ -55,13 +56,6 @@ export default function AuthLockScreen() {
     }
   }, [appLockEnabled, isUnlocked, unlock, walletPinSet]);
 
-  useEffect(() => {
-    if (!appLockEnabled || !walletPinSet || !walletReady) return;
-    const timer = setTimeout(() => {
-      void triggerBiometric();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [appLockEnabled, walletPinSet, walletReady]);
 
   useEffect(() => {
     if (pin.length === 0) setError(null);
@@ -78,7 +72,11 @@ export default function AuthLockScreen() {
     unlock();
     setSuccess(true);
     setTimeout(() => {
-      router.replace('/');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
     }, 240);
   };
 
@@ -106,6 +104,7 @@ export default function AuthLockScreen() {
   const triggerBiometric = async () => {
     if (!appLockEnabled || biometricBusy || !isAuthenticated || isUnlocked || !walletPinSet) return;
     setBiometricBusy(true);
+    setBiometricPromptActive(true);
     try {
       const hardware = await LocalAuthentication.hasHardwareAsync();
       const enrolled = hardware ? await LocalAuthentication.isEnrolledAsync() : false;
@@ -128,6 +127,7 @@ export default function AuthLockScreen() {
       setError(err instanceof Error ? err.message : 'Biometric unlock failed.');
     } finally {
       setBiometricBusy(false);
+      setBiometricPromptActive(false);
     }
   };
 

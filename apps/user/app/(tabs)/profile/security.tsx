@@ -125,22 +125,29 @@ export default function ProfileSecurityScreen() {
     return true;
   };
 
+  const setBiometricPromptActive = useAuthStore((state) => state.setBiometricPromptActive);
+
   const confirmBiometricEnable = async (promptMessage: string) => {
     const available = await ensureBiometricsAvailable();
     if (!available) return false;
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage,
-      cancelLabel: 'Cancel',
-      disableDeviceFallback: false,
-    });
+    setBiometricPromptActive(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage,
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
 
-    if (!result.success) {
-      modal.alert('Authentication cancelled', 'Biometric authentication is required to enable this setting.', 'warning');
-      return false;
+      if (!result.success) {
+        modal.alert('Authentication cancelled', 'Biometric authentication is required to enable this setting.', 'warning');
+        return false;
+      }
+
+      return true;
+    } finally {
+      setBiometricPromptActive(false);
     }
-
-    return true;
   };
 
   const submitBiometricPin = async (enteredPin: string) => {

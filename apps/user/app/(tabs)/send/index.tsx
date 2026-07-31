@@ -57,71 +57,44 @@ import type { Hub } from '@/types/hubs';
 import { useSavedAddresses } from '@/hooks/useSavedAddresses';
 import { Colors } from '@/constants/palette';
 
-// ─── Preset search landmarks matching clean human-readable locations ─────────
-type LandmarkItem = {
-  description: string;
-  secondaryText: string;
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const RECENT_ADDRESSES_KEY = 'percel_recent_addresses';
+
+export type RecentAddress = {
   placeId: string;
+  description: string;
   mainText: string;
-  lat?: number;
-  lng?: number;
-  icon: 'home' | 'recent';
+  secondaryText: string;
+  lat: number;
+  lng: number;
+  timestamp: number;
 };
 
-const MOCK_LANDMARKS: LandmarkItem[] = [
-  {
-    description: 'Home',
-    secondaryText: 'Saved Primary Address',
-    placeId: 'mock-home',
-    mainText: 'Home',
-    icon: 'home',
-  },
-  {
-    description: 'Zoo Road, Kano',
-    secondaryText: 'Kano State, Nigeria',
-    placeId: 'mock-zoo-road-kano',
-    lat: 11.965038,
-    lng: 8.537130,
-    mainText: 'Zoo Road, Kano',
-    icon: 'recent',
-  },
-  {
-    description: 'Government House, Kano',
-    secondaryText: 'State Road, Kano',
-    placeId: 'mock-gov-house-kano',
-    lat: 11.9890,
-    lng: 8.5255,
-    mainText: 'Government House, Kano',
-    icon: 'recent',
-  },
-  {
-    description: 'Central Market, Gombe',
-    secondaryText: 'Gombe, Gombe State',
-    placeId: 'mock-central-gombe',
-    lat: 10.2897,
-    lng: 11.1714,
-    mainText: 'Central Market, Gombe',
-    icon: 'recent',
-  },
-  {
-    description: 'Victoria Island, Lagos',
-    secondaryText: 'Lagos State, Nigeria',
-    placeId: 'mock-vi-lagos',
-    lat: 6.4281,
-    lng: 3.4219,
-    mainText: 'Victoria Island, Lagos',
-    icon: 'recent',
-  },
-  {
-    description: 'Central Business District, Abuja',
-    secondaryText: 'FCT, Abuja, Nigeria',
-    placeId: 'mock-cbd-abuja',
-    lat: 9.0578,
-    lng: 7.4951,
-    mainText: 'Central Business District, Abuja',
-    icon: 'recent',
-  },
-];
+async function getRecentAddressesFromStorage(): Promise<RecentAddress[]> {
+  try {
+    const raw = await AsyncStorage.getItem(RECENT_ADDRESSES_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as RecentAddress[];
+    return Array.isArray(list) ? list.sort((a, b) => b.timestamp - a.timestamp) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function addRecentAddressToStorage(item: Omit<RecentAddress, 'timestamp'>): Promise<RecentAddress[]> {
+  try {
+    const current = await getRecentAddressesFromStorage();
+    const filtered = current.filter(
+      (entry) => entry.placeId !== item.placeId && entry.description !== item.description
+    );
+    const updated = [{ ...item, timestamp: Date.now() }, ...filtered].slice(0, 10);
+    await AsyncStorage.setItem(RECENT_ADDRESSES_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [];
+  }
+}
 
 // ── Helper to format clean Google-style title & subtitle from full address ──
 function parseAddressDisplay(fullAddress: string): { title: string; subtitle: string } {
@@ -207,18 +180,7 @@ export default function SendOrderEntryScreen() {
   const placeDetailsMutation = usePlaceDetails();
   const { data: apiHubs, isLoading: hubsLoading } = useActiveHubs();
   const { data: savedAddresses = [] } = useSavedAddresses();
-
-  const savedLandmarks: LandmarkItem[] = useMemo(() => {
-    return savedAddresses.map((sa) => ({
-      description: sa.formattedAddress,
-      secondaryText: `${sa.label} • ${sa.city}, ${sa.state}`,
-      placeId: sa.placeId || sa.id,
-      mainText: sa.label,
-      lat: sa.lat,
-      lng: sa.lng,
-      icon: 'home',
-    }));
-  }, [savedAddresses]);
+  const [recentAddresses, setRecentAddresses] = useState<RecentAddress[]>([]);
 
   // ── location fields ──────────────────────────────────────────────────────
   const [pickupAddress, setPickupAddress] = useState('');
@@ -243,6 +205,24 @@ export default function SendOrderEntryScreen() {
     }>
   >([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchModalVisible) {
+      void getRecentAddressesFromStorage().then(setRecentAddresses);
+    }
+  }, [searchModalVisible]);
+
+  const savedLandmarks = useMemo(() => {
+    return savedAddresses.map((sa) => ({
+      description: sa.formattedAddress,
+      secondaryText: `${sa.label} • ${sa.city}, ${sa.state}`,
+      placeId: sa.placeId || sa.id,
+      mainText: sa.label,
+      lat: sa.lat,
+      lng: sa.lng,
+      timestamp: Date.now(),
+    }));
+  }, [savedAddresses]);
 
   const [mapPickerTarget, setMapPickerTarget] = useState<LocationTarget | null>(null);
   const [mapPickerRegion, setMapPickerRegion] = useState<Region>(DEFAULT_REGION);
@@ -281,7 +261,7 @@ export default function SendOrderEntryScreen() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
           const userPoint = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           setUserLocation(userPoint);
           setMapRegion({
@@ -446,36 +426,107 @@ export default function SendOrderEntryScreen() {
 
   // ── Places Autocomplete API search ──
   useEffect(() => {
-    if (!searchText || searchText.trim().length < 3) {
-      setSearchResults((prev) => {
-        const fallback = savedLandmarks.length ? savedLandmarks : [];
-        if (prev === fallback || (prev.length === 0 && fallback.length === 0)) return prev;
-        return fallback;
-      });
+    if (!searchText || searchText.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
     const timer = setTimeout(async () => {
       setSearchLoading(true);
       try {
+        const biasLat = userLocation?.latitude ?? mapRegion.latitude;
+        const biasLng = userLocation?.longitude ?? mapRegion.longitude;
+
+        const queryLower = searchText.trim().toLowerCase();
+        const matchedSaved = savedLandmarks
+          .filter(
+            (item) =>
+              item.mainText.toLowerCase().includes(queryLower) ||
+              item.description.toLowerCase().includes(queryLower)
+          )
+          .map((item) => ({
+            description: item.description,
+            placeId: item.placeId,
+            mainText: item.mainText,
+            secondaryText: item.secondaryText,
+            lat: item.lat,
+            lng: item.lng,
+            icon: 'home' as const,
+          }));
+
+        const matchedRecent = recentAddresses
+          .filter(
+            (item) =>
+              item.mainText.toLowerCase().includes(queryLower) ||
+              item.description.toLowerCase().includes(queryLower)
+          )
+          .map((item) => ({
+            description: item.description,
+            placeId: item.placeId,
+            mainText: item.mainText,
+            secondaryText: item.secondaryText,
+            lat: item.lat,
+            lng: item.lng,
+            icon: 'recent' as const,
+          }));
+
+        const localMatches = [...matchedSaved, ...matchedRecent];
+
         const res = await autocompleteMutation.mutateAsync({
-          input: searchText,
-          lat: mapRegion.latitude,
-          lng: mapRegion.longitude,
+          input: searchText.trim(),
+          lat: biasLat,
+          lng: biasLng,
         });
-        setSearchResults(res);
+
+        if (res && res.length > 0) {
+          const apiPlaceIds = new Set(res.map((r) => r.placeId));
+          const combined = [
+            ...localMatches.filter((lm) => !apiPlaceIds.has(lm.placeId)),
+            ...res,
+          ];
+          setSearchResults(combined);
+        } else if (localMatches.length > 0) {
+          setSearchResults(localMatches);
+        } else {
+          // Real Google Maps Geocode fallback for local Nigerian place queries
+          const geoResults = await Location.geocodeAsync(searchText.trim());
+          if (geoResults && geoResults.length > 0) {
+            const formattedList = await Promise.all(
+              geoResults.slice(0, 5).map(async (g, idx) => {
+                let main = searchText.trim();
+                let sub = 'Location in Nigeria';
+                try {
+                  const rev = await Location.reverseGeocodeAsync({ latitude: g.latitude, longitude: g.longitude });
+                  if (rev && rev.length > 0) {
+                    const item = rev[0];
+                    const parsed = parseAddressDisplay([item.name || item.street, item.subregion || item.city, item.region].filter(Boolean).join(', '));
+                    main = parsed.title || main;
+                    sub = parsed.subtitle || sub;
+                  }
+                } catch {}
+                return {
+                  description: `${main}, ${sub}`,
+                  placeId: `geo-${g.latitude.toFixed(4)}-${g.longitude.toFixed(4)}-${idx}`,
+                  mainText: main,
+                  secondaryText: sub,
+                  lat: g.latitude,
+                  lng: g.longitude,
+                };
+              })
+            );
+            setSearchResults(formattedList);
+          } else {
+            setSearchResults([]);
+          }
+        }
       } catch (err) {
-        // Fallback to local landmark search
-        const combined = [...savedLandmarks, ...MOCK_LANDMARKS];
-        const filtered = combined.filter(item =>
-          item.description.toLowerCase().includes(searchText.toLowerCase())
-        );
-        setSearchResults(filtered);
+        console.warn('Places autocomplete search warning:', err);
+        setSearchResults([]);
       } finally {
         setSearchLoading(false);
       }
-    }, 450);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchText, mapRegion.latitude, mapRegion.longitude, savedLandmarks]);
+  }, [searchText, userLocation?.latitude, userLocation?.longitude, mapRegion.latitude, mapRegion.longitude, savedLandmarks, recentAddresses]);
 
   const handleSelectPlace = async (place: {
     description: string;
@@ -496,7 +547,7 @@ export default function SendOrderEntryScreen() {
 
       if (place.lat !== undefined && place.lng !== undefined) {
         point = { latitude: place.lat, longitude: place.lng };
-      } else if (!place.placeId.startsWith('mock-')) {
+      } else {
         const details = await placeDetailsMutation.mutateAsync(place.placeId);
         point = { latitude: details.lat, longitude: details.lng };
         if (details.formattedAddress) {
@@ -520,11 +571,72 @@ export default function SendOrderEntryScreen() {
           latitudeDelta: 0.015,
           longitudeDelta: 0.015,
         });
+
+        const parsed = parseAddressDisplay(addressStr);
+        void addRecentAddressToStorage({
+          placeId: place.placeId,
+          description: addressStr,
+          mainText: parsed.title || place.mainText || addressStr,
+          secondaryText: parsed.subtitle || place.secondaryText || '',
+          lat: point.latitude,
+          lng: point.longitude,
+        }).then(setRecentAddresses);
       }
       setQuoteData(null);
     } catch (err) {
       console.warn('Could not resolve place details:', err);
       setErrorMsg('Failed to resolve place coordinates. Pick location on map.');
+    }
+  };
+
+  const handleDirectTextSearch = async () => {
+    const query = searchText.trim();
+    if (!query) return;
+    setSearchLoading(true);
+    try {
+      const results = await Location.geocodeAsync(query);
+      if (results && results.length > 0) {
+        const { latitude, longitude } = results[0];
+        const point = { latitude, longitude };
+        let addressStr = query;
+        try {
+          const rev = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (rev && rev.length > 0) {
+            const item = rev[0];
+            const parts = [item.name || item.street, item.subregion || item.city, item.region].filter(Boolean);
+            if (parts.length > 0) addressStr = parts.join(', ');
+          }
+        } catch {
+          // Keep raw query string if reverse geocode fails
+        }
+
+        if (searchTarget === 'pickup') {
+          setPickupAddress(addressStr);
+          setPickupPoint(point);
+        } else {
+          setDeliveryAddress(addressStr);
+          setDeliveryPoint(point);
+        }
+
+        setMapRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.015,
+          longitudeDelta: 0.015,
+        });
+
+        setSearchModalVisible(false);
+        setSearchText('');
+        setSearchResults([]);
+        setQuoteData(null);
+      } else {
+        setErrorMsg('Location not found. Try selecting from suggestions or picking on map.');
+      }
+    } catch (err) {
+      console.warn('Direct text geocode error:', err);
+      setErrorMsg('Could not resolve location coordinates.');
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -1057,6 +1169,8 @@ export default function SendOrderEntryScreen() {
                 autoFocus
                 value={searchText}
                 onChangeText={setSearchText}
+                onSubmitEditing={() => void handleDirectTextSearch()}
+                returnKeyType="search"
                 placeholder={searchTarget === 'pickup' ? 'Choose pickup location' : 'Choose destination'}
                 placeholderTextColor={palette.textSecondary}
                 style={[styles.searchTextInput, { color: palette.text }]}
@@ -1088,6 +1202,24 @@ export default function SendOrderEntryScreen() {
               <Text style={[styles.shortcutText, { color: palette.text }]}>Choose on map</Text>
             </Pressable>
 
+            {searchText.trim().length > 0 && (
+              <Pressable
+                onPress={() => void handleDirectTextSearch()}
+                style={({ pressed }) => [
+                  styles.shortcutRow,
+                  { borderBottomColor: palette.border },
+                  pressed && { backgroundColor: palette.card },
+                ]}
+              >
+                <View style={[styles.shortcutIconBox, { backgroundColor: `${palette.primary}18` }]}>
+                  <Search size={16} color={palette.primary} />
+                </View>
+                <Text style={[styles.shortcutText, { color: palette.primary, fontFamily: Typography.family.bold }]} numberOfLines={1}>
+                  Search "{searchText.trim()}" on map
+                </Text>
+              </Pressable>
+            )}
+
             {searchLoading ? (
               <ActivityIndicator style={{ marginTop: 24 }} color={palette.primary} />
             ) : searchText.trim().length > 0 ? (
@@ -1117,7 +1249,12 @@ export default function SendOrderEntryScreen() {
             ) : (
               // Saved & presets matching user expectations screenshot 3
               <View style={{ marginTop: Spacing.sm }}>
-                {MOCK_LANDMARKS.map((item, idx) => (
+                {recentAddresses.length > 0 && (
+                  <Text style={{ fontSize: 12, fontFamily: Typography.family.bold, color: palette.textSecondary, marginBottom: 8, paddingHorizontal: 4 }}>
+                    Recent Locations
+                  </Text>
+                )}
+                {recentAddresses.map((item, idx) => (
                   <Pressable
                     key={item.placeId + idx}
                     onPress={() => handleSelectPlace(item)}
@@ -1127,20 +1264,8 @@ export default function SendOrderEntryScreen() {
                       pressed && { backgroundColor: palette.card },
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.placeIconBox,
-                        {
-                          backgroundColor:
-                            item.icon === 'home' ? `${palette.primary}18` : `${palette.textSecondary}15`,
-                        },
-                      ]}
-                    >
-                      {item.icon === 'home' ? (
-                        <MapPinHouse size={16} color={palette.primary} />
-                      ) : (
-                        <Clock size={16} color={palette.textSecondary} />
-                      )}
+                    <View style={[styles.placeIconBox, { backgroundColor: `${palette.primary}18` }]}>
+                      <Clock size={16} color={palette.primary} />
                     </View>
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={[styles.placeMainText, { color: palette.text }]} numberOfLines={1}>
@@ -1152,6 +1277,37 @@ export default function SendOrderEntryScreen() {
                     </View>
                   </Pressable>
                 ))}
+
+                {savedLandmarks.length > 0 && (
+                  <>
+                    <Text style={{ fontSize: 12, fontFamily: Typography.family.bold, color: palette.textSecondary, marginTop: 12, marginBottom: 8, paddingHorizontal: 4 }}>
+                      Saved Locations
+                    </Text>
+                    {savedLandmarks.map((item, idx) => (
+                      <Pressable
+                        key={item.placeId + idx}
+                        onPress={() => handleSelectPlace(item)}
+                        style={({ pressed }) => [
+                          styles.placeResultRow,
+                          { borderBottomColor: palette.border },
+                          pressed && { backgroundColor: palette.card },
+                        ]}
+                      >
+                        <View style={[styles.placeIconBox, { backgroundColor: `${palette.primary}18` }]}>
+                          <MapPinHouse size={16} color={palette.primary} />
+                        </View>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={[styles.placeMainText, { color: palette.text }]} numberOfLines={1}>
+                            {item.mainText}
+                          </Text>
+                          <Text style={[styles.placeSubText, { color: palette.textSecondary }]} numberOfLines={1}>
+                            {item.secondaryText}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </>
+                )}
               </View>
             )}
           </ScrollView>
