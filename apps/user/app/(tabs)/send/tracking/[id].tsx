@@ -181,7 +181,7 @@ export default function TrackingScreen() {
         </View>
       ) : null}
 
-      {tracking ? <OrderTrackingSheet data={tracking} orderCode={orderCode} onOpenChat={() => setChatOpen(true)} /> : null}
+      {tracking ? <OrderTrackingSheet data={tracking} orderCode={orderCode} items={order.items} onOpenChat={() => setChatOpen(true)} /> : null}
 
       {order ? (
         <OrderChatModal

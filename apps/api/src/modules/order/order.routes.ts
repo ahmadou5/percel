@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 
 import { OrderController } from './order.controller.js';
 import { OrderService } from './order.service.js';
-import { CancelBody, CreateOrderBody, CourierLocationBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema.js';
+import { CancelBody, CreateOrderBody, CourierLocationBody, DirectionsBody, DisputeBody, DriverRateOrderBody, OrderQuery, QuoteBody, RateOrderBody, StatusBody } from './order.schema.js';
 import { WalletService } from '../wallet/wallet.service.js';
 
 const orderRoutes: FastifyPluginAsync = async (app) => {
@@ -15,6 +15,7 @@ const orderRoutes: FastifyPluginAsync = async (app) => {
   app.get('/orders/autocomplete', { preHandler: [app.authenticate] }, controller.autocomplete);
   app.get('/orders/place-details', { preHandler: [app.authenticate] }, controller.getPlaceDetails);
   app.post('/orders/quote', { preHandler: [app.authenticate], schema: { body: QuoteBody } }, controller.getQuote);
+  app.post('/orders/directions', { preHandler: [app.authenticate], schema: { body: DirectionsBody } }, controller.getDirections);
   app.post('/orders/upload-image', { preHandler: [app.authenticate] }, controller.uploadPackageImage);
   app.post('/orders', { preHandler: [app.authenticate], schema: { body: CreateOrderBody } }, controller.createOrder);
   app.get('/orders', { preHandler: [app.authenticate], schema: { querystring: OrderQuery } }, controller.getUserOrders);

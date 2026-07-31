@@ -177,4 +177,14 @@ export class OrderController {
     const buffer = await file.toBuffer();
     return success(await this.service.uploadPackageImage(userId, buffer), 'Package image uploaded');
   };
+
+  getDirections = async (request: FastifyRequest) => {
+    const { originLat, originLng, destLat, destLng } = request.body as {
+      originLat: number;
+      originLng: number;
+      destLat: number;
+      destLng: number;
+    };
+    return success(await this.service.getDirectionsRoute(originLat, originLng, destLat, destLng), 'Directions route calculated');
+  };
 }

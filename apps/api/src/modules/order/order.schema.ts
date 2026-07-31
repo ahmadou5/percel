@@ -33,6 +33,13 @@ export const QuoteBody = Type.Object({
   deliveryLng: Type.Optional(Type.Number()),
 });
 
+export const DirectionsBody = Type.Object({
+  originLat: Type.Number(),
+  originLng: Type.Number(),
+  destLat: Type.Number(),
+  destLng: Type.Number(),
+});
+
 export const CreateOrderBody = Type.Object({
   size: Type.Union([Type.Literal('SMALL'), Type.Literal('MEDIUM'), Type.Literal('LARGE')]),
   originHubId: Type.Optional(Type.String()),

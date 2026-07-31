@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowDownUp,
   ChevronLeft,
@@ -45,6 +45,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import {
   useActiveHubs,
+  useGetDirectionsRoute,
   useGetQuote,
   useReverseGeocode,
   usePlaceAutocomplete,
@@ -241,6 +242,26 @@ export default function SendOrderEntryScreen() {
 
   const [quoteData, setQuoteData] = useState<OrderQuoteResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const directionsRouteQuery = useGetDirectionsRoute(pickupPoint, deliveryPoint);
+  const roadRoutePoints = directionsRouteQuery.data ?? [];
+
+  const resetFormState = useCallback(() => {
+    setPickupAddress('');
+    setDeliveryAddress('');
+    setPickupPoint(null);
+    setDeliveryPoint(null);
+    setOriginHub(null);
+    setDestinationHub(null);
+    setQuoteData(null);
+    setErrorMsg(null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      resetFormState();
+    }, [resetFormState])
+  );
 
   // ── tab indicator animation ───────────────────────────────────────────────
   const tabOffset = useSharedValue(0);
@@ -742,9 +763,9 @@ export default function SendOrderEntryScreen() {
             </View>
           </Marker>
         )}
-        {mapRoutePoints.length === 2 && (
+        {(roadRoutePoints.length > 1 || mapRoutePoints.length === 2) && (
           <Polyline
-            coordinates={mapRoutePoints}
+            coordinates={roadRoutePoints.length > 1 ? roadRoutePoints : mapRoutePoints}
             strokeColor={palette.primary}
             strokeWidth={5}
             lineDashPattern={[0]}

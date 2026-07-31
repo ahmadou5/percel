@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Package, Clock3, BadgeCheck } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -64,6 +64,8 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
   const palette = useAppPalette();
   const statusConfig = getStatusConfig(order.status);
 
+  const packageImage = (order as any).items?.find((i: any) => i.imageUrl)?.imageUrl;
+
   return (
     <Pressable
       onPress={onPress}
@@ -75,7 +77,11 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
     >
       <View style={styles.cardHeader}>
         <View style={styles.waybillBox}>
-          <Package size={16} color={palette.primary} />
+          {packageImage ? (
+            <Image source={{ uri: packageImage }} style={{ width: 36, height: 36, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border }} />
+          ) : (
+            <Package size={16} color={palette.primary} />
+          )}
           <Text style={[styles.waybillText, { color: palette.text }]}>{order.trackingCode}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>

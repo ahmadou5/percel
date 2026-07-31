@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, MapPin } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
@@ -32,6 +32,7 @@ export default function PickupDetailsScreen() {
   const route = getRouteWithHubs(originHub, destinationHub, apiHubs);
 
   const [localPickupAddress, setLocalPickupAddress] = useState('');
+  const [showPickupContact, setShowPickupContact] = useState(false);
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [pickupNote, setPickupNote] = useState('');
@@ -58,6 +59,10 @@ export default function PickupDetailsScreen() {
   }, [destinationHub, isIntrastate, localPickupAddress, originHub, params.deliveryAddress, params.pickupAddress]);
 
   const handleContinue = () => {
+    const finalContactName = showPickupContact ? contactName : '';
+    const finalContactPhone = showPickupContact ? contactPhone : '';
+    const finalPickupNote = showPickupContact ? pickupNote : '';
+
     if (isIntrastate) {
       router.push({
         pathname: '/send/package',
@@ -65,9 +70,9 @@ export default function PickupDetailsScreen() {
           pickupAddress: params.pickupAddress ?? '',
           deliveryAddress: params.deliveryAddress ?? '',
           size: params.size ?? 'SMALL',
-          contactName,
-          contactPhone,
-          pickupNote,
+          contactName: finalContactName,
+          contactPhone: finalContactPhone,
+          pickupNote: finalPickupNote,
           recipientName,
           recipientPhone,
         },
@@ -80,9 +85,9 @@ export default function PickupDetailsScreen() {
           destinationHubId: params.destinationHubId ?? '',
           routeId: params.routeId ?? '',
           localPickupAddress,
-          contactName,
-          contactPhone,
-          pickupNote,
+          contactName: finalContactName,
+          contactPhone: finalContactPhone,
+          pickupNote: finalPickupNote,
           recipientName,
           recipientPhone,
         },
@@ -152,35 +157,45 @@ export default function PickupDetailsScreen() {
         />
       </View>
 
-      {/* Pickup Contact (OPTIONAL) */}
+      {/* Expandable Pickup Contact Card */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={[styles.sectionLabel, { color: palette.textSecondary }]}>Pickup contact</Text>
-          <Text style={{ fontSize: 11, fontFamily: Typography.family.medium, color: palette.textSecondary }}>OPTIONAL</Text>
+          <View style={{ flex: 1, gap: 2, paddingRight: Spacing.sm }}>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>Pickup contact</Text>
+            <Text style={{ fontSize: Typography.xs, color: palette.textSecondary, fontFamily: Typography.family.regular }}>
+              {showPickupContact ? 'Add sender name and phone number for pickup' : 'Optional (Toggle on to add custom sender contact)'}
+            </Text>
+          </View>
+          <Switch value={showPickupContact} onValueChange={setShowPickupContact} />
         </View>
-        <TextInput
-          value={contactName}
-          onChangeText={setContactName}
-          placeholder="Sender / Pickup contact name (optional)"
-          placeholderTextColor={palette.textSecondary}
-          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-        />
-        <TextInput
-          value={contactPhone}
-          onChangeText={setContactPhone}
-          keyboardType="phone-pad"
-          placeholder="Pickup phone number (optional)"
-          placeholderTextColor={palette.textSecondary}
-          style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-        />
-        <TextInput
-          value={pickupNote}
-          onChangeText={setPickupNote}
-          placeholder="Optional pickup note for driver"
-          placeholderTextColor={palette.textSecondary}
-          style={[styles.noteInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
-          multiline
-        />
+
+        {showPickupContact && (
+          <View style={{ gap: Spacing.sm, marginTop: Spacing.xs }}>
+            <TextInput
+              value={contactName}
+              onChangeText={setContactName}
+              placeholder="Sender / Pickup contact name"
+              placeholderTextColor={palette.textSecondary}
+              style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+            />
+            <TextInput
+              value={contactPhone}
+              onChangeText={setContactPhone}
+              keyboardType="phone-pad"
+              placeholder="Pickup phone number"
+              placeholderTextColor={palette.textSecondary}
+              style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+            />
+            <TextInput
+              value={pickupNote}
+              onChangeText={setPickupNote}
+              placeholder="Optional pickup note for driver"
+              placeholderTextColor={palette.textSecondary}
+              style={[styles.noteInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.bg }]}
+              multiline
+            />
+          </View>
+        )}
       </View>
 
       {/* Landmark (interstate only - OPTIONAL) */}

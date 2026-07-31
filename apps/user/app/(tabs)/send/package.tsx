@@ -40,7 +40,7 @@ export default function PackageDetailsScreen() {
   const [size, setSize] = useState<'SMALL' | 'MEDIUM' | 'LARGE'>('SMALL');
   const [fragile, setFragile] = useState(false);
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<Array<{ description: string; quantity: number; imageUrl?: string }>>([
+  const [items, setItems] = useState<Array<{ description: string; quantity: number | string; imageUrl?: string }>>([
     { description: 'Parcel Item', quantity: 1 },
   ]);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
@@ -55,7 +55,7 @@ export default function PackageDetailsScreen() {
   const updateItem = (index: number, key: 'description' | 'quantity' | 'imageUrl', value: unknown) => {
     setItems((current) =>
       current.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [key]: key === 'quantity' ? Number(value || 1) : value } : item
+        itemIndex === index ? { ...item, [key]: key === 'quantity' ? String(value) : value } : item
       )
     );
   };
@@ -279,7 +279,12 @@ export default function PackageDetailsScreen() {
               size,
               fragile: String(fragile),
               notes,
-              items: JSON.stringify(items),
+              items: JSON.stringify(
+                items.map((item) => ({
+                  ...item,
+                  quantity: Math.max(1, parseInt(String(item.quantity || 1), 10) || 1),
+                }))
+              ),
             },
           })
         }

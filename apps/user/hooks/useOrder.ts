@@ -204,3 +204,21 @@ export function useUploadPackageImage() {
     },
   });
 }
+
+export function useGetDirectionsRoute(origin?: { latitude: number; longitude: number } | null, destination?: { latitude: number; longitude: number } | null) {
+  return useQuery({
+    queryKey: ['directions', origin?.latitude, origin?.longitude, destination?.latitude, destination?.longitude],
+    enabled: Boolean(origin && destination),
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      if (!origin || !destination) return [];
+      const response = await http.post<{ data: Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
+        originLat: origin.latitude,
+        originLng: origin.longitude,
+        destLat: destination.latitude,
+        destLng: destination.longitude,
+      });
+      return response.data.data;
+    },
+  });
+}

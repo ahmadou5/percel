@@ -1334,4 +1334,8 @@ export class OrderService {
 
     return { imageUrl: uploaded.secure_url };
   }
+
+  async getDirectionsRoute(originLat: number, originLng: number, destLat: number, destLng: number) {
+    return getDirectionsRoute(originLat, originLng, destLat, destLng);
+  }
 }

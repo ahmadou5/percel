@@ -1,8 +1,8 @@
 import BottomSheet from '@gorhom/bottom-sheet';
-import { useMemo } from 'react';
-import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Image, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { MessageSquare, Phone } from 'lucide-react-native';
+import { Maximize2, MessageSquare, Phone, X } from 'lucide-react-native';
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 type Props = {
   data: TrackingData;
   orderCode: string;
+  items?: Array<{ id?: string; description?: string; imageUrl?: string | null }>;
   onOpenChat?: () => void;
 };
 
@@ -47,11 +48,20 @@ function initials(name: string) {
     .join('');
 }
 
-export function OrderTrackingSheet({ data, orderCode, onOpenChat }: Props) {
+export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props) {
   const palette = useAppPalette();
   const user = useAuthStore((state) => state.user);
   const snapPoints = useMemo(() => ['10%','26%', '62%'], []);
   const statusLabel = STATUS_LABELS[data.status] ?? data.status.replace(/_/g, ' ');
+
+  const [previewItem, setPreviewItem] = useState<{ url: string; desc?: string } | null>(null);
+
+  const packagePhotos = useMemo(() => {
+    if (!items) return [];
+    return items
+      .filter((i) => Boolean(i.imageUrl))
+      .map((i) => ({ url: i.imageUrl!, desc: i.description }));
+  }, [items]);
 
   const handleCall = () => {
     void haptics.press();
@@ -98,6 +108,30 @@ export function OrderTrackingSheet({ data, orderCode, onOpenChat }: Props) {
               </View>
             </View>
           </View>
+
+          {/* Package Photos Row */}
+          {packagePhotos.length > 0 && (
+            <View style={styles.photosSection}>
+              <View style={styles.photosHeader}>
+                <Text style={[styles.routeLabel, { color: palette.textSecondary }]}>Package Photo(s)</Text>
+                <Text style={{ fontSize: 10, fontFamily: Typography.family.medium, color: palette.primary }}>Tap to expand</Text>
+              </View>
+              <View style={styles.photosRow}>
+                {packagePhotos.map((photo, idx) => (
+                  <Pressable
+                    key={idx}
+                    onPress={() => setPreviewItem(photo)}
+                    style={({ pressed }) => [styles.photoThumbWrapper, { borderColor: palette.border }, pressed && { opacity: 0.8 }]}
+                  >
+                    <Image source={{ uri: photo.url }} style={styles.photoThumb} />
+                    <View style={styles.expandIconOverlay}>
+                      <Maximize2 size={12} color="#FFFFFF" />
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={styles.metaGrid}>
             <MetaItem label="Departed" value={formatDateTime(data.departed_at)} />
@@ -177,6 +211,27 @@ export function OrderTrackingSheet({ data, orderCode, onOpenChat }: Props) {
           </View>
         </View>
       </BottomSheet>
+
+      {/* Package Photo Enlarged Lightbox Modal */}
+      {previewItem && (
+        <Modal visible={Boolean(previewItem)} transparent animationType="fade" onRequestClose={() => setPreviewItem(null)}>
+          <View style={styles.lightboxBackdrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setPreviewItem(null)} />
+            <View style={[styles.lightboxCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.lightboxHeader}>
+                <Text style={[styles.lightboxTitle, { color: palette.text }]}>Package Photo Preview</Text>
+                <Pressable onPress={() => setPreviewItem(null)} style={[styles.closeButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+                  <X size={18} color={palette.text} />
+                </Pressable>
+              </View>
+              <Image source={{ uri: previewItem.url }} style={styles.lightboxImage} resizeMode="contain" />
+              {previewItem.desc ? (
+                <Text style={[styles.lightboxDesc, { color: palette.textSecondary }]}>{previewItem.desc}</Text>
+              ) : null}
+            </View>
+          </View>
+        </Modal>
+      )}
     </>
   );
 }
@@ -331,4 +386,17 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.bold,
     color: '#FFFFFF',
   },
+  photosSection: { gap: 6, marginVertical: 4 },
+  photosHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  photosRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  photoThumbWrapper: { width: 56, height: 56, borderRadius: 12, borderWidth: 1, overflow: 'hidden', position: 'relative' },
+  photoThumb: { width: '100%', height: '100%' },
+  expandIconOverlay: { position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, padding: 3 },
+  lightboxBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+  lightboxCard: { width: '100%', maxWidth: 360, borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  lightboxHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  lightboxTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  closeButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  lightboxImage: { width: '100%', height: 260, borderRadius: 14 },
+  lightboxDesc: { fontSize: Typography.sm, fontFamily: Typography.family.regular, textAlign: 'center' },
 });
