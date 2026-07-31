@@ -58,13 +58,14 @@ type OrderItem = {
   deliveryFormattedAddress: string;
   createdAt: string;
   status: string;
+  items?: Array<{ description?: string; imageUrl?: string | null }>;
 };
 
 function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }) {
   const palette = useAppPalette();
   const statusConfig = getStatusConfig(order.status);
 
-  const packageImage = (order as any).items?.find((i: any) => i.imageUrl)?.imageUrl;
+  const packageImage = order.items?.find((i) => i.imageUrl)?.imageUrl;
 
   return (
     <Pressable
@@ -77,11 +78,7 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
     >
       <View style={styles.cardHeader}>
         <View style={styles.waybillBox}>
-          {packageImage ? (
-            <Image source={{ uri: packageImage }} style={{ width: 36, height: 36, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border }} />
-          ) : (
-            <Package size={16} color={palette.primary} />
-          )}
+          <Package size={16} color={palette.primary} />
           <Text style={[styles.waybillText, { color: palette.text }]}>{order.trackingCode}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
@@ -90,24 +87,33 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
         </View>
       </View>
 
-      <View style={styles.routeContainer}>
-        <View style={styles.routeTimeline}>
-          <View style={[styles.routeDotOuter, { backgroundColor: `${palette.primary}20` }]}>
-            <View style={[styles.routeDotInner, { backgroundColor: palette.primary }]} />
+      <View style={styles.cardMainRow}>
+        <View style={styles.routeContainer}>
+          <View style={styles.routeTimeline}>
+            <View style={[styles.routeDotOuter, { backgroundColor: `${palette.primary}20` }]}>
+              <View style={[styles.routeDotInner, { backgroundColor: palette.primary }]} />
+            </View>
+            <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
+            <View style={[styles.routeDotOuter, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+              <View style={[styles.routeDotInner, { backgroundColor: '#10B981' }]} />
+            </View>
           </View>
-          <View style={[styles.routeLine, { backgroundColor: palette.border }]} />
-          <View style={[styles.routeDotOuter, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-            <View style={[styles.routeDotInner, { backgroundColor: '#10B981' }]} />
+          <View style={styles.routeAddresses}>
+            <Text style={[styles.routeAddressText, { color: palette.text }]} numberOfLines={1}>
+              {order.pickupFormattedAddress}
+            </Text>
+            <Text style={[styles.routeAddressTextMuted, { color: palette.textSecondary }]} numberOfLines={1}>
+              {order.deliveryFormattedAddress}
+            </Text>
           </View>
         </View>
-        <View style={styles.routeAddresses}>
-          <Text style={[styles.routeAddressText, { color: palette.text }]} numberOfLines={1}>
-            {order.pickupFormattedAddress}
-          </Text>
-          <Text style={[styles.routeAddressTextMuted, { color: palette.textSecondary }]} numberOfLines={1}>
-            {order.deliveryFormattedAddress}
-          </Text>
-        </View>
+
+        {packageImage ? (
+          <Image
+            source={{ uri: packageImage }}
+            style={[styles.packageCardThumb, { borderColor: palette.border }]}
+          />
+        ) : null}
       </View>
 
       <View style={[styles.cardDivider, { backgroundColor: palette.border }]} />
@@ -268,7 +274,9 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusBadgeText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  routeContainer: { flexDirection: 'row', gap: 12, paddingVertical: 4 },
+  cardMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  packageCardThumb: { width: 56, height: 56, borderRadius: 14, borderWidth: 1 },
+  routeContainer: { flex: 1, flexDirection: 'row', gap: 12, paddingVertical: 4 },
   routeTimeline: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
   routeDotOuter: { width: 12, height: 12, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   routeDotInner: { width: 6, height: 6, borderRadius: 3 },

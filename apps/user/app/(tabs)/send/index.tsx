@@ -743,7 +743,7 @@ export default function SendOrderEntryScreen() {
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFillObject}
         region={mapRegion}
-        showsUserLocation
+        showsUserLocation={false}
         showsCompass={false}
 
         toolbarEnabled={false}
@@ -1343,7 +1343,7 @@ export default function SendOrderEntryScreen() {
             style={StyleSheet.absoluteFillObject}
             initialRegion={mapPickerRegion}
             onRegionChangeComplete={setMapPickerRegion}
-            showsUserLocation
+            showsUserLocation={false}
             showsMyLocationButton
             showsCompass={false}
             toolbarEnabled={false}
