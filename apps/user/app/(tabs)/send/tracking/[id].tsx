@@ -163,7 +163,16 @@ export default function TrackingScreen() {
                   </Pressable>
           <Text style={[styles.headerTitle, { color: Colors.dark.text }]} numberOfLines={1}>{orderCode}</Text>
           <Pressable
-            onPress={() => void Share.share({ message: `Track my Percel order ${orderCode}` })}
+            onPress={async () => {
+              void haptics.press();
+              const url = `https://percel-production-f68c.up.railway.app/track/${order.trackingCode}`;
+              const message = `Track your Percel delivery live here: ${url}`;
+              await Share.share(
+                Platform.OS === 'ios'
+                  ? { title: `Track Package ${order.trackingCode}`, url, message }
+                  : { title: `Track Package ${order.trackingCode}`, message }
+              );
+            }}
             style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
           >
             <Share2 size={18} color={palette.text} />

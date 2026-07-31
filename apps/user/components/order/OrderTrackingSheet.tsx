@@ -1,8 +1,8 @@
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useMemo, useState } from 'react';
-import { Alert, Image, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Modal, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
-import { Maximize2, MessageSquare, Phone, X } from 'lucide-react-native';
+import { Maximize2, MessageSquare, Phone, Share2, X } from 'lucide-react-native';
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
@@ -184,7 +184,6 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
                   {data.driver.name}
                 </Text>
               </View>
-              { }
             </View>
           </View>
 
@@ -204,6 +203,27 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
             ) : null}
 
             <Pressable
+              onPress={async () => {
+                void haptics.press();
+                const url = `https://percel-production-f68c.up.railway.app/track/${orderCode}`;
+                const message = `Track your Percel delivery live here: ${url}`;
+                await Share.share(
+                  Platform.OS === 'ios'
+                    ? { title: `Track Package ${orderCode}`, url, message }
+                    : { title: `Track Package ${orderCode}`, message }
+                );
+              }}
+              style={({ pressed }) => [
+                styles.summaryActionBtn,
+                { backgroundColor: palette.bg, borderColor: palette.border, borderWidth: 1 },
+                pressed ? { opacity: 0.8 } : null,
+              ]}
+            >
+              <Share2 size={16} color={palette.text} strokeWidth={2.5} />
+              <Text style={[styles.summaryActionBtnText, { color: palette.text }]}>Share</Text>
+            </Pressable>
+
+            <Pressable
               onPress={() => {
                 void haptics.press();
                 onOpenChat?.();
@@ -215,7 +235,7 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
               ]}
             >
               <MessageSquare size={16} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.summaryActionPrimaryText}>Chat with Courier</Text>
+              <Text style={styles.summaryActionPrimaryText}>Chat</Text>
             </Pressable>
           </View>
         </View>

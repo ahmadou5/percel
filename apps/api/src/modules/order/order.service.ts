@@ -1351,6 +1351,34 @@ export class OrderService {
       this.logger.warn({ err, orderId }, 'chat_message.broadcast_failed');
     }
 
+    const targetUserId = isCustomer ? order.driver?.userId : order.userId;
+    if (targetUserId) {
+      try {
+        await this.prisma.notification.create({
+          data: {
+            userId: targetUserId,
+            title: isCustomer ? 'New message from Customer' : 'New message from Driver',
+            body: cleanMsg,
+            type: 'SYSTEM',
+            data: { orderId: order.id, messageId: msg.id, senderType },
+          },
+        });
+      } catch (err) {
+        this.logger.warn({ err }, 'chat_db_notification_failed');
+      }
+
+      try {
+        await addNotificationJob(this.app, targetUserId, 'CHAT_MESSAGE', {
+          orderId: order.id,
+          title: isCustomer ? 'New message from Customer' : 'New message from Driver',
+          body: cleanMsg,
+          data: { orderId: order.id, messageId: msg.id, senderType },
+        });
+      } catch (err) {
+        this.logger.warn({ err }, 'chat_push_notification_failed');
+      }
+    }
+
     return serializedMsg;
   }
 
