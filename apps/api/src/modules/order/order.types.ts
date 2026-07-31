@@ -61,6 +61,14 @@ export interface OrderSummary {
   estimatedDurationMin: number;
   createdAt: string;
   cancelReason?: string | null;
+  items?: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    weightKg: number;
+    fragile?: boolean;
+    imageUrl?: string | null;
+  }>;
   driver?: {
     id: string;
     userId: string;

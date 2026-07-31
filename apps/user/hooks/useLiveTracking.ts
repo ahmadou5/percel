@@ -29,6 +29,11 @@ export interface TrackingData {
   distance_km: number;
   weight_kg: number;
   estimated_delivery: string;
+  items?: Array<{
+    id?: string;
+    description?: string;
+    imageUrl?: string | null;
+  }>;
 }
 
 export function useLiveTracking(orderId?: string, driverId?: string) {

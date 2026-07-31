@@ -57,11 +57,11 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
   const [previewItem, setPreviewItem] = useState<{ url: string; desc?: string } | null>(null);
 
   const packagePhotos = useMemo(() => {
-    if (!items) return [];
-    return items
+    const list = items || data.items || [];
+    return list
       .filter((i) => Boolean(i.imageUrl))
       .map((i) => ({ url: i.imageUrl!, desc: i.description }));
-  }, [items]);
+  }, [items, data.items]);
 
   const handleCall = () => {
     void haptics.press();

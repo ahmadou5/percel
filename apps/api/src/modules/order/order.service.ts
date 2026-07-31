@@ -73,6 +73,14 @@ type OrderLike = {
     phone: string;
     avatarUrl?: string | null;
   } | null;
+  items?: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    weightKg: Prisma.Decimal | number;
+    fragile?: boolean;
+    imageUrl?: string | null;
+  }> | null;
 };
 
 function serializeOrder(order: OrderLike): OrderSummary {
@@ -101,6 +109,16 @@ function serializeOrder(order: OrderLike): OrderSummary {
     notes: order.notes ?? null,
     recipientName: order.recipientName ?? null,
     recipientPhone: order.recipientPhone ?? null,
+    items: order.items
+      ? order.items.map((i) => ({
+          id: i.id,
+          description: i.description,
+          quantity: i.quantity,
+          weightKg: asNumber(i.weightKg),
+          fragile: i.fragile ?? false,
+          imageUrl: i.imageUrl ?? null,
+        }))
+      : [],
     driver: order.driver
       ? {
           id: order.driver.id,
@@ -533,7 +551,7 @@ export class OrderService {
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({
         where,
-        include: { driver: { include: { user: true } } },
+        include: { driver: { include: { user: true } }, items: true },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -918,6 +936,7 @@ export class OrderService {
             },
           },
         },
+        items: true,
       },
     });
 
@@ -973,6 +992,12 @@ export class OrderService {
         .aggregate({ where: { orderId }, _sum: { weightKg: true } })
         .then((r) => Number(r._sum.weightKg ?? 0)),
       estimated_delivery: estimatedDelivery,
+      items: order.items.map((i) => ({
+        id: i.id,
+        description: i.description,
+        quantity: i.quantity,
+        imageUrl: i.imageUrl ?? null,
+      })),
     };
   }
 
