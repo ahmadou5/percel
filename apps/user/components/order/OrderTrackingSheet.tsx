@@ -51,16 +51,25 @@ function initials(name: string) {
 export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props) {
   const palette = useAppPalette();
   const user = useAuthStore((state) => state.user);
-  const snapPoints = useMemo(() => ['10%','26%', '62%'], []);
+  const snapPoints = useMemo(() => ['10%', '38%', '74%'], []);
   const statusLabel = STATUS_LABELS[data.status] ?? data.status.replace(/_/g, ' ');
 
   const [previewItem, setPreviewItem] = useState<{ url: string; desc?: string } | null>(null);
 
   const packagePhotos = useMemo(() => {
     const list = items || data.items || [];
-    return list
+    const uploaded = list
       .filter((i) => Boolean(i.imageUrl))
       .map((i) => ({ url: i.imageUrl!, desc: i.description }));
+
+    if (uploaded.length > 0) return uploaded;
+
+    return [
+      {
+        url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80',
+        desc: 'Parcel item package',
+      },
+    ];
   }, [items, data.items]);
 
   const handleCall = () => {
@@ -86,7 +95,7 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
               <Text style={[styles.statusText, { color: Colors.dark.text }]}>{statusLabel}</Text>
             </View>
           </View>
-  <Text style={[styles.orderCode, { color: palette.textSecondary }]}>Order ID  {orderCode}</Text>
+          <Text style={[styles.orderCode, { color: palette.textSecondary }]}>Order ID  {orderCode}</Text>
           <View style={styles.routeContainer}>
             <View style={styles.routeConnectorCol}>
               <View style={[styles.routeDot, { backgroundColor: '#10B981' }]} />
@@ -175,7 +184,7 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
                   {data.driver.name}
                 </Text>
               </View>
-              {}
+              { }
             </View>
           </View>
 
@@ -206,7 +215,7 @@ export function OrderTrackingSheet({ data, orderCode, items, onOpenChat }: Props
               ]}
             >
               <MessageSquare size={16} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.summaryActionPrimaryText}>Chat with Driver</Text>
+              <Text style={styles.summaryActionPrimaryText}>Chat with Courier</Text>
             </Pressable>
           </View>
         </View>

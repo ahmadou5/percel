@@ -58,6 +58,7 @@ type OrderItem = {
   deliveryFormattedAddress: string;
   createdAt: string;
   status: string;
+  size?: 'SMALL' | 'MEDIUM' | 'LARGE';
   items?: Array<{ description?: string; imageUrl?: string | null }>;
 };
 
@@ -65,7 +66,14 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
   const palette = useAppPalette();
   const statusConfig = getStatusConfig(order.status);
 
-  const packageImage = order.items?.find((i) => i.imageUrl)?.imageUrl;
+  const uploadedImage = order.items?.find((i) => Boolean(i.imageUrl))?.imageUrl;
+  const fallbackImage = order.size === 'LARGE'
+    ? 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=200&q=80'
+    : order.size === 'MEDIUM'
+      ? 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=200&q=80'
+      : 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=200&q=80';
+
+  const packageImage = uploadedImage || fallbackImage;
 
   return (
     <Pressable
@@ -108,12 +116,10 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
           </View>
         </View>
 
-        {packageImage ? (
-          <Image
-            source={{ uri: packageImage }}
-            style={[styles.packageCardThumb, { borderColor: palette.border }]}
-          />
-        ) : null}
+        <Image
+          source={{ uri: packageImage }}
+          style={[styles.packageCardThumb, { borderColor: palette.border }]}
+        />
       </View>
 
       <View style={[styles.cardDivider, { backgroundColor: palette.border }]} />

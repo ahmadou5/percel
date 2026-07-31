@@ -13,7 +13,7 @@ import { addOrderMatchingJob } from '../../queues/index.js';
 import { haversineDistanceKm } from '../../utils/helpers.js';
 import { cleanText } from '../../utils/sanitize.js';
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
-import { ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
+import { AppError, ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
 import type { WalletService } from '../wallet/wallet.service.js';
 import { ReferralService } from '../referral/referral.service.js';
 import type { OrderQuote, OrderSummary } from './order.types.js';
@@ -517,8 +517,14 @@ export class OrderService {
         },
       });
 
-      return updated;
+      const fetched = await tx.order.findUnique({
+        where: { id: created.id },
+        include: { driver: { include: { user: true } }, items: true },
+      });
+      return fetched ?? { ...updated, items: [] };
     });
+
+    if (!order) throw new AppError('Failed to create order', 500, 'ORDER_CREATE_FAILED');
 
     await addOrderMatchingJob(this.app, {
       orderId: order.id,
