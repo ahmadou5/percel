@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Image,
   Modal,
@@ -18,6 +17,7 @@ import { router } from 'expo-router';
 
 import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
 import { useAcceptOrder, useAvailableOrders, useDeclineOrder } from '@/hooks/useDriverOrders';
@@ -176,6 +176,7 @@ function PendingOrderRow({ order, accepting, declining, onAccept, onDecline }: P
 }
 
 export default function DriverHomeScreen() {
+  const modal = useAppModal();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
 
@@ -206,14 +207,17 @@ export default function DriverHomeScreen() {
   const [countdown, setCountdown] = useState(60);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [translateY] = useState(() => new Animated.Value(320));
-  const pendingHomeOrders = availableOrders.filter((order) => order.id !== currentOrder?.id && order.id !== incomingOrder?.id).slice(0, 3);
+
+  const pendingHomeOrders = useMemo(() => {
+    return availableOrders.filter((order) => order.id !== currentOrder?.id && order.id !== incomingOrder?.id).slice(0, 3);
+  }, [availableOrders, currentOrder, incomingOrder]);
 
   useEffect(() => {
     const invalidate = () => {
       void queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
     };
 
-    const unsub1 = subscribeDriverSocket('new_order_available', (payload: Partial<DriverOrder> & { orderId?: string }) => {
+    const unsub1 = subscribeDriverSocket('new_order_available', (payload: any) => {
       invalidate();
       const id = payload.orderId ?? payload.id;
       if (!id || !payload.trackingCode || payload.price == null || !payload.pickupFormattedAddress || !payload.deliveryFormattedAddress || payload.distanceKm == null || payload.estimatedDurationMin == null) {
@@ -234,28 +238,45 @@ export default function DriverHomeScreen() {
         deliveryLng: payload.deliveryLng ?? 3.3792,
         pickupFormattedAddress: payload.pickupFormattedAddress,
         deliveryFormattedAddress: payload.deliveryFormattedAddress,
+        recipientName: payload.deliveryContactName ?? 'Recipient',
+        recipientPhone: payload.deliveryContactPhone ?? '',
         distanceKm: payload.distanceKm,
         estimatedDurationMin: payload.estimatedDurationMin,
         createdAt: payload.createdAt ?? new Date().toISOString(),
-        driver: payload.driver ?? null,
-        customer: payload.customer ?? null,
       };
+
       setIncomingOrder(order);
-      setSheetVisible(true);
       setCountdown(60);
+      setSheetVisible(true);
       translateY.setValue(320);
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 140 }).start();
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 70, friction: 10 }).start();
     });
-    const unsub2 = subscribeDriverSocket('order_cancelled', () => {
-      invalidate();
+
+    const unsub2 = subscribeDriverSocket('order_cancelled', invalidate);
+    const unsub3 = subscribeDriverSocket('order_completed', invalidate);
+
+    return () => {
+      unsub1();
+      unsub2();
+      unsub3();
+    };
+  }, [queryClient, translateY]);
+
+  const declineOrder = async (reason = 'Driver declined incoming offer', targetOrderId?: string) => {
+    const orderId = targetOrderId ?? incomingOrder?.id;
+    if (!targetOrderId) {
       setIncomingOrder(null);
       setSheetVisible(false);
-    });
-    const unsub3 = subscribeDriverSocket('order_status_update', () => {
-      invalidate();
-    });
-    return () => { unsub1(); unsub2(); unsub3(); };
-  }, [translateY, queryClient]);
+      setCountdown(60);
+    }
+    if (!orderId) return;
+
+    try {
+      await declineOrderMutation.mutateAsync({ orderId, reason });
+    } catch (error) {
+      console.error('[declineOrder] failed:', error);
+    }
+  };
 
   useEffect(() => {
     if (!sheetVisible) return;
@@ -274,7 +295,7 @@ export default function DriverHomeScreen() {
     const next = !isOnline;
 
     if (next && driver?.status !== 'ACTIVE') {
-      Alert.alert('Action Required', 'Your account is not active. Please ensure your KYC is approved before going online.');
+      modal.alert('Action Required', 'Your account is not active. Please ensure your KYC is approved before going online.', 'warning');
       return;
     }
 
@@ -282,7 +303,7 @@ export default function DriverHomeScreen() {
     const lng = driver?.currentLocation?.lng;
 
     if (next && (lat == null || lng == null || (lat === 0 && lng === 0))) {
-      Alert.alert('Location required', 'Please allow location access before going online.');
+      modal.alert('Location required', 'Please allow location access before going online.', 'warning');
       return;
     }
 
@@ -292,7 +313,7 @@ export default function DriverHomeScreen() {
       await toggleOnlineStatus.mutateAsync({ isOnline: next, lat: lat ?? undefined, lng: lng ?? undefined });
     } catch (error: unknown) {
       const msg = typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'Failed to update online status.';
-      Alert.alert('Status Update Failed', msg);
+      modal.alert('Status Update Failed', msg, 'error');
       return;
     }
 
@@ -312,22 +333,6 @@ export default function DriverHomeScreen() {
       setSheetVisible(false);
     } catch (error) {
       console.error('[acceptIncoming] failed:', error);
-    }
-  };
-
-  const declineOrder = async (reason = 'Driver declined incoming offer', targetOrderId?: string) => {
-    const orderId = targetOrderId ?? incomingOrder?.id;
-    if (!targetOrderId) {
-      setIncomingOrder(null);
-      setSheetVisible(false);
-      setCountdown(60);
-    }
-    if (!orderId) return;
-
-    try {
-      await declineOrderMutation.mutateAsync({ orderId, reason });
-    } catch (error) {
-      console.error('[declineOrder] failed:', error);
     }
   };
 
@@ -675,6 +680,7 @@ export default function DriverHomeScreen() {
           </Animated.View>
         </View>
       </Modal>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

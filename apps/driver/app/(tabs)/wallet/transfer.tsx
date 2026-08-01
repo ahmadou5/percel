@@ -9,7 +9,6 @@ import {
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,6 +23,7 @@ import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { TransactionResultModal } from '@/components/TransactionResultModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import {
   useAccountLookup,
   useBankTransfer,
@@ -38,6 +38,7 @@ import { formatNaira } from '@/lib/wallet';
 type TransferMode = 'BANK' | 'TAG';
 
 export default function DriverTransferScreen() {
+  const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -87,7 +88,7 @@ export default function DriverTransferScreen() {
         setResolvedRecipient(res.data);
       }
     } catch (err: any) {
-      Alert.alert('Recipient Not Found', err?.message || 'No user registered with this phone number.');
+      modal.alert('Recipient Not Found', err?.message || 'No user registered with this phone number.', 'error');
       setResolvedRecipient(null);
     }
   };
@@ -95,38 +96,38 @@ export default function DriverTransferScreen() {
   const handleInitiate = () => {
     if (mode === 'BANK') {
       if (!selectedBank) {
-        Alert.alert('Error', 'Please select a bank');
+        modal.alert('Error', 'Please select a bank', 'warning');
         return;
       }
       if (!accountNumber || accountNumber.length < 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit account number');
+        modal.alert('Error', 'Please enter a valid 10-digit account number', 'warning');
         return;
       }
       if (!accountLookup.data?.accountName) {
-        Alert.alert('Error', 'Bank account could not be verified. Check account number.');
+        modal.alert('Error', 'Bank account could not be verified. Check account number.', 'warning');
         return;
       }
       const amt = Number(bankAmount);
       if (isNaN(amt) || amt <= 0) {
-        Alert.alert('Error', 'Please enter a valid transfer amount');
+        modal.alert('Error', 'Please enter a valid transfer amount', 'warning');
         return;
       }
       if (amt > (walletQuery.data?.balance ?? 0)) {
-        Alert.alert('Insufficient Balance', 'Your wallet balance is lower than this transfer amount.');
+        modal.alert('Insufficient Balance', 'Your wallet balance is lower than this transfer amount.', 'warning');
         return;
       }
     } else {
       if (!resolvedRecipient) {
-        Alert.alert('Error', 'Please look up recipient phone number first');
+        modal.alert('Error', 'Please look up recipient phone number first', 'warning');
         return;
       }
       const amt = Number(tagAmount);
       if (isNaN(amt) || amt <= 0) {
-        Alert.alert('Error', 'Please enter a valid transfer amount');
+        modal.alert('Error', 'Please enter a valid transfer amount', 'warning');
         return;
       }
       if (amt > (walletQuery.data?.balance ?? 0)) {
-        Alert.alert('Insufficient Balance', 'Your wallet balance is lower than this transfer amount.');
+        modal.alert('Insufficient Balance', 'Your wallet balance is lower than this transfer amount.', 'warning');
         return;
       }
     }
@@ -418,6 +419,7 @@ export default function DriverTransferScreen() {
           }
         }}
       />
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

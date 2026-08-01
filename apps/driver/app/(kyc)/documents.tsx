@@ -1,12 +1,13 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet } from 'react-native';
+import { Image, Pressable, StyleSheet } from 'react-native';
 
 import { ActionButton, Card, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text, View } from '@/components/Themed';
 import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
@@ -43,6 +44,7 @@ function mimeFor(uri: string) {
 }
 
 export default function KycDocumentsScreen() {
+  const modal = useAppModal();
   const [vehicleType, setVehicleType] = useState<'CAR' | 'BIKE' | 'TRICYCLE'>('BIKE');
   const [documents, setDocuments] = useState<Partial<Record<UploadKey, UploadedDocument>>>({});
   const [uploading, setUploading] = useState<UploadKey | null>(null);
@@ -108,7 +110,7 @@ export default function KycDocumentsScreen() {
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (permission.status !== 'granted') {
-        Alert.alert('Permission required', source === 'camera' ? 'Allow camera access to capture this document.' : 'Allow photo access to select this document.');
+        modal.alert('Permission required', source === 'camera' ? 'Allow camera access to capture this document.' : 'Allow photo access to select this document.', 'warning');
         return;
       }
 
@@ -119,7 +121,7 @@ export default function KycDocumentsScreen() {
       if (result.canceled || !result.assets[0]) return;
       await uploadDocument(slot, result.assets[0]);
     } catch (error) {
-      Alert.alert('Upload failed', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert('Upload failed', error instanceof Error ? error.message : 'Please try again.', 'error');
     } finally {
       setUploading(null);
     }
@@ -132,10 +134,18 @@ export default function KycDocumentsScreen() {
       if (driver) {
         setDriver({ ...driver, status: 'KYC_SUBMITTED' });
       }
-      Alert.alert('KYC submitted', 'Your documents are now under review. We will notify you after approval.');
-      router.replace('/(kyc)');
+      modal.show({
+        title: 'KYC submitted',
+        description: 'Your documents are now under review. We will notify you after approval.',
+        type: 'success',
+        primaryText: 'OK',
+        onPrimaryPress: () => {
+          modal.hide();
+          router.replace('/(kyc)');
+        },
+      });
     } catch (error) {
-      Alert.alert('Could not submit KYC', error instanceof Error ? error.message : 'Please check every requirement and try again.');
+      modal.alert('Could not submit KYC', error instanceof Error ? error.message : 'Please check every requirement and try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -203,6 +213,7 @@ export default function KycDocumentsScreen() {
         <ActionButton title={submitting ? 'Submitting...' : 'Submit KYC'} onPress={submit} disabled={submitting || uploading !== null || completed < activeSlots.length} />
         <ActionButton title="Back to overview" variant="ghost" onPress={() => router.replace('/(kyc)')} />
       </Card>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </Screen>
   );
 }

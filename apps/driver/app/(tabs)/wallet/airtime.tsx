@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Smartphone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,11 +14,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useBuyAirtime, useResolveAirtimeProvider, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { formatNaira, telecomNetworks } from '@/lib/wallet';
 
 export default function DriverAirtimeScreen() {
+  const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -54,16 +55,16 @@ export default function DriverAirtimeScreen() {
 
   const handleInitiate = () => {
     if (!phone || phone.length < 10) {
-      Alert.alert('Invalid Phone Number', 'Please enter a valid phone number');
+      modal.alert('Invalid Phone Number', 'Please enter a valid phone number', 'warning');
       return;
     }
     const amt = Number(amount);
     if (isNaN(amt) || amt < 50) {
-      Alert.alert('Invalid Amount', 'Minimum airtime purchase is ₦50');
+      modal.alert('Invalid Amount', 'Minimum airtime purchase is ₦50', 'warning');
       return;
     }
     if (amt > (walletQuery.data?.balance ?? 0)) {
-      Alert.alert('Insufficient Balance', 'Your wallet balance is lower than this purchase amount.');
+      modal.alert('Insufficient Balance', 'Your wallet balance is lower than this purchase amount.', 'warning');
       return;
     }
     setPinModalVisible(true);
@@ -76,8 +77,16 @@ export default function DriverAirtimeScreen() {
       network: selectedNetwork,
     });
     setPinModalVisible(false);
-    Alert.alert('Success 🎉', `₦${amount} ${selectedNetwork} airtime sent to ${phone}`);
-    router.back();
+    modal.show({
+      title: 'Success 🎉',
+      description: `₦${amount} ${selectedNetwork} airtime sent to ${phone}`,
+      type: 'success',
+      primaryText: 'OK',
+      onPrimaryPress: () => {
+        modal.hide();
+        router.back();
+      },
+    });
   };
 
   return (
@@ -197,6 +206,7 @@ export default function DriverAirtimeScreen() {
         onConfirm={handleConfirmPin}
         loading={buyAirtimeMutation.isPending}
       />
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

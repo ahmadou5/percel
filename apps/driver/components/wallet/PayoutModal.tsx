@@ -6,13 +6,13 @@ import {
   Text,
   TextInput,
   View,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Landmark, ArrowUpRight, DollarSign, X, CheckCircle2 } from 'lucide-react-native';
 import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { http } from '@/lib/api';
 import { haptics } from '@/lib/haptics';
 
@@ -28,6 +28,7 @@ function formatNaira(value: number) {
 }
 
 export function PayoutModal({ visible, onClose, availableBalance, onSuccess }: Props) {
+  const modal = useAppModal();
   const palette = useAppPalette();
   const [amount, setAmount] = useState('');
   const [bankName, setBankName] = useState('');
@@ -54,13 +55,29 @@ export function PayoutModal({ visible, onClose, availableBalance, onSuccess }: P
         bankName: bankName.trim(),
         accountNumber: accountNumber.trim(),
       });
-      Alert.alert('Payout Initiated', `${formatNaira(numericAmount)} is on its way to your bank account.`);
-      onSuccess?.();
-      onClose();
+      modal.show({
+        title: 'Payout Initiated',
+        description: `${formatNaira(numericAmount)} is on its way to your bank account.`,
+        type: 'success',
+        primaryText: 'OK',
+        onPrimaryPress: () => {
+          modal.hide();
+          onSuccess?.();
+          onClose();
+        },
+      });
     } catch (err) {
-      Alert.alert('Payout Request', 'Your payout request has been queued for processing.');
-      onSuccess?.();
-      onClose();
+      modal.show({
+        title: 'Payout Request',
+        description: 'Your payout request has been queued for processing.',
+        type: 'info',
+        primaryText: 'OK',
+        onPrimaryPress: () => {
+          modal.hide();
+          onSuccess?.();
+          onClose();
+        },
+      });
     } finally {
       setLoading(false);
     }
@@ -169,6 +186,7 @@ export function PayoutModal({ visible, onClose, availableBalance, onSuccess }: P
           </Pressable>
         </View>
       </View>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </Modal>
   );
 }

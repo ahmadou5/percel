@@ -3,7 +3,6 @@ import { ArrowLeft, Zap } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import {
   useBuyElectricity,
   useValidateProviderAccount,
@@ -25,6 +25,7 @@ import { useAppPalette } from '@/lib/theme';
 import { discos, formatNaira } from '@/lib/wallet';
 
 export default function DriverElectricityScreen() {
+  const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -62,23 +63,23 @@ export default function DriverElectricityScreen() {
         setValidatedName(res.Customer_Name);
       }
     } catch (err: any) {
-      Alert.alert('Validation Error', err?.message || 'Meter verification failed. Check meter number.');
+      modal.alert('Validation Error', err?.message || 'Meter verification failed. Check meter number.', 'error');
       setValidatedName(null);
     }
   };
 
   const handleInitiate = () => {
     if (!meterNumber.trim()) {
-      Alert.alert('Invalid Meter', 'Please enter your meter number');
+      modal.alert('Invalid Meter', 'Please enter your meter number', 'warning');
       return;
     }
     const amt = Number(amount);
     if (isNaN(amt) || amt < 500) {
-      Alert.alert('Invalid Amount', 'Minimum electricity payment is ₦500');
+      modal.alert('Invalid Amount', 'Minimum electricity payment is ₦500', 'warning');
       return;
     }
     if (amt > (walletQuery.data?.balance ?? 0)) {
-      Alert.alert('Insufficient Balance', 'Your wallet balance is lower than this payment amount.');
+      modal.alert('Insufficient Balance', 'Your wallet balance is lower than this payment amount.', 'warning');
       return;
     }
     setPinModalVisible(true);
@@ -92,8 +93,16 @@ export default function DriverElectricityScreen() {
       type: meterType,
     });
     setPinModalVisible(false);
-    Alert.alert('Success 🎉', `₦${amount} electricity payment successful for meter ${meterNumber}`);
-    router.back();
+    modal.show({
+      title: 'Success 🎉',
+      description: `₦${amount} electricity payment successful for meter ${meterNumber}`,
+      type: 'success',
+      primaryText: 'OK',
+      onPrimaryPress: () => {
+        modal.hide();
+        router.back();
+      },
+    });
   };
 
   return (
@@ -222,6 +231,7 @@ export default function DriverElectricityScreen() {
         onConfirm={handleConfirmPin}
         loading={buyElectricityMutation.isPending}
       />
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

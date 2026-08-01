@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { Alert, Image, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { BadgeCheck, ChevronRight, LogOut, Pencil, Truck, Wallet, ShieldCheck, Zap, AlertCircle, MapPin, Bike, Car, Send } from 'lucide-react-native';
 import { useMemo } from 'react';
 
 import { Text, View } from '@/components/Themed';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useLogout } from '@/hooks/useAuth';
 import { useDriverProfile } from '@/hooks/useDriverProfile';
 import { useWallet } from '@/hooks/useWallet';
@@ -26,6 +27,7 @@ function VehicleIcon({ type, color }: { type?: string | null; color: string }) {
 }
 
 export default function ProfileScreen() {
+  const modal = useAppModal();
   const palette = useAppPalette();
   const lightBg = isLight(palette.bg);
   const user = useDriverStore((state) => state.user);
@@ -48,119 +50,148 @@ export default function ProfileScreen() {
 
   const signOut = async () => {
     await logout.mutateAsync();
-    Alert.alert('Signed out', 'You can log back in when the next shift starts.');
+    modal.alert('Signed out', 'You can log back in when the next shift starts.', 'info');
   };
 
   return (
-    <ScrollView 
-      style={[styles.screen, { backgroundColor: palette.bg }]}
-      contentContainerStyle={styles.content} 
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.headerSpacer} />
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Driver Profile</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Pressable style={({ pressed }) => [styles.avatarWrap, pressed ? { transform: [{ scale: 0.98 }] } : null]}>
-          <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
-            {profile?.avatarUrl ? (
-              <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <Text style={[styles.avatarText, { color: palette.card }]}>{initials}</Text>
-            )}
-          </View>
-        </Pressable>
-
-        <View style={styles.identityBlock}>
-          <Text style={[styles.name, { color: palette.text }]}>{displayName}</Text>
-          <Text style={[styles.username, { color: palette.textSecondary }]}>{username}  ·  {email}</Text>
-          
-          <View style={[styles.badge, { backgroundColor: verified ? 'rgba(48, 209, 88, 0.16)' : (kycRejected ? 'rgba(255, 69, 58, 0.16)' : 'rgba(255, 214, 10, 0.16)') }]}>
-            {verified ? <ShieldCheck size={12} color="#30D158" /> : (kycRejected ? <AlertCircle size={12} color="#FF453A" /> : <ShieldCheck size={12} color="#FFD60A" />)}
-            <Text style={[styles.badgeText, { color: verified ? '#30D158' : (kycRejected ? '#FF453A' : '#FFD60A') }]}>
-              {verified ? 'Driver Active' : (kycRejected ? 'KYC Rejected' : 'KYC Pending')}
-            </Text>
-          </View>
-          
-          {verified ? (
-            <View style={[styles.kycVerifiedCard, { backgroundColor: 'rgba(48,209,88,0.06)', borderColor: hexToRgba('#30D158', 0.3) }]}>
-              <View style={styles.kycVerifiedTextWrap}>
-                <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity Verified</Text>
-                <Text style={[styles.kycVerifiedSubtitle, { color: palette.textSecondary }]}>Your background check is complete and wallet is active.</Text>
-              </View>
+    <>
+      <ScrollView 
+        style={[styles.screen, { backgroundColor: palette.bg }]}
+        contentContainerStyle={styles.content} 
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.push('/profile/edit')} style={styles.avatarWrap}>
+            <View style={[styles.avatar, { backgroundColor: palette.card, borderColor: palette.border, borderWidth: 1 }]}>
+              {profile?.avatarUrl ? (
+                <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarText, { color: palette.text }]}>{initials}</Text>
+              )}
             </View>
-          ) : (
-            <Pressable onPress={() => router.push('/(kyc)')} style={[styles.kycCallout, { backgroundColor: lightBg ? 'rgba(255,214,10,0.10)' : 'rgba(255,214,10,0.12)', borderColor: palette.border }]}>
-              <Text style={[styles.kycTitle, { color: palette.text }]}>
-                {kycRejected ? 'Action Required: Resubmit KYC' : 'Complete KYC to start earning'}
+          </Pressable>
+
+          <Text style={[styles.headerTitle, { color: palette.text }]}>Driver Account</Text>
+
+          <Pressable onPress={() => router.push('/profile/edit')} style={[styles.badge, { backgroundColor: palette.card, borderColor: palette.border, borderWidth: 1 }]}>
+            <Pencil size={14} color={palette.text} />
+          </Pressable>
+        </View>
+
+        <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.identityBlock}>
+            <Text style={[styles.name, { color: palette.text }]}>{displayName}</Text>
+            <Text style={[styles.username, { color: palette.textSecondary }]}>{username}</Text>
+            
+            <View style={[styles.badge, { backgroundColor: verified ? '#30D15822' : (kycRejected ? '#FF453A22' : '#FFD60A22') }]}>
+              {verified ? <ShieldCheck size={12} color="#30D158" /> : (kycRejected ? <AlertCircle size={12} color="#FF453A" /> : <ShieldCheck size={12} color="#FFD60A" />)}
+              <Text style={[styles.badgeText, { color: verified ? '#30D158' : (kycRejected ? '#FF453A' : '#FFD60A') }]}>
+                {verified ? 'ACTIVE DRIVER' : (kycRejected ? 'KYC REJECTED' : 'KYC PENDING')}
+              </Text>
+            </View>
+          </View>
+
+          {/* KYC Banner */}
+          {!verified ? (
+            <Pressable
+              onPress={() => router.push('/(kyc)')}
+              style={[
+                styles.kycCallout,
+                {
+                  backgroundColor: kycRejected ? '#FF453A12' : '#FFD60A12',
+                  borderColor: kycRejected ? '#FF453A33' : '#FFD60A33',
+                },
+              ]}
+            >
+              <Text style={[styles.kycTitle, { color: kycRejected ? '#FF453A' : '#FFD60A' }]}>
+                {kycRejected ? 'KYC Verification Failed' : 'Complete Verification'}
               </Text>
               <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>
-                {kycRejected ? profile?.kyc.rejectionReason : 'Submit your driver license, BVN, and vehicle papers.'}
+                {kycRejected
+                  ? 'Tap to update your documents and try again.'
+                  : 'Verify your ID and vehicle to start accepting orders.'}
               </Text>
             </Pressable>
+          ) : (
+            <View style={[styles.kycVerifiedCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <BadgeCheck size={20} color="#30D158" />
+              <View style={styles.kycVerifiedTextWrap}>
+                <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity & Vehicle Verified</Text>
+                <Text style={[styles.kycVerifiedSubtitle, { color: palette.textSecondary }]}>
+                  Your account is active and eligible for order dispatch.
+                </Text>
+              </View>
+            </View>
           )}
+
+          {/* Vehicle info */}
+          <Pressable
+            onPress={() => router.push('/profile/edit')}
+            style={[styles.vehicleCard, { backgroundColor: palette.bg, borderColor: palette.border }]}
+          >
+            <View style={[styles.vehicleIcon, { backgroundColor: palette.card }]}>
+              <VehicleIcon type={profile?.vehicleType} color={palette.primary} />
+            </View>
+            <View style={styles.vehicleCopy}>
+              <Text style={[styles.vehicleTitle, { color: palette.text }]}>
+                {profile?.vehicleModel || 'No vehicle model set'}
+              </Text>
+              <Text style={[styles.vehicleSubtitle, { color: palette.textSecondary }]}>
+                {profile?.vehicleType ? `${profile.vehicleType} · Vehicle profile` : 'Tap to add vehicle details'}
+              </Text>
+            </View>
+            {profile?.vehiclePlate ? (
+              <View style={styles.vehiclePlateTag}>
+                <Text style={styles.vehiclePlateText}>{profile.vehiclePlate}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+
+          {/* Quick links */}
+          <Pressable
+            onPress={() => router.push('/profile/edit')}
+            style={[styles.settingsRow, { borderColor: palette.border }]}
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: palette.bg }]}>
+              <Pencil size={16} color={palette.text} />
+            </View>
+            <View style={styles.settingsCopy}>
+              <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
+              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit your driver information</Text>
+            </View>
+            <ChevronRight size={18} color={palette.textSecondary} />
+          </Pressable>
+
+          <View style={[styles.settingsRow, { borderColor: palette.border, borderTopWidth: 0 }]}>
+            <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
+              <MapPin size={16} color={palette.card} />
+            </View>
+            <View style={styles.settingsCopy}>
+              <Text style={[styles.settingsTitle, { color: palette.text }]}>Performance</Text>
+              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>
+                {profile?.totalDeliveries} deliveries · {profile?.rating?.toFixed(1) ?? 'No'} ★ rating
+              </Text>
+            </View>
+          </View>
         </View>
 
-        {/* ── Vehicle Identity ── */}
-        <View style={[styles.vehicleCard, { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border }]}>
-          <View style={[styles.vehicleIcon, { backgroundColor: palette.primary }]}>
-            <VehicleIcon type={profile?.vehicleType} color={palette.card} />
-          </View>
-          <View style={styles.vehicleCopy}>
-            <Text style={[styles.vehicleTitle, { color: palette.text }]}>
-              {profile?.vehicleType ? profile.vehicleType.charAt(0).toUpperCase() + profile.vehicleType.slice(1).toLowerCase() : 'Vehicle Setup'}
-            </Text>
-            <Text style={[styles.vehicleSubtitle, { color: palette.textSecondary }]}>
-              {profile?.vehicleModel ?? 'No vehicle model specified'}
-            </Text>
-          </View>
-          <View style={styles.vehiclePlateTag}>
-            <Text style={styles.vehiclePlateText}>{profile?.vehiclePlate ?? 'NO PLATE'}</Text>
-          </View>
-        </View>
-
-        <Pressable onPress={() => router.push('/profile/edit' as never)} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
-          <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
-            <Pencil size={16} color={palette.card} />
-          </View>
-          <View style={styles.settingsCopy}>
-            <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
-            <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit your driver information</Text>
-          </View>
-          <ChevronRight size={18} color={palette.textSecondary} />
+        {/* ── Logout ── */}
+        <Pressable
+          onPress={signOut}
+          disabled={logout.isPending}
+          style={({ pressed }) => [
+            styles.logoutRow,
+            { backgroundColor: hexToRgba(palette.error, 0.12), borderColor: hexToRgba(palette.error, 0.24) },
+            pressed && !logout.isPending ? styles.pressed : null,
+            logout.isPending ? styles.disabled : null,
+          ]}
+        >
+          <LogOut size={18} color={palette.error} />
+          <Text style={[styles.logoutText, { color: palette.error }]}>{logout.isPending ? 'Signing out…' : 'Logout'}</Text>
         </Pressable>
-
-        <View style={[styles.settingsRow, { borderColor: palette.border, borderTopWidth: 0 }]}>
-          <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
-            <MapPin size={16} color={palette.card} />
-          </View>
-          <View style={styles.settingsCopy}>
-            <Text style={[styles.settingsTitle, { color: palette.text }]}>Performance</Text>
-            <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>
-              {profile?.totalDeliveries} deliveries · {profile?.rating?.toFixed(1) ?? 'No'} ★ rating
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* ── Logout ── */}
-      <Pressable
-        onPress={signOut}
-        disabled={logout.isPending}
-        style={({ pressed }) => [
-          styles.logoutRow,
-          { backgroundColor: hexToRgba(palette.error, 0.12), borderColor: hexToRgba(palette.error, 0.24) },
-          pressed && !logout.isPending ? styles.pressed : null,
-          logout.isPending ? styles.disabled : null,
-        ]}
-      >
-        <LogOut size={18} color={palette.error} />
-        <Text style={[styles.logoutText, { color: palette.error }]}>{logout.isPending ? 'Signing out…' : 'Logout'}</Text>
-      </Pressable>
-    </ScrollView>
+      </ScrollView>
+      <AppModal config={modal.config} onClose={modal.hide} />
+    </>
   );
 }
 

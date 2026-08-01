@@ -1,5 +1,4 @@
 import {
-  Alert,
   Image,
   Linking,
   Modal,
@@ -28,6 +27,7 @@ import {
   ArrowLeft,
 } from 'lucide-react-native';
 import { DriverChatModal } from '@/components/orders/DriverChatModal';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useAppPalette, hexToRgba } from '@/lib/theme';
@@ -116,7 +116,8 @@ function ContactCard({
   );
 }
 
-export default function ActiveOrderScreen() {
+export default function OrderDetailScreen() {
+  const modal = useAppModal();
   const { id } = useLocalSearchParams<{ id: string }>();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -162,7 +163,7 @@ export default function ActiveOrderScreen() {
         setFeedbackComment('');
       }
     } catch (err) {
-      Alert.alert('Could not update status', err instanceof Error ? err.message : 'Please try again.');
+      modal.alert('Could not update status', err instanceof Error ? err.message : 'Please try again.', 'error');
     }
   };
 
@@ -441,12 +442,28 @@ export default function ActiveOrderScreen() {
                       driverComment: feedbackComment.trim() || undefined,
                     });
                     setFeedbackVisible(false);
-                    Alert.alert('Feedback sent', 'Thank you for rating this customer.');
-                    router.back();
+                    modal.show({
+                      title: 'Feedback sent',
+                      description: 'Thank you for rating this customer.',
+                      type: 'success',
+                      primaryText: 'OK',
+                      onPrimaryPress: () => {
+                        modal.hide();
+                        router.back();
+                      },
+                    });
                   } catch {
                     setFeedbackVisible(false);
-                    Alert.alert('Feedback skipped', 'Your delivery is complete.');
-                    router.back();
+                    modal.show({
+                      title: 'Feedback skipped',
+                      description: 'Your delivery is complete.',
+                      type: 'info',
+                      primaryText: 'OK',
+                      onPrimaryPress: () => {
+                        modal.hide();
+                        router.back();
+                      },
+                    });
                   }
                 }}
                 disabled={rateCustomer.isPending}
@@ -469,6 +486,7 @@ export default function ActiveOrderScreen() {
           onClose={() => setChatModalOpen(false)}
         />
       ) : null}
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

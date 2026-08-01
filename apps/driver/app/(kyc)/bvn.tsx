@@ -1,16 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text } from '@/components/Themed';
 import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
 export default function BvnScreen() {
+  const modal = useAppModal();
   const queryClient = useQueryClient();
   const [bvn, setBvn] = useState('');
   const [verified, setVerified] = useState(false);
@@ -24,7 +26,7 @@ export default function BvnScreen() {
     try {
       const response = await http.post<{ data: { verified: boolean; message?: string } }>('/api/v1/driver/kyc/verify-bvn', { bvn });
       if (!response.data.data.verified) {
-        Alert.alert('BVN verification failed', response.data.data.message ?? 'Please review the number and try again.');
+        modal.alert('BVN verification failed', response.data.data.message ?? 'Please review the number and try again.', 'error');
         return;
       }
 
@@ -34,9 +36,9 @@ export default function BvnScreen() {
       }
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
       await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
-      Alert.alert('BVN verified', 'Your banking identity check has been submitted.');
+      modal.alert('BVN verified', 'Your banking identity check has been submitted.', 'success');
     } catch (error) {
-      Alert.alert('Could not verify BVN', error instanceof Error ? error.message : 'Please check your connection and try again.');
+      modal.alert('Could not verify BVN', error instanceof Error ? error.message : 'Please check your connection and try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -51,6 +53,7 @@ export default function BvnScreen() {
         <ActionButton title={loading ? 'Verifying…' : verified ? 'Verified' : 'Verify'} onPress={verify} disabled={loading || bvn.length < 11} />
         <ActionButton title="Continue" variant="ghost" onPress={() => router.push('/(kyc)/documents')} />
       </Card>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Modal } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Modal } from 'react-native';
 import { Camera, ChevronLeft, ShieldCheck, Truck } from 'lucide-react-native';
 
 import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
@@ -7,6 +7,7 @@ import { Text, View } from '@/components/Themed';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import {
   useChangePassword,
   useDriverProfile,
@@ -22,6 +23,7 @@ import { useAppPalette } from '@/lib/theme';
 const vehicleTypes = ['BIKE', 'CAR', 'VAN', 'TRUCK'] as const;
 
 export default function EditProfileScreen() {
+  const modal = useAppModal();
   const palette = useAppPalette();
   const back = useSafeBack('/profile');
   const profileQuery = useDriverProfile();
@@ -52,7 +54,7 @@ export default function EditProfileScreen() {
       await reqEmailVerify.mutateAsync();
       setVerifyType('EMAIL');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not send verification code.');
+      modal.alert('Error', err.message || 'Could not send verification code.', 'error');
     }
   };
 
@@ -63,7 +65,7 @@ export default function EditProfileScreen() {
       await reqPhoneVerify.mutateAsync();
       setVerifyType('PHONE');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not send verification code.');
+      modal.alert('Error', err.message || 'Could not send verification code.', 'error');
     }
   };
 
@@ -77,7 +79,7 @@ export default function EditProfileScreen() {
         await confirmPhoneVerify.mutateAsync(verifyOtp);
       }
       setVerifyType(null);
-      Alert.alert('Success', `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`);
+      modal.alert('Success', `${verifyType === 'EMAIL' ? 'Email' : 'Phone number'} verified successfully!`, 'success');
     } catch (err: any) {
       setVerifyError(err.message || 'Verification failed. Please try again.');
     }
@@ -107,10 +109,18 @@ export default function EditProfileScreen() {
         vehiclePlate: vehiclePlate.trim(),
         vehicleModel: vehicleModel.trim(),
       });
-      Alert.alert('Vehicle updated', 'Your dispatch profile has been updated.');
-      back();
+      modal.show({
+        title: 'Vehicle updated',
+        description: 'Your dispatch profile has been updated.',
+        type: 'success',
+        primaryText: 'OK',
+        onPrimaryPress: () => {
+          modal.hide();
+          back();
+        },
+      });
     } catch (error) {
-      Alert.alert('Could not update vehicle', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert('Could not update vehicle', error instanceof Error ? error.message : 'Please try again.', 'error');
     }
   };
 
@@ -119,9 +129,10 @@ export default function EditProfileScreen() {
     try {
       ImagePickerModule = require('expo-image-picker');
     } catch (e) {
-      Alert.alert(
+      modal.alert(
         'Feature Unavailable',
-        'The image picker native module is not installed in this development build. Please run a new EAS development build to update the app.'
+        'The image picker native module is not installed in this development build. Please run a new EAS development build to update the app.',
+        'warning'
       );
       return;
     }
@@ -129,7 +140,7 @@ export default function EditProfileScreen() {
     try {
       const permission = await ImagePickerModule.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission required', 'Allow photo access to change your avatar.');
+        modal.alert('Permission required', 'Allow photo access to change your avatar.', 'warning');
         return;
       }
 
@@ -153,9 +164,9 @@ export default function EditProfileScreen() {
       } as never);
 
       await updateAvatar.mutateAsync(formData);
-      Alert.alert('Avatar updated', 'Your profile photo has been saved.');
+      modal.alert('Avatar updated', 'Your profile photo has been saved.', 'success');
     } catch (error) {
-      Alert.alert('Could not update avatar', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert('Could not update avatar', error instanceof Error ? error.message : 'Please try again.', 'error');
     }
   };
 
@@ -166,9 +177,9 @@ export default function EditProfileScreen() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      Alert.alert('Password changed', 'Use your new password the next time you sign in.');
+      modal.alert('Password changed', 'Use your new password the next time you sign in.', 'success');
     } catch (error) {
-      Alert.alert('Could not change password', error instanceof Error ? error.message : 'Please try again.');
+      modal.alert('Could not change password', error instanceof Error ? error.message : 'Please try again.', 'error');
     }
   };
 
@@ -333,6 +344,7 @@ export default function EditProfileScreen() {
           </View>
         </View>
       </Modal>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </Screen>
   );
 }

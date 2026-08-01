@@ -3,7 +3,6 @@ import { ArrowLeft, Phone } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import {
   useBuyData,
   useProviderServices,
@@ -26,6 +26,7 @@ import { useAppPalette } from '@/lib/theme';
 import { formatNaira, telecomNetworks, type ProviderVariation } from '@/lib/wallet';
 
 export default function DriverDataScreen() {
+  const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -51,16 +52,16 @@ export default function DriverDataScreen() {
 
   const handleInitiate = () => {
     if (!phone || phone.length < 10) {
-      Alert.alert('Invalid Phone Number', 'Please enter a valid phone number');
+      modal.alert('Invalid Phone Number', 'Please enter a valid phone number', 'warning');
       return;
     }
     if (!selectedPlan) {
-      Alert.alert('Select Plan', 'Please select a data bundle plan');
+      modal.alert('Select Plan', 'Please select a data bundle plan', 'warning');
       return;
     }
     const amt = Number(selectedPlan.variation_amount);
     if (amt > (walletQuery.data?.balance ?? 0)) {
-      Alert.alert('Insufficient Balance', 'Your wallet balance is lower than this plan cost.');
+      modal.alert('Insufficient Balance', 'Your wallet balance is lower than this plan cost.', 'warning');
       return;
     }
     setPinModalVisible(true);
@@ -76,8 +77,16 @@ export default function DriverDataScreen() {
       serviceID,
     });
     setPinModalVisible(false);
-    Alert.alert('Success 🎉', `${selectedPlan!.name} data sent to ${phone}`);
-    router.back();
+    modal.show({
+      title: 'Success 🎉',
+      description: `${selectedPlan!.name} data sent to ${phone}`,
+      type: 'success',
+      primaryText: 'OK',
+      onPrimaryPress: () => {
+        modal.hide();
+        router.back();
+      },
+    });
   };
 
   return (
@@ -196,6 +205,7 @@ export default function DriverDataScreen() {
         onConfirm={handleConfirmPin}
         loading={buyDataMutation.isPending}
       />
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

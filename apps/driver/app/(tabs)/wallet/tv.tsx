@@ -3,7 +3,6 @@ import { ArrowLeft, Tv } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import {
   useBuyTv,
   useProviderVariations,
@@ -26,6 +26,7 @@ import { useAppPalette } from '@/lib/theme';
 import { formatNaira, type ProviderVariation } from '@/lib/wallet';
 
 export default function DriverTvScreen() {
+  const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
@@ -59,23 +60,23 @@ export default function DriverTvScreen() {
         setValidatedName(res.Customer_Name);
       }
     } catch (err: any) {
-      Alert.alert('Validation Error', err?.message || 'Smartcard verification failed.');
+      modal.alert('Validation Error', err?.message || 'Smartcard verification failed.', 'error');
       setValidatedName(null);
     }
   };
 
   const handleInitiate = () => {
     if (!smartcardNumber.trim()) {
-      Alert.alert('Invalid Smartcard', 'Please enter your smartcard/IUC number');
+      modal.alert('Invalid Smartcard', 'Please enter your smartcard/IUC number', 'warning');
       return;
     }
     if (!selectedPlan) {
-      Alert.alert('Select Package', 'Please choose a TV subscription package');
+      modal.alert('Select Package', 'Please choose a TV subscription package', 'warning');
       return;
     }
     const amt = Number(selectedPlan.variation_amount);
     if (amt > (walletQuery.data?.balance ?? 0)) {
-      Alert.alert('Insufficient Balance', 'Your wallet balance is lower than this package price.');
+      modal.alert('Insufficient Balance', 'Your wallet balance is lower than this package price.', 'warning');
       return;
     }
     setPinModalVisible(true);
@@ -89,8 +90,16 @@ export default function DriverTvScreen() {
       variationCode: selectedPlan!.variation_code,
     });
     setPinModalVisible(false);
-    Alert.alert('Success 🎉', `${selectedProvider.name} ${selectedPlan!.name} renewed successfully!`);
-    router.back();
+    modal.show({
+      title: 'Success 🎉',
+      description: `${selectedProvider.name} ${selectedPlan!.name} renewed successfully!`,
+      type: 'success',
+      primaryText: 'OK',
+      onPrimaryPress: () => {
+        modal.hide();
+        router.back();
+      },
+    });
   };
 
   return (
@@ -231,6 +240,7 @@ export default function DriverTvScreen() {
         onConfirm={handleConfirmPin}
         loading={buyTvMutation.isPending}
       />
+      <AppModal config={modal.config} onClose={modal.hide} />
     </View>
   );
 }

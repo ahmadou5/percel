@@ -1,16 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text } from '@/components/Themed';
 import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
 export default function NinScreen() {
+  const modal = useAppModal();
   const queryClient = useQueryClient();
   const [nin, setNin] = useState('');
   const [verified, setVerified] = useState(false);
@@ -24,7 +26,7 @@ export default function NinScreen() {
     try {
       const response = await http.post<{ data: { verified: boolean; message?: string } }>('/api/v1/driver/kyc/verify-nin', { nin });
       if (!response.data.data.verified) {
-        Alert.alert('NIN verification failed', response.data.data.message ?? 'Please review the number and try again.');
+        modal.alert('NIN verification failed', response.data.data.message ?? 'Please review the number and try again.', 'error');
         return;
       }
 
@@ -34,9 +36,9 @@ export default function NinScreen() {
       }
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
       await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
-      Alert.alert('NIN verified', 'Your identity check has been submitted.');
+      modal.alert('NIN verified', 'Your identity check has been submitted.', 'success');
     } catch (error) {
-      Alert.alert('Could not verify NIN', error instanceof Error ? error.message : 'Please check your connection and try again.');
+      modal.alert('Could not verify NIN', error instanceof Error ? error.message : 'Please check your connection and try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -51,6 +53,7 @@ export default function NinScreen() {
         <ActionButton title={loading ? 'Verifying…' : verified ? 'Verified' : 'Verify'} onPress={verify} disabled={loading || nin.length < 11} />
         <ActionButton title="Continue" variant="ghost" onPress={() => router.push('/(kyc)/bvn')} />
       </Card>
+      <AppModal config={modal.config} onClose={modal.hide} />
     </Screen>
   );
 }
