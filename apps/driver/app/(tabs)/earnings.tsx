@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CreditCard, TrendingUp, Download, Eye, EyeOff, Bell, Car, Send, PlusCircle, Smartphone, Wifi } from 'lucide-react-native';
+import { CreditCard, TrendingUp, Download, Eye, EyeOff, Bell, Car, Send, PlusCircle, Smartphone, Wifi, ArrowBigUp, ArrowUp } from 'lucide-react-native';
 
 import { Text } from '@/components/Themed';
 import { useWallet } from '@/hooks/useWallet';
@@ -136,13 +136,7 @@ export default function EarningsScreen() {
                 {balanceHidden ? '••••••••' : wallet ? formatCurrency(wallet.balance) : '---'}
               </Text>
             </View>
-            <Pressable
-              onPress={() => setPayoutModalVisible(true)}
-              style={[styles.cashOutBtn, { backgroundColor: 'rgba(255,255,255,0.18)' }]}
-            >
-              <Download size={14} color="#fff" />
-              <Text style={styles.cashOutText}>Withdraw →</Text>
-            </Pressable>
+
           </View>
         </View>
 
@@ -157,7 +151,7 @@ export default function EarningsScreen() {
             ]}
           >
             <View style={[styles.actionIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
-              <Send size={20} color={palette.primary} />
+              <ArrowUp size={20} color={palette.primary} />
             </View>
             <Text style={[styles.actionLabelText, { color: palette.text }]}>Transfer</Text>
           </Pressable>
@@ -341,8 +335,10 @@ export default function EarningsScreen() {
                     <Text
                       style={[
                         styles.barLabel,
-                        { color: isSelected ? palette.primary : palette.textSecondary,
-                          fontFamily: isSelected ? Typography.family.bold : Typography.family.semibold },
+                        {
+                          color: isSelected ? palette.primary : palette.textSecondary,
+                          fontFamily: isSelected ? Typography.family.bold : Typography.family.semibold
+                        },
                       ]}
                     >
                       {bar.label}

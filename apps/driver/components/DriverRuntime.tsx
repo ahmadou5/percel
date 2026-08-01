@@ -41,6 +41,10 @@ export function DriverRuntime() {
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       const auth = useDriverStore.getState();
+      if (auth.isBiometricPromptActive) {
+        return;
+      }
+
       if (nextState !== 'active') {
         if (auth.isAuthenticated && appLockEnabled) auth.lock();
         return;

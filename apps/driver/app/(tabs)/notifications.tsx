@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppPalette } from '@/lib/theme';
+import { Typography } from '@/constants/typography';
 import { formatNotificationDate, type AppNotification } from '@/lib/notifications';
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '@/hooks/useNotifications';
 
@@ -46,7 +47,7 @@ export default function DriverNotificationsScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Notifications</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Track dispatch, payouts, and account updates in one place.</Text>
+
       </View>
 
       <View style={[styles.summaryCard, { backgroundColor: palette.primaryDark }]}>
@@ -146,35 +147,35 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { gap: 8 },
-  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 0, textTransform: 'uppercase' },
-  title: { fontSize: 28, lineHeight: 34, fontWeight: '900' },
+  eyebrow: { fontSize: Typography.xs, fontFamily: Typography.family.bold, letterSpacing: 1, textTransform: 'uppercase' },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: Typography.family.bold },
   summaryCard: { borderRadius: 28, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  summaryLabel: { color: 'rgba(255,255,255,0.72)', fontSize: 13, fontWeight: '700' },
-  summaryValue: { color: '#fff', fontSize: 34, lineHeight: 38, fontWeight: '900' },
+  summaryLabel: { color: 'rgba(255,255,255,0.72)', fontSize: Typography.xs, fontFamily: Typography.family.medium },
+  summaryValue: { color: '#fff', fontSize: 34, lineHeight: 38, fontFamily: Typography.family.bold },
   summaryAction: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 999, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.14)' },
-  summaryActionText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  summaryActionText: { color: '#fff', fontSize: Typography.xs, fontFamily: Typography.family.bold },
   filterRow: { flexDirection: 'row', gap: 10 },
   filterChip: { minHeight: 42, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  filterText: { fontSize: 13, fontWeight: '900' },
+  filterText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
   list: { gap: 12 },
   card: { borderRadius: 22, borderWidth: 1, padding: 14, flexDirection: 'row', gap: 12 },
   iconWrap: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  cardTitle: { flex: 1, fontSize: 15, fontWeight: '900' },
-  cardBody: { fontSize: 13, lineHeight: 20, fontWeight: '500' },
+  cardTitle: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  cardBody: { fontSize: Typography.xs, lineHeight: 18, fontFamily: Typography.family.regular },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontSize: 12, fontWeight: '700' },
+  metaText: { fontSize: 11, fontFamily: Typography.family.medium },
   dot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
   stateCard: { borderRadius: 22, borderWidth: 1, padding: 28, alignItems: 'center', gap: 10 },
-  stateTitle: { fontSize: 16, fontWeight: '900' },
-  stateBody: { fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  stateTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  stateBody: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
   stateButton: { minHeight: 44, paddingHorizontal: 18, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  stateButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  stateButtonText: { color: '#fff', fontSize: Typography.sm, fontFamily: Typography.family.bold },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'flex-end' },
   detailSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: 22, gap: 10 },
-  detailTitle: { fontSize: 20, fontWeight: '900' },
-  detailBody: { fontSize: 14, lineHeight: 21 },
-  detailDate: { fontSize: 12, fontWeight: '700' },
+  detailTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  detailBody: { fontSize: Typography.sm, fontFamily: Typography.family.regular, lineHeight: 21 },
+  detailDate: { fontSize: Typography.xs, fontFamily: Typography.family.medium },
   pressed: { opacity: 0.92 },
 });

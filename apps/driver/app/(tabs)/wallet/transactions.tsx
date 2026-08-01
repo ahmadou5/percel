@@ -146,7 +146,7 @@ export default function DriverTransactionsScreen() {
           {/* back */}
           <View style={styles.headerRow}>
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => router.replace('/')}
               style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
             >
               <ChevronLeft size={20} color={palette.text} />
@@ -236,7 +236,7 @@ export default function DriverTransactionsScreen() {
             data={filteredItems}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <TransactionRow item={item} palette={palette} onPress={() => {}} />
+              <TransactionRow item={item} palette={palette} onPress={() => { }} />
             )}
             onEndReached={() => {
               if (hasNextPage && !isFetchingNextPage) void fetchNextPage();

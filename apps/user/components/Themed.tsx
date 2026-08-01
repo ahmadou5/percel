@@ -18,5 +18,6 @@ export function Text(props: TextProps) {
 export function View(props: ViewProps) {
   const { style, lightColor, darkColor, ...otherProps } = props;
   const palette = useAppPalette();
-  return <DefaultView style={[{ backgroundColor: palette.bg }, style]} {...otherProps} />;
+  const backgroundColor = lightColor || darkColor ? palette.bg : undefined;
+  return <DefaultView style={[backgroundColor ? { backgroundColor } : null, style]} {...otherProps} />;
 }

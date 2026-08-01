@@ -17,6 +17,9 @@ import { usePreferencesStore } from '@/store/preferences.store';
 import { useAppPalette, buildNavigationTheme, isLight } from '@/lib/theme';
 import { StatusBar } from 'expo-status-bar';
 
+import { ThemedSplashScreen } from '@/components/ThemedSplashScreen';
+import { PRESET_THEMES } from '@/constants/theme-presets';
+
 export { ErrorBoundary } from '@/components/AppErrorBoundary';
 
 export const unstable_settings = {
@@ -43,6 +46,7 @@ function RootLayout() {
   
   const hydratePreferences = usePreferencesStore((state) => state.hydrate);
   const preferencesLoading = usePreferencesStore((state) => state.isLoading);
+  const activePresetId = usePreferencesStore((state) => state.activePresetId);
   const palette = useAppPalette();
 
   useEffect(() => {
@@ -51,11 +55,11 @@ function RootLayout() {
 
   useEffect(() => {
     void hydrate();
-  }, [hydrate]);
+  }, []);
 
   useEffect(() => {
     void hydratePreferences();
-  }, [hydratePreferences]);
+  }, []);
 
   useEffect(() => {
     if (loaded && !isLoading && !preferencesLoading) {
@@ -64,17 +68,12 @@ function RootLayout() {
   }, [loaded, isLoading, preferencesLoading]);
 
   if (!loaded || isLoading || preferencesLoading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.bg }}>
-        <ActivityIndicator size="small" color={palette.primary} />
-      </View>
-    );
+    return <ThemedSplashScreen palette={palette} presetName={PRESET_THEMES[activePresetId]?.name} />;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style={isLight(palette.bg) ? 'dark' : 'light'} />
-      <DriverRuntime />
       <RootLayoutNav />
     </QueryClientProvider>
   );
@@ -94,6 +93,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={buildNavigationTheme(palette)}>
+      <DriverRuntime />
       <MaintenanceOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Modal } from 'react-native';
-import { Camera, ChevronLeft, ShieldCheck, Truck } from 'lucide-react-native';
+import { Camera, ChevronLeft, ShieldCheck, Truck, Palette as PaletteIcon, Check, Sparkles } from 'lucide-react-native';
 
 import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text, View } from '@/components/Themed';
@@ -8,6 +8,8 @@ import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
+import { PRESET_THEMES, ThemePresetId } from '@/constants/theme-presets';
+import { usePreferencesStore } from '@/store/preferences.store';
 import {
   useChangePassword,
   useDriverProfile,
@@ -31,6 +33,8 @@ export default function EditProfileScreen() {
   const updateVehicle = useUpdateVehicle();
   const updateAvatar = useUpdateAvatar();
   const changePassword = useChangePassword();
+  const activePresetId = usePreferencesStore((state) => state.activePresetId);
+  const setThemePreset = usePreferencesStore((state) => state.setThemePreset);
   const [vehicleType, setVehicleType] = useState<(typeof vehicleTypes)[number]>('BIKE');
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
@@ -290,6 +294,56 @@ export default function EditProfileScreen() {
           </View>
         </Card>
 
+        {/* Premium Theme & Dynamic App Icon Switcher Card */}
+        <Card>
+          <View style={styles.sectionHeaderRow}>
+            <PaletteIcon size={18} color={palette.primary} />
+            <SectionHeader title="App Icon & Theme Accent" caption="Premium Feature" />
+          </View>
+
+          <Text style={[styles.cardMeta, { color: palette.textSecondary }]}>
+            Selecting a theme preset instantly changes your UI color palette and syncs your home screen launcher app icon to match.
+          </Text>
+
+          <View style={styles.presetGrid}>
+            {(Object.keys(PRESET_THEMES) as ThemePresetId[]).map((presetId) => {
+              const preset = PRESET_THEMES[presetId];
+              const isSelected = activePresetId === presetId;
+
+              return (
+                <Pressable
+                  key={presetId}
+                  onPress={() => void setThemePreset(presetId)}
+                  style={({ pressed }) => [
+                    styles.presetCard,
+                    { backgroundColor: preset.bg, borderColor: isSelected ? preset.primary : palette.border },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.presetHeader}>
+                    {/* Simulated App Icon Badge */}
+                    <View style={[styles.appIconBadge, { backgroundColor: preset.primary }]}>
+                      <Sparkles size={14} color="#FFFFFF" />
+                    </View>
+                    {isSelected && (
+                      <View style={[styles.selectedCheck, { backgroundColor: preset.primary }]}>
+                        <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={[styles.presetName, { color: preset.text }]}>{preset.name}</Text>
+                  <View style={styles.swatchRow}>
+                    <View style={[styles.swatch, { backgroundColor: preset.primary }]} />
+                    <View style={[styles.swatch, { backgroundColor: preset.card }]} />
+                    <View style={[styles.swatch, { backgroundColor: preset.border }]} />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+
         <Card>
           <View style={styles.sectionHeaderRow}>
             <ShieldCheck size={18} color={palette.primary} />
@@ -388,4 +442,12 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   modalBtn: { flex: 1 },
   modalError: { color: '#ff453a', fontSize: Typography.sm, textAlign: 'center' },
+  presetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
+  presetCard: { width: '48%', borderRadius: 16, borderWidth: 2, padding: 14, gap: 10 },
+  presetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  appIconBadge: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  selectedCheck: { width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  presetName: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  swatchRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  swatch: { width: 14, height: 14, borderRadius: 7 },
 });

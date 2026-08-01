@@ -18,6 +18,7 @@ export default function DriverAuthLockScreen() {
   const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
   const isUnlocked = useDriverStore((state) => state.isUnlocked);
   const unlock = useDriverStore((state) => state.unlock);
+  const setBiometricPromptActive = useDriverStore((state) => state.setBiometricPromptActive);
   const appLockEnabled = usePreferencesStore((state) => state.appLockEnabled);
   const logout = useLogout();
   const [busy, setBusy] = useState(false);
@@ -69,6 +70,7 @@ export default function DriverAuthLockScreen() {
   const triggerUnlock = async () => {
     if (busy || !isAuthenticated || isUnlocked) return;
     setBusy(true);
+    setBiometricPromptActive(true);
     setError(null);
     try {
       const hardware = await LocalAuthentication.hasHardwareAsync();
@@ -95,6 +97,7 @@ export default function DriverAuthLockScreen() {
       setError(err instanceof Error ? err.message : 'Unlock failed.');
     } finally {
       setBusy(false);
+      setBiometricPromptActive(false);
     }
   };
 

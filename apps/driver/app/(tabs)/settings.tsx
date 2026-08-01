@@ -15,17 +15,17 @@ const preferenceItems = [
 ] as const;
 
 const accountItems = [
-  { title: 'Profile', subtitle: 'Driver profile', href: '/profile', Icon: User2 },
-  { title: 'Transactions', subtitle: 'Delivery history and wallet activity', href: '/history', Icon: History },
+  { title: 'Profile', subtitle: 'Driver profile & details', href: '/profile/edit', Icon: User2 },
+  { title: 'Transactions', subtitle: 'Ledger wallet & payout history', href: '/(tabs)/wallet/transactions', Icon: History },
 ] as const;
 
 const activityItems = [
-  { title: 'Notification Preferences', subtitle: 'Manage delivery and account alerts', href: '/settings/notifications', Icon: Bell },
+  { title: 'Notification Preferences', subtitle: 'Manage delivery and account alerts', href: '/(tabs)/notifications', Icon: Bell },
 ] as const;
 
 const securityItems = [
-   { title: 'KYC', subtitle: 'Vehicle info, id verification', href: '/profile', Icon: BadgeCheck },
-  { title: 'Security', subtitle: 'Password, PIN, and biometrics', href: '/profile', Icon: Shield },
+  { title: 'KYC', subtitle: 'Vehicle info & ID verification', href: '/(kyc)', Icon: BadgeCheck },
+  { title: 'Security', subtitle: 'Password, PIN, and biometrics', href: '/profile/security', Icon: Shield },
   { title: 'Support', subtitle: 'Get help from dispatch support', href: '/modal', Icon: CircleHelp },
 ] as const;
 
@@ -43,7 +43,7 @@ export default function DriverSettingsScreen() {
   };
 
   const openLink = (href: string) => {
-    if (href === '/profile' || href === '/history') {
+    if (href.startsWith('/(tabs)')) {
       router.navigate(href as never);
     } else {
       router.push(href as never);

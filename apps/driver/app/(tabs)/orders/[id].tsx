@@ -121,7 +121,7 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const palette = useAppPalette();
   const insets = useSafeAreaInsets();
-  
+
   const { data: order, isLoading } = useDriverOrderDetail(id);
   const updateStatus = useUpdateOrderStatus();
   const rateCustomer = useDriverRateOrder();
@@ -133,6 +133,10 @@ export default function OrderDetailScreen() {
 
   // ⚠️ Must be above any conditional early returns — Rules of Hooks
   const currentLocation = useDriverStore((s) => s.currentLocation);
+  const { data: allOrders } = useAvailableOrders();
+  const activeOrders = useMemo(() => {
+    return (allOrders ?? []).filter((o: DriverOrder) => o.status === 'ACCEPTED' || o.status === 'IN_TRANSIT');
+  }, [allOrders]);
 
   // ── Empty state ──────────────────────────────────────────────────────────
   if (isLoading || !order) {
@@ -171,11 +175,6 @@ export default function OrderDetailScreen() {
     }
   };
 
-  const { data: allOrders } = useAvailableOrders();
-  const activeOrders = useMemo(() => {
-    return (allOrders ?? []).filter((o: DriverOrder) => o.status === 'ACCEPTED' || o.status === 'IN_TRANSIT');
-  }, [allOrders]);
-
   const isFinished = order.status === 'DELIVERED' || order.status === 'COMPLETED';
 
   return (
@@ -199,10 +198,10 @@ export default function OrderDetailScreen() {
             <ArrowLeft size={20} color={palette.text} />
           </Pressable>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: Typography.md, fontWeight: '700', color: palette.text }}>
+            <Text style={{ fontSize: Typography.md, fontFamily: Typography.family.medium, color: palette.text }}>
               Delivery Details
             </Text>
-            <Text style={{ fontSize: 11, color: palette.textSecondary }}>
+            <Text style={{ fontSize: 11, color: palette.textSecondary, fontFamily: Typography.family.medium }}>
               {order.trackingCode}
             </Text>
           </View>
@@ -224,7 +223,7 @@ export default function OrderDetailScreen() {
             destinationLocation={{ latitude: Number(order.deliveryLat), longitude: Number(order.deliveryLng) }}
             routeCoordinates={[]}
           />
-          
+
           {/* ── Turn-by-turn Overlay ── */}
           {(order.status === 'ACCEPTED' || order.status === 'IN_TRANSIT') && (
             <View style={[styles.tbtOverlay, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -242,8 +241,8 @@ export default function OrderDetailScreen() {
           <View style={[styles.mapStatsBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
             {[
               { icon: <MapPin size={14} color={palette.primary} />, value: `${order.distanceKm.toFixed(1)} km`, color: palette.primary },
-              { icon: <Clock size={14} color="#FFD60A" />,          value: `${order.estimatedDurationMin} min`, color: '#FFD60A' },
-              { icon: <DollarSign size={14} color="#30D158" />,     value: formatNaira(order.price),           color: '#30D158' },
+              { icon: <Clock size={14} color="#FFD60A" />, value: `${order.estimatedDurationMin} min`, color: '#FFD60A' },
+              { icon: <DollarSign size={14} color="#30D158" />, value: formatNaira(order.price), color: '#30D158' },
             ].map(({ icon, value, color }, i) => (
               <View key={value + i} style={[styles.mapStat, { backgroundColor: hexToRgba(color, 0.1) }]}>
                 {icon}
@@ -337,7 +336,7 @@ export default function OrderDetailScreen() {
               {(order.items ?? []).map((item, idx) => (
                 <View key={`driver-item-${idx}`} style={{ gap: 4 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: palette.text }}>{item.description}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: palette.text, fontFamily: Typography.family.regular }}>{item.description}</Text>
                     <Text style={{ fontSize: 14, color: palette.textSecondary }}>x{item.quantity}</Text>
                   </View>
                   {item.imageUrl ? (
@@ -402,7 +401,7 @@ export default function OrderDetailScreen() {
             <View style={styles.thumbRow}>
               {([
                 { value: 5 as const, label: '👍 Good', danger: false },
-                { value: 1 as const, label: '👎 Bad',  danger: true },
+                { value: 1 as const, label: '👎 Bad', danger: true },
               ] as const).map((btn) => {
                 const active = feedbackRating === btn.value;
                 const borderColor = active ? (btn.danger ? '#FF453A' : palette.primary) : palette.border;

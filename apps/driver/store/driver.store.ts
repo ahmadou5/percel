@@ -14,6 +14,7 @@ type DriverState = {
   isAuthenticated: boolean;
   isLoading: boolean;
   isUnlocked: boolean;
+  isBiometricPromptActive: boolean;
   currentLocation: DriverLocation | null;
 };
 
@@ -28,6 +29,7 @@ type DriverActions = {
   updateLocation: (location: DriverLocation) => Promise<void>;
   unlock: () => void;
   lock: () => void;
+  setBiometricPromptActive: (active: boolean) => void;
   logout: () => Promise<void>;
 };
 
@@ -49,6 +51,7 @@ let state: DriverState = {
   isAuthenticated: false,
   isLoading: true,
   isUnlocked: false,
+  isBiometricPromptActive: false,
   currentLocation: null,
 };
 
@@ -83,34 +86,39 @@ async function persist() {
 
 async function hydrate() {
   setState({ isLoading: true });
-  const [rawUser, rawDriver, rawTokens, rawOnline, rawOrder, rawLocation] = await Promise.all([
-    SecureStore.getItemAsync(USER_KEY),
-    SecureStore.getItemAsync(DRIVER_KEY),
-    SecureStore.getItemAsync(TOKENS_KEY),
-    SecureStore.getItemAsync(ONLINE_KEY),
-    SecureStore.getItemAsync(ORDER_KEY),
-    SecureStore.getItemAsync(LOCATION_KEY),
-  ]);
+  try {
+    const [rawUser, rawDriver, rawTokens, rawOnline, rawOrder, rawLocation] = await Promise.all([
+      SecureStore.getItemAsync(USER_KEY),
+      SecureStore.getItemAsync(DRIVER_KEY),
+      SecureStore.getItemAsync(TOKENS_KEY),
+      SecureStore.getItemAsync(ONLINE_KEY),
+      SecureStore.getItemAsync(ORDER_KEY),
+      SecureStore.getItemAsync(LOCATION_KEY),
+    ]);
 
-  const user = rawUser ? (JSON.parse(rawUser) as AuthSessionUser) : null;
-  const driver = rawDriver ? (JSON.parse(rawDriver) as Driver) : null;
-  const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
-  const currentOrder = rawOrder ? (JSON.parse(rawOrder) as DriverOrder) : null;
-  const currentLocation = rawLocation ? (JSON.parse(rawLocation) as DriverLocation) : null;
+    const user = rawUser ? (JSON.parse(rawUser) as AuthSessionUser) : null;
+    const driver = rawDriver ? (JSON.parse(rawDriver) as Driver) : null;
+    const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
+    const currentOrder = rawOrder ? (JSON.parse(rawOrder) as DriverOrder) : null;
+    const currentLocation = rawLocation ? (JSON.parse(rawLocation) as DriverLocation) : null;
 
-  setState({
-    user,
-    driver,
-    tokens,
-    currentOrder,
-    currentLocation,
-    isOnline: rawOnline === 'true' || Boolean(driver?.isOnline),
-    isAuthenticated: Boolean(user && tokens),
-    isLoading: false,
-    isUnlocked: false,
-  });
+    setState({
+      user,
+      driver,
+      tokens,
+      currentOrder,
+      currentLocation,
+      isOnline: rawOnline === 'true' || Boolean(driver?.isOnline),
+      isAuthenticated: Boolean(user && tokens),
+      isLoading: false,
+      isUnlocked: false,
+    });
 
-  Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+    Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+  } catch (err) {
+    console.error('Failed to hydrate driver store:', err);
+    setState({ isLoading: false });
+  }
 }
 
 async function setSession(session: { user: AuthSessionUser; tokens: AuthTokens; driver?: Driver | null }) {
@@ -183,6 +191,10 @@ function lock() {
   setState({ isUnlocked: false });
 }
 
+function setBiometricPromptActive(isBiometricPromptActive: boolean) {
+  setState({ isBiometricPromptActive });
+}
+
 async function logout() {
   await Promise.all([
     SecureStore.deleteItemAsync(USER_KEY),
@@ -201,6 +213,7 @@ async function logout() {
     isAuthenticated: false,
     isLoading: false,
     isUnlocked: false,
+    isBiometricPromptActive: false,
     currentLocation: null,
   };
   Sentry.setUser(null);
@@ -218,6 +231,7 @@ const actions: DriverActions = {
   updateLocation,
   unlock,
   lock,
+  setBiometricPromptActive,
   logout,
 };
 

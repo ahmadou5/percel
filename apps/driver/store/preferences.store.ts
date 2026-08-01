@@ -42,6 +42,9 @@ const AsyncStorage = {
   },
 };
 
+import { PRESET_THEMES, ThemePresetId, DEFAULT_THEME_PRESET } from "@/constants/theme-presets";
+import { changeAppIcon } from "@/lib/app-icon";
+
 export type ThemeMode = "system" | "light" | "dark" | "custom";
 
 export type CustomTheme = {
@@ -52,6 +55,7 @@ export type CustomTheme = {
 type PreferencesState = {
   themeMode: ThemeMode;
   customTheme: CustomTheme;
+  activePresetId: ThemePresetId;
   notificationsEnabled: boolean;
   notificationsReminderDismissedAt: number | null;
   walletAccessBiometricEnabled: boolean;
@@ -65,6 +69,7 @@ type PreferencesActions = {
   hydrate: () => Promise<void>;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   setCustomTheme: (theme: CustomTheme) => Promise<void>;
+  setThemePreset: (presetId: ThemePresetId) => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
   setNotificationsReminderDismissedAt: (timestamp: number | null) => Promise<void>;
   setWalletAccessBiometricEnabled: (enabled: boolean) => Promise<void>;
@@ -82,6 +87,7 @@ const DEFAULT_CUSTOM_THEME: CustomTheme = {
 
 const THEME_MODE_KEY = "percel_driver_theme_mode";
 const CUSTOM_THEME_KEY = "percel_driver_custom_theme";
+const PRESET_THEME_KEY = "percel_driver_preset_theme_id";
 const NOTIFICATIONS_KEY = "percel_driver_notifications_enabled";
 const NOTIFICATIONS_REMINDER_KEY = "percel_driver_notifications_reminder_dismissed_at";
 const WALLET_ACCESS_BIOMETRIC_KEY = "percel_driver_wallet_access_biometric_enabled";
@@ -92,6 +98,7 @@ const ALLOW_SCREENSHOTS_KEY = "percel_driver_allow_screenshots";
 let state: PreferencesState = {
   themeMode: "system",
   customTheme: DEFAULT_CUSTOM_THEME,
+  activePresetId: "cobalt",
   notificationsEnabled: false,
   notificationsReminderDismissedAt: null,
   walletAccessBiometricEnabled: false,
@@ -134,28 +141,37 @@ function parseCustomTheme(raw: string | null): CustomTheme {
 
 async function hydrate() {
   setState({ isLoading: true });
-  const [themeModeRaw, customThemeRaw, notificationsRaw, notificationsReminderRaw, walletAccessBiometricRaw, confirmTransactionsBiometricRaw, appLockRaw, allowScreenshotsRaw] = await Promise.all([
-    AsyncStorage.getItem(THEME_MODE_KEY),
-    AsyncStorage.getItem(CUSTOM_THEME_KEY),
-    AsyncStorage.getItem(NOTIFICATIONS_KEY),
-    AsyncStorage.getItem(NOTIFICATIONS_REMINDER_KEY),
-    AsyncStorage.getItem(WALLET_ACCESS_BIOMETRIC_KEY),
-    AsyncStorage.getItem(CONFIRM_TRANSACTIONS_BIOMETRIC_KEY),
-    AsyncStorage.getItem(APP_LOCK_KEY),
-    AsyncStorage.getItem(ALLOW_SCREENSHOTS_KEY),
-  ]);
+  try {
+    const [themeModeRaw, customThemeRaw, presetIdRaw, notificationsRaw, notificationsReminderRaw, walletAccessBiometricRaw, confirmTransactionsBiometricRaw, appLockRaw, allowScreenshotsRaw] = await Promise.all([
+      AsyncStorage.getItem(THEME_MODE_KEY),
+      AsyncStorage.getItem(CUSTOM_THEME_KEY),
+      AsyncStorage.getItem(PRESET_THEME_KEY),
+      AsyncStorage.getItem(NOTIFICATIONS_KEY),
+      AsyncStorage.getItem(NOTIFICATIONS_REMINDER_KEY),
+      AsyncStorage.getItem(WALLET_ACCESS_BIOMETRIC_KEY),
+      AsyncStorage.getItem(CONFIRM_TRANSACTIONS_BIOMETRIC_KEY),
+      AsyncStorage.getItem(APP_LOCK_KEY),
+      AsyncStorage.getItem(ALLOW_SCREENSHOTS_KEY),
+    ]);
 
-  setState({
-    themeMode: themeModeRaw === "light" || themeModeRaw === "dark" || themeModeRaw === "custom" ? themeModeRaw : "system",
-    customTheme: parseCustomTheme(customThemeRaw),
-    notificationsEnabled: notificationsRaw == null ? false : notificationsRaw === "true",
-    notificationsReminderDismissedAt: notificationsReminderRaw ? Number(notificationsReminderRaw) || null : null,
-    walletAccessBiometricEnabled: walletAccessBiometricRaw == null ? false : walletAccessBiometricRaw === "true",
-    confirmTransactionsBiometricEnabled: confirmTransactionsBiometricRaw == null ? false : confirmTransactionsBiometricRaw === "true",
-    appLockEnabled: appLockRaw == null ? false : appLockRaw === "true",
-    allowScreenshots: allowScreenshotsRaw == null ? false : allowScreenshotsRaw === "true",
-    isLoading: false,
-  });
+    const activePresetId: ThemePresetId = presetIdRaw && PRESET_THEMES[presetIdRaw as ThemePresetId] ? (presetIdRaw as ThemePresetId) : "cobalt";
+
+    setState({
+      themeMode: themeModeRaw === "light" || themeModeRaw === "dark" || themeModeRaw === "custom" ? themeModeRaw : "system",
+      customTheme: parseCustomTheme(customThemeRaw),
+      activePresetId,
+      notificationsEnabled: notificationsRaw == null ? false : notificationsRaw === "true",
+      notificationsReminderDismissedAt: notificationsReminderRaw ? Number(notificationsReminderRaw) || null : null,
+      walletAccessBiometricEnabled: walletAccessBiometricRaw == null ? false : walletAccessBiometricRaw === "true",
+      confirmTransactionsBiometricEnabled: confirmTransactionsBiometricRaw == null ? false : confirmTransactionsBiometricRaw === "true",
+      appLockEnabled: appLockRaw == null ? false : appLockRaw === "true",
+      allowScreenshots: allowScreenshotsRaw == null ? false : allowScreenshotsRaw === "true",
+      isLoading: false,
+    });
+  } catch (err) {
+    console.error('Failed to hydrate preferences store:', err);
+    setState({ isLoading: false });
+  }
 }
 
 async function setThemeMode(mode: ThemeMode) {
@@ -168,6 +184,29 @@ async function setCustomTheme(theme: CustomTheme) {
   state = { ...state, customTheme: theme };
   await AsyncStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(theme));
   emit();
+}
+
+async function setThemePreset(presetId: ThemePresetId) {
+  const preset = PRESET_THEMES[presetId] ?? DEFAULT_THEME_PRESET;
+  const customTheme: CustomTheme = { accent: preset.primary, background: preset.bg };
+
+  state = {
+    ...state,
+    themeMode: "custom",
+    activePresetId: preset.id,
+    customTheme,
+  };
+
+  await Promise.all([
+    AsyncStorage.setItem(THEME_MODE_KEY, "custom"),
+    AsyncStorage.setItem(PRESET_THEME_KEY, preset.id),
+    AsyncStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(customTheme)),
+  ]);
+
+  emit();
+
+  // Switch app icon natively
+  await changeAppIcon(preset.iconId);
 }
 
 async function setNotificationsEnabled(enabled: boolean) {
@@ -213,6 +252,7 @@ const actions: PreferencesActions = {
   hydrate,
   setThemeMode,
   setCustomTheme,
+  setThemePreset,
   setNotificationsEnabled,
   setNotificationsReminderDismissedAt,
   setWalletAccessBiometricEnabled,

@@ -27,7 +27,7 @@ import type { DriverOrder } from '@/lib/types';
 type Filter = 'ALL' | 'COMPLETED' | 'CANCELLED';
 
 const FILTER_OPTIONS: { key: Filter; label: string }[] = [
-  { key: 'ALL',       label: 'All' },
+  { key: 'ALL', label: 'All' },
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'CANCELLED', label: 'Cancelled' },
 ];
@@ -97,10 +97,6 @@ export default function HistoryScreen() {
           <View style={styles.heroDecorA} />
           <View style={styles.heroDecorB} />
           <Text style={[styles.heroEyebrow, { color: palette.primary }]}>DELIVERY HISTORY</Text>
-          <Text style={[styles.heroTitle, { color: palette.text }]}>Past routes & completed jobs</Text>
-          <Text style={[styles.heroSubtitle, { color: palette.textSecondary }]}>
-            Your delivery track record and earnings summary.
-          </Text>
 
           {/* Summary stat chips */}
           <View style={styles.heroStatRow}>
@@ -127,23 +123,7 @@ export default function HistoryScreen() {
           />
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.ledgerBanner,
-            { backgroundColor: hexToRgba(palette.primary, 0.08), borderColor: hexToRgba(palette.primary, 0.2) },
-            pressed && { opacity: 0.8 },
-          ]}
-          onPress={() => router.push('/(tabs)/wallet/transactions')}
-        >
-          <View style={[styles.ledgerIconCircle, { backgroundColor: palette.primary }]}>
-            <Wallet size={16} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.ledgerTitle, { color: palette.text }]}>Transaction History (Wallet Ledger)</Text>
-            <Text style={[styles.ledgerSub, { color: palette.textSecondary }]}>View payouts, topups, and earnings transactions</Text>
-          </View>
-          <ArrowRight size={18} color={palette.primary} />
-        </Pressable>
+
 
         {/* ── Filter tabs ── */}
         <View style={[styles.tabRow, { backgroundColor: palette.card, borderColor: palette.border }]}>
