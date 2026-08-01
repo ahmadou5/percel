@@ -599,12 +599,16 @@ export class OrderService {
 
   async getOrderByTrackingCode(trackingCode: string) {
     const cleanCode = trackingCode.trim();
+
+    // Only query by UUID id if the code looks like a valid UUID — avoids Prisma P2023 crash
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanCode);
+
     const order = await this.prisma.order.findFirst({
       where: {
         OR: [
           { trackingCode: cleanCode },
           { trackingCode: cleanCode.toUpperCase() },
-          { id: cleanCode },
+          ...(isUuid ? [{ id: cleanCode }] : []),
         ],
       },
       include: {
