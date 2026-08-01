@@ -64,8 +64,15 @@ export interface TrackedOrder {
   statusHistory?: OrderStatusHistoryItem[];
 }
 
-const API_BASE_URL =
-  (process.env.NEXT_PUBLIC_API_URL || 'https://percelapi-production.up.railway.app') + '/api/v1';
+function buildApiBase(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL || 'percelapi-production.up.railway.app';
+  // Ensure it starts with a protocol — Railway env var may be missing https://
+  const withProtocol = raw.startsWith('http') ? raw : `https://${raw}`;
+  // Strip trailing slash then append versioned prefix
+  return withProtocol.replace(/\/$/, '') + '/api/v1';
+}
+
+const API_BASE_URL = buildApiBase();
 
 export async function fetchTrackedOrder(trackingCode: string): Promise<TrackedOrder> {
   const cleanCode = trackingCode.trim();
