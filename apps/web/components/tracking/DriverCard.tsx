@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { TrackedOrder } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -99,7 +100,7 @@ export function DriverCard({ driver, order }: DriverCardProps) {
           </div>
         ) : (
           <p className="text-xs text-muted-foreground leading-relaxed">
-            A KYC-verified rider is being assigned. You'll see their vehicle plate and live map location here as soon as they accept the delivery.
+            A KYC-verified rider is being assigned. You&apos;ll see their vehicle plate and live map location here as soon as they accept the delivery.
           </p>
         )}
 
@@ -183,9 +184,11 @@ export function DriverCard({ driver, order }: DriverCardProps) {
             {order.items.map((item, i) => (
               <div key={item.id || i} className="flex items-center gap-3">
                 {item.imageUrl ? (
-                  <img
+                  <Image
                     src={item.imageUrl}
                     alt={item.description}
+                    width={40}
+                    height={40}
                     className="h-10 w-10 shrink-0 rounded-xl object-cover border border-border/60"
                   />
                 ) : (
