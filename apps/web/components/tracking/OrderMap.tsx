@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { APIProvider, Map, Marker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { TrackedOrder } from '@/lib/api';
-import { Navigation, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 interface OrderMapProps {
   order: TrackedOrder;
@@ -11,35 +11,42 @@ interface OrderMapProps {
 
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-function PolylineOverlay({ pickup, delivery, courier }: { pickup: { lat: number; lng: number }; delivery: { lat: number; lng: number }; courier?: { lat: number; lng: number } | null }) {
+function PolylineOverlay({
+  pickup,
+  delivery,
+  courier,
+}: {
+  pickup: { lat: number; lng: number };
+  delivery: { lat: number; lng: number };
+  courier?: { lat: number; lng: number } | null;
+}) {
   const map = useMap();
   const mapsLib = useMapsLibrary('maps');
+  const coreLib = useMapsLibrary('core'); // LatLngBounds lives here in Maps JS API v3.55+
 
-  useMemo(() => {
-    if (!map || !mapsLib) return;
+  useEffect(() => {
+    if (!map || !mapsLib || !coreLib) return;
 
-    const path = courier
-      ? [pickup, courier, delivery]
-      : [pickup, delivery];
+    const path = courier ? [pickup, courier, delivery] : [pickup, delivery];
 
     const polyline = new mapsLib.Polyline({
       path,
       geodesic: true,
       strokeColor: '#6366F1',
-      strokeOpacity: 0.8,
+      strokeOpacity: 0.85,
       strokeWeight: 4,
     });
-
     polyline.setMap(map);
 
-    const bounds = new mapsLib.LatLngBounds();
+    // Fit map bounds to show all markers
+    const bounds = new coreLib.LatLngBounds();
     path.forEach((pt) => bounds.extend(pt));
-    map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+    map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
 
     return () => {
       polyline.setMap(null);
     };
-  }, [map, mapsLib, pickup, delivery, courier]);
+  }, [map, mapsLib, coreLib, pickup, delivery, courier]);
 
   return null;
 }
