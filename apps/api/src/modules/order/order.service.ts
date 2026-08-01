@@ -889,10 +889,16 @@ export class OrderService {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, driverId } });
     if (!order) throw new NotFoundError('Order not found');
 
+    if (order.status === status) {
+      return serializeOrder(order);
+    }
+
     const allowed =
       (order.status === OrderStatus.ACCEPTED && status === 'IN_TRANSIT') ||
       (order.status === OrderStatus.IN_TRANSIT && status === 'DELIVERED');
-    if (!allowed) throw new ValidationError('Invalid order status transition');
+    if (!allowed) {
+      throw new ValidationError(`Cannot update order status to ${status} from current status ${order.status}`);
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await tx.order.update({
@@ -1314,7 +1320,13 @@ export class OrderService {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
     const order = await this.prisma.order.findFirst({
       where: isUuid ? { OR: [{ id: orderId }, { trackingCode: orderId }] } : { trackingCode: orderId },
-      select: { id: true, userId: true, driverId: true, driver: { select: { id: true, userId: true } } },
+      select: {
+        id: true,
+        userId: true,
+        driverId: true,
+        user: { select: { id: true, fullName: true, avatarUrl: true } },
+        driver: { select: { id: true, userId: true, user: { select: { id: true, fullName: true, avatarUrl: true } } } },
+      },
     });
     if (!order) throw new NotFoundError('Order not found');
 
@@ -1330,6 +1342,12 @@ export class OrderService {
     }
 
     const senderType = isCustomer ? 'USER' : 'DRIVER';
+    const senderName = isCustomer
+      ? (order.user?.fullName ?? 'Customer')
+      : (order.driver?.user?.fullName ?? 'Driver');
+    const senderAvatarUrl = isCustomer
+      ? (order.user?.avatarUrl ?? null)
+      : (order.driver?.user?.avatarUrl ?? null);
 
     const msg = await this.prisma.orderChatMessage.create({
       data: {
@@ -1345,6 +1363,8 @@ export class OrderService {
       orderId: msg.orderId,
       senderId: msg.senderId,
       senderType: msg.senderType,
+      senderName,
+      senderAvatarUrl,
       text: msg.text,
       createdAt: msg.createdAt.toISOString(),
     };
@@ -1352,16 +1372,16 @@ export class OrderService {
     try {
       const realtimeApp = this.app as unknown as RealtimeApp;
       if (realtimeApp?.io) {
-        realtimeApp.io.to(`order:${orderId}`).emit('chat_message', serializedMsg);
+        realtimeApp.io.to(`order:${order.id}`).emit('chat_message', serializedMsg);
         try {
-          realtimeApp.io.of('/user')?.to(`order:${orderId}`)?.emit('chat_message', serializedMsg);
+          realtimeApp.io.of('/user')?.to(`order:${order.id}`)?.emit('chat_message', serializedMsg);
         } catch {}
         try {
-          realtimeApp.io.of('/driver')?.to(`order:${orderId}`)?.emit('chat_message', serializedMsg);
+          realtimeApp.io.of('/driver')?.to(`order:${order.id}`)?.emit('chat_message', serializedMsg);
         } catch {}
       }
     } catch (err) {
-      this.logger.warn({ err, orderId }, 'chat_message.broadcast_failed');
+      this.logger.warn({ err, orderId: order.id }, 'chat_message.broadcast_failed');
     }
 
     const targetUserId = isCustomer ? order.driver?.userId : order.userId;
@@ -1370,10 +1390,10 @@ export class OrderService {
         await this.prisma.notification.create({
           data: {
             userId: targetUserId,
-            title: isCustomer ? 'New message from Customer' : 'New message from Driver',
+            title: senderName,
             body: cleanMsg,
             type: 'SYSTEM',
-            data: { orderId: order.id, messageId: msg.id, senderType },
+            data: { orderId: order.id, messageId: msg.id, senderType, senderName, senderAvatarUrl },
           },
         });
       } catch (err) {
@@ -1383,9 +1403,11 @@ export class OrderService {
       try {
         await addNotificationJob(this.app, targetUserId, 'CHAT_MESSAGE', {
           orderId: order.id,
-          title: isCustomer ? 'New message from Customer' : 'New message from Driver',
+          senderName,
+          senderAvatarUrl,
+          title: senderName,
           body: cleanMsg,
-          data: { orderId: order.id, messageId: msg.id, senderType },
+          data: { orderId: order.id, messageId: msg.id, senderType, senderName, senderAvatarUrl },
         });
       } catch (err) {
         this.logger.warn({ err }, 'chat_push_notification_failed');

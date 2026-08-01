@@ -125,6 +125,15 @@ export function buildNotificationPayload(type: NotificationJobType, payload: Rec
         body: `${formatAmount(payload.amount)} added to your wallet for inviting a friend!`,
         data: payload,
       };
+    case 'CHAT_MESSAGE':
+      return {
+        title: String(payload.senderName ?? payload.title ?? 'New message'),
+        body: String(payload.body ?? 'Sent a message'),
+        data: {
+          ...payload,
+          categoryIdentifier: 'CHAT_MESSAGE',
+        },
+      };
     default:
       return {
         title: 'Percel update',
@@ -159,12 +168,15 @@ export async function sendPushNotification(app: FastifyInstance, userId: string,
     return { sent: false };
   }
 
+  const isChatMessage = notification.data?.categoryIdentifier === 'CHAT_MESSAGE';
+
   const message: ExpoPushMessage = {
     to: token,
     sound: 'default',
     title: notification.title,
     body: notification.body,
     data: notification.data ?? {},
+    ...(isChatMessage ? { categoryId: 'CHAT_MESSAGE' } : {}),
   };
 
   const tickets: ExpoPushTicket[] = [];

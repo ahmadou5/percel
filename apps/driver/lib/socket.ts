@@ -46,7 +46,7 @@ function emitLocal(event: string, payload: any) {
 function bindSocketEvents() {
   if (!socket) return;
 
-  ['new_order_available', 'order_cancelled', 'order_status_update', 'driver_location'].forEach((event) => {
+  ['new_order_available', 'order_cancelled', 'order_status_update', 'driver_location', 'chat_message', 'typing', 'stop_typing'].forEach((event) => {
     socket.off?.(event);
     socket.on?.(event, (payload: any) => emitLocal(event, payload));
   });
@@ -65,6 +65,36 @@ export function subscribeDriverSocket(event: string, handler: EventHandler) {
 
 export function subscribeToDriverOrderChat(orderId: string, handler: EventHandler) {
   return subscribeDriverSocket('chat_message', (payload: any) => {
+    if (!orderId || payload?.orderId !== orderId) return;
+    handler(payload);
+  });
+}
+
+export function joinDriverOrderChat(orderId: string) {
+  emitDriverEvent('join_order_chat', { orderId });
+}
+
+export function leaveDriverOrderChat(orderId: string) {
+  emitDriverEvent('leave_order_chat', { orderId });
+}
+
+export function emitDriverTyping(orderId: string, senderType: 'USER' | 'DRIVER' = 'DRIVER') {
+  emitDriverEvent('typing', { orderId, senderType });
+}
+
+export function emitDriverStopTyping(orderId: string, senderType: 'USER' | 'DRIVER' = 'DRIVER') {
+  emitDriverEvent('stop_typing', { orderId, senderType });
+}
+
+export function subscribeToDriverTyping(orderId: string, handler: EventHandler) {
+  return subscribeDriverSocket('typing', (payload: any) => {
+    if (!orderId || payload?.orderId !== orderId) return;
+    handler(payload);
+  });
+}
+
+export function subscribeToDriverStopTyping(orderId: string, handler: EventHandler) {
+  return subscribeDriverSocket('stop_typing', (payload: any) => {
     if (!orderId || payload?.orderId !== orderId) return;
     handler(payload);
   });

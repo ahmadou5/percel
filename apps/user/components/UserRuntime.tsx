@@ -182,10 +182,43 @@ export function UserRuntime() {
     }
     void checkInitialNotification();
 
+    // Register CHAT_MESSAGE notification category with quick reply inline action
+    void Notifications.setNotificationCategoryAsync('CHAT_MESSAGE', [
+      {
+        identifier: 'REPLY',
+        buttonTitle: 'Reply',
+        textInput: {
+          submitButtonTitle: 'Send',
+          placeholder: 'Type a message...',
+        },
+        options: {
+          opensAppToForeground: false,
+        },
+      },
+      {
+        identifier: 'OPEN',
+        buttonTitle: 'Open Chat',
+        options: {
+          opensAppToForeground: true,
+        },
+      },
+    ]);
+
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      const actionId = response.actionIdentifier;
+      const userText = (response as any).userText as string | undefined;
+
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      if (data) handleNotificationData(data as Record<string, unknown>);
+
+      if (actionId === 'REPLY' && userText && data?.orderId) {
+        http.post(`/api/v1/orders/${data.orderId}/messages`, { text: userText }).catch((err) => {
+          console.warn('Quick reply send failed:', err);
+        });
+        return;
+      }
+
+      if (data) handleNotificationData(data);
     });
 
     return () => subscription.remove();

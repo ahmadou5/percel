@@ -74,6 +74,28 @@ export default fp(async (app) => {
       const userId = String(socket.data.userId ?? '');
       socket.join(`user:${userId}`);
 
+      socket.on('join_order_chat', (data: { orderId: string }) => {
+        if (data?.orderId) socket.join(`order:${data.orderId}`);
+      });
+
+      socket.on('leave_order_chat', (data: { orderId: string }) => {
+        if (data?.orderId) socket.leave(`order:${data.orderId}`);
+      });
+
+      socket.on('typing', (data: { orderId: string; isTyping?: boolean; senderType?: string }) => {
+        if (data?.orderId) {
+          userNamespace.to(`order:${data.orderId}`).emit('typing', { ...data, isTyping: true });
+          driverNamespace.to(`order:${data.orderId}`).emit('typing', { ...data, isTyping: true });
+        }
+      });
+
+      socket.on('stop_typing', (data: { orderId: string; senderType?: string }) => {
+        if (data?.orderId) {
+          userNamespace.to(`order:${data.orderId}`).emit('stop_typing', data);
+          driverNamespace.to(`order:${data.orderId}`).emit('stop_typing', data);
+        }
+      });
+
       socket.on('disconnect', () => {
         socket.leave(`user:${userId}`);
       });
@@ -105,6 +127,28 @@ export default fp(async (app) => {
 
       socket.join(`driver:${driverId}`);
       await app.redis.set(`driver:socket:${driverId}`, socket.id, 'EX', 60 * 60);
+
+      socket.on('join_order_chat', (data: { orderId: string }) => {
+        if (data?.orderId) socket.join(`order:${data.orderId}`);
+      });
+
+      socket.on('leave_order_chat', (data: { orderId: string }) => {
+        if (data?.orderId) socket.leave(`order:${data.orderId}`);
+      });
+
+      socket.on('typing', (data: { orderId: string; isTyping?: boolean; senderType?: string }) => {
+        if (data?.orderId) {
+          userNamespace.to(`order:${data.orderId}`).emit('typing', { ...data, isTyping: true });
+          driverNamespace.to(`order:${data.orderId}`).emit('typing', { ...data, isTyping: true });
+        }
+      });
+
+      socket.on('stop_typing', (data: { orderId: string; senderType?: string }) => {
+        if (data?.orderId) {
+          userNamespace.to(`order:${data.orderId}`).emit('stop_typing', data);
+          driverNamespace.to(`order:${data.orderId}`).emit('stop_typing', data);
+        }
+      });
 
       socket.on('go_online', async (payload: { lat?: number; lng?: number } = {}) => {
         try {

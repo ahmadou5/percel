@@ -6,10 +6,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ClipboardList } from 'lucide-react-native';
+import { ClipboardList, Search, Wallet, ArrowRight } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { router } from 'expo-router';
@@ -31,12 +32,21 @@ const FILTER_OPTIONS: { key: Filter; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
-function filterOrders(orders: DriverOrder[], filter: Filter): DriverOrder[] {
-  if (filter === 'ALL') return orders;
+function filterOrders(orders: DriverOrder[], filter: Filter, query: string): DriverOrder[] {
+  let list = orders;
   if (filter === 'COMPLETED') {
-    return orders.filter((o) => o.status === 'COMPLETED' || o.status === 'DELIVERED');
+    list = orders.filter((o) => o.status === 'COMPLETED' || o.status === 'DELIVERED');
+  } else if (filter === 'CANCELLED') {
+    list = orders.filter((o) => o.status === 'CANCELLED' || o.status === 'DISPUTED');
   }
-  return orders.filter((o) => o.status === 'CANCELLED' || o.status === 'DISPUTED');
+
+  const q = query.trim().toLowerCase();
+  if (!q) return list;
+
+  return list.filter((o) => {
+    const haystack = `${o.trackingCode} ${o.pickupFormattedAddress} ${o.deliveryFormattedAddress} ${o.recipientName || ''} ${o.customer?.fullName || ''}`.toLowerCase();
+    return haystack.includes(q);
+  });
 }
 
 function formatNaira(value: number) {
@@ -50,6 +60,7 @@ export default function HistoryScreen() {
   const historyQuery = useDriverOrdersHistory();
   const allOrders = historyQuery.data ?? [];
   const [filter, setFilter] = useState<Filter>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isAuthenticated = useDriverStore((s) => s.isAuthenticated);
 
@@ -60,7 +71,7 @@ export default function HistoryScreen() {
     return unsub;
   }, [queryClient]);
 
-  const visible = filterOrders(allOrders, filter);
+  const visible = filterOrders(allOrders, filter, searchQuery);
 
   // Summary stats
   const completedCount = allOrders.filter((o) => o.status === 'COMPLETED' || o.status === 'DELIVERED').length;
@@ -103,6 +114,36 @@ export default function HistoryScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── Search & Ledger Link Banner ── */}
+        <View style={[styles.searchBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Search size={18} color={palette.textSecondary} style={{ marginRight: Spacing.xs }} />
+          <TextInput
+            style={[styles.searchInput, { color: palette.text }]}
+            placeholder="Search deliveries by tracking code or address…"
+            placeholderTextColor={palette.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.ledgerBanner,
+            { backgroundColor: hexToRgba(palette.primary, 0.08), borderColor: hexToRgba(palette.primary, 0.2) },
+            pressed && { opacity: 0.8 },
+          ]}
+          onPress={() => router.push('/(tabs)/wallet/transactions')}
+        >
+          <View style={[styles.ledgerIconCircle, { backgroundColor: palette.primary }]}>
+            <Wallet size={16} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ledgerTitle, { color: palette.text }]}>Transaction History (Wallet Ledger)</Text>
+            <Text style={[styles.ledgerSub, { color: palette.textSecondary }]}>View payouts, topups, and earnings transactions</Text>
+          </View>
+          <ArrowRight size={18} color={palette.primary} />
+        </Pressable>
 
         {/* ── Filter tabs ── */}
         <View style={[styles.tabRow, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -219,6 +260,46 @@ const styles = StyleSheet.create({
   },
   heroStatValue: { fontSize: Typography.lg, fontFamily: 'SpaceGrotesk_700Bold' },
   heroStatLabel: { fontSize: Typography.xs, fontFamily: 'SpaceGrotesk_500Medium' },
+
+  // ── search box ──
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: Typography.xs,
+    fontFamily: 'SpaceGrotesk_500Medium',
+  },
+
+  // ── ledger banner ──
+  ledgerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: Spacing.md,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  ledgerIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ledgerTitle: {
+    fontSize: Typography.xs + 1,
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  ledgerSub: {
+    fontSize: 11,
+    fontFamily: 'SpaceGrotesk_400Regular',
+  },
 
   // ── filter tabs ──
   tabRow: {

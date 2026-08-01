@@ -151,11 +151,18 @@ export default function OrderDetailScreen() {
   const advanceLabel =
     order.status === 'ACCEPTED' ? "I've Picked Up the Package" : 'Mark as Delivered';
 
+  const currentLocation = useDriverStore((s) => s.currentLocation);
+
   const advance = async () => {
     if (!canAdvance) return;
     const nextStatus = order.status === 'ACCEPTED' ? 'IN_TRANSIT' : 'DELIVERED';
     try {
-      const updated = await updateStatus.mutateAsync({ orderId: order.id, status: nextStatus });
+      const updated = await updateStatus.mutateAsync({
+        orderId: order.id,
+        status: nextStatus,
+        lat: currentLocation?.lat,
+        lng: currentLocation?.lng,
+      });
       if (updated.status === 'DELIVERED') {
         setFeedbackOrderId(updated.id);
         setFeedbackVisible(true);
@@ -483,6 +490,7 @@ export default function OrderDetailScreen() {
           visible={chatModalOpen}
           orderId={order.id}
           customerName={order.customer?.fullName ?? 'Customer'}
+          customerAvatarUrl={(order.customer as any)?.avatarUrl ?? null}
           onClose={() => setChatModalOpen(false)}
         />
       ) : null}

@@ -108,6 +108,8 @@ export function useUpdateOrderStatus() {
       await setCurrentOrder(order.status === 'COMPLETED' ? null : order);
       await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
       await queryClient.invalidateQueries({ queryKey: ['driver-orders-active'] });
+      await queryClient.invalidateQueries({ queryKey: ['driver-order-detail', order.id] });
+      await queryClient.invalidateQueries({ queryKey: ['driver-orders-history'] });
     },
   });
 }

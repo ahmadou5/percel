@@ -197,6 +197,7 @@ export default function TrackingScreen() {
           visible={chatOpen}
           orderId={order.id}
           driverName={tracking?.driver?.name ?? (order.driver as any)?.user?.fullName ?? 'Driver'}
+          driverAvatarUrl={tracking?.driver?.avatar_url ?? (order.driver as any)?.user?.avatarUrl ?? null}
           onClose={() => setChatOpen(false)}
         />
       ) : null}

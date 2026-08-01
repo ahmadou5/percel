@@ -19,6 +19,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as AxiosRequestConfig & { _retried?: boolean };
+    if (error.response?.data) {
+      const serverMsg = (error.response.data as any)?.message ?? (error.response.data as any)?.error;
+      if (serverMsg && typeof serverMsg === 'string') {
+        error.message = serverMsg;
+      }
+    }
+
     if (error.response?.status !== 401 || original?._retried) {
       return Promise.reject(error);
     }
