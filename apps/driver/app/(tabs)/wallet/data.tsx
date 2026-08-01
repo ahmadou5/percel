@@ -1,5 +1,12 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Phone } from 'lucide-react-native';
+import {
+  Activity,
+  ArrowUpRight,
+  CheckCircle2,
+  ChevronLeft,
+  Phone,
+  Wifi,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,28 +17,28 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import {
   useBuyData,
-  useProviderServices,
   useProviderVariations,
   useWallet,
 } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { formatNaira, telecomNetworks, type ProviderVariation } from '@/lib/wallet';
 
+type Step = 1 | 2 | 3;
+
 export default function DriverDataScreen() {
   const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
-  const insets = useSafeAreaInsets();
   const walletQuery = useWallet();
 
+  const [step, setStep] = useState<Step>(1);
   const [phone, setPhone] = useState('');
   const [selectedNetwork, setSelectedNetwork] = useState<string>('MTN');
   const [selectedPlan, setSelectedPlan] = useState<ProviderVariation | null>(null);
@@ -50,16 +57,26 @@ export default function DriverDataScreen() {
   const variationsQuery = useProviderVariations(serviceID);
   const buyDataMutation = useBuyData();
 
+  const handleContinue = () => {
+    if (step === 1) {
+      if (!phone || phone.length < 10) {
+        modal.alert('Invalid Phone Number', 'Please enter a valid phone number', 'warning');
+        return;
+      }
+      if (!selectedPlan) {
+        modal.alert('Select Plan', 'Please select a data bundle plan', 'warning');
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      setStep(3);
+    }
+  };
+
   const handleInitiate = () => {
-    if (!phone || phone.length < 10) {
-      modal.alert('Invalid Phone Number', 'Please enter a valid phone number', 'warning');
-      return;
-    }
-    if (!selectedPlan) {
-      modal.alert('Select Plan', 'Please select a data bundle plan', 'warning');
-      return;
-    }
-    const amt = Number(selectedPlan.variation_amount);
+    const amt = Number(selectedPlan?.variation_amount ?? 0);
     if (amt > (walletQuery.data?.balance ?? 0)) {
       modal.alert('Insufficient Balance', 'Your wallet balance is lower than this plan cost.', 'warning');
       return;
@@ -67,7 +84,7 @@ export default function DriverDataScreen() {
     setPinModalVisible(true);
   };
 
-  const handleConfirmPin = async (pin: string) => {
+  const handleConfirmPin = async (_pin: string) => {
     await buyDataMutation.mutateAsync({
       phone: phone.trim(),
       network: selectedNetwork,
@@ -89,114 +106,183 @@ export default function DriverDataScreen() {
     });
   };
 
+  const stepDots = [1, 2, 3] as const;
+
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 40 },
-        ]}
-      >
-        <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <ArrowLeft size={20} color={palette.text} />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* back */}
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => (step > 1 ? setStep((s) => (s - 1) as Step) : router.back())}
+            style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+          >
+            <ChevronLeft size={18} color={palette.text} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: palette.text }]}>Buy Data Bundle</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
-        <View style={[styles.balanceBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.balanceLabel, { color: palette.textSecondary }]}>Wallet Balance</Text>
-          <Text style={[styles.balanceVal, { color: palette.primary }]}>
-            {formatNaira(walletQuery.data?.balance ?? 0)}
-          </Text>
+        {/* eyebrow */}
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Data Bundle</Text>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: palette.text }]}>Network Provider</Text>
-          <View style={styles.networkGrid}>
-            {telecomNetworks.map((net) => (
-              <Pressable
-                key={net}
+        {/* hero */}
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroLabel}>Network</Text>
+              <Text style={styles.heroValue}>{selectedNetwork}</Text>
+            </View>
+            <View style={styles.heroIcon}>
+              <ArrowUpRight size={20} color="#fff" />
+            </View>
+          </View>
+          <View style={styles.dots}>
+            {stepDots.map((d) => (
+              <View
+                key={d}
                 style={[
-                  styles.networkChip,
-                  { backgroundColor: palette.card, borderColor: palette.border },
-                  selectedNetwork === net && { backgroundColor: palette.primary + '20', borderColor: palette.primary },
+                  styles.dot,
+                  d === step
+                    ? { backgroundColor: '#fff', width: 20 }
+                    : d < step
+                    ? { backgroundColor: 'rgba(255,255,255,0.6)' }
+                    : { backgroundColor: 'rgba(255,255,255,0.25)' },
                 ]}
-                onPress={() => {
-                  setSelectedNetwork(net);
-                  setSelectedPlan(null);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.networkText,
-                    { color: selectedNetwork === net ? palette.primary : palette.text },
-                  ]}
-                >
-                  {net}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
+        </View>
 
-          <Text style={[styles.label, { color: palette.text }]}>Phone Number</Text>
-          <View style={[styles.inputBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Phone size={18} color={palette.textSecondary} style={{ marginRight: Spacing.xs }} />
-            <TextInput
-              style={[styles.input, { color: palette.text }]}
-              placeholder="08012345678"
-              placeholderTextColor={palette.textSecondary}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-            />
-          </View>
-
-          <Text style={[styles.label, { color: palette.text }]}>Select Data Plan</Text>
-          {variationsQuery.isLoading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={palette.primary} />
-              <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Loading data plans…</Text>
+        {/* Step 1 — Network + Phone + Plan */}
+        {step === 1 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <Wifi size={16} color={palette.primary} />
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                Select network, enter phone and pick a data plan.
+              </Text>
             </View>
-          ) : (
-            <View style={styles.plansList}>
-              {(variationsQuery.data ?? []).map((plan) => {
-                const isSelected = selectedPlan?.variation_code === plan.variation_code;
+
+            {/* network */}
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>Network</Text>
+            <View style={styles.networkGrid}>
+              {telecomNetworks.map((net) => {
+                const active = selectedNetwork === net;
                 return (
                   <Pressable
-                    key={plan.variation_code}
-                    style={({ pressed }) => [
-                      styles.planCard,
-                      { backgroundColor: palette.card, borderColor: palette.border },
-                      isSelected && { backgroundColor: palette.primary + '15', borderColor: palette.primary },
-                      pressed && { opacity: 0.7 },
+                    key={net}
+                    style={[
+                      styles.networkChip,
+                      { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border },
                     ]}
-                    onPress={() => setSelectedPlan(plan)}
+                    onPress={() => { setSelectedNetwork(net); setSelectedPlan(null); }}
                   >
-                    <Text style={[styles.planName, { color: isSelected ? palette.primary : palette.text }]}>
-                      {plan.name}
-                    </Text>
-                    <Text style={[styles.planPrice, { color: palette.primary }]}>
-                      {formatNaira(Number(plan.variation_amount))}
-                    </Text>
+                    <Text style={[styles.networkChipText, { color: active ? '#fff' : palette.text }]}>{net}</Text>
                   </Pressable>
                 );
               })}
             </View>
-          )}
-        </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.submitBtn,
-            { backgroundColor: palette.primary },
-            pressed && { opacity: 0.8 },
-          ]}
-          onPress={handleInitiate}
-        >
-          <Text style={styles.submitBtnText}>Purchase Data Bundle</Text>
-        </Pressable>
+            {/* phone */}
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>Phone number</Text>
+            <View style={[styles.inputBox, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Phone size={16} color={palette.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: palette.text }]}
+                placeholder="08012345678"
+                placeholderTextColor={palette.textSecondary}
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={setPhone}
+              />
+            </View>
+
+            {/* plans */}
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>Select plan</Text>
+            {variationsQuery.isLoading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator color={palette.primary} />
+                <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Loading plans…</Text>
+              </View>
+            ) : (
+              <View style={styles.plansList}>
+                {(variationsQuery.data ?? []).map((plan) => {
+                  const isSelected = selectedPlan?.variation_code === plan.variation_code;
+                  return (
+                    <Pressable
+                      key={plan.variation_code}
+                      style={({ pressed }) => [
+                        styles.planCard,
+                        {
+                          backgroundColor: isSelected ? palette.primary : palette.bg,
+                          borderColor: isSelected ? palette.primary : palette.border,
+                          opacity: pressed ? 0.85 : 1,
+                        },
+                      ]}
+                      onPress={() => setSelectedPlan(plan)}
+                    >
+                      <View style={styles.planCardLeft}>
+                        <Text style={[styles.planName, { color: isSelected ? '#fff' : palette.text }]}>
+                          {plan.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.planPrice, { color: isSelected ? 'rgba(255,255,255,0.85)' : palette.primary }]}>
+                        {formatNaira(Number(plan.variation_amount))}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+
+            <Pressable
+              onPress={handleContinue}
+              style={[styles.primaryAction, { backgroundColor: palette.primary }]}
+            >
+              <Text style={styles.primaryActionText}>Review selection</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* Step 2 — Review */}
+        {step === 2 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <Activity size={16} color={palette.primary} />
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                Confirm the details before you pay.
+              </Text>
+            </View>
+
+            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Data Bundle</Text>
+              <Text style={[styles.reviewTitle, { color: palette.text }]}>{selectedPlan?.name ?? '—'}</Text>
+              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{selectedNetwork} · {phone}</Text>
+              <Text style={[styles.reviewAmount, { color: palette.text }]}>
+                {formatNaira(Number(selectedPlan?.variation_amount ?? 0))}
+              </Text>
+            </View>
+
+            <Pressable
+              disabled={buyDataMutation.isPending}
+              onPress={handleInitiate}
+              style={[styles.primaryAction, { backgroundColor: palette.primary }]}
+            >
+              {buyDataMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryActionText}>Purchase Data Bundle</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
 
       <PaymentPinModal
@@ -210,122 +296,77 @@ export default function DriverDataScreen() {
   );
 }
 
+// ─── styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
+  screen: { flex: 1 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: 40, gap: Spacing.lg },
+
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: {
+    width: 42, height: 42, borderRadius: 21, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  container: {
-    paddingHorizontal: Spacing.lg,
+  headerSpacer: { width: 42 },
+  headerCopy: { gap: 4 },
+  eyebrow: {
+    textTransform: 'uppercase', letterSpacing: 1.2,
+    fontSize: Typography.xs, fontFamily: Typography.family.bold,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+
+  hero: { borderRadius: 28, padding: Spacing.lg, gap: 16 },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
+  heroValue: { color: '#fff', fontSize: Typography.xl, fontFamily: Typography.family.bold, marginTop: 2 },
+  heroIcon: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dots: { flexDirection: 'row', gap: 6 },
+  dot: { height: 6, width: 6, borderRadius: 3 },
+
+  card: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepPill: {
+    width: 36, height: 36, borderRadius: 12, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-  },
-  balanceBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: Spacing.lg,
-  },
-  balanceLabel: {
-    fontSize: Typography.xs,
-  },
-  balanceVal: {
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-  },
-  formGroup: {
-    gap: Spacing.xs,
-    marginBottom: Spacing.xl,
-  },
-  label: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.semibold,
-    marginTop: Spacing.xs,
-  },
-  networkGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: Spacing.xs,
-  },
-  networkChip: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  networkText: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-  },
+  sectionSubtitle: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.regular },
+
+  fieldLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.6 },
+  networkGrid: { flexDirection: 'row', gap: 8 },
+  networkChip: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 14, borderWidth: 1 },
+  networkChipText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+
   inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    height: 52,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 16, borderWidth: 1, paddingHorizontal: Spacing.md, minHeight: 52,
   },
-  input: {
-    flex: 1,
-    fontSize: Typography.sm,
+  input: { flex: 1, fontSize: Typography.md, fontFamily: Typography.family.regular },
+
+  loadingWrap: { paddingVertical: Spacing.lg, alignItems: 'center', gap: Spacing.xs },
+  loadingText: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+
+  plansList: { gap: 8 },
+  planCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
+    borderRadius: 16, borderWidth: 1,
   },
-  loadingWrap: {
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  loadingText: {
-    fontSize: 11,
-  },
-  plansList: {
-    gap: 8,
+  planCardLeft: { flex: 1 },
+  planName: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  planPrice: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+
+  reviewCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: 6 },
+  reviewLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.6 },
+  reviewTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  reviewMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  reviewAmount: { fontSize: 28, fontFamily: Typography.family.bold, marginTop: 4 },
+
+  primaryAction: {
+    minHeight: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
     marginTop: Spacing.xs,
   },
-  planCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  planName: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-    flex: 1,
-  },
-  planPrice: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.bold,
-  },
-  submitBtn: {
-    height: 54,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnText: {
-    color: '#FFF',
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-  },
+  primaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

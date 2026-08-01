@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { CheckCircle2, Search } from 'lucide-react-native';
@@ -152,6 +153,19 @@ export function BankPickerModal({
             </Text>
           </View>
 
+          <View style={[styles.searchBox, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <Search size={16} color={palette.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: palette.text }]}
+              placeholder="Search bank name or code…"
+              placeholderTextColor={palette.textSecondary}
+              value={search}
+              onChangeText={setSearch}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+          </View>
+
           {/* Bank List */}
           {banksLoading ? (
             <View style={styles.emptyState}>
@@ -213,6 +227,22 @@ export function BankPickerModal({
 }
 
 const styles = StyleSheet.create({
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    height: 46,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.regular,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

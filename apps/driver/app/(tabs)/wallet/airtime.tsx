@@ -1,7 +1,14 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Smartphone } from 'lucide-react-native';
+import {
+  ArrowUpRight,
+  Banknote,
+  CheckCircle2,
+  ChevronLeft,
+  Smartphone,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,23 +16,26 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PaymentPinModal } from '@/components/wallet/PaymentPinModal';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useBuyAirtime, useResolveAirtimeProvider, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { formatNaira, telecomNetworks } from '@/lib/wallet';
+
+const presetAmounts = [100, 200, 500, 1000, 2000, 5000] as const;
+
+type Step = 1 | 2 | 3;
 
 export default function DriverAirtimeScreen() {
   const modal = useAppModal();
   const router = useRouter();
   const palette = useAppPalette();
-  const insets = useSafeAreaInsets();
   const walletQuery = useWallet();
 
+  const [step, setStep] = useState<Step>(1);
   const [phone, setPhone] = useState('');
   const [selectedNetwork, setSelectedNetwork] = useState<string>('MTN');
   const [amount, setAmount] = useState('');
@@ -33,7 +43,6 @@ export default function DriverAirtimeScreen() {
 
   const resolveProviderMutation = useResolveAirtimeProvider();
   const buyAirtimeMutation = useBuyAirtime();
-  const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
 
   const handlePhoneChange = async (val: string) => {
     setPhone(val);
@@ -48,12 +57,12 @@ export default function DriverAirtimeScreen() {
           if (matched) setSelectedNetwork(matched);
         }
       } catch {
-        // Fallback silently to manual network selection
+        // silent fallback
       }
     }
   };
 
-  const handleInitiate = () => {
+  const handleContinue = () => {
     if (!phone || phone.length < 10) {
       modal.alert('Invalid Phone Number', 'Please enter a valid phone number', 'warning');
       return;
@@ -63,6 +72,12 @@ export default function DriverAirtimeScreen() {
       modal.alert('Invalid Amount', 'Minimum airtime purchase is ₦50', 'warning');
       return;
     }
+    if (step === 1) { setStep(2); return; }
+    if (step === 2) { setStep(3); return; }
+  };
+
+  const handleInitiate = () => {
+    const amt = Number(amount);
     if (amt > (walletQuery.data?.balance ?? 0)) {
       modal.alert('Insufficient Balance', 'Your wallet balance is lower than this purchase amount.', 'warning');
       return;
@@ -70,7 +85,7 @@ export default function DriverAirtimeScreen() {
     setPinModalVisible(true);
   };
 
-  const handleConfirmPin = async (pin: string) => {
+  const handleConfirmPin = async (_pin: string) => {
     await buyAirtimeMutation.mutateAsync({
       phone: phone.trim(),
       amount: Number(amount),
@@ -89,115 +104,222 @@ export default function DriverAirtimeScreen() {
     });
   };
 
+  const stepDots = [1, 2, 3] as const;
+
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 40 },
-        ]}
-      >
-        <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <ArrowLeft size={20} color={palette.text} />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* back button row */}
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => (step > 1 ? setStep((s) => (s - 1) as Step) : router.back())}
+            style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}
+          >
+            <ChevronLeft size={18} color={palette.text} />
           </Pressable>
-          <Text style={[styles.headerTitle, { color: palette.text }]}>Buy Airtime</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
-        <View style={[styles.balanceBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Text style={[styles.balanceLabel, { color: palette.textSecondary }]}>Wallet Balance</Text>
-          <Text style={[styles.balanceVal, { color: palette.primary }]}>
-            {formatNaira(walletQuery.data?.balance ?? 0)}
-          </Text>
+        {/* eyebrow */}
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>Airtime</Text>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, { color: palette.text }]}>Network Provider</Text>
-          <View style={styles.networkGrid}>
-            {telecomNetworks.map((net) => (
-              <Pressable
-                key={net}
+        {/* hero card */}
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroLabel}>Network</Text>
+              <Text style={styles.heroValue}>{selectedNetwork}</Text>
+            </View>
+            <View style={styles.heroIcon}>
+              <ArrowUpRight size={20} color="#fff" />
+            </View>
+          </View>
+
+          {/* progress dots */}
+          <View style={styles.dots}>
+            {stepDots.map((d) => (
+              <View
+                key={d}
                 style={[
-                  styles.networkChip,
-                  { backgroundColor: palette.card, borderColor: palette.border },
-                  selectedNetwork === net && { backgroundColor: palette.primary + '20', borderColor: palette.primary },
+                  styles.dot,
+                  d === step
+                    ? { backgroundColor: '#fff', width: 20 }
+                    : d < step
+                    ? { backgroundColor: 'rgba(255,255,255,0.6)' }
+                    : { backgroundColor: 'rgba(255,255,255,0.25)' },
                 ]}
-                onPress={() => setSelectedNetwork(net)}
-              >
-                <Text
-                  style={[
-                    styles.networkText,
-                    { color: selectedNetwork === net ? palette.primary : palette.text },
-                  ]}
-                >
-                  {net}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={[styles.label, { color: palette.text }]}>Phone Number</Text>
-          <View style={[styles.inputBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Smartphone size={18} color={palette.textSecondary} style={{ marginRight: Spacing.xs }} />
-            <TextInput
-              style={[styles.input, { color: palette.text }]}
-              placeholder="08012345678"
-              placeholderTextColor={palette.textSecondary}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={handlePhoneChange}
-            />
-          </View>
-
-          <Text style={[styles.label, { color: palette.text }]}>Amount (₦)</Text>
-          <View style={[styles.inputBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.currencyPrefix, { color: palette.primary }]}>₦</Text>
-            <TextInput
-              style={[styles.input, { color: palette.text, fontSize: 18, fontWeight: 'bold' }]}
-              placeholder="0.00"
-              placeholderTextColor={palette.textSecondary}
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={setAmount}
-            />
-          </View>
-
-          <Text style={[styles.quickLabel, { color: palette.textSecondary }]}>Quick select:</Text>
-          <View style={styles.quickRow}>
-            {quickAmounts.map((q) => (
-              <Pressable
-                key={q}
-                style={[
-                  styles.quickChip,
-                  { backgroundColor: palette.card, borderColor: palette.border },
-                  amount === String(q) && { backgroundColor: palette.primary + '20', borderColor: palette.primary },
-                ]}
-                onPress={() => setAmount(String(q))}
-              >
-                <Text
-                  style={[
-                    styles.quickChipText,
-                    { color: amount === String(q) ? palette.primary : palette.text },
-                  ]}
-                >
-                  {formatNaira(q)}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.submitBtn,
-            { backgroundColor: palette.primary },
-            pressed && { opacity: 0.8 },
-          ]}
-          onPress={handleInitiate}
-        >
-          <Text style={styles.submitBtnText}>Purchase Airtime</Text>
-        </Pressable>
+        {/* Step 1 — Phone + network */}
+        {step === 1 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <Smartphone size={16} color={palette.primary} />
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                Enter the recipient phone number and select the network.
+              </Text>
+            </View>
+
+            {/* network selector */}
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>Network</Text>
+            <View style={styles.networkGrid}>
+              {telecomNetworks.map((net) => {
+                const active = selectedNetwork === net;
+                return (
+                  <Pressable
+                    key={net}
+                    style={[
+                      styles.networkChip,
+                      { backgroundColor: active ? palette.primary : palette.card, borderColor: active ? palette.primary : palette.border },
+                    ]}
+                    onPress={() => setSelectedNetwork(net)}
+                  >
+                    <Text style={[styles.networkChipText, { color: active ? '#fff' : palette.text }]}>
+                      {net}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* phone input */}
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>Phone number</Text>
+            <View style={[styles.inputBox, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Smartphone size={16} color={palette.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: palette.text }]}
+                placeholder="08012345678"
+                placeholderTextColor={palette.textSecondary}
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={handlePhoneChange}
+              />
+              {resolveProviderMutation.isPending ? <ActivityIndicator size="small" color={palette.primary} /> : null}
+            </View>
+
+            <Pressable
+              onPress={handleContinue}
+              style={[styles.primaryAction, { backgroundColor: palette.primary }]}
+            >
+              <Text style={styles.primaryActionText}>Continue</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* Step 2 — Amount */}
+        {step === 2 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <Banknote size={16} color={palette.primary} />
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                Choose a quick amount or enter a custom value.
+              </Text>
+            </View>
+
+            {/* recipient mini summary */}
+            <View style={[styles.summaryMini, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.summaryMiniLabel, { color: palette.textSecondary }]}>Recipient</Text>
+              <Text style={[styles.summaryMiniValue, { color: palette.text }]}>{phone}</Text>
+              <Text style={[styles.summaryMiniMeta, { color: palette.textSecondary }]}>{selectedNetwork}</Text>
+            </View>
+
+            {/* preset amounts */}
+            <View style={styles.amountGrid}>
+              {presetAmounts.map((v) => {
+                const active = amount === String(v);
+                return (
+                  <Pressable
+                    key={v}
+                    onPress={() => setAmount(String(v))}
+                    style={({ pressed }) => [
+                      styles.amountChip,
+                      {
+                        backgroundColor: active ? palette.text : palette.card,
+                        borderColor: active ? palette.text : palette.border,
+                        transform: [{ scale: pressed ? 0.96 : active ? 1.03 : 1 }],
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.amountChipText, { color: active ? palette.card : palette.text }]}>
+                      {formatNaira(v)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* custom amount */}
+            <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>Custom amount</Text>
+            <View style={[styles.inputBox, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.currencyPrefix, { color: palette.primary }]}>₦</Text>
+              <TextInput
+                style={[styles.input, { color: palette.text, fontSize: Typography.lg, fontFamily: Typography.family.bold }]}
+                placeholder="0"
+                placeholderTextColor={palette.textSecondary}
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={(val) => setAmount(val.replace(/[^0-9]/g, ''))}
+              />
+            </View>
+
+            <Text style={[styles.amountHint, { color: palette.textSecondary }]}>
+              Wallet balance: {formatNaira(walletQuery.data?.balance ?? 0)}
+            </Text>
+
+            <Pressable
+              disabled={!amount}
+              onPress={handleContinue}
+              style={[styles.primaryAction, { backgroundColor: amount ? palette.primary : palette.border }]}
+            >
+              <Text style={styles.primaryActionText}>Review purchase</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* Step 3 — Review */}
+        {step === 3 ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.stepPill, { backgroundColor: 'rgba(10,132,255,0.08)', borderColor: palette.primary }]}>
+                <CheckCircle2 size={16} color={palette.primary} />
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                Confirm the details before you pay.
+              </Text>
+            </View>
+
+            <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>Airtime</Text>
+              <Text style={[styles.reviewTitle, { color: palette.text }]}>{selectedNetwork}</Text>
+              <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{phone}</Text>
+              <Text style={[styles.reviewAmount, { color: palette.text }]}>
+                {formatNaira(Number(amount))}
+              </Text>
+            </View>
+
+            <Pressable
+              disabled={buyAirtimeMutation.isPending}
+              onPress={handleInitiate}
+              style={[styles.primaryAction, { backgroundColor: palette.primary }]}
+            >
+              {buyAirtimeMutation.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryActionText}>Purchase Airtime</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
 
       <PaymentPinModal
@@ -211,117 +333,87 @@ export default function DriverAirtimeScreen() {
   );
 }
 
+// ─── styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
+  screen: { flex: 1 },
+  content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: 40, gap: Spacing.lg },
+
+  // header
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backButton: {
+    width: 42, height: 42, borderRadius: 21, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  container: {
-    paddingHorizontal: Spacing.lg,
+  headerSpacer: { width: 42 },
+  headerCopy: { gap: 4 },
+  eyebrow: {
+    textTransform: 'uppercase', letterSpacing: 1.2,
+    fontSize: Typography.xs, fontFamily: Typography.family.bold,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+
+  // hero
+  hero: { borderRadius: 28, padding: Spacing.lg, gap: 16 },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
+  heroValue: { color: '#fff', fontSize: Typography.xl, fontFamily: Typography.family.bold, marginTop: 2 },
+  heroIcon: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dots: { flexDirection: 'row', gap: 6 },
+  dot: { height: 6, width: 6, borderRadius: 3 },
+
+  // card
+  card: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepPill: {
+    width: 36, height: 36, borderRadius: 12, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-  },
-  balanceBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: Spacing.lg,
-  },
-  balanceLabel: {
-    fontSize: Typography.xs,
-  },
-  balanceVal: {
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-  },
-  formGroup: {
-    gap: Spacing.xs,
-    marginBottom: Spacing.xl,
-  },
-  label: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.semibold,
-    marginTop: Spacing.xs,
-  },
-  networkGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: Spacing.xs,
-  },
-  networkChip: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  networkText: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-  },
+  sectionSubtitle: { flex: 1, fontSize: Typography.sm, fontFamily: Typography.family.regular },
+
+  // network
+  fieldLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.6 },
+  networkGrid: { flexDirection: 'row', gap: 8 },
+  networkChip: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 14, borderWidth: 1 },
+  networkChipText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+
+  // input
   inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    height: 52,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 16, borderWidth: 1, paddingHorizontal: Spacing.md, minHeight: 52,
   },
-  currencyPrefix: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginRight: Spacing.xs,
+  input: { flex: 1, fontSize: Typography.md, fontFamily: Typography.family.regular },
+  currencyPrefix: { fontSize: Typography.xl, fontFamily: Typography.family.bold },
+
+  // amount grid
+  amountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  amountChip: {
+    width: '30%', paddingVertical: 12, borderRadius: 16, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  input: {
-    flex: 1,
-    fontSize: Typography.sm,
-  },
-  quickLabel: {
-    fontSize: 11,
+  amountChipText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  amountHint: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
+
+  // mini summary
+  summaryMini: { borderRadius: 16, borderWidth: 1, padding: Spacing.md, gap: 2 },
+  summaryMiniLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.6 },
+  summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  summaryMiniMeta: { fontSize: Typography.sm },
+
+  // review card
+  reviewCard: { borderRadius: 20, borderWidth: 1, padding: Spacing.lg, gap: 6 },
+  reviewLabel: { fontSize: Typography.xs, fontFamily: Typography.family.bold, textTransform: 'uppercase', letterSpacing: 0.6 },
+  reviewTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  reviewMeta: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  reviewAmount: { fontSize: 28, fontFamily: Typography.family.bold, marginTop: 4 },
+
+  // actions
+  primaryAction: {
+    minHeight: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
     marginTop: Spacing.xs,
   },
-  quickRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  quickChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  quickChipText: {
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-  },
-  submitBtn: {
-    height: 54,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnText: {
-    color: '#FFF',
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-  },
+  primaryActionText: { color: '#fff', fontSize: Typography.md, fontFamily: Typography.family.bold },
 });

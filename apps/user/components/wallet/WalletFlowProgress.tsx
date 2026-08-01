@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Animated, BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, BackHandler, Pressable, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { useAppPalette } from '@/lib/theme';
 import { haptics } from '@/utils/haptics';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
 
@@ -12,81 +11,110 @@ type FlowProgressDotsProps = {
   onStepPress?: (step: number) => void;
 };
 
+/**
+ * Expanding-pill step tracker.
+ *
+ * - Active step: wide bright pill (width springs to ~24)
+ * - Completed step: narrower, 65 % opacity
+ * - Future step: narrowest, 25 % opacity
+ *
+ * All transitions use a native-driver `Animated.spring` so they stay at
+ * 60 fps even on the JS thread. Accessibility role / labels are preserved.
+ */
 export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowProgressDotsProps) {
-  const palette = useAppPalette();
   const reduceMotion = useReduceMotion();
-  const fill = useRef(new Animated.Value(currentStep / totalSteps)).current;
+
+  // One animated width value per dot
+  const widths = useRef(
+    Array.from({ length: totalSteps }, (_, i) =>
+      new Animated.Value(i + 1 === currentStep ? 24 : 8),
+    ),
+  ).current;
+
+  // One animated opacity value per dot
+  const opacities = useRef(
+    Array.from({ length: totalSteps }, (_, i) => {
+      const s = i + 1;
+      return new Animated.Value(s === currentStep ? 1 : s < currentStep ? 0.65 : 0.25);
+    }),
+  ).current;
+
   const prevStep = useRef(currentStep);
 
   useEffect(() => {
-    const next = Math.max(0, Math.min(1, currentStep / totalSteps));
     if (currentStep > prevStep.current) {
       void haptics.success();
     }
     prevStep.current = currentStep;
 
-    if (reduceMotion) {
-      fill.setValue(next);
-      return;
+    const springs = Array.from({ length: totalSteps }, (_, i) => {
+      const s = i + 1;
+      const targetW = s === currentStep ? 24 : 8;
+      const targetO = s === currentStep ? 1 : s < currentStep ? 0.65 : 0.25;
+
+      if (reduceMotion) {
+        widths[i].setValue(targetW);
+        opacities[i].setValue(targetO);
+        return null;
+      }
+
+      return Animated.parallel([
+        Animated.spring(widths[i], {
+          toValue: targetW,
+          damping: 18,
+          stiffness: 200,
+          useNativeDriver: false, // width can't use native driver
+        }),
+        Animated.spring(opacities[i], {
+          toValue: targetO,
+          damping: 20,
+          stiffness: 180,
+          useNativeDriver: true,
+        }),
+      ]);
+    }).filter(Boolean) as Animated.CompositeAnimation[];
+
+    if (springs.length) {
+      Animated.parallel(springs).start();
     }
-
-    Animated.spring(fill, {
-      toValue: next,
-      damping: 20,
-      stiffness: 150,
-      useNativeDriver: false,
-    }).start();
-  }, [currentStep, fill, reduceMotion, totalSteps]);
-
-  const fillWidth = fill.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  }, [currentStep, opacities, reduceMotion, totalSteps, widths]);
 
   return (
-    <View style={styles.wrap} accessibilityRole="progressbar" accessibilityValue={{ now: currentStep, min: 1, max: totalSteps }}>
-      <View style={[styles.track, { backgroundColor: palette.border }]}> 
-        <Animated.View
-          style={[
-            styles.fill,
-            {
-              backgroundColor: palette.primary,
-              width: fillWidth,
-            },
-          ]}
-        />
-      </View>
-      <View style={styles.dots}>
-        {Array.from({ length: totalSteps }, (_, index) => {
-          const step = index + 1;
-          const active = step === currentStep;
-          const complete = step < currentStep;
-          const interactive = Boolean(onStepPress) && (active || complete);
-          const label = 'Step ' + step + (complete ? ', completed' : active ? ', current' : '');
+    <View
+      style={{ flexDirection: 'row', gap: 6 }}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ now: currentStep, min: 1, max: totalSteps }}
+    >
+      {Array.from({ length: totalSteps }, (_, i) => {
+        const step = i + 1;
+        const active = step === currentStep;
+        const complete = step < currentStep;
+        const interactive = Boolean(onStepPress) && (active || complete);
+        const label = `Step ${step}${complete ? ', completed' : active ? ', current' : ''}`;
 
-          return (
-            <Pressable
-              key={step}
-              disabled={!interactive}
-              accessibilityRole={interactive ? 'button' : 'text'}
-              accessibilityLabel={label}
-              onPress={() => {
-                void haptics.tap();
-                onStepPress?.(step);
+        return (
+          <Pressable
+            key={step}
+            disabled={!interactive}
+            accessibilityRole={interactive ? 'button' : 'text'}
+            accessibilityLabel={label}
+            onPress={() => {
+              void haptics.tap();
+              onStepPress?.(step);
+            }}
+          >
+            <Animated.View
+              style={{
+                height: 6,
+                borderRadius: 999,
+                backgroundColor: '#ffffff',
+                width: widths[i],
+                opacity: opacities[i],
               }}
-              style={[
-                styles.dot,
-                {
-                  backgroundColor: complete || active ? palette.primary : palette.card,
-                  borderColor: complete || active ? palette.primary : palette.border,
-                  opacity: active ? 1 : complete ? 0.95 : 0.8,
-                  transform: [{ scale: active ? 1.08 : 1 }],
-                },
-              ]}
             />
-          );
-        })}
-      </View>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -109,8 +137,7 @@ export function useSlideStepTransition(step: number) {
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
-  // We are keeping the Animated Values but disabling the animation
-  // to avoid the cards moving across steps, as requested.
+  // Animation intentionally disabled — cards stay in place across steps.
   useEffect(() => {
     translateX.setValue(0);
     opacity.setValue(1);
@@ -118,29 +145,3 @@ export function useSlideStepTransition(step: number) {
 
   return { opacity, translateX };
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    gap: 10,
-  },
-  track: {
-    height: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  dot: {
-    flex: 1,
-    height: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-});

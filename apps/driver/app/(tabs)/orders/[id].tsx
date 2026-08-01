@@ -131,9 +131,8 @@ export default function OrderDetailScreen() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [chatModalOpen, setChatModalOpen] = useState(false);
 
-  // Reflect external order status changes (cancellation, completion)
-  // Realtime updates handled by react-query invalidation in useLiveTracking/useDriverOrderDetail, 
-  // but if needed we can add socket listeners here for this specific order.
+  // ⚠️ Must be above any conditional early returns — Rules of Hooks
+  const currentLocation = useDriverStore((s) => s.currentLocation);
 
   // ── Empty state ──────────────────────────────────────────────────────────
   if (isLoading || !order) {
@@ -150,8 +149,6 @@ export default function OrderDetailScreen() {
 
   const advanceLabel =
     order.status === 'ACCEPTED' ? "I've Picked Up the Package" : 'Mark as Delivered';
-
-  const currentLocation = useDriverStore((s) => s.currentLocation);
 
   const advance = async () => {
     if (!canAdvance) return;
