@@ -73,6 +73,7 @@ export interface OrderSummary {
     id: string;
     userId: string;
     fullName: string;
+    phone?: string | null;
     rating: number;
     vehicleType: string;
     vehicleModel: string;
