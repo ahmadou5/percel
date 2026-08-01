@@ -60,7 +60,7 @@ type OrderLike = {
   driver?: {
     id: string;
     userId: string;
-    user: { fullName: string };
+    user: { fullName: string; phone: string };
     rating: Prisma.Decimal | number;
     vehicleType: string;
     vehicleModel: string;
@@ -124,6 +124,7 @@ function serializeOrder(order: OrderLike): OrderSummary {
           id: order.driver.id,
           userId: order.driver.userId,
           fullName: order.driver.user.fullName,
+          phone: order.driver.user.phone ?? null,
           rating: asNumber(order.driver.rating),
           vehicleType: order.driver.vehicleType,
           vehicleModel: order.driver.vehicleModel,

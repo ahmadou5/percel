@@ -20,6 +20,7 @@ export interface DriverDetails {
   id: string;
   userId?: string;
   fullName: string;
+  phone?: string | null;
   rating: number;
   vehicleType: string;
   vehicleModel?: string | null;
@@ -62,6 +63,14 @@ export interface TrackedOrder {
   driver?: DriverDetails | null;
   customer?: CustomerDetails | null;
   statusHistory?: OrderStatusHistoryItem[];
+  items?: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    weightKg?: number;
+    fragile?: boolean;
+    imageUrl?: string | null;
+  }>;
 }
 
 function buildApiBase(): string {
