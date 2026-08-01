@@ -65,7 +65,7 @@ export interface TrackedOrder {
 }
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://percelapi-production.up.railway.app';
+  (process.env.NEXT_PUBLIC_API_URL || 'https://percelapi-production.up.railway.app') + '/api/v1';
 
 export async function fetchTrackedOrder(trackingCode: string): Promise<TrackedOrder> {
   const cleanCode = trackingCode.trim();
