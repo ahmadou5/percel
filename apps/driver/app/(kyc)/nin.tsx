@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
@@ -10,6 +11,7 @@ import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
 
 export default function NinScreen() {
+  const queryClient = useQueryClient();
   const [nin, setNin] = useState('');
   const [verified, setVerified] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,6 +32,8 @@ export default function NinScreen() {
       if (driver) {
         await setDriver({ ...driver, status: 'KYC_SUBMITTED' });
       }
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
       Alert.alert('NIN verified', 'Your identity check has been submitted.');
     } catch (error) {
       Alert.alert('Could not verify NIN', error instanceof Error ? error.message : 'Please check your connection and try again.');

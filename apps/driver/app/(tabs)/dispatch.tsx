@@ -156,6 +156,7 @@ export default function DispatchBoardScreen() {
                 order={order}
                 accepting={acceptOrder.isPending}
                 declining={declineOrder.isPending}
+                onPress={() => router.push({ pathname: '/(tabs)/orders/[id]', params: { id: order.id } })}
                 onAccept={() => acceptOrder.mutate(order.id)}
                 onDecline={() =>
                   declineOrder.mutate({ orderId: order.id, reason: 'Driver declined from dispatch board' })

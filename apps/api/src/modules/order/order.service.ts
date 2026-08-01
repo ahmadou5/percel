@@ -571,11 +571,19 @@ export class OrderService {
     };
   }
 
-  async getOrderDetail(userId: string, orderId: string) {
+  async getOrderDetail(userId: string, orderId: string, driverId?: string) {
     const order = await this.prisma.order.findFirst({
-      where: { id: orderId, userId },
+      where: {
+        id: orderId,
+        OR: [
+          { userId },
+          ...(driverId ? [{ driverId }] : []),
+          { driver: { userId } },
+        ],
+      },
       include: {
         driver: { include: { user: true } },
+        user: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
         statusHistory: { orderBy: { createdAt: 'asc' } },
         items: true,
         rating: true,

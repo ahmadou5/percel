@@ -1,10 +1,11 @@
-import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+export type BottomTabBarProps = any;
 import { usePathname, useRouter } from 'expo-router';
 import {
   House,
   ClipboardList,
   Settings,
   BadgeDollarSign,
+  Wallet,
 } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -46,21 +47,23 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'home',     label: 'Home',     Icon: House,          routeName: 'home',     href: '/(tabs)/home' },
-  { key: 'history',  label: 'History',  Icon: ClipboardList,  routeName: 'history',  href: '/(tabs)/history' },
-  { key: 'earnings', label: 'Earnings', Icon: BadgeDollarSign,     routeName: 'earnings', href: '/(tabs)/earnings' },
-  { key: 'settings', label: 'Settings', Icon: Settings,       routeName: 'settings', href: '/(tabs)/settings' },
+  { key: 'home', label: 'Home', Icon: House, routeName: 'home', href: '/(tabs)/home' },
+  { key: 'history', label: 'History', Icon: ClipboardList, routeName: 'history', href: '/(tabs)/history' },
+
+  { key: 'earnings', label: 'Earnings', Icon: BadgeDollarSign, routeName: 'earnings', href: '/(tabs)/earnings' },
+  { key: 'settings', label: 'Settings', Icon: Settings, routeName: 'settings', href: '/(tabs)/settings' },
 ];
 
 const PILL_HEIGHT = 56;
-const ACTIVE_PILL_WIDTH = 83; // icon-only pill, expands slightly
-const INACTIVE_ICON_SIZE = 44;
+const ACTIVE_PILL_WIDTH = 70; // icon-only pill, expands slightly
+const INACTIVE_ICON_SIZE = 38;
 
 function getFocusKey(pathname: string) {
   if (pathname === '/(tabs)/home' || pathname === '/home' || pathname === '/') return 'home';
   if (pathname.startsWith('/(tabs)/dispatch') || pathname.startsWith('/dispatch')) return 'dispatch';
   if (pathname.startsWith('/(tabs)/orders') || pathname.startsWith('/orders') || pathname.startsWith('/(tabs)/active') || pathname.startsWith('/active')) return 'orders';
   if (pathname.startsWith('/(tabs)/history') || pathname.startsWith('/history')) return 'history';
+  if (pathname.startsWith('/(tabs)/wallet') || pathname.startsWith('/wallet')) return 'wallet';
   if (pathname.startsWith('/(tabs)/earnings') || pathname.startsWith('/earnings')) return 'earnings';
   if (pathname.startsWith('/(tabs)/profile') || pathname.startsWith('/profile')) return 'profile';
   if (pathname.startsWith('/(tabs)/settings') || pathname.startsWith('/settings')) return 'settings';
@@ -69,7 +72,7 @@ function getFocusKey(pathname: string) {
 
 function shouldShowDock(pathname: string) {
   const base = pathname.replace('/(tabs)', '').replace(/^\//, '');
-  return ['home', 'dispatch', 'orders', 'active', 'history', 'earnings', 'profile', 'settings', ''].some(
+  return ['home', 'dispatch', 'orders', 'active', 'history', 'wallet', 'earnings', 'profile', 'settings', ''].some(
     (seg) => base === seg || base.startsWith(seg + '/'),
   );
 }
@@ -187,7 +190,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
             const onPress = () => {
               if (item.routeName) {
-                const route = state.routes.find((r) => r.name === item.routeName);
+                const route = state.routes.find((r: any) => r.name === item.routeName);
                 if (!route) return;
                 const event = navigation.emit({
                   type: 'tabPress',
@@ -204,7 +207,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
             const onLongPress = () => {
               if (!item.routeName) return;
-              const route = state.routes.find((r) => r.name === item.routeName);
+              const route = state.routes.find((r: any) => r.name === item.routeName);
               if (!route) return;
               navigation.emit({ type: 'tabLongPress', target: route.key });
             };

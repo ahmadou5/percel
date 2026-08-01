@@ -450,6 +450,70 @@ export default function DriverHomeScreen() {
           </View>
         </View>
 
+        {/* ── DRIVER WALLET & QUICK PAYMENTS CARD ─────────────────────── */}
+        <View style={[{ borderRadius: 20, borderWidth: 1, padding: 16, marginBottom: 16, backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Package size={16} color={palette.primary} />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: palette.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Wallet & Virtual Account
+              </Text>
+            </View>
+            <Pressable onPress={() => router.push('/(tabs)/wallet' as never)}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: palette.primary }}>Manage Wallet →</Text>
+            </Pressable>
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View>
+              <Text style={{ fontSize: 11, color: palette.textSecondary }}>Available Wallet Balance</Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: palette.text, marginTop: 2 }}>
+                {formatNaira(wallet?.balance ?? 0)}
+              </Text>
+            </View>
+            {wallet?.nuban ? (
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={{ fontSize: 10, color: palette.textSecondary, textTransform: 'uppercase' }}>Virtual NUBAN</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: palette.primary, marginTop: 2 }}>
+                  {wallet.nuban}
+                </Text>
+                <Text style={{ fontSize: 10, color: palette.textSecondary }}>{wallet.bankName || 'Virtual Bank'}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Quick Payment Buttons */}
+          <View style={{ flexDirection: 'row', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: palette.border }}>
+            <Pressable
+              style={({ pressed }) => [{ flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: 'center', backgroundColor: hexToRgba(palette.primary, 0.12) }, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/(tabs)/wallet/transfer' as never)}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', color: palette.primary }}>Transfer</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [{ flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: 'center', backgroundColor: hexToRgba('#30D158', 0.12) }, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/(tabs)/wallet/topup' as never)}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#30D158' }}>Top Up</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [{ flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: 'center', backgroundColor: hexToRgba('#FF9F0A', 0.12) }, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/(tabs)/wallet/airtime' as never)}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#FF9F0A' }}>Airtime</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [{ flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: 'center', backgroundColor: hexToRgba('#5AC8FA', 0.12) }, pressed && { opacity: 0.7 }]}
+              onPress={() => router.push('/(tabs)/wallet/data' as never)}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#5AC8FA' }}>Data</Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* ── Current order / dispatch entry ──────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>

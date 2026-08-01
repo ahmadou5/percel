@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClipboardList } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { router } from 'expo-router';
+
 import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { useDriverOrdersHistory } from '@/hooks/useDriverOrders';
 import { subscribeDriverSocket } from '@/lib/socket';
@@ -186,6 +188,7 @@ export default function HistoryScreen() {
                 key={order.id}
                 order={order}
                 readonly
+                onPress={() => router.push({ pathname: '/(tabs)/orders/[id]', params: { id: order.id } })}
               />
             ))}
           </View>

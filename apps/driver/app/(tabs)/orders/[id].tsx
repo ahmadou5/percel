@@ -25,6 +25,7 @@ import {
   Navigation,
   CornerUpLeft,
   MessageSquare,
+  ArrowLeft,
 } from 'lucide-react-native';
 import { DriverChatModal } from '@/components/orders/DriverChatModal';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -178,6 +179,31 @@ export default function ActiveOrderScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg, paddingBottom: 120 }]}
       >
+        {/* ── Top Header with Back button ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
+          <Pressable
+            style={({ pressed }) => [
+              { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.card, borderWidth: 1, borderColor: palette.border },
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.push('/(tabs)/history');
+            }}
+          >
+            <ArrowLeft size={20} color={palette.text} />
+          </Pressable>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: Typography.md, fontWeight: '700', color: palette.text }}>
+              Delivery Details
+            </Text>
+            <Text style={{ fontSize: 11, color: palette.textSecondary }}>
+              {order.trackingCode}
+            </Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+
         {/* ── Active Orders Switcher Carousel ── */}
         <ActiveOrdersCarousel
           orders={activeOrders}

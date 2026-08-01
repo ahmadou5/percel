@@ -32,8 +32,9 @@ export class OrderController {
 
   getOrderDetail = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
     const { id } = request.params as { id: string };
-    return success(await this.service.getOrderDetail(userId, id), 'Order fetched');
+    return success(await this.service.getOrderDetail(userId, id, driverId || undefined), 'Order fetched');
   };
 
   getOrderTracking = async (request: FastifyRequest) => {

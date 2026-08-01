@@ -138,9 +138,13 @@ export function useDriverOrderDetail(id: string | null | undefined) {
         const response = await http.get<ApiResponse<DriverOrder>>(`/api/v1/driver/orders/${id}`);
         return response.data.data;
       } catch {
-        // If the endpoint doesn't exist, fall back to the current order from store
-        if (currentOrder && currentOrder.id === id) return currentOrder;
-        throw new Error('Order not found');
+        try {
+          const fallback = await http.get<ApiResponse<DriverOrder>>(`/api/v1/orders/${id}`);
+          return fallback.data.data;
+        } catch {
+          if (currentOrder && currentOrder.id === id) return currentOrder;
+          throw new Error('Order not found');
+        }
       }
     },
     // Seed from current order store so the screen renders instantly while fetching

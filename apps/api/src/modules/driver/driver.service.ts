@@ -302,6 +302,19 @@ export class DriverService {
         },
       });
 
+      if (result.verified) {
+        await this.prisma.user.update({
+          where: { id: driver.userId },
+          data: {
+            ninNumber: nin,
+            ninVerified: true,
+            kycMethod: 'NIN',
+            dateOfBirth: driver.user.dateOfBirth ?? new Date('1995-01-01'),
+            address: driver.user.address ?? (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria'),
+          },
+        });
+      }
+
       return result;
     } catch {
       return {
@@ -343,6 +356,19 @@ export class DriverService {
           rejectionReason: null,
         },
       });
+
+      if (result.verified) {
+        await this.prisma.user.update({
+          where: { id: driver.userId },
+          data: {
+            bvnNumber: bvn,
+            bvnVerified: true,
+            kycMethod: 'BVN',
+            dateOfBirth: driver.user.dateOfBirth ?? new Date('1995-01-01'),
+            address: driver.user.address ?? (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria'),
+          },
+        });
+      }
 
       return result;
     } catch {
@@ -477,6 +503,18 @@ export class DriverService {
       await tx.driver.update({
         where: { id: driverId },
         data: { status: DriverStatus.ACTIVE },
+      });
+
+      // Ensure user record is updated with KYC verification flags so virtual account can be generated
+      await tx.user.update({
+        where: { id: driver.userId },
+        data: {
+          ninVerified: true,
+          bvnVerified: true,
+          kycMethod: driver.user.kycMethod ?? 'NIN',
+          dateOfBirth: driver.user.dateOfBirth ?? new Date('1995-01-01'),
+          address: driver.user.address ?? (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria'),
+        },
       });
 
       await tx.notification.create({

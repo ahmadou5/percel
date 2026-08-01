@@ -15,7 +15,7 @@ export default function ActiveOrdersScreen() {
   const { data: activeOrders, isLoading } = useDriverActiveOrders();
 
   const handleOrderPress = (id: string) => {
-    router.push(`/orders/${id}` as never);
+    router.push({ pathname: '/(tabs)/orders/[id]', params: { id } });
   };
 
   if (isLoading) {

@@ -93,11 +93,23 @@ export default function KycOverviewScreen() {
         </View>
 
         {/* ── Info Box ── */}
-        {!isComplete && (
+        {isComplete ? (
+          <View style={[styles.infoBox, { backgroundColor: 'rgba(48,209,88,0.15)', borderColor: '#30D15840' }]}>
+            <ShieldCheck size={22} color="#30D158" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: palette.text, fontSize: Typography.xs, fontWeight: Typography.bold }}>
+                Virtual Account Activated! 🎉
+              </Text>
+              <Text style={[styles.infoText, { color: palette.textSecondary, marginTop: 2 }]}>
+                Your dedicated bank account (NUBAN) is live. Go to the Wallet tab to transfer funds, pay bills, or receive bank payments.
+              </Text>
+            </View>
+          </View>
+        ) : (
           <View style={[styles.infoBox, { backgroundColor: lightBg ? 'rgba(255,214,10,0.1)' : 'rgba(255,214,10,0.15)', borderColor: palette.border }]}>
             <ShieldAlert size={20} color="#FFD60A" />
             <Text style={[styles.infoText, { color: palette.textSecondary }]}>
-              Once all documents are submitted, your profile will be reviewed by dispatch. Approval usually takes under 24 hours.
+              Once all documents are submitted, your profile will be reviewed by dispatch. Approval usually takes under 24 hours. Your dedicated Virtual Account will be generated automatically.
             </Text>
           </View>
         )}

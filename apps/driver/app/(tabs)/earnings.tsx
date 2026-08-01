@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CreditCard, TrendingUp, Download, Eye, EyeOff, Bell, Car } from 'lucide-react-native';
+import { CreditCard, TrendingUp, Download, Eye, EyeOff, Bell, Car, Send, PlusCircle, Smartphone, Wifi } from 'lucide-react-native';
 
 import { Text } from '@/components/Themed';
 import { useWallet } from '@/hooks/useWallet';
@@ -27,6 +28,7 @@ function initialsFrom(name: string) {
 }
 
 export default function EarningsScreen() {
+  const router = useRouter();
   const [period, setPeriod] = useState<(typeof periods)[number]>('This Week');
   const [balanceHidden, setBalanceHidden] = useState(false);
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
@@ -142,6 +144,65 @@ export default function EarningsScreen() {
               <Text style={styles.cashOutText}>Withdraw →</Text>
             </Pressable>
           </View>
+        </View>
+
+        {/* ── Quick Actions Grid ──────────────────────────────── */}
+        <View style={styles.quickActionsGrid}>
+          <Pressable
+            onPress={() => router.push('/(tabs)/wallet/transfer')}
+            style={({ pressed }) => [
+              styles.actionItem,
+              { backgroundColor: palette.card, borderColor: palette.border },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+              <Send size={20} color={palette.primary} />
+            </View>
+            <Text style={[styles.actionLabelText, { color: palette.text }]}>Transfer</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/(tabs)/wallet/topup')}
+            style={({ pressed }) => [
+              styles.actionItem,
+              { backgroundColor: palette.card, borderColor: palette.border },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: hexToRgba('#30D158', 0.12) }]}>
+              <PlusCircle size={20} color="#30D158" />
+            </View>
+            <Text style={[styles.actionLabelText, { color: palette.text }]}>Top Up</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/(tabs)/wallet/airtime')}
+            style={({ pressed }) => [
+              styles.actionItem,
+              { backgroundColor: palette.card, borderColor: palette.border },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: hexToRgba('#FF9500', 0.12) }]}>
+              <Smartphone size={20} color="#FF9500" />
+            </View>
+            <Text style={[styles.actionLabelText, { color: palette.text }]}>Airtime</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/(tabs)/wallet/data')}
+            style={({ pressed }) => [
+              styles.actionItem,
+              { backgroundColor: palette.card, borderColor: palette.border },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: hexToRgba('#AF52DE', 0.12) }]}>
+              <Wifi size={20} color="#AF52DE" />
+            </View>
+            <Text style={[styles.actionLabelText, { color: palette.text }]}>Data</Text>
+          </Pressable>
         </View>
 
         {/* ── Period selector ───────────────────────────────── */}
@@ -379,6 +440,12 @@ const styles = StyleSheet.create({
   balanceValue: { color: '#fff', fontSize: 34, fontFamily: Typography.family.bold, letterSpacing: -0.5 },
   cashOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999 },
   cashOutText: { color: '#fff', fontSize: 13, fontFamily: Typography.family.bold },
+
+  // quick actions
+  quickActionsGrid: { flexDirection: 'row', gap: 10 },
+  actionItem: { flex: 1, borderRadius: 20, borderWidth: 1, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  actionIconWrap: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  actionLabelText: { fontSize: 12, fontFamily: Typography.family.semibold },
 
   // period
   segmentRow: { flexDirection: 'row', gap: 8 },
