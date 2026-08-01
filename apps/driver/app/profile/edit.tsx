@@ -10,6 +10,7 @@ import { Typography } from '@/constants/typography';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { PRESET_THEMES, ThemePresetId } from '@/constants/theme-presets';
 import { usePreferencesStore } from '@/store/preferences.store';
+import { useDriverStore } from '@/store/driver.store';
 import {
   useChangePassword,
   useDriverProfile,
@@ -28,6 +29,7 @@ export default function EditProfileScreen() {
   const modal = useAppModal();
   const palette = useAppPalette();
   const back = useSafeBack('/profile');
+  const user = useDriverStore((state) => state.user);
   const profileQuery = useDriverProfile();
   const profile = profileQuery.data;
   const updateVehicle = useUpdateVehicle();
@@ -263,9 +265,9 @@ export default function EditProfileScreen() {
           <View style={styles.verificationRow}>
             <View style={styles.verificationCopy}>
               <Text style={styles.verificationLabel}>Email Address</Text>
-              <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.email}</Text>
+              <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.email ?? user?.email}</Text>
             </View>
-            {profile?.kyc?.status === 'APPROVED' || (profile as any).emailVerified ? (
+            {user?.emailVerified || profile?.emailVerified || profile?.kyc?.status === 'APPROVED' ? (
               <View style={styles.verifiedBadge}>
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>
@@ -280,9 +282,9 @@ export default function EditProfileScreen() {
           <View style={styles.verificationRow}>
             <View style={styles.verificationCopy}>
               <Text style={styles.verificationLabel}>Phone Number</Text>
-              <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.phone}</Text>
+              <Text style={[styles.verificationValue, { color: palette.textSecondary }]}>{profile?.phone ?? user?.phone}</Text>
             </View>
-            {(profile as any).phoneVerified ? (
+            {user?.phoneVerified || profile?.phoneVerified ? (
               <View style={styles.verifiedBadge}>
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>

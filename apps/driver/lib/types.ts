@@ -150,6 +150,8 @@ export type DriverProfile = {
   email: string;
   phone: string;
   avatarUrl: string | null;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   status: 'PENDING_KYC' | 'KYC_SUBMITTED' | 'ACTIVE' | 'SUSPENDED' | 'OFFLINE' | 'ONLINE';
   kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
   rating: number;
