@@ -83,12 +83,10 @@ export function BankLogo({
   size?: number;
 }) {
   const url = getBankLogoUrl(bankCode || undefined, name, slug);
-  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   // Reset when bank changes
   useEffect(() => {
-    setLoaded(false);
     setFailed(false);
   }, [url]);
 
@@ -97,23 +95,19 @@ export function BankLogo({
   }
 
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      {/* Avatar shown underneath until the CDN image loads */}
-      {!loaded && (
-        <View style={{ position: 'absolute', top: 0, left: 0 }}>
-          <BankAvatar name={name} size={size} />
-        </View>
-      )}
+    <View style={{ width: size, height: size, position: 'relative', borderRadius: size / 4, overflow: 'hidden' }}>
+      <BankAvatar name={name} size={size} />
       <Image
         source={{ uri: url }}
         style={{
           width: size,
           height: size,
           borderRadius: size / 4,
-          opacity: loaded ? 1 : 0,
+          position: 'absolute',
+          top: 0,
+          left: 0,
         }}
         resizeMode="contain"
-        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
     </View>

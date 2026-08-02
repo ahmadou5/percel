@@ -1,279 +1,444 @@
 /**
- * Mapping of bank codes (CBN / Paystack / Monnify) and names to their corresponding
- * slug in the supermx1/nigerian-banks-api repository.
+ * Mapping of bank codes (CBN / Paystack / Monnify / Nigerian Banks API) and names
+ * to their corresponding slug in the supermx1/nigerian-banks-api repository.
  */
 const BANK_SLUGS: Record<string, string> = {
-  // Access Bank
-  '044': 'access-bank',
-  '000014': 'access-bank',
-  'access': 'access-bank',
-  'access bank': 'access-bank',
-
-  // Guaranty Trust Bank (GTB)
-  '058': 'guaranty-trust-bank',
+  '000001': 'sterling-bank',
+  '000002': 'keystone-bank',
+  '000003': 'first-city-monument-bank',
+  '000004': 'united-bank-for-africa',
+  '000006': 'jaiz-bank',
+  '000007': 'fidelity-bank',
+  '000008': 'polaris-bank',
+  '000010': 'ecobank-nigeria',
+  '000012': 'stanbic-ibtc-bank',
   '000013': 'guaranty-trust-bank',
+  '000014': 'access-bank',
+  '000015': 'zenith-bank',
+  '000016': 'first-bank-of-nigeria',
+  '000017': 'wema-bank',
+  '000018': 'union-bank-of-nigeria',
+  '000023': 'providus-bank',
+  '00103': 'globus-bank',
+  '011': 'first-bank-of-nigeria',
+  '030': 'heritage-bank',
+  '031': 'living-trust-mortgage-bank',
+  '032': 'union-bank-of-nigeria',
+  '033': 'united-bank-for-africa',
+  '035': 'wema-bank',
+  '044': 'access-bank',
+  '050': 'ecobank-nigeria',
+  '057': 'zenith-bank',
+  '058': 'guaranty-trust-bank',
+  '063': 'access-bank-diamond',
+  '068': 'standard-chartered-bank',
+  '070': 'fidelity-bank',
+  '076': 'polaris-bank',
+  '082': 'keystone-bank',
+  '090267': 'kuda-bank',
+  '090270': 'opay',
+  '090272': 'moniepoint-mfb-ng',
+  '090405': 'palmpay',
+  '090483': 'dot-microfinance-bank-ng',
+  '090551': 'fairmoney',
+  '090629': 'amegy-microfinance-bank-ng',
+  '098': 'ekondo-microfinance-bank-ng',
+  '100': 'suntrust-bank',
+  '100002': 'paga',
+  '100004': 'opay',
+  '100022': 'gomoney',
+  '100033': 'palmpay',
+  '100039': 'titan-paystack',
+  '101': 'providus-bank',
+  '102': 'titan-paystack',
+  '103': 'globus-bank',
+  '104': 'parallex-bank',
+  '105': 'premiumtrust-bank-ng',
+  '107': 'optimus-bank-ltd',
+  '120001': '9mobile-9payment-service-bank-ng',
+  '120002': 'hopepsb-ng',
+  '120003': 'mtn-momo-psb-ng',
+  '120004': 'airtel-smartcash-psb-ng',
+  '125': 'rubies-mfb',
+  '214': 'first-city-monument-bank',
+  '215': 'unity-bank',
+  '221': 'stanbic-ibtc-bank',
+  '232': 'sterling-bank',
+  '268': 'platinum-mortgage-bank-ng',
+  '301': 'jaiz-bank',
+  '302': 'taj-bank',
+  '303': 'lotus-bank',
+  '304': 'opay',
+  '305': 'opay',
+  '311': 'parkway-ready-cash',
+  '312': 'chikum-microfinance-bank-ng',
+  '327': 'paga',
+  '40165': 'sage-grey-finance-limited-ng',
+  '413': 'firsttrust-mortgage-bank-nigeria-ng',
+  '50083': 'aramoko-mfb',
+  '50126': 'eyowo',
+  '50162': 'dot-microfinance-bank-ng',
+  '50171': 'chanelle-microfinance-bank-limited-ng',
+  '502': 'rand-merchant-bank',
+  '50200': 'kredi-money-mfb',
+  '50204': 'corestep-mfb',
+  '50211': 'kuda-bank',
+  '50239': 'palmpay',
+  '50263': 'ekimogun-mfb-ng',
+  '50304': 'mint-mfb',
+  '50315': 'flourish-mfb-ng',
+  '50383': 'hasal-microfinance-bank',
+  '50439': 'ikoyi-osun-mfb',
+  '50442': 'ilaro-poly-microfinance-bank-ng',
+  '50453': 'imowo-mfb-ng',
+  '50457': 'infinity-mfb',
+  '50502': 'kadpoly-mfb',
+  '50515': 'moniepoint-mfb-ng',
+  '50549': 'links-mfb',
+  '50582': 'shield-mfb-ng',
+  '50739': 'goodnews-microfinance-bank-ng',
+  '50743': 'peace-microfinance-bank-ng',
+  '50767': 'rockshield-microfinance-bank-ng',
+  '50800': 'raven-bank',
+  '50823': 'cemcs-microfinance-bank',
+  '50840': 'uc-microfinance-bank-ltd-u-and-c-mfb-ng',
+  '50864': 'polyunwana-mfb-ng',
+  '50871': 'unical-mfb',
+  '50910': 'consumer-microfinance-bank-ng',
+  '50926': 'amju-unique-mfb',
+  '50931': 'bowen-microfinance-bank',
+  '51062': 'solid-allianze-mfb',
+  '51113': 'safe-haven-mfb-ng',
+  '51204': 'above-only-mfb',
+  '51211': 'tcf-mfb',
+  '51229': 'bainescredit-mfb',
+  '51244': 'ibile-mfb',
+  '51253': 'stellas-mfb',
+  '51269': 'tangerine-money',
+  '51293': 'quickfund-mfb',
+  '51310': 'sparkle-microfinance-bank',
+  '51312': 'abulesoro-mfb-ng',
+  '51314': 'firmus-mfb',
+  '51316': 'unilag-microfinance-bank-ng',
+  '51318': 'fairmoney',
+  '51341': 'ampersand-microfinance-bank-ng',
+  '51355': 'waya-microfinance-bank-ng',
+  '559': 'coronation-merchant-bank-ng',
+  '565': 'carbon',
+  '566': 'vfd',
+  '602': 'accion-microfinance-bank-ng',
+  '801': 'abbey-mortgage-bank',
+  '812': 'gateway-mortgage-bank',
+  '865': 'cashconnect-mfb-ng',
+  '90052': 'lbic-plc',
+  '90067': 'refuge-mortgage-bank',
+  '951113': 'safe-haven-microfinance-bank-limited-ng',
+  '999991': 'palmpay',
+  '999992': 'opay',
+  '9mobile 9payment service': '9mobile-9payment-service-bank-ng',
+  '9mobile 9payment service bank': '9mobile-9payment-service-bank-ng',
+  '9mobile-9payment-service-bank-ng': '9mobile-9payment-service-bank-ng',
+  '9psb': '9mobile-9payment-service-bank-ng',
+  'FC40163': 'branch',
+  'MFB50094': 'astrapolaris-mfb',
+  'MFB51322': 'uhuru-mfb-ng',
+  'abbey mortgage': 'abbey-mortgage-bank',
+  'abbey mortgage bank': 'abbey-mortgage-bank',
+  'abbey-mortgage-bank': 'abbey-mortgage-bank',
+  'above only': 'above-only-mfb',
+  'above only mfb': 'above-only-mfb',
+  'above-only-mfb': 'above-only-mfb',
+  'abulesoro': 'abulesoro-mfb-ng',
+  'abulesoro mfb': 'abulesoro-mfb-ng',
+  'abulesoro-mfb-ng': 'abulesoro-mfb-ng',
+  'access': 'access-bank',
+  'access  (diamond)': 'access-bank-diamond',
+  'access bank': 'access-bank',
+  'access bank (diamond)': 'access-bank-diamond',
+  'access-bank': 'access-bank',
+  'access-bank-diamond': 'access-bank-diamond',
+  'accion': 'accion-microfinance-bank-ng',
+  'accion microfinance bank': 'accion-microfinance-bank-ng',
+  'accion-microfinance-bank-ng': 'accion-microfinance-bank-ng',
+  'airtel smartcash psb': 'airtel-smartcash-psb-ng',
+  'airtel-smartcash-psb-ng': 'airtel-smartcash-psb-ng',
+  'alat': 'wema-bank',
+  'amegy': 'amegy-microfinance-bank-ng',
+  'amegy microfinance bank': 'amegy-microfinance-bank-ng',
+  'amegy-microfinance-bank-ng': 'amegy-microfinance-bank-ng',
+  'amju unique': 'amju-unique-mfb',
+  'amju unique mfb': 'amju-unique-mfb',
+  'amju-unique-mfb': 'amju-unique-mfb',
+  'ampersand': 'ampersand-microfinance-bank-ng',
+  'ampersand microfinance bank': 'ampersand-microfinance-bank-ng',
+  'ampersand-microfinance-bank-ng': 'ampersand-microfinance-bank-ng',
+  'aramoko': 'aramoko-mfb',
+  'aramoko mfb': 'aramoko-mfb',
+  'aramoko-mfb': 'aramoko-mfb',
+  'astrapolaris': 'astrapolaris-mfb',
+  'astrapolaris mfb ltd': 'astrapolaris-mfb',
+  'astrapolaris-mfb': 'astrapolaris-mfb',
+  'bainescredit': 'bainescredit-mfb',
+  'bainescredit mfb': 'bainescredit-mfb',
+  'bainescredit-mfb': 'bainescredit-mfb',
+  'bowen': 'bowen-microfinance-bank',
+  'bowen microfinance bank': 'bowen-microfinance-bank',
+  'bowen-microfinance-bank': 'bowen-microfinance-bank',
+  'branch': 'branch',
+  'branch international financial services': 'branch',
+  'branch international financial services limited': 'branch',
+  'carbon': 'carbon',
+  'cashconnect': 'cashconnect-mfb-ng',
+  'cashconnect mfb': 'cashconnect-mfb-ng',
+  'cashconnect-mfb-ng': 'cashconnect-mfb-ng',
+  'cemcs': 'cemcs-microfinance-bank',
+  'cemcs microfinance bank': 'cemcs-microfinance-bank',
+  'cemcs-microfinance-bank': 'cemcs-microfinance-bank',
+  'chanelle': 'chanelle-microfinance-bank-limited-ng',
+  'chanelle microfinance bank limited': 'chanelle-microfinance-bank-limited-ng',
+  'chanelle-microfinance-bank-limited-ng': 'chanelle-microfinance-bank-limited-ng',
+  'chikum': 'chikum-microfinance-bank-ng',
+  'chikum microfinance bank': 'chikum-microfinance-bank-ng',
+  'chikum-microfinance-bank-ng': 'chikum-microfinance-bank-ng',
+  'consumer': 'consumer-microfinance-bank-ng',
+  'consumer microfinance bank': 'consumer-microfinance-bank-ng',
+  'consumer-microfinance-bank-ng': 'consumer-microfinance-bank-ng',
+  'corestep': 'corestep-mfb',
+  'corestep mfb': 'corestep-mfb',
+  'corestep-mfb': 'corestep-mfb',
+  'coronation merchant': 'coronation-merchant-bank-ng',
+  'coronation merchant bank': 'coronation-merchant-bank-ng',
+  'coronation-merchant-bank-ng': 'coronation-merchant-bank-ng',
+  'dot': 'dot-microfinance-bank-ng',
+  'dot microfinance bank': 'dot-microfinance-bank-ng',
+  'dot-microfinance-bank-ng': 'dot-microfinance-bank-ng',
+  'ecobank nigeria': 'ecobank-nigeria',
+  'ecobank-nigeria': 'ecobank-nigeria',
+  'ekimogun': 'ekimogun-mfb-ng',
+  'ekimogun mfb': 'ekimogun-mfb-ng',
+  'ekimogun-mfb-ng': 'ekimogun-mfb-ng',
+  'ekondo': 'ekondo-microfinance-bank-ng',
+  'ekondo microfinance bank': 'ekondo-microfinance-bank-ng',
+  'ekondo-microfinance-bank-ng': 'ekondo-microfinance-bank-ng',
+  'eyowo': 'eyowo',
+  'fairmoney': 'fairmoney',
+  'fcmb': 'first-city-monument-bank',
+  'fidelity': 'fidelity-bank',
+  'fidelity bank': 'fidelity-bank',
+  'fidelity-bank': 'fidelity-bank',
+  'firmus': 'firmus-mfb',
+  'firmus mfb': 'firmus-mfb',
+  'firmus-mfb': 'firmus-mfb',
+  'first  of nigeria': 'first-bank-of-nigeria',
+  'first bank of nigeria': 'first-bank-of-nigeria',
+  'first city monument': 'first-city-monument-bank',
+  'first city monument bank': 'first-city-monument-bank',
+  'first-bank-of-nigeria': 'first-bank-of-nigeria',
+  'first-city-monument-bank': 'first-city-monument-bank',
+  'firstbank': 'first-bank-of-nigeria',
+  'firsttrust mortgage  nigeria': 'firsttrust-mortgage-bank-nigeria-ng',
+  'firsttrust mortgage bank nigeria': 'firsttrust-mortgage-bank-nigeria-ng',
+  'firsttrust-mortgage-bank-nigeria-ng': 'firsttrust-mortgage-bank-nigeria-ng',
+  'flourish': 'flourish-mfb-ng',
+  'flourish mfb': 'flourish-mfb-ng',
+  'flourish-mfb-ng': 'flourish-mfb-ng',
+  'gateway mortgage': 'gateway-mortgage-bank',
+  'gateway mortgage bank ltd': 'gateway-mortgage-bank',
+  'gateway-mortgage-bank': 'gateway-mortgage-bank',
+  'globus': 'globus-bank',
+  'globus bank': 'globus-bank',
+  'globus-bank': 'globus-bank',
+  'gomoney': 'gomoney',
+  'goodnews': 'goodnews-microfinance-bank-ng',
+  'goodnews microfinance bank': 'goodnews-microfinance-bank-ng',
+  'goodnews-microfinance-bank-ng': 'goodnews-microfinance-bank-ng',
   'gtb': 'guaranty-trust-bank',
   'gtbank': 'guaranty-trust-bank',
   'guaranty trust': 'guaranty-trust-bank',
   'guaranty trust bank': 'guaranty-trust-bank',
-
-  // Zenith Bank
-  '057': 'zenith-bank',
-  '000015': 'zenith-bank',
-  'zenith': 'zenith-bank',
-  'zenith bank': 'zenith-bank',
-
-  // United Bank for Africa
-  '033': 'united-bank-for-africa',
-  '000004': 'united-bank-for-africa',
-  'uba': 'united-bank-for-africa',
-  'united bank for africa': 'united-bank-for-africa',
-
-  // First Bank of Nigeria
-  '011': 'first-bank-of-nigeria',
-  '000016': 'first-bank-of-nigeria',
-  'first bank': 'first-bank-of-nigeria',
-  'firstbank': 'first-bank-of-nigeria',
-  'first bank of nigeria': 'first-bank-of-nigeria',
-
-  // First City Monument Bank (FCMB)
-  '214': 'first-city-monument-bank',
-  '000003': 'first-city-monument-bank',
-  'fcmb': 'first-city-monument-bank',
-  'first city monument bank': 'first-city-monument-bank',
-
-  // Union Bank
-  '032': 'union-bank-of-nigeria',
-  '000018': 'union-bank-of-nigeria',
-  'union': 'union-bank-of-nigeria',
-  'union bank': 'union-bank-of-nigeria',
-  'union bank of nigeria': 'union-bank-of-nigeria',
-
-  // Sterling Bank
-  '232': 'sterling-bank',
-  '000001': 'sterling-bank',
-  'sterling': 'sterling-bank',
-  'sterling bank': 'sterling-bank',
-
-  // Wema Bank
-  '035': 'wema-bank',
-  '000017': 'wema-bank',
-  'wema': 'wema-bank',
-  'wema bank': 'wema-bank',
-
-  // Fidelity Bank
-  '070': 'fidelity-bank',
-  '000007': 'fidelity-bank',
-  'fidelity': 'fidelity-bank',
-  'fidelity bank': 'fidelity-bank',
-
-  // Polaris Bank (formerly Skye Bank)
-  '076': 'polaris-bank',
-  '000008': 'polaris-bank',
-  'polaris': 'polaris-bank',
-  'polaris bank': 'polaris-bank',
-
-  // Keystone Bank
-  '082': 'keystone-bank',
-  '000002': 'keystone-bank',
-  'keystone': 'keystone-bank',
-  'keystone bank': 'keystone-bank',
-
-  // Stanbic IBTC Bank
-  '221': 'stanbic-ibtc-bank',
-  '000012': 'stanbic-ibtc-bank',
-  'stanbic': 'stanbic-ibtc-bank',
-  'stanbic ibtc': 'stanbic-ibtc-bank',
-  'stanbic ibtc bank': 'stanbic-ibtc-bank',
-
-  // Ecobank Nigeria
-  '050': 'ecobank-nigeria',
-  '000010': 'ecobank-nigeria',
-  'ecobank': 'ecobank-nigeria',
-  'ecobank nigeria': 'ecobank-nigeria',
-
-  // Providus Bank
-  '101': 'providus-bank',
-  '000023': 'providus-bank',
-  'providus': 'providus-bank',
-  'providus bank': 'providus-bank',
-
-  // Jaiz Bank
-  '301': 'jaiz-bank',
-  '000006': 'jaiz-bank',
-  'jaiz': 'jaiz-bank',
-  'jaiz bank': 'jaiz-bank',
-
-  // Taj Bank
-  '302': 'taj-bank',
-  'taj': 'taj-bank',
-  'taj bank': 'taj-bank',
-
-  // Globus Bank
-  '103': 'globus-bank',
-  'globus': 'globus-bank',
-  'globus bank': 'globus-bank',
-
-  // Titan Trust Bank / Titan Paystack
-  '102': 'titan-paystack',
-  'titan': 'titan-paystack',
-  'titan trust': 'titan-paystack',
-  'titan trust bank': 'titan-paystack',
-  'titan paystack': 'titan-paystack',
-
-  // Heritage Bank
-  '030': 'heritage-bank',
+  'guaranty-trust-bank': 'guaranty-trust-bank',
+  'hasal': 'hasal-microfinance-bank',
+  'hasal microfinance bank': 'hasal-microfinance-bank',
+  'hasal-microfinance-bank': 'hasal-microfinance-bank',
   'heritage': 'heritage-bank',
   'heritage bank': 'heritage-bank',
-
-  // Unity Bank
-  '215': 'unity-bank',
-  'unity': 'unity-bank',
-  'unity bank': 'unity-bank',
-
-  // Kuda Bank (Kuda MFB)
-  '50211': 'kuda-bank',
-  '090267': 'kuda-bank',
+  'heritage-bank': 'heritage-bank',
+  'hopepsb': 'hopepsb-ng',
+  'hopepsb-ng': 'hopepsb-ng',
+  'ibile': 'ibile-mfb',
+  'ibile microfinance bank': 'ibile-mfb',
+  'ibile-mfb': 'ibile-mfb',
+  'ikoyi osun': 'ikoyi-osun-mfb',
+  'ikoyi osun mfb': 'ikoyi-osun-mfb',
+  'ikoyi-osun-mfb': 'ikoyi-osun-mfb',
+  'ilaro poly': 'ilaro-poly-microfinance-bank-ng',
+  'ilaro poly microfinance bank': 'ilaro-poly-microfinance-bank-ng',
+  'ilaro-poly-microfinance-bank-ng': 'ilaro-poly-microfinance-bank-ng',
+  'imowo': 'imowo-mfb-ng',
+  'imowo mfb': 'imowo-mfb-ng',
+  'imowo-mfb-ng': 'imowo-mfb-ng',
+  'infinity': 'infinity-mfb',
+  'infinity mfb': 'infinity-mfb',
+  'infinity-mfb': 'infinity-mfb',
+  'jaiz': 'jaiz-bank',
+  'jaiz bank': 'jaiz-bank',
+  'jaiz-bank': 'jaiz-bank',
+  'kadpoly': 'kadpoly-mfb',
+  'kadpoly mfb': 'kadpoly-mfb',
+  'kadpoly-mfb': 'kadpoly-mfb',
+  'keystone': 'keystone-bank',
+  'keystone bank': 'keystone-bank',
+  'keystone-bank': 'keystone-bank',
+  'kredi money': 'kredi-money-mfb',
+  'kredi money mfb ltd': 'kredi-money-mfb',
+  'kredi-money-mfb': 'kredi-money-mfb',
   'kuda': 'kuda-bank',
   'kuda bank': 'kuda-bank',
-  'kuda mfb': 'kuda-bank',
-
-  // Moniepoint MFB
-  '50515': 'moniepoint-mfb-ng',
-  '090272': 'moniepoint-mfb-ng',
-  'moniepoint': 'moniepoint-mfb-ng',
-  'moniepoint mfb': 'moniepoint-mfb-ng',
-
-  // Carbon (Paylater)
-  '565': 'carbon',
-  'carbon': 'carbon',
-
-  // Rubies Bank
-  'rubies': 'rubies-mfb',
-  'rubies bank': 'rubies-mfb',
-  'rubies mfb': 'rubies-mfb',
-
-  // VFD MFB
-  'vfd': 'vfd',
-  'vfd mfb': 'vfd',
-  'vfd microfinance bank': 'vfd',
-
-  // Lotus Bank
-  '000036': 'lotus-bank',
+  'kuda-bank': 'kuda-bank',
+  'lagos building investment company .': 'lbic-plc',
+  'lagos building investment company plc.': 'lbic-plc',
+  'lbic-plc': 'lbic-plc',
+  'links': 'links-mfb',
+  'links mfb': 'links-mfb',
+  'links-mfb': 'links-mfb',
+  'living trust mortgage': 'living-trust-mortgage-bank',
+  'living trust mortgage bank': 'living-trust-mortgage-bank',
+  'living-trust-mortgage-bank': 'living-trust-mortgage-bank',
   'lotus': 'lotus-bank',
   'lotus bank': 'lotus-bank',
-
-  // Optimus Bank
-  'optimus': 'optimus-bank-ltd',
-  'optimus bank': 'optimus-bank-ltd',
-
-  // Parallex Bank
-  'parallex': 'parallex-bank',
-  'parallex bank': 'parallex-bank',
-
-  // Sparkle MFB
-  'sparkle': 'sparkle-microfinance-bank',
-  'sparkle mfb': 'sparkle-microfinance-bank',
-  'sparkle microfinance bank': 'sparkle-microfinance-bank',
-
-  // Standard Chartered
-  '068': 'standard-chartered-bank',
-  'standard chartered': 'standard-chartered-bank',
-  'standard chartered bank': 'standard-chartered-bank',
-
-  // Suntrust Bank
-  '100': 'suntrust-bank',
-  'suntrust': 'suntrust-bank',
-  'suntrust bank': 'suntrust-bank',
-
-  // Rand Merchant Bank
-  'rand merchant': 'rand-merchant-bank',
-  'rand merchant bank': 'rand-merchant-bank',
-
-  // Premiumtrust Bank
-  'premiumtrust': 'premiumtrust-bank-ng',
-  'premium trust': 'premiumtrust-bank-ng',
-  'premiumtrust bank': 'premiumtrust-bank-ng',
-
-  // Branch
-  'branch': 'branch',
-
-  // Eyowo
-  'eyowo': 'eyowo',
-
-  // Tangerine Money
-  'tangerine': 'tangerine-money',
-  'tangerine money': 'tangerine-money',
-
-  // Mint MFB
+  'lotus-bank': 'lotus-bank',
   'mint': 'mint-mfb',
   'mint mfb': 'mint-mfb',
-
-  // MTN MoMo PSB
-  'mtn momo': 'mtn-momo-psb-ng',
-  'momo': 'mtn-momo-psb-ng',
+  'mint-mfb': 'mint-mfb',
+  'moniepoint': 'moniepoint-mfb-ng',
+  'moniepoint mfb': 'moniepoint-mfb-ng',
+  'moniepoint-mfb-ng': 'moniepoint-mfb-ng',
   'mtn momo psb': 'mtn-momo-psb-ng',
-
-  // OPay / Paycom
-  '999992': 'opay',
-  '304': 'opay',
-  '305': 'opay',
-  '100004': 'opay',
-  '090270': 'opay',
+  'mtn-momo-psb-ng': 'mtn-momo-psb-ng',
   'opay': 'opay',
-  'opay digital services': 'opay',
-  'paycom': 'opay',
-  'paycom (opay)': 'opay',
-
-  // PalmPay
-  '999991': 'palmpay',
-  '100033': 'palmpay',
-  '090405': 'palmpay',
-  '50239': 'palmpay',
-  'palmpay': 'palmpay',
-  'palmpay limited': 'palmpay',
-
-  // FairMoney MFB bankk
-  '51318': 'fairmoney',
-  '090551': 'fairmoney',
-  'fairmoney': 'fairmoney',
-  'fairmoney mfb': 'fairmoney',
-
-  // Paga
-  '100002': 'paga',
-  '327': 'paga',
+  'optimus': 'optimus-bank-ltd',
+  'optimus bank limited': 'optimus-bank-ltd',
+  'optimus-bank-ltd': 'optimus-bank-ltd',
   'paga': 'paga',
-
-  // Gomoney
-  '100022': 'gomoney',
-  'gomoney': 'gomoney',
-
-  // Raven Bank
-  '50800': 'raven-bank',
+  'palmpay': 'palmpay',
+  'parallex': 'parallex-bank',
+  'parallex bank': 'parallex-bank',
+  'parallex-bank': 'parallex-bank',
+  'parkway - readycash': 'parkway-ready-cash',
+  'parkway-ready-cash': 'parkway-ready-cash',
+  'paycom': 'opay',
+  'peace': 'peace-microfinance-bank-ng',
+  'peace microfinance bank': 'peace-microfinance-bank-ng',
+  'peace-microfinance-bank-ng': 'peace-microfinance-bank-ng',
+  'platinum mortgage': 'platinum-mortgage-bank-ng',
+  'platinum mortgage bank': 'platinum-mortgage-bank-ng',
+  'platinum-mortgage-bank-ng': 'platinum-mortgage-bank-ng',
+  'polaris': 'polaris-bank',
+  'polaris bank': 'polaris-bank',
+  'polaris-bank': 'polaris-bank',
+  'polyunwana': 'polyunwana-mfb-ng',
+  'polyunwana mfb': 'polyunwana-mfb-ng',
+  'polyunwana-mfb-ng': 'polyunwana-mfb-ng',
+  'premiumtrust': 'premiumtrust-bank-ng',
+  'premiumtrust bank': 'premiumtrust-bank-ng',
+  'premiumtrust-bank-ng': 'premiumtrust-bank-ng',
+  'providus': 'providus-bank',
+  'providus bank': 'providus-bank',
+  'providus-bank': 'providus-bank',
+  'quickfund': 'quickfund-mfb',
+  'quickfund mfb': 'quickfund-mfb',
+  'quickfund-mfb': 'quickfund-mfb',
+  'rand merchant': 'rand-merchant-bank',
+  'rand merchant bank': 'rand-merchant-bank',
+  'rand-merchant-bank': 'rand-merchant-bank',
   'raven': 'raven-bank',
-  'raven bank': 'raven-bank',
-
-  // ALAT by Wema
-  'alat': 'wema-bank',
-  'alat by wema': 'wema-bank',
-
-  // Airtel Smartcash PSB
-  '120004': 'smartcash-psb-ng',
-  'smartcash': 'smartcash-psb-ng',
-  'smartcash psb': 'smartcash-psb-ng',
-  'airtel smartcash': 'smartcash-psb-ng',
-
-  // 9PSB (9mobile PSB)
-  '120001': '9psb-ng',
-  '9psb': '9psb-ng',
-  '9mobile psb': '9psb-ng',
-
-  // Dot Microfinance Bank
-  '090483': 'dot-mfb',
-  'dot': 'dot-mfb',
-  'dot mfb': 'dot-mfb',
-  'dot microfinance bank': 'dot-mfb',
+  'refuge mortgage': 'refuge-mortgage-bank',
+  'refuge mortgage bank': 'refuge-mortgage-bank',
+  'refuge-mortgage-bank': 'refuge-mortgage-bank',
+  'rockshield': 'rockshield-microfinance-bank-ng',
+  'rockshield microfinance bank': 'rockshield-microfinance-bank-ng',
+  'rockshield-microfinance-bank-ng': 'rockshield-microfinance-bank-ng',
+  'rubies': 'rubies-mfb',
+  'rubies mfb': 'rubies-mfb',
+  'rubies-mfb': 'rubies-mfb',
+  'safe haven': 'safe-haven-microfinance-bank-limited-ng',
+  'safe haven mfb': 'safe-haven-mfb-ng',
+  'safe haven microfinance bank limited': 'safe-haven-microfinance-bank-limited-ng',
+  'safe-haven-mfb-ng': 'safe-haven-mfb-ng',
+  'safe-haven-microfinance-bank-limited-ng': 'safe-haven-microfinance-bank-limited-ng',
+  'sage grey finance': 'sage-grey-finance-limited-ng',
+  'sage grey finance limited': 'sage-grey-finance-limited-ng',
+  'sage-grey-finance-limited-ng': 'sage-grey-finance-limited-ng',
+  'shield': 'shield-mfb-ng',
+  'shield mfb': 'shield-mfb-ng',
+  'shield-mfb-ng': 'shield-mfb-ng',
+  'smartcash': 'airtel-smartcash-psb-ng',
+  'solid allianze': 'solid-allianze-mfb',
+  'solid allianze mfb': 'solid-allianze-mfb',
+  'solid rock': 'solid-rock-mfb',
+  'solid rock mfb': 'solid-rock-mfb',
+  'solid-allianze-mfb': 'solid-allianze-mfb',
+  'solid-rock-mfb': 'solid-rock-mfb',
+  'sparkle': 'sparkle-microfinance-bank',
+  'sparkle microfinance bank': 'sparkle-microfinance-bank',
+  'sparkle-microfinance-bank': 'sparkle-microfinance-bank',
+  'stanbic ibtc': 'stanbic-ibtc-bank',
+  'stanbic ibtc bank': 'stanbic-ibtc-bank',
+  'stanbic-ibtc-bank': 'stanbic-ibtc-bank',
+  'standard chartered': 'standard-chartered-bank',
+  'standard chartered bank': 'standard-chartered-bank',
+  'standard-chartered-bank': 'standard-chartered-bank',
+  'stellas': 'stellas-mfb',
+  'stellas mfb': 'stellas-mfb',
+  'stellas-mfb': 'stellas-mfb',
+  'sterling': 'sterling-bank',
+  'sterling bank': 'sterling-bank',
+  'sterling-bank': 'sterling-bank',
+  'suntrust': 'suntrust-bank',
+  'suntrust bank': 'suntrust-bank',
+  'suntrust-bank': 'suntrust-bank',
+  'taj': 'taj-bank',
+  'taj bank': 'taj-bank',
+  'taj-bank': 'taj-bank',
+  'tangerine money': 'tangerine-money',
+  'tangerine-money': 'tangerine-money',
+  'tcf': 'tcf-mfb',
+  'tcf mfb': 'tcf-mfb',
+  'tcf-mfb': 'tcf-mfb',
+  'titan paystack': 'titan-paystack',
+  'titan-paystack': 'titan-paystack',
+  'u&c   (u and c )': 'uc-microfinance-bank-ltd-u-and-c-mfb-ng',
+  'u&c microfinance bank ltd (u and c mfb)': 'uc-microfinance-bank-ltd-u-and-c-mfb-ng',
+  'uba': 'united-bank-for-africa',
+  'uc-microfinance-bank-ltd-u-and-c-mfb-ng': 'uc-microfinance-bank-ltd-u-and-c-mfb-ng',
+  'uhuru': 'uhuru-mfb-ng',
+  'uhuru mfb': 'uhuru-mfb-ng',
+  'uhuru-mfb-ng': 'uhuru-mfb-ng',
+  'unical': 'unical-mfb',
+  'unical mfb': 'unical-mfb',
+  'unical-mfb': 'unical-mfb',
+  'unilag': 'unilag-microfinance-bank-ng',
+  'unilag microfinance bank': 'unilag-microfinance-bank-ng',
+  'unilag-microfinance-bank-ng': 'unilag-microfinance-bank-ng',
+  'union  of nigeria': 'union-bank-of-nigeria',
+  'union bank of nigeria': 'union-bank-of-nigeria',
+  'union-bank-of-nigeria': 'union-bank-of-nigeria',
+  'united  for africa': 'united-bank-for-africa',
+  'united bank for africa': 'united-bank-for-africa',
+  'united-bank-for-africa': 'united-bank-for-africa',
+  'unity': 'unity-bank',
+  'unity bank': 'unity-bank',
+  'unity-bank': 'unity-bank',
+  'vfd': 'vfd',
+  'vfd microfinance bank limited': 'vfd',
+  'waya': 'waya-microfinance-bank-ng',
+  'waya microfinance bank': 'waya-microfinance-bank-ng',
+  'waya-microfinance-bank-ng': 'waya-microfinance-bank-ng',
+  'zenith': 'zenith-bank',
+  'zenith bank': 'zenith-bank',
+  'zenith-bank': 'zenith-bank',
 };
+
 
 /**
  * Normalizes a bank name into a potential slug representation.
@@ -282,10 +447,10 @@ const BANK_SLUGS: Record<string, string> = {
 function normalizeName(name: string): string {
   return name
     .toLowerCase()
-    .replace(/\b(limited|ltd|plc|microfinance bank|mfb)\b/g, '')
+    .replace(/\b(limited|ltd|plc|microfinance bank|mfb)\b/g, "")
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 /**
@@ -293,35 +458,46 @@ function normalizeName(name: string): string {
  * Uses the community-maintained CDN from jsdelivr targeting the nigerian-banks-api.
  */
 export function getBankLogoUrl(bankCode?: string, bankName?: string, slug?: string | null): string {
-  const baseUrl = 'https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos';
+  const baseUrl = "https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos";
   const code = bankCode?.trim();
   const cleanSlug = slug?.trim();
+  const cleanName = bankName?.toLowerCase().trim();
 
-  // Some providers send the bank code as `slug`, so known mappings need to win
-  // before trusting a provider slug directly.
+  // 1. Direct code match
   if (code && BANK_SLUGS[code]) {
-    return baseUrl + '/' + BANK_SLUGS[code] + '.png';
+    return baseUrl + "/" + BANK_SLUGS[code] + ".png";
   }
 
+  // 2. Direct slug match
   if (cleanSlug && BANK_SLUGS[cleanSlug]) {
-    return baseUrl + '/' + BANK_SLUGS[cleanSlug] + '.png';
+    return baseUrl + "/" + BANK_SLUGS[cleanSlug] + ".png";
   }
 
-  if (bankName) {
-    const cleanName = bankName.toLowerCase().trim();
-    if (BANK_SLUGS[cleanName]) {
-      return baseUrl + '/' + BANK_SLUGS[cleanName] + '.png';
-    }
+  // 3. Direct name match
+  if (cleanName && BANK_SLUGS[cleanName]) {
+    return baseUrl + "/" + BANK_SLUGS[cleanName] + ".png";
+  }
 
-    const normalized = normalizeName(bankName);
-    if (normalized) {
-      return baseUrl + '/' + normalized + '.png';
+  // 4. Normalized name match in BANK_SLUGS
+  if (cleanName) {
+    const normalized = normalizeName(cleanName);
+    if (normalized && BANK_SLUGS[normalized]) {
+      return baseUrl + "/" + BANK_SLUGS[normalized] + ".png";
     }
   }
 
+  // 5. Raw slug fallback (if non-numeric)
   if (cleanSlug && !/^[0-9]+$/.test(cleanSlug)) {
-    return baseUrl + '/' + cleanSlug + '.png';
+    return baseUrl + "/" + cleanSlug + ".png";
   }
 
-  return baseUrl + '/default-bank.png';
+  // 6. Normalized name fallback
+  if (cleanName) {
+    const fallbackSlug = normalizeName(cleanName);
+    if (fallbackSlug) {
+      return baseUrl + "/" + fallbackSlug + ".png";
+    }
+  }
+
+  return baseUrl + "/access-bank.png";
 }

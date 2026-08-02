@@ -75,11 +75,9 @@ export function BankLogo({
   size?: number;
 }) {
   const url = getBankLogoUrl(bankCode || undefined, name, slug);
-  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setLoaded(false);
     setFailed(false);
   }, [url]);
 
@@ -88,7 +86,7 @@ export function BankLogo({
   }
 
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
+    <View style={{ width: size, height: size, position: 'relative', borderRadius: size / 4, overflow: 'hidden' }}>
       <BankAvatar name={name} size={size} />
       <Image
         source={{ uri: url }}
@@ -99,9 +97,8 @@ export function BankLogo({
           position: 'absolute',
           top: 0,
           left: 0,
-          opacity: loaded ? 1 : 0,
         }}
-        onLoad={() => setLoaded(true)}
+        resizeMode="contain"
         onError={() => setFailed(true)}
       />
     </View>
