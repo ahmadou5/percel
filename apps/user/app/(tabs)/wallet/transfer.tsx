@@ -109,12 +109,14 @@ function modeLabel(mode: Mode) {
   return mode === "BANK" ? "Bank transfer" : "Inter-app transfer";
 }
 
-function compactPhone(value: string) {
+function compactPhone(value?: string | null) {
+  if (!value || typeof value !== "string") return "Recipient will appear here";
   const normalized = normalizeNigerianPhone(value);
   return normalized || "Recipient will appear here";
 }
 
-function formatNigerianPhoneDisplay(value: string) {
+function formatNigerianPhoneDisplay(value?: string | null) {
+  if (!value || typeof value !== "string") return "—";
   const digits = value.replace(/\D/g, "");
   if (!digits) return "—";
 
@@ -131,15 +133,18 @@ function formatNigerianPhoneDisplay(value: string) {
   return `${localDigits.slice(0, 3)} ${localDigits.slice(3, 6)} ${localDigits.slice(6, 10)}`;
 }
 
-function initialsFromName(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+function initialsFromName(name?: string | null) {
+  if (!name || typeof name !== "string") return "P";
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0] ?? "")
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "P"
+  );
 }
 
 export default function TransferScreen() {
@@ -329,11 +334,14 @@ export default function TransferScreen() {
       void resolveRecipientAsync({ phone: normalizedPhone })
         .then((response) => {
           if (requestId !== lookupAttemptRef.current) return;
-          const result = response.data;
+          const result = (response as any)?.data ?? response;
+          if (!result || typeof result !== "object" || !result.phone) {
+            throw new Error("We could not find that recipient on Percel.");
+          }
           setRecipientValidation({
             phone: result.phone,
-            fullName: result.fullName,
-            walletId: result.walletId,
+            fullName: result.fullName || result.phone,
+            walletId: result.walletId || "",
             avatarUrl: result.avatarUrl ?? null,
           });
           setRecipientStatus("success");
@@ -768,28 +776,7 @@ export default function TransferScreen() {
                           }}
                           style={styles.beneficiaryAvatarCard}
                         >
-                          {b.bankName ? (
-                            <BankLogo name={b.bankName} bankCode={b.bankCode} size={44} />
-                          ) : (
-                            <View
-                              style={[
-                                styles.beneficiaryAvatarCircle,
-                                {
-                                  backgroundColor: palette.bg,
-                                  borderColor: palette.border,
-                                },
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.beneficiaryAvatarText,
-                                  { color: palette.text },
-                                ]}
-                              >
-                                {initialsFromName(b.name)}
-                              </Text>
-                            </View>
-                          )}
+                          <BankLogo name={b.bankName || b.name} bankCode={b.bankCode} size={44} />
                           <Text
                             style={[
                               styles.beneficiaryAvatarName,
@@ -797,7 +784,7 @@ export default function TransferScreen() {
                             ]}
                             numberOfLines={1}
                           >
-                            {b.name.split(" ")[0]}
+                            {(b.name || "User").split(" ")[0]}
                           </Text>
                           <Text
                             style={[
@@ -806,7 +793,7 @@ export default function TransferScreen() {
                             ]}
                             numberOfLines={1}
                           >
-                            {b.bankName || ""}
+                            {b.bankName || (b.bankCode ? `Bank ${b.bankCode}` : "Bank")}
                           </Text>
                         </Pressable>
                       ))}
@@ -1343,15 +1330,7 @@ export default function TransferScreen() {
                   <Text style={[styles.sectionTitle, { color: palette.text }]}>
                     Amount
                   </Text>
-                  <Text
-                    style={[
-                      styles.sectionSubtitle,
-                      { color: palette.textSecondary },
-                    ]}
-                  >
-                    Add the transfer amount. Completed lookup details remain
-                    collapsed out of view.
-                  </Text>
+
                 </View>
               </View>
 
@@ -1468,15 +1447,7 @@ export default function TransferScreen() {
                   <Text style={[styles.sectionTitle, { color: palette.text }]}>
                     Review
                   </Text>
-                  <Text
-                    style={[
-                      styles.sectionSubtitle,
-                      { color: palette.textSecondary },
-                    ]}
-                  >
-                    Confirm the transfer details, then enter your PIN in the
-                    modal.
-                  </Text>
+
                 </View>
               </View>
 

@@ -58,7 +58,8 @@ function providerTone(serviceID: string) {
   };
 }
 
-export function normalizeNigerianPhone(value: string) {
+export function normalizeNigerianPhone(value?: string | null) {
+  if (!value || typeof value !== 'string') return '';
   const trimmed = value.trim();
   const digits = trimmed.replace(/\D/g, '');
   if (!digits) return '';
@@ -71,7 +72,8 @@ export function normalizeNigerianPhone(value: string) {
   return trimmed;
 }
 
-export function isValidNigerianPhone(value: string) {
+export function isValidNigerianPhone(value?: string | null) {
+  if (!value || typeof value !== 'string') return false;
   return /^\+234[789]\d{9}$/.test(normalizeNigerianPhone(value));
 }
 

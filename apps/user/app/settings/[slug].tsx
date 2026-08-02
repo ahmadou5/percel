@@ -119,9 +119,9 @@ function BeneficiariesScreen() {
               <View style={[styles.bAvatar, { backgroundColor: lightBg ? 'rgba(10,132,255,0.08)' : 'rgba(10,132,255,0.14)' }]}>
                 {activeTab === 'TV'
                   ? <Tv2 size={18} color={palette.primary} />
-                  : activeTab === 'Bank' && b.bankName
+                  : activeTab === 'Bank' && (b.bankName || b.bankCode)
                     ? <Image
-                      source={{ uri: getBankLogoUrl(b.bankCode || undefined, b.bankName) }}
+                      source={{ uri: getBankLogoUrl(b.bankCode || undefined, b.bankName || b.name) }}
                       style={{ width: 28, height: 28 }}
                       resizeMode="contain"
                     />

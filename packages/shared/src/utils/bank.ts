@@ -213,6 +213,66 @@ const BANK_SLUGS: Record<string, string> = {
   'mtn momo': 'mtn-momo-psb-ng',
   'momo': 'mtn-momo-psb-ng',
   'mtn momo psb': 'mtn-momo-psb-ng',
+
+  // OPay / Paycom
+  '999992': 'opay',
+  '304': 'opay',
+  '305': 'opay',
+  '100004': 'opay',
+  '090270': 'opay',
+  'opay': 'opay',
+  'opay digital services': 'opay',
+  'paycom': 'opay',
+  'paycom (opay)': 'opay',
+
+  // PalmPay
+  '999991': 'palmpay',
+  '100033': 'palmpay',
+  '090405': 'palmpay',
+  '50239': 'palmpay',
+  'palmpay': 'palmpay',
+  'palmpay limited': 'palmpay',
+
+  // FairMoney MFB
+  '51318': 'fairmoney',
+  '090551': 'fairmoney',
+  'fairmoney': 'fairmoney',
+  'fairmoney mfb': 'fairmoney',
+
+  // Paga
+  '100002': 'paga',
+  '327': 'paga',
+  'paga': 'paga',
+
+  // Gomoney
+  '100022': 'gomoney',
+  'gomoney': 'gomoney',
+
+  // Raven Bank
+  '50800': 'raven-bank',
+  'raven': 'raven-bank',
+  'raven bank': 'raven-bank',
+
+  // ALAT by Wema
+  'alat': 'wema-bank',
+  'alat by wema': 'wema-bank',
+
+  // Airtel Smartcash PSB
+  '120004': 'smartcash-psb-ng',
+  'smartcash': 'smartcash-psb-ng',
+  'smartcash psb': 'smartcash-psb-ng',
+  'airtel smartcash': 'smartcash-psb-ng',
+
+  // 9PSB (9mobile PSB)
+  '120001': '9psb-ng',
+  '9psb': '9psb-ng',
+  '9mobile psb': '9psb-ng',
+
+  // Dot Microfinance Bank
+  '090483': 'dot-mfb',
+  'dot': 'dot-mfb',
+  'dot mfb': 'dot-mfb',
+  'dot microfinance bank': 'dot-mfb',
 };
 
 /**

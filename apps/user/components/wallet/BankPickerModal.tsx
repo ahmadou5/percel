@@ -151,11 +151,7 @@ export function BankPickerModal({
           <View style={styles.modalHeader}>
             <View>
               <Text style={[styles.modalTitle, { color: palette.text }]}>Choose a bank</Text>
-              <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>
-                {banksLoading
-                  ? 'Loading banks…'
-                  : `${banks.length} banks available`}
-              </Text>
+
             </View>
             <Pressable onPress={onClose} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
               <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
@@ -163,10 +159,10 @@ export function BankPickerModal({
           </View>
 
           <Input
-            label="Search banks"
+            label=""
             value={search}
             onChangeText={setSearch}
-            placeholder="Search by name or code"
+            placeholder="Enter Bank name"
             leftElement={<Search size={16} color={palette.textSecondary} />}
           />
 

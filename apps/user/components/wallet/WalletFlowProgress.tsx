@@ -69,7 +69,7 @@ export function FlowProgressDots({ currentStep, totalSteps, onStepPress }: FlowP
           toValue: targetO,
           damping: 20,
           stiffness: 180,
-          useNativeDriver: true,
+          useNativeDriver: false, // matches JS driver of width on the same animated node
         }),
       ]);
     }).filter(Boolean) as Animated.CompositeAnimation[];
