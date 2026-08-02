@@ -4,7 +4,7 @@
     "slug": "percel-driver",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icon-ios-1024.png",
     "scheme": "percel-driver",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
       "backgroundColor": "#0B1220"
     },
     "ios": {
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/icon-ios-1024.png",
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.percel.driver",
@@ -30,9 +30,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/icon-android-foreground.png",
         "backgroundColor": "#0F172A",
-        "monochromeImage": "./assets/images/adaptive-icon.png"
+        "monochromeImage": "./assets/icon-android-foreground.png"
       },
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
@@ -72,6 +72,91 @@
         {
           "androidGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik",
           "iosGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik"
+        }
+      ],
+      [
+        "expo-alternate-app-icons",
+        {
+          "icons": [
+            {
+              "name": "icon-teal",
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-teal.png"
+                ]
+              },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-teal.png",
+                "backgroundColor": "#0F172A",
+                "monochromeImage": "./assets/images/icons/android/android-icon-teal.png"
+              }
+            },
+            {
+              "name": "icon-sky",
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-sky.png"
+                ]
+              },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-sky.png",
+                "backgroundColor": "#0F172A",
+                "monochromeImage": "./assets/images/icons/android/android-icon-sky.png"
+              }
+            },
+            {
+              "name": "icon-indigo",
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-indigo.png"
+                ]
+              },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-indigo.png",
+                "backgroundColor": "#0F172A",
+                "monochromeImage": "./assets/images/icons/android/android-icon-indigo.png"
+              }
+            },
+            {
+              "name": "icon-amber",
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-amber.png"
+                ]
+              },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-amber.png",
+                "backgroundColor": "#0F172A",
+                "monochromeImage": "./assets/images/icons/android/android-icon-amber.png"
+              }
+            },
+            {
+              "name": "icon-red",
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-red.png"
+                ]
+              },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-red.png",
+                "backgroundColor": "#0F172A",
+                "monochromeImage": "./assets/images/icons/android/android-icon-red.png"
+              }
+            },
+            {
+              "name": "icon-green",
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-green.png"
+                ]
+              },
+              "android": {
+                "foregroundImage": "./assets/images/icons/android/android-icon-green.png",
+                "backgroundColor": "#0F172A",
+                "monochromeImage": "./assets/images/icons/android/android-icon-green.png"
+              }
+            }
+          ]
         }
       ],
       "expo-location"
