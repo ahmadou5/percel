@@ -95,17 +95,23 @@ export function BankLogo({
   }
 
   return (
-    <View style={{ width: size, height: size, position: 'relative', borderRadius: size / 4, overflow: 'hidden' }}>
-      <BankAvatar name={name} size={size} />
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 4,
+        overflow: 'hidden',
+        backgroundColor: '#ffffff',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
       <Image
         source={{ uri: url }}
         style={{
           width: size,
           height: size,
           borderRadius: size / 4,
-          position: 'absolute',
-          top: 0,
-          left: 0,
         }}
         resizeMode="contain"
         onError={() => setFailed(true)}
