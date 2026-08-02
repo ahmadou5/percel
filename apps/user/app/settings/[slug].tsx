@@ -12,7 +12,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useAppPalette, isLight } from '@/lib/theme';
 import { useBeneficiaryStore, type Beneficiary } from '@/store/beneficiary.store';
 import { haptics } from '@/utils/haptics';
-import { getBankLogoUrl } from '@percel/shared';
+import { getBankLogoUrl, getCleanBankName } from '@percel/shared';
 import { useAppModal, AppModal } from '@/components/ui/AppModal';
 
 const SLUGS = {
@@ -134,7 +134,7 @@ function BeneficiariesScreen() {
                 <Text style={[styles.bRowName, { color: palette.text }]} numberOfLines={1}>{b.name}</Text>
                 <Text style={[styles.bRowMeta, { color: palette.textSecondary }]} numberOfLines={1}>
                   {activeTab === 'Bank'
-                    ? `${b.bankName ?? 'Bank'} • ${b.accountNumber ?? ''}`
+                    ? `${getCleanBankName(b.bankName, b.bankCode)} • ${b.accountNumber ?? ''}`
                     : activeTab === 'TV'
                       ? `${b.bankName ?? ''} • ···${(b.accountNumber ?? '').slice(-4)}`
                       : `${b.phone ?? ''} • ${b.bankName ?? 'Network'}`}

@@ -776,7 +776,7 @@ export default function TransferScreen() {
                           }}
                           style={styles.beneficiaryAvatarCard}
                         >
-                          <BankLogo name={b.bankName || b.name} bankCode={b.bankCode} size={44} />
+                          <BankLogo name={getCleanBankName(b.bankName, b.bankCode, banks)} bankCode={b.bankCode} size={44} />
                           <Text
                             style={[
                               styles.beneficiaryAvatarName,
@@ -793,7 +793,7 @@ export default function TransferScreen() {
                             ]}
                             numberOfLines={1}
                           >
-                            {b.bankName || banks.find((item) => item.code === b.bankCode)?.name || "Bank"}
+                            {getCleanBankName(b.bankName, b.bankCode, banks)}
                           </Text>
                         </Pressable>
                       ))}

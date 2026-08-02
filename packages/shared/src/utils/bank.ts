@@ -502,6 +502,97 @@ export function getBankLogoUrl(bankCode?: string, bankName?: string, slug?: stri
   return baseUrl + "/access-bank.png";
 }
 
+export const KNOWN_BANK_NAMES: Record<string, string> = {
+  '044': 'Access Bank',
+  '000014': 'Access Bank',
+  '058': 'Guaranty Trust Bank',
+  '000013': 'Guaranty Trust Bank',
+  '057': 'Zenith Bank',
+  '000015': 'Zenith Bank',
+  '033': 'United Bank for Africa',
+  '000004': 'United Bank for Africa',
+  '011': 'First Bank of Nigeria',
+  '000016': 'First Bank of Nigeria',
+  '214': 'First City Monument Bank',
+  '000003': 'First City Monument Bank',
+  '032': 'Union Bank of Nigeria',
+  '000018': 'Union Bank of Nigeria',
+  '232': 'Sterling Bank',
+  '000001': 'Sterling Bank',
+  '035': 'Wema Bank',
+  '000017': 'Wema Bank',
+  '070': 'Fidelity Bank',
+  '000007': 'Fidelity Bank',
+  '076': 'Polaris Bank',
+  '000008': 'Polaris Bank',
+  '082': 'Keystone Bank',
+  '000002': 'Keystone Bank',
+  '221': 'Stanbic IBTC Bank',
+  '000012': 'Stanbic IBTC Bank',
+  '050': 'Ecobank Nigeria',
+  '000010': 'Ecobank Nigeria',
+  '101': 'Providus Bank',
+  '000023': 'Providus Bank',
+  '301': 'Jaiz Bank',
+  '000006': 'Jaiz Bank',
+  '302': 'TAJ Bank',
+  '103': 'Globus Bank',
+  '00103': 'Globus Bank',
+  '102': 'Titan Paystack',
+  '030': 'Heritage Bank',
+  '215': 'Unity Bank',
+  '50211': 'Kuda Bank',
+  '090267': 'Kuda Bank',
+  '50515': 'Moniepoint MFB',
+  '090272': 'Moniepoint MFB',
+  '999992': 'OPay',
+  '304': 'OPay',
+  '305': 'OPay',
+  '100004': 'OPay',
+  '090270': 'OPay',
+  '999991': 'PalmPay',
+  '100033': 'PalmPay',
+  '090405': 'PalmPay',
+  '50239': 'PalmPay',
+  '51318': 'FairMoney',
+  '090551': 'FairMoney',
+  '100002': 'Paga',
+  '327': 'Paga',
+  '100022': 'GoMoney',
+  '50800': 'Raven Bank',
+  '120004': 'Airtel Smartcash PSB',
+  '120001': '9mobile 9PSB',
+  '090483': 'Dot MFB',
+  '566': 'VFD MFB',
+};
+
+/**
+ * Ensures a clean, human-readable bank name is returned instead of raw numeric codes like "044" or "Bank 044".
+ */
+export function getCleanBankName(
+  bankName?: string | null,
+  bankCode?: string | null,
+  fallbackBanks?: Array<{ code: string; name: string }>
+): string {
+  if (bankName && typeof bankName === 'string') {
+    const trimmed = bankName.trim();
+    if (trimmed && !/^\d{3,6}$/.test(trimmed) && !/^Bank \d+$/i.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  if (bankCode && fallbackBanks?.length) {
+    const found = fallbackBanks.find((item) => item.code === bankCode);
+    if (found?.name) return found.name;
+  }
+
+  if (bankCode && KNOWN_BANK_NAMES[bankCode]) {
+    return KNOWN_BANK_NAMES[bankCode];
+  }
+
+  return 'Bank';
+}
+
 
 
 
