@@ -793,7 +793,7 @@ export default function TransferScreen() {
                             ]}
                             numberOfLines={1}
                           >
-                            {b.bankName || (b.bankCode ? `Bank ${b.bankCode}` : "Bank")}
+                            {b.bankName || banks.find((item) => item.code === b.bankCode)?.name || "Bank"}
                           </Text>
                         </Pressable>
                       ))}
