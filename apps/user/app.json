@@ -65,7 +65,11 @@
           "icons": [
             {
               "name": "icon-teal",
-              "ios": { "images": ["./assets/images/icons/icon-teal.png"] },
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-teal.png"
+                ]
+              },
               "android": {
                 "foregroundImage": "./assets/images/icons/android/android-icon-teal.png",
                 "backgroundColor": "#0F172A",
@@ -74,7 +78,11 @@
             },
             {
               "name": "icon-sky",
-              "ios": { "images": ["./assets/images/icons/icon-sky.png"] },
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-sky.png"
+                ]
+              },
               "android": {
                 "foregroundImage": "./assets/images/icons/android/android-icon-sky.png",
                 "backgroundColor": "#0F172A",
@@ -83,7 +91,11 @@
             },
             {
               "name": "icon-indigo",
-              "ios": { "images": ["./assets/images/icons/icon-indigo.png"] },
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-indigo.png"
+                ]
+              },
               "android": {
                 "foregroundImage": "./assets/images/icons/android/android-icon-indigo.png",
                 "backgroundColor": "#0F172A",
@@ -92,7 +104,11 @@
             },
             {
               "name": "icon-amber",
-              "ios": { "images": ["./assets/images/icons/icon-amber.png"] },
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-amber.png"
+                ]
+              },
               "android": {
                 "foregroundImage": "./assets/images/icons/android/android-icon-amber.png",
                 "backgroundColor": "#0F172A",
@@ -101,7 +117,11 @@
             },
             {
               "name": "icon-red",
-              "ios": { "images": ["./assets/images/icons/icon-red.png"] },
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-red.png"
+                ]
+              },
               "android": {
                 "foregroundImage": "./assets/images/icons/android/android-icon-red.png",
                 "backgroundColor": "#0F172A",
@@ -110,7 +130,11 @@
             },
             {
               "name": "icon-green",
-              "ios": { "images": ["./assets/images/icons/icon-green.png"] },
+              "ios": {
+                "images": [
+                  "./assets/images/icons/icon-green.png"
+                ]
+              },
               "android": {
                 "foregroundImage": "./assets/images/icons/android/android-icon-green.png",
                 "backgroundColor": "#0F172A",
@@ -131,6 +155,12 @@
         "projectId": "6074075d-15bb-44aa-b777-6bef939bb79a"
       }
     },
-    "owner": "ahmadousol"
+    "owner": "ahmadousol",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6074075d-15bb-44aa-b777-6bef939bb79a"
+    }
   }
 }
