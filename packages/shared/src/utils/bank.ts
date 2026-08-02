@@ -233,7 +233,7 @@ const BANK_SLUGS: Record<string, string> = {
   'palmpay': 'palmpay',
   'palmpay limited': 'palmpay',
 
-  // FairMoney MFB
+  // FairMoney MFB bankk
   '51318': 'fairmoney',
   '090551': 'fairmoney',
   'fairmoney': 'fairmoney',
