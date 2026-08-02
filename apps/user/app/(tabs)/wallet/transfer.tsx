@@ -65,7 +65,7 @@ import { formatNaira } from "@/lib/wallet";
 import { usePreferencesStore } from "@/store/preferences.store";
 import { haptics } from "@/utils/haptics";
 import { useBeneficiaryStore } from "@/store/beneficiary.store";
-import { getBankLogoUrl } from "@percel/shared";
+import { getBankLogoUrl, getCleanBankName } from "@percel/shared";
 
 const modes = [
   {
