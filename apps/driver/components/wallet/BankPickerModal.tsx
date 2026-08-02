@@ -74,6 +74,7 @@ export function BankLogo({
   bankCode?: string | null;
   size?: number;
 }) {
+  const palette = useAppPalette();
   const url = getBankLogoUrl(bankCode || undefined, name, slug);
   const [failed, setFailed] = useState(false);
 
@@ -92,7 +93,9 @@ export function BankLogo({
         height: size,
         borderRadius: size / 4,
         overflow: 'hidden',
-        backgroundColor: '#ffffff',
+        backgroundColor: palette.card,
+        borderColor: palette.border,
+        borderWidth: StyleSheet.hairlineWidth,
         justifyContent: 'center',
         alignItems: 'center',
       }}

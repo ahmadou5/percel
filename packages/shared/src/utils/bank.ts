@@ -163,7 +163,6 @@ const BANK_SLUGS: Record<string, string> = {
   'airtel smartcash psb': 'airtel-smartcash-psb-ng',
   'airtel-smartcash-psb-ng': 'airtel-smartcash-psb-ng',
   'alat': 'wema-bank',
-  'alat by wema': 'wema-bank',
   'amegy': 'amegy-microfinance-bank-ng',
   'amegy microfinance bank': 'amegy-microfinance-bank-ng',
   'amegy-microfinance-bank-ng': 'amegy-microfinance-bank-ng',
@@ -213,7 +212,6 @@ const BANK_SLUGS: Record<string, string> = {
   'dot': 'dot-microfinance-bank-ng',
   'dot microfinance bank': 'dot-microfinance-bank-ng',
   'dot-microfinance-bank-ng': 'dot-microfinance-bank-ng',
-  'ecobank': 'ecobank-nigeria',
   'ecobank nigeria': 'ecobank-nigeria',
   'ecobank-nigeria': 'ecobank-nigeria',
   'ekimogun': 'ekimogun-mfb-ng',
@@ -318,20 +316,17 @@ const BANK_SLUGS: Record<string, string> = {
   'mtn momo psb': 'mtn-momo-psb-ng',
   'mtn-momo-psb-ng': 'mtn-momo-psb-ng',
   'opay': 'opay',
-  'opay digital services': 'opay',
   'optimus': 'optimus-bank-ltd',
   'optimus bank limited': 'optimus-bank-ltd',
   'optimus-bank-ltd': 'optimus-bank-ltd',
   'paga': 'paga',
   'palmpay': 'palmpay',
-  'palmpay limited': 'palmpay',
   'parallex': 'parallex-bank',
   'parallex bank': 'parallex-bank',
   'parallex-bank': 'parallex-bank',
   'parkway - readycash': 'parkway-ready-cash',
   'parkway-ready-cash': 'parkway-ready-cash',
   'paycom': 'opay',
-  'paycom (opay)': 'opay',
   'peace': 'peace-microfinance-bank-ng',
   'peace microfinance bank': 'peace-microfinance-bank-ng',
   'peace-microfinance-bank-ng': 'peace-microfinance-bank-ng',
@@ -387,7 +382,6 @@ const BANK_SLUGS: Record<string, string> = {
   'sparkle': 'sparkle-microfinance-bank',
   'sparkle microfinance bank': 'sparkle-microfinance-bank',
   'sparkle-microfinance-bank': 'sparkle-microfinance-bank',
-  'stanbic': 'stanbic-ibtc-bank',
   'stanbic ibtc': 'stanbic-ibtc-bank',
   'stanbic ibtc bank': 'stanbic-ibtc-bank',
   'stanbic-ibtc-bank': 'stanbic-ibtc-bank',
@@ -411,7 +405,6 @@ const BANK_SLUGS: Record<string, string> = {
   'tcf': 'tcf-mfb',
   'tcf mfb': 'tcf-mfb',
   'tcf-mfb': 'tcf-mfb',
-  'titan': 'titan-paystack',
   'titan paystack': 'titan-paystack',
   'titan-paystack': 'titan-paystack',
   'u&c   (u and c )': 'uc-microfinance-bank-ltd-u-and-c-mfb-ng',
@@ -427,7 +420,6 @@ const BANK_SLUGS: Record<string, string> = {
   'unilag': 'unilag-microfinance-bank-ng',
   'unilag microfinance bank': 'unilag-microfinance-bank-ng',
   'unilag-microfinance-bank-ng': 'unilag-microfinance-bank-ng',
-  'union': 'union-bank-of-nigeria',
   'union  of nigeria': 'union-bank-of-nigeria',
   'union bank of nigeria': 'union-bank-of-nigeria',
   'union-bank-of-nigeria': 'union-bank-of-nigeria',
@@ -442,11 +434,11 @@ const BANK_SLUGS: Record<string, string> = {
   'waya': 'waya-microfinance-bank-ng',
   'waya microfinance bank': 'waya-microfinance-bank-ng',
   'waya-microfinance-bank-ng': 'waya-microfinance-bank-ng',
-  'wema': 'wema-bank',
   'zenith': 'zenith-bank',
   'zenith bank': 'zenith-bank',
   'zenith-bank': 'zenith-bank',
 };
+
 
 /**
  * Normalizes a bank name into a potential slug representation.
@@ -470,11 +462,6 @@ export function getBankLogoUrl(bankCode?: string, bankName?: string, slug?: stri
   const code = bankCode?.trim();
   const cleanSlug = slug?.trim();
   const cleanName = bankName?.toLowerCase().trim();
-
-  // Special custom overrides for fintechs with dedicated asset mirrors
-  if (code === "999992" || code === "304" || code === "305" || code === "090270" || cleanSlug === "opay" || cleanName === "opay" || cleanName?.includes("opay") || cleanName?.includes("paycom")) {
-    return "https://cdn.jsdelivr.net/gh/supermx1/nigerian-banks-api@main/logos/access-bank.png";
-  }
 
   // 1. Direct code match
   if (code && BANK_SLUGS[code]) {
@@ -512,5 +499,10 @@ export function getBankLogoUrl(bankCode?: string, bankName?: string, slug?: stri
     }
   }
 
-  return baseUrl + "/guaranty-trust-bank.png";
+  return baseUrl + "/access-bank.png";
 }
+
+
+
+
+
