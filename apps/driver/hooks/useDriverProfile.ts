@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { VehicleType } from '@percel/shared';
+
 import { http } from '@/lib/api';
 import { Sentry } from '@/lib/sentry';
 import type { ApiResponse, DriverProfile } from '@/lib/types';
@@ -23,7 +25,7 @@ export function useUpdateVehicle() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK'; vehiclePlate: string; vehicleModel: string }) => {
+    mutationFn: async (payload: { vehicleType: VehicleType; vehiclePlate: string; vehicleModel: string }) => {
       Sentry.addBreadcrumb({ category: 'profile', message: 'driver.vehicle_profile_update_requested', level: 'info' });
       const response = await http.patch<ApiResponse<DriverProfile>>('/api/v1/driver/profile/vehicle', payload);
       return response.data.data;

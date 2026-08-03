@@ -3,11 +3,9 @@ import * as ScreenCapture from "expo-screen-capture";
 import * as SecureStore from "expo-secure-store";
 import {
   ArrowLeft,
-  ArrowUpRight,
   Banknote,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   Landmark,
   CreditCard,
   Search,
@@ -18,8 +16,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  FlatList,
   Image,
   Modal,
   Pressable,
@@ -597,7 +593,7 @@ export default function TransferScreen() {
   const currentRecipient =
     mode === "BANK"
       ? bankValidation
-        ? `${bankValidation.accountName} • ${bankValidation.bankName}`
+        ? `${bankValidation.accountName} • ${getCleanBankName(bankValidation.bankName, bankValidation.bankCode, banks)}`
         : selectedBank.name
       : (recipientValidation?.fullName ?? compactPhone(phone));
 
@@ -893,7 +889,7 @@ export default function TransferScreen() {
                             { color: palette.textSecondary },
                           ]}
                         >
-                          {bankValidation.bankName}
+                          {getCleanBankName(bankValidation.bankName, bankValidation.bankCode, [])}
                         </Text>
                         <Text
                           style={[

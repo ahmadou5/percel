@@ -1,4 +1,4 @@
-import type { Driver } from '@percel/shared';
+import type { Driver, VehicleType } from '@percel/shared';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 
 import { http } from '@/lib/api';
@@ -66,7 +66,7 @@ export function useRegisterDriver(
     phone: string;
     password: string;
     fullName: string;
-    vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK';
+    vehicleType: VehicleType;
     vehiclePlate: string;
     vehicleModel: string;
     licenseNumber: string;
@@ -82,7 +82,7 @@ export function useRegisterDriver(
       phone: string;
       password: string;
       fullName: string;
-      vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK';
+      vehicleType: VehicleType;
       vehiclePlate: string;
       vehicleModel: string;
       licenseNumber: string;

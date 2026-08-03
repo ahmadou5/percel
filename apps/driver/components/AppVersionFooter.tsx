@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { useAppPalette } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { Spacing } from '@/constants/spacing';
-import { AppModal, useAppModal } from './ui/AppModal';
+import { AppModal, useAppModal } from '@/components/ui/AppModal';
 
 export function AppVersionFooter() {
   const palette = useAppPalette();
@@ -13,8 +13,8 @@ export function AppVersionFooter() {
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const nativeVersion = Application.nativeApplicationVersion ?? '1.0.0';
-  const nativeBuild = Application.nativeBuildVersion ?? '1';
+  const nativeVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const nativeBuild = Constants.expoConfig?.android?.versionCode?.toString() ?? '1';
 
   const handleCheckForUpdates = async () => {
     if (__DEV__) {
@@ -52,7 +52,7 @@ export function AppVersionFooter() {
       } else {
         setIsSyncing(false);
         setSyncStatus(null);
-        modal.alert('Up to Date', "You're running the latest version of Percel.", 'success');
+        modal.alert('Up to Date', "You're running the latest version of Percel Driver.", 'success');
       }
     } catch (error: any) {
       setIsSyncing(false);

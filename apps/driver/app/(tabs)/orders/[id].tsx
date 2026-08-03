@@ -30,14 +30,14 @@ import { DriverChatModal } from '@/components/orders/DriverChatModal';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppPalette, hexToRgba } from '@/lib/theme';
-import { useDriverRateOrder, useUpdateOrderStatus, useAvailableOrders } from '@/hooks/useDriverOrders';
+import { useDriverRateOrder, useUpdateOrderStatus, useDriverActiveOrders, useDriverOrderDetail } from '@/hooks/useDriverOrders';
 import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline';
 import { DeliveryRouteMap } from '@/components/orders/DeliveryRouteMap';
 import { ActiveOrdersCarousel } from '@/components/orders/ActiveOrdersCarousel';
-import { useDriverOrderDetail } from '@/hooks/useDriverOrders';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import type { DriverOrder } from '@/lib/types';
@@ -131,12 +131,30 @@ export default function OrderDetailScreen() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [chatModalOpen, setChatModalOpen] = useState(false);
 
+  const queryClient = useQueryClient();
+
   // ⚠️ Must be above any conditional early returns — Rules of Hooks
   const currentLocation = useDriverStore((s) => s.currentLocation);
-  const { data: allOrders } = useAvailableOrders();
-  const activeOrders = useMemo(() => {
-    return (allOrders ?? []).filter((o: DriverOrder) => o.status === 'ACCEPTED' || o.status === 'IN_TRANSIT');
-  }, [allOrders]);
+  const activeOrdersQuery = useDriverActiveOrders();
+  const activeOrders = activeOrdersQuery.data ?? [];
+
+  useEffect(() => {
+    const invalidate = () => {
+      if (id) {
+        void queryClient.invalidateQueries({ queryKey: ['driver-order-detail', id] });
+      }
+      void queryClient.invalidateQueries({ queryKey: ['driver-orders-active'] });
+    };
+
+    const unsub1 = subscribeDriverSocket('order_status_update', invalidate);
+    const unsub2 = subscribeDriverSocket('order_completed', invalidate);
+    const unsub3 = subscribeDriverSocket('order_cancelled', invalidate);
+    return () => {
+      unsub1();
+      unsub2();
+      unsub3();
+    };
+  }, [id, queryClient]);
 
   // ── Empty state ──────────────────────────────────────────────────────────
   if (isLoading || !order) {

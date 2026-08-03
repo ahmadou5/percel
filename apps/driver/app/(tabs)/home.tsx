@@ -20,7 +20,8 @@ import { Typography } from '@/constants/typography';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
-import { useAcceptOrder, useAvailableOrders, useDeclineOrder } from '@/hooks/useDriverOrders';
+import { useAcceptOrder, useAvailableOrders, useDeclineOrder, useDriverActiveOrders } from '@/hooks/useDriverOrders';
+import { ActiveOrdersCarousel } from '@/components/orders/ActiveOrdersCarousel';
 import { useToggleOnlineStatus } from '@/hooks/useDriverProfile';
 import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
@@ -188,12 +189,14 @@ export default function DriverHomeScreen() {
 
   const walletQuery = useWallet();
   const availableOrdersQuery = useAvailableOrders();
+  const activeOrdersQuery = useDriverActiveOrders();
   const acceptOrder = useAcceptOrder();
   const declineOrderMutation = useDeclineOrder();
   const queryClient = useQueryClient();
 
   const wallet = walletQuery.data;
   const availableOrders = availableOrdersQuery.data ?? [];
+  const activeOrders = activeOrdersQuery.data ?? [];
   const walletTransactions = wallet?.transactions ?? [];
 
   const todayDateStr = new Date().toDateString();
@@ -215,6 +218,8 @@ export default function DriverHomeScreen() {
   useEffect(() => {
     const invalidate = () => {
       void queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['driver-orders-active'] });
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] });
     };
 
     const unsub1 = subscribeDriverSocket('new_order_available', (payload: any) => {
@@ -254,11 +259,13 @@ export default function DriverHomeScreen() {
 
     const unsub2 = subscribeDriverSocket('order_cancelled', invalidate);
     const unsub3 = subscribeDriverSocket('order_completed', invalidate);
+    const unsub4 = subscribeDriverSocket('order_status_update', invalidate);
 
     return () => {
       unsub1();
       unsub2();
       unsub3();
+      unsub4();
     };
   }, [queryClient, translateY]);
 
@@ -458,46 +465,25 @@ export default function DriverHomeScreen() {
         {/* ── DRIVER WALLET & QUICK PAYMENTS CARD ─────────────────────── */}
 
 
-        {/* ── Current order / dispatch entry ──────────────────────── */}
+        {/* ── Active orders / dispatch entry ──────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>
-            {currentOrder ? 'Current order' : 'Dispatch'}
+            {activeOrders.length > 0 ? `Active orders (${activeOrders.length})` : 'Dispatch'}
           </Text>
-          {currentOrder && (
+          {activeOrders.length > 0 && (
             <View style={[styles.activeBadge, { backgroundColor: hexToRgba(palette.primary, 0.14) }]}>
               <View style={[styles.statusDot, { backgroundColor: palette.primary }]} />
-              <Text style={[styles.activeBadgeText, { color: palette.primary }]}>{currentOrder.status}</Text>
+              <Text style={[styles.activeBadgeText, { color: palette.primary }]}>{activeOrders.length} ONGOING</Text>
             </View>
           )}
         </View>
 
-        {currentOrder ? (
-          <Pressable
-            onPress={() => router.push({ pathname: '/(tabs)/orders/[id]', params: { id: currentOrder.id } })}
-            style={[styles.orderCard, { backgroundColor: palette.card, borderColor: palette.border }]}
-          >
-            <View style={[styles.orderIconWrap, { backgroundColor: hexToRgba(palette.primaryDark, 0.12) }]}>
-              <Package size={22} color={palette.primary} />
-            </View>
-            <View style={styles.orderBody}>
-              <Text style={[styles.orderCode, { color: palette.text }]}>{currentOrder.trackingCode}</Text>
-              <View style={styles.orderMeta}>
-                <MapPin size={12} color={palette.textSecondary} />
-                <Text style={[styles.orderRoute, { color: palette.textSecondary }]} numberOfLines={1}>
-                  {currentOrder.pickupFormattedAddress} → {currentOrder.deliveryFormattedAddress}
-                </Text>
-              </View>
-              <View style={styles.orderTags}>
-                <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primaryDark, 0.14) }]}>
-                  <Text style={[styles.tagText, { color: palette.primary }]}>{formatNaira(currentOrder.price)}</Text>
-                </View>
-                <View style={[styles.tag, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
-                  <Text style={[styles.tagText, { color: palette.primary }]}>{currentOrder.distanceKm.toFixed(1)} km</Text>
-                </View>
-              </View>
-            </View>
-            <ChevronRight size={18} color={palette.textSecondary} />
-          </Pressable>
+        {activeOrders.length > 0 ? (
+          <ActiveOrdersCarousel
+            orders={activeOrders}
+            selectedOrderId={currentOrder?.id ?? activeOrders[0].id}
+            onSelectOrder={(selectedId) => router.push({ pathname: '/(tabs)/orders/[id]', params: { id: selectedId } })}
+          />
         ) : (
           <Pressable
             onPress={() => router.push('/(tabs)/dispatch')}

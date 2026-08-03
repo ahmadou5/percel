@@ -6,7 +6,7 @@ export type DriverStatus =
   | 'OFFLINE'
   | 'ONLINE';
 
-export type VehicleType = 'BIKE' | 'CAR' | 'VAN' | 'TRUCK';
+export type VehicleType = 'BIKE' | 'TRICYCLE' | 'CAR';
 
 export interface DriverLocation {
   lat: number;

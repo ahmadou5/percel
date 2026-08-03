@@ -25,7 +25,7 @@ function formatNaira(value: number) {
 export function ActiveOrdersCarousel({ orders, selectedOrderId, onSelectOrder }: Props) {
   const palette = useAppPalette();
 
-  if (orders.length <= 1) return null;
+  if (orders.length === 0) return null;
 
   return (
     <View style={styles.container}>

@@ -1,3 +1,5 @@
+import type { VehicleType } from '@percel/shared';
+
 export type ApiError = {
   code: string;
   message: string;
@@ -157,7 +159,7 @@ export type DriverProfile = {
   rating: number;
   totalDeliveries: number;
   isOnline: boolean;
-  vehicleType: 'BIKE' | 'CAR' | 'VAN' | 'TRUCK';
+  vehicleType: VehicleType;
   vehiclePlate: string;
   vehicleModel: string;
   licenseNumber: string;

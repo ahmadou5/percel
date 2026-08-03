@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAppPalette } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
+import { AppVersionFooter } from '@/components/AppVersionFooter';
 
 const preferenceItems = [
   { title: 'Appearance', subtitle: 'Choose your theme and custom palette', href: '/settings/preferences', Icon: Palette },
@@ -114,6 +115,7 @@ export default function DriverSettingsScreen() {
           </View>
         </View>
       </Modal>
+      <AppVersionFooter />
     </ScrollView>
   );
 }

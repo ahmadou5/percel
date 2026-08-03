@@ -11,7 +11,7 @@ import { useRegisterDriver } from '@/hooks/useAuth';
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-const vehicleTypes = ['BIKE', 'CAR', 'VAN', 'TRUCK'] as const;
+const vehicleTypes = ['BIKE', 'TRICYCLE', 'CAR'] as const;
 
 type Step = 1 | 2 | 3 | 4 | 5;
 type VehicleType = (typeof vehicleTypes)[number];

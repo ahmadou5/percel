@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { OrderStatus, PaymentStatus, Prisma, type OrderSize, type PrismaClient } from '@prisma/client';
+import { DeliveryType, OrderStatus, PaymentStatus, Prisma, VehicleType, type OrderSize, type PrismaClient } from '@prisma/client';
 
 import { getDistanceAndDuration, geocodeAddress, getDirectionsRoute, reverseGeocode, autocompletePlaces, getPlaceDetails } from '../../lib/googleMaps.js';
 import { composeDeliveryAddress, composePickupAddress, resolveHubRouteContext, type HubType } from '../../lib/hubs.js';
@@ -785,9 +785,13 @@ export class OrderService {
       .map((key, index) => (offerDriverIds[index] === driverId ? key.replace('order:offer:', '') : null))
       .filter((id): id is string => Boolean(id));
 
+    const isCarDriver = driver.vehicleType === VehicleType.CAR;
+    const allowedDeliveryTypes: DeliveryType[] = isCarDriver ? [DeliveryType.INTERSTATE] : [DeliveryType.INTRASTATE];
+
     const orders = await this.prisma.order.findMany({
       where: {
         driverId: null,
+        deliveryType: { in: allowedDeliveryTypes },
         OR: [
           { status: OrderStatus.PENDING_MATCH },
           ...(offeredOrderIds.length ? [{ id: { in: offeredOrderIds }, status: OrderStatus.MATCHED }] : []),

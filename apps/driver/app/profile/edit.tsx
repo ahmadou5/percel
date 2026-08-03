@@ -23,7 +23,7 @@ import {
 } from '@/hooks/useDriverProfile';
 import { useAppPalette } from '@/lib/theme';
 
-const vehicleTypes = ['BIKE', 'CAR', 'VAN', 'TRUCK'] as const;
+const vehicleTypes = ['BIKE', 'TRICYCLE', 'CAR'] as const;
 
 export default function EditProfileScreen() {
   const modal = useAppModal();

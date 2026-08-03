@@ -1,4 +1,4 @@
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, VehicleType } from '@prisma/client';
 import { Worker } from 'bullmq';
 import { Sentry } from '../lib/sentry.js';
 import type { FastifyInstance } from 'fastify';
@@ -23,12 +23,17 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
       // ─────────────────────────────────────────────────────────────────────
       const findCandidates = async () => {
         const isLocal = order.deliveryType === 'INTRASTATE';
+        const allowedVehicleTypes: VehicleType[] = isLocal
+          ? [VehicleType.BIKE, VehicleType.TRICYCLE]
+          : [VehicleType.CAR];
+
         const drivers = await app.prisma.driver.findMany({
           where: {
             isOnline: true,
             status: 'ACTIVE',
             currentLat: { not: null },
             currentLng: { not: null },
+            vehicleType: { in: allowedVehicleTypes },
             ...(isLocal
               ? {
                   driverMode: { in: ['LOCAL', 'BOTH'] },
