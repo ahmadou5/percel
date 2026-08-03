@@ -3,13 +3,14 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet } from 'react-native';
 
-import { ActionButton, Card, Screen, SectionHeader } from '@/components/DriverPrimitives';
+import { ActionButton, Card, InputField, Screen, SectionHeader } from '@/components/DriverPrimitives';
 import { Text, View } from '@/components/Themed';
 import { Colors } from '@/constants/palette';
 import { Typography } from '@/constants/typography';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { http } from '@/lib/api';
 import { useDriverStore } from '@/store/driver.store';
+import { useQueryClient } from '@tanstack/react-query';
 
 type UploadKey = 'license' | 'selfie' | 'vehicle';
 
@@ -25,12 +26,6 @@ type UploadedDocument = {
   remoteUrl: string;
 };
 
-const slots: UploadSlot[] = [
-  { key: 'license', label: 'License photo', helper: 'Capture or select the front side of your driver license.' },
-  { key: 'selfie', label: 'Selfie', helper: 'Take a clear face photo from the camera.', preferCamera: true },
-  { key: 'vehicle', label: 'Vehicle photo', helper: 'Capture the delivery vehicle clearly.' },
-];
-
 function filenameFor(uri: string, type: UploadKey) {
   const fallback = `${type}.jpg`;
   return uri.split('/').pop()?.split('?')[0] || fallback;
@@ -45,13 +40,17 @@ function mimeFor(uri: string) {
 
 export default function KycDocumentsScreen() {
   const modal = useAppModal();
-  const [vehicleType, setVehicleType] = useState<'CAR' | 'BIKE' | 'TRICYCLE'>('BIKE');
+  const queryClient = useQueryClient();
+  const driver = useDriverStore((state) => state.driver);
+
+  const [vehicleType, setVehicleType] = useState<'CAR' | 'BIKE' | 'TRICYCLE'>(
+    (driver?.vehicleType as 'CAR' | 'BIKE' | 'TRICYCLE') || 'BIKE'
+  );
+  const [vehiclePlate, setVehiclePlate] = useState(driver?.vehiclePlate || '');
+  const [vehicleModel, setVehicleModel] = useState(driver?.vehicleModel || '');
   const [documents, setDocuments] = useState<Partial<Record<UploadKey, UploadedDocument>>>({});
   const [uploading, setUploading] = useState<UploadKey | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const driver = useDriverStore((state) => state.driver);
-  const setDriver = useDriverStore((state) => state.setDriver);
 
   const activeSlots = useMemo(() => {
     if (vehicleType === 'CAR') {
@@ -65,7 +64,7 @@ export default function KycDocumentsScreen() {
       return [
         { key: 'license' as UploadKey, label: 'Rider Permit / ID', helper: 'Capture your valid rider permit or national ID.' },
         { key: 'selfie' as UploadKey, label: 'Rider Selfie', helper: 'Take a clear headshot photo.', preferCamera: true },
-        { key: 'vehicle' as UploadKey, label: 'Tricycle Photo', helper: 'Capture your tricycle clearly showing the registration number.' },
+        { key: 'vehicle' as UploadKey, label: 'Tricycle Photo', helper: 'Capture your tricycle clearly showing registration.' },
       ];
     }
     return [
@@ -128,15 +127,27 @@ export default function KycDocumentsScreen() {
   };
 
   const submit = async () => {
+    if (!vehiclePlate.trim() || !vehicleModel.trim()) {
+      modal.alert('Vehicle details required', 'Please enter your vehicle plate number and vehicle model.', 'warning');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await http.post('/api/v1/driver/kyc/submit', { vehicleType });
-      if (driver) {
-        setDriver({ ...driver, status: 'KYC_SUBMITTED' });
-      }
+      await http.post('/api/v1/driver/vehicle-verification', {
+        vehicleType,
+        vehiclePlate: vehiclePlate.trim(),
+        vehicleModel: vehicleModel.trim(),
+        licenseImageUrl: documents.license?.remoteUrl,
+        selfieUrl: documents.selfie?.remoteUrl,
+        vehicleImageUrl: documents.vehicle?.remoteUrl,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
+
       modal.show({
-        title: 'KYC submitted',
-        description: 'Your documents are now under review. We will notify you after approval.',
+        title: 'Vehicle details submitted',
+        description: 'Your vehicle verification application has been sent for Admin approval. You will receive a notification once reviewed.',
         type: 'success',
         primaryText: 'OK',
         onPrimaryPress: () => {
@@ -145,7 +156,7 @@ export default function KycDocumentsScreen() {
         },
       });
     } catch (error) {
-      modal.alert('Could not submit KYC', error instanceof Error ? error.message : 'Please check every requirement and try again.', 'error');
+      modal.alert('Could not submit vehicle verification', error instanceof Error ? error.message : 'Please check every requirement and try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -154,8 +165,8 @@ export default function KycDocumentsScreen() {
   return (
     <Screen>
       <Card>
-        <SectionHeader title="Document upload" caption={`${completed}/${activeSlots.length} uploaded`} />
-        <Text style={styles.copy}>Select your vehicle category and upload the required photos.</Text>
+        <SectionHeader title="Vehicle & Document Verification" caption={`${completed}/${activeSlots.length} uploaded`} />
+        <Text style={styles.copy}>Select your vehicle type, enter details, and upload clear document photos for Admin review.</Text>
 
         {/* Vehicle Segment Picker */}
         <View style={styles.vehicleSegmentRow}>
@@ -178,6 +189,9 @@ export default function KycDocumentsScreen() {
             );
           })}
         </View>
+
+        <InputField label="License Plate Number" value={vehiclePlate} onChangeText={setVehiclePlate} placeholder="e.g. ABC-123XY" />
+        <InputField label="Vehicle Make & Model" value={vehicleModel} onChangeText={setVehicleModel} placeholder="e.g. Honda Ace 125 / Toyota Corolla" />
 
         <View style={styles.documentList}>
           {activeSlots.map((slot) => {
@@ -210,7 +224,7 @@ export default function KycDocumentsScreen() {
           })}
         </View>
 
-        <ActionButton title={submitting ? 'Submitting...' : 'Submit KYC'} onPress={submit} disabled={submitting || uploading !== null || completed < activeSlots.length} />
+        <ActionButton title={submitting ? 'Submitting to Admin...' : 'Submit Vehicle Verification'} onPress={submit} disabled={submitting || uploading !== null} />
         <ActionButton title="Back to overview" variant="ghost" onPress={() => router.replace('/(kyc)')} />
       </Card>
       <AppModal config={modal.config} onClose={modal.hide} />

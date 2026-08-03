@@ -1,29 +1,27 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
-import { ShieldCheck, ArrowRight, CheckCircle2, ChevronRight, FileText, Camera, Bike, CreditCard, ShieldAlert } from 'lucide-react-native';
+import { ShieldCheck, ArrowRight, CheckCircle2, ChevronRight, FileText, Camera, Bike, CreditCard, ShieldAlert, Clock, AlertTriangle } from 'lucide-react-native';
 
 import { Text, View } from '@/components/Themed';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAppPalette, hexToRgba, isLight } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
-
-const steps = [
-  { key: 'nin', label: 'NIN Verification', desc: 'Verify your identity securely', route: '/(kyc)/nin', icon: CreditCard },
-  { key: 'bvn', label: 'BVN Verification', desc: 'Link your bank details', route: '/(kyc)/bvn', icon: ShieldCheck },
-  { key: 'license', label: 'Driver License', desc: 'Upload a clear photo', route: '/(kyc)/documents', icon: FileText },
-  { key: 'selfie', label: 'Selfie Verification', desc: 'Face match your ID', route: '/(kyc)/documents', icon: Camera },
-  { key: 'vehicle', label: 'Vehicle Details', desc: 'Photos & plate number', route: '/(kyc)/documents', icon: Bike },
-] as const;
+import { useDriverProfile } from '@/hooks/useDriverProfile';
 
 export default function KycOverviewScreen() {
   const palette = useAppPalette();
   const lightBg = isLight(palette.bg);
   const driver = useDriverStore((state) => state.driver);
-  const status = driver?.status ?? 'PENDING_KYC';
-  const activeCount = status === 'ACTIVE' ? steps.length : status === 'KYC_SUBMITTED' ? 3 : 0;
-  
-  const isComplete = status === 'ACTIVE';
+  const profileQuery = useDriverProfile();
+  const profile = profileQuery.data;
+
+  const driverStatus = profile?.status ?? driver?.status ?? 'PENDING_KYC';
+  const identityVerified = Boolean(profile?.kyc?.ninVerified || profile?.kyc?.bvnVerified || profile?.kycStatus === 'APPROVED');
+  const vehicleStatus = profile?.vehicleStatus ?? profile?.kyc?.vehicleStatus ?? 'PENDING';
+  const vehicleRejectionReason = profile?.kyc?.vehicleRejectionReason ?? null;
+
+  const isFullyVerified = driverStatus === 'ACTIVE' && identityVerified && vehicleStatus === 'APPROVED';
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>
@@ -39,69 +37,137 @@ export default function KycOverviewScreen() {
             </View>
             <View style={styles.heroBadge}>
               <Text style={styles.heroBadgeText}>
-                {isComplete ? 'VERIFIED' : 'ACTION REQUIRED'}
+                {isFullyVerified ? 'VERIFIED & ACTIVE' : 'VERIFICATION REQUIRED'}
               </Text>
             </View>
           </View>
           <Text style={styles.title}>
-            {isComplete ? 'You are fully verified' : 'Complete verification\nto go live.'}
+            {isFullyVerified ? 'You are fully verified' : 'Driver Verification'}
           </Text>
           <Text style={styles.subtitle}>
-            {isComplete 
-              ? 'Your driver account is active. You can now accept dispatch requests.'
-              : 'We need your identity, license, and vehicle verification before dispatch can place you on the active board.'}
+            {isFullyVerified 
+              ? 'Your driver profile & vehicle are active. You are eligible to receive dispatch requests.'
+              : 'Complete your identity check and submit your vehicle details for admin approval.'}
           </Text>
         </View>
 
-        {/* ── Step Cards ── */}
+        {/* ── SECTION 1: IDENTITY KYC (Automated NIN/BVN like User App) ── */}
         <View style={styles.stepsWrap}>
           <View style={styles.stepsHeader}>
-            <Text style={[styles.stepsTitle, { color: palette.text }]}>Verification Steps</Text>
-            <Text style={[styles.stepsProgress, { color: palette.primary }]}>{activeCount} of {steps.length}</Text>
+            <Text style={[styles.stepsTitle, { color: palette.text }]}>1. Identity Verification (KYC)</Text>
+            <Text style={[styles.stepsProgress, { color: identityVerified ? '#30D158' : palette.primary }]}>
+              {identityVerified ? 'Verified' : 'Pending'}
+            </Text>
           </View>
           
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            {steps.map((step, index) => {
-              const complete = index < activeCount;
-              const Icon = step.icon;
-              return (
-                <Pressable 
-                  key={step.key} 
-                  onPress={() => !complete && router.push(step.route)} 
-                  style={({ pressed }) => [
-                    styles.stepRow,
-                    index !== steps.length - 1 && { borderBottomWidth: 1, borderBottomColor: palette.border },
-                    pressed && !complete ? { backgroundColor: hexToRgba(palette.text, 0.04) } : null,
-                  ]}
-                >
-                  <View style={[styles.stepIconWrap, { backgroundColor: complete ? hexToRgba('#30D158', 0.12) : hexToRgba(palette.primary, 0.12) }]}>
-                    {complete ? (
-                      <CheckCircle2 size={20} color="#30D158" />
-                    ) : (
-                      <Icon size={20} color={palette.primary} />
-                    )}
-                  </View>
-                  <View style={styles.stepCopy}>
-                    <Text style={[styles.stepLabel, { color: palette.text }]}>{step.label}</Text>
-                    <Text style={[styles.stepDesc, { color: palette.textSecondary }]}>{complete ? 'Verified' : step.desc}</Text>
-                  </View>
-                  {!complete && <ChevronRight size={20} color={palette.textSecondary} />}
-                </Pressable>
-              );
-            })}
+            <Pressable 
+              onPress={() => router.push('/(kyc)/nin')} 
+              style={({ pressed }) => [
+                styles.stepRow,
+                { borderBottomWidth: 1, borderBottomColor: palette.border },
+                pressed && !identityVerified ? { backgroundColor: hexToRgba(palette.text, 0.04) } : null,
+              ]}
+            >
+              <View style={[styles.stepIconWrap, { backgroundColor: identityVerified ? hexToRgba('#30D158', 0.12) : hexToRgba(palette.primary, 0.12) }]}>
+                {identityVerified ? <CheckCircle2 size={20} color="#30D158" /> : <CreditCard size={20} color={palette.primary} />}
+              </View>
+              <View style={styles.stepCopy}>
+                <Text style={[styles.stepLabel, { color: palette.text }]}>NIN Verification</Text>
+                <Text style={[styles.stepDesc, { color: palette.textSecondary }]}>
+                  {identityVerified ? 'Identity check passed' : 'Instant automated verification via NIN'}
+                </Text>
+              </View>
+              <ChevronRight size={20} color={palette.textSecondary} />
+            </Pressable>
+
+            <Pressable 
+              onPress={() => router.push('/(kyc)/bvn')} 
+              style={({ pressed }) => [
+                styles.stepRow,
+                pressed && !identityVerified ? { backgroundColor: hexToRgba(palette.text, 0.04) } : null,
+              ]}
+            >
+              <View style={[styles.stepIconWrap, { backgroundColor: identityVerified ? hexToRgba('#30D158', 0.12) : hexToRgba(palette.primary, 0.12) }]}>
+                {identityVerified ? <CheckCircle2 size={20} color="#30D158" /> : <ShieldCheck size={20} color={palette.primary} />}
+              </View>
+              <View style={styles.stepCopy}>
+                <Text style={[styles.stepLabel, { color: palette.text }]}>BVN Verification</Text>
+                <Text style={[styles.stepDesc, { color: palette.textSecondary }]}>
+                  {identityVerified ? 'Bank details linked' : 'Alternative instant verification via BVN'}
+                </Text>
+              </View>
+              <ChevronRight size={20} color={palette.textSecondary} />
+            </Pressable>
           </View>
         </View>
 
-        {/* ── Info Box ── */}
-        {isComplete ? (
+        {/* ── SECTION 2: VEHICLE VERIFICATION (Submitted to Admin) ── */}
+        <View style={styles.stepsWrap}>
+          <View style={styles.stepsHeader}>
+            <Text style={[styles.stepsTitle, { color: palette.text }]}>2. Vehicle Verification (Admin Approval)</Text>
+            <Text style={[styles.stepsProgress, { color: vehicleStatus === 'APPROVED' ? '#30D158' : vehicleStatus === 'SUBMITTED' ? '#FFD60A' : palette.error }]}>
+              {vehicleStatus === 'APPROVED' ? 'Approved' : vehicleStatus === 'SUBMITTED' ? 'Under Review' : vehicleStatus === 'REJECTED' ? 'Declined' : 'Required'}
+            </Text>
+          </View>
+          
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Pressable 
+              onPress={() => router.push('/(kyc)/documents')} 
+              style={({ pressed }) => [
+                styles.stepRow,
+                pressed ? { backgroundColor: hexToRgba(palette.text, 0.04) } : null,
+              ]}
+            >
+              <View style={[
+                styles.stepIconWrap, 
+                { 
+                  backgroundColor: vehicleStatus === 'APPROVED' 
+                    ? hexToRgba('#30D158', 0.12) 
+                    : vehicleStatus === 'SUBMITTED' 
+                    ? hexToRgba('#FFD60A', 0.14) 
+                    : vehicleStatus === 'REJECTED' 
+                    ? hexToRgba(palette.error, 0.14) 
+                    : hexToRgba(palette.primary, 0.12) 
+                }
+              ]}>
+                {vehicleStatus === 'APPROVED' ? (
+                  <CheckCircle2 size={20} color="#30D158" />
+                ) : vehicleStatus === 'SUBMITTED' ? (
+                  <Clock size={20} color="#FFD60A" />
+                ) : vehicleStatus === 'REJECTED' ? (
+                  <AlertTriangle size={20} color={palette.error} />
+                ) : (
+                  <Bike size={20} color={palette.primary} />
+                )}
+              </View>
+              <View style={styles.stepCopy}>
+                <Text style={[styles.stepLabel, { color: palette.text }]}>Vehicle & Document Upload</Text>
+                <Text style={[styles.stepDesc, { color: vehicleStatus === 'REJECTED' ? palette.error : palette.textSecondary }]}>
+                  {vehicleStatus === 'APPROVED' 
+                    ? 'Vehicle & documents approved by Admin' 
+                    : vehicleStatus === 'SUBMITTED' 
+                    ? 'Submitted — Pending Admin Review' 
+                    : vehicleStatus === 'REJECTED' 
+                    ? `Declined: ${vehicleRejectionReason || 'Tap to review and resubmit'}` 
+                    : 'Submit vehicle category (Bike/Tricycle/Car), plate & photos'}
+                </Text>
+              </View>
+              <ChevronRight size={20} color={palette.textSecondary} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ── Status Banner ── */}
+        {isFullyVerified ? (
           <View style={[styles.infoBox, { backgroundColor: 'rgba(48,209,88,0.15)', borderColor: '#30D15840' }]}>
             <ShieldCheck size={22} color="#30D158" />
             <View style={{ flex: 1 }}>
               <Text style={{ color: palette.text, fontSize: Typography.xs, fontWeight: Typography.bold }}>
-                Virtual Account Activated! 🎉
+                Account & Vehicle Fully Verified! 🎉
               </Text>
               <Text style={[styles.infoText, { color: palette.textSecondary, marginTop: 2 }]}>
-                Your dedicated bank account (NUBAN) is live. Go to the Wallet tab to transfer funds, pay bills, or receive bank payments.
+                You are ready to receive delivery jobs based on your vehicle category.
               </Text>
             </View>
           </View>
@@ -109,26 +175,33 @@ export default function KycOverviewScreen() {
           <View style={[styles.infoBox, { backgroundColor: lightBg ? 'rgba(255,214,10,0.1)' : 'rgba(255,214,10,0.15)', borderColor: palette.border }]}>
             <ShieldAlert size={20} color="#FFD60A" />
             <Text style={[styles.infoText, { color: palette.textSecondary }]}>
-              Once all documents are submitted, your profile will be reviewed by dispatch. Approval usually takes under 24 hours. Your dedicated Virtual Account will be generated automatically.
+              Vehicle documents are reviewed by Administration through the Admin Dashboard. Approval usually takes under 24 hours.
             </Text>
           </View>
         )}
 
       </ScrollView>
 
-      {/* ── Fixed Bottom Button ── */}
-      {!isComplete && (
+      {/* ── Fixed Bottom Action Button ── */}
+      {!isFullyVerified && (
         <View style={[styles.bottomBar, { backgroundColor: palette.card, borderTopColor: palette.border }]}>
-          <Pressable
-            onPress={() => router.push('/(kyc)/nin')}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              { backgroundColor: palette.primary, opacity: pressed ? 0.85 : 1 }
-            ]}
-          >
-            <Text style={styles.primaryBtnText}>Start Verification</Text>
-            <ArrowRight size={20} color="#FFF" />
-          </Pressable>
+          {!identityVerified ? (
+            <Pressable
+              onPress={() => router.push('/(kyc)/nin')}
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: palette.primary, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.primaryBtnText}>Verify Identity (NIN/BVN)</Text>
+              <ArrowRight size={20} color="#FFF" />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => router.push('/(kyc)/documents')}
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: palette.primary, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Text style={styles.primaryBtnText}>{vehicleStatus === 'REJECTED' ? 'Resubmit Vehicle Details' : 'Submit Vehicle Verification'}</Text>
+              <ArrowRight size={20} color="#FFF" />
+            </Pressable>
+          )}
         </View>
       )}
     </View>
@@ -155,17 +228,17 @@ const styles = StyleSheet.create({
   title: { color: '#FFF', fontSize: 26, fontFamily: 'SpaceGrotesk_700Bold', lineHeight: 32, letterSpacing: -0.5 },
   subtitle: { color: 'rgba(255,255,255,0.85)', fontSize: Typography.sm, fontFamily: 'SpaceGrotesk_400Regular', lineHeight: 22 },
   
-  stepsWrap: { gap: Spacing.md },
+  stepsWrap: { gap: Spacing.sm },
   stepsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xs },
-  stepsTitle: { fontSize: Typography.lg, fontFamily: 'SpaceGrotesk_700Bold' },
-  stepsProgress: { fontSize: Typography.sm, fontFamily: 'SpaceGrotesk_700Bold' },
+  stepsTitle: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
+  stepsProgress: { fontSize: Typography.xs, fontFamily: 'SpaceGrotesk_700Bold' },
   
   card: { borderRadius: 24, borderWidth: 1, overflow: 'hidden' },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: Spacing.lg },
   stepIconWrap: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   stepCopy: { flex: 1, gap: 2 },
   stepLabel: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
-  stepDesc: { fontSize: Typography.sm, fontFamily: 'SpaceGrotesk_400Regular' },
+  stepDesc: { fontSize: Typography.xs, fontFamily: 'SpaceGrotesk_400Regular' },
   
   infoBox: { flexDirection: 'row', gap: 12, padding: Spacing.lg, borderRadius: 20, borderWidth: 1, alignItems: 'flex-start' },
   infoText: { flex: 1, fontSize: Typography.sm, fontFamily: 'SpaceGrotesk_500Medium', lineHeight: 20 },

@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { DriverKYCStatus, DriverStatus, Prisma, type PrismaClient } from '@prisma/client';
+import { DriverKYCStatus, DriverStatus, VehicleVerificationStatus, Prisma, type PrismaClient } from '@prisma/client';
 
 import { env } from '../../config/env.js';
 import { addNotificationJob } from '../../queues/index.js';
@@ -40,6 +40,8 @@ type DriverRecord = {
     smileJobId: string | null;
     status: DriverKYCStatus;
     rejectionReason: string | null;
+    vehicleStatus: VehicleVerificationStatus;
+    vehicleRejectionReason: string | null;
     submittedAt: Date | null;
     reviewedAt: Date | null;
   } | null;
@@ -72,6 +74,8 @@ function serializeDriver(driver: DriverRecord): DriverProfileResponse {
     smileJobId: null,
     status: DriverKYCStatus.PENDING,
     rejectionReason: null,
+    vehicleStatus: VehicleVerificationStatus.PENDING,
+    vehicleRejectionReason: null,
     submittedAt: null,
     reviewedAt: null,
   };
@@ -85,6 +89,7 @@ function serializeDriver(driver: DriverRecord): DriverProfileResponse {
     avatarUrl: driver.user.avatarUrl,
     status: driver.status,
     kycStatus: kyc.status,
+    vehicleStatus: kyc.vehicleStatus ?? VehicleVerificationStatus.PENDING,
     rating: asNumber(driver.rating),
     totalDeliveries: driver.totalDeliveries,
     isOnline: driver.isOnline,
@@ -106,6 +111,8 @@ function serializeDriver(driver: DriverRecord): DriverProfileResponse {
       smileJobId: kyc.smileJobId,
       status: kyc.status,
       rejectionReason: kyc.rejectionReason,
+      vehicleStatus: kyc.vehicleStatus ?? VehicleVerificationStatus.PENDING,
+      vehicleRejectionReason: kyc.vehicleRejectionReason ?? null,
       submittedAt: formatDate(kyc.submittedAt),
       reviewedAt: formatDate(kyc.reviewedAt),
     },
@@ -250,6 +257,47 @@ export class DriverService {
       currentLng: updated.currentLng == null ? null : Number(updated.currentLng),
       lastLocationAt: formatDate(updated.lastLocationAt),
     };
+  }
+
+  async submitVehicleVerification(
+    driverId: string,
+    payload: {
+      vehicleType: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK';
+      vehiclePlate: string;
+      vehicleModel: string;
+      licenseImageUrl?: string;
+      selfieUrl?: string;
+      vehicleImageUrl?: string;
+    },
+  ) {
+    const driver = await this.prisma.driver.findUnique({ where: { id: driverId }, include: { kyc: true } });
+    if (!driver) throw new NotFoundError('Driver not found');
+
+    const kyc = await ensureDriverKyc(this.prisma, driverId);
+
+    await this.prisma.$transaction([
+      this.prisma.driver.update({
+        where: { id: driverId },
+        data: {
+          vehicleType: payload.vehicleType as any,
+          vehiclePlate: payload.vehiclePlate,
+          vehicleModel: payload.vehicleModel,
+        },
+      }),
+      this.prisma.driverKYC.update({
+        where: { id: kyc.id },
+        data: {
+          vehicleStatus: VehicleVerificationStatus.SUBMITTED,
+          vehicleRejectionReason: null,
+          vehicleSubmittedAt: new Date(),
+          ...(payload.licenseImageUrl ? { licenseImageUrl: payload.licenseImageUrl } : {}),
+          ...(payload.selfieUrl ? { selfieUrl: payload.selfieUrl } : {}),
+          ...(payload.vehicleImageUrl ? { vehicleImageUrl: payload.vehicleImageUrl } : {}),
+        },
+      }),
+    ]);
+
+    return this.getDriverProfile(driverId);
   }
 
   async updateLocation(driverId: string, lat: number, lng: number, heading = 0, speed = 0) {

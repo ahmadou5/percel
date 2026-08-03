@@ -49,6 +49,13 @@ enum DriverKYCStatus {
   REJECTED
 }
 
+enum VehicleVerificationStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 enum OrderStatus {
   CREATED
   PENDING_MATCH
@@ -219,9 +226,13 @@ model DriverKYC {
   selfieUrl       String?
   vehicleImageUrl String?
   smileJobId      String?
-  status          DriverKYCStatus @default(PENDING)
-  rejectionReason String?
-  submittedAt     DateTime?
+  status                 DriverKYCStatus           @default(PENDING)
+  rejectionReason        String?
+  vehicleStatus          VehicleVerificationStatus @default(PENDING)
+  vehicleRejectionReason String?
+  vehicleSubmittedAt     DateTime?
+  vehicleReviewedAt      DateTime?
+  submittedAt            DateTime?
   reviewedAt      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt

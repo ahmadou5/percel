@@ -27,6 +27,20 @@ const driverRoutes: FastifyPluginAsync = async (app) => {
     return success(await service.updateVehicleProfile(driverId, body), 'Vehicle profile updated');
   });
 
+  app.post('/driver/vehicle-verification', { preHandler: [app.authenticateDriver] }, async (request) => {
+    const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
+    const body = request.body as {
+      vehicleType: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK';
+      vehiclePlate: string;
+      vehicleModel: string;
+      licenseImageUrl?: string;
+      selfieUrl?: string;
+      vehicleImageUrl?: string;
+    };
+    const profile = await service.submitVehicleVerification(driverId, body);
+    return success(profile, 'Vehicle verification application submitted for admin review');
+  });
+
   app.patch('/driver/status', { preHandler: [app.authenticateDriver] }, async (request) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
     const body = request.body as { isOnline: boolean; lat?: number; lng?: number };

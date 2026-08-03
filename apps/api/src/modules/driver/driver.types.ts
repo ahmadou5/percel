@@ -1,4 +1,4 @@
-import type { DriverKYCStatus, DriverStatus, VehicleType } from '@prisma/client';
+import type { DriverKYCStatus, DriverStatus, VehicleType, VehicleVerificationStatus } from '@prisma/client';
 
 export type DriverKycDocumentType = 'license' | 'selfie' | 'vehicle';
 
@@ -11,6 +11,7 @@ export type DriverProfileResponse = {
   avatarUrl: string | null;
   status: DriverStatus;
   kycStatus: DriverKYCStatus;
+  vehicleStatus: VehicleVerificationStatus;
   rating: number;
   totalDeliveries: number;
   isOnline: boolean;
@@ -32,6 +33,8 @@ export type DriverProfileResponse = {
     smileJobId: string | null;
     status: DriverKYCStatus;
     rejectionReason: string | null;
+    vehicleStatus: VehicleVerificationStatus;
+    vehicleRejectionReason: string | null;
     submittedAt: string | null;
     reviewedAt: string | null;
   };

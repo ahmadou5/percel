@@ -134,13 +134,17 @@ export type WalletDetails = {
 export type DriverKycSummary = {
   id: string;
   ninNumber: string;
+  ninVerified?: boolean;
   bvnNumber: string;
+  bvnVerified?: boolean;
   licenseImageUrl: string | null;
   selfieUrl: string | null;
   vehicleImageUrl: string | null;
   smileJobId: string | null;
   status: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
   rejectionReason: string | null;
+  vehicleStatus?: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  vehicleRejectionReason?: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
 };
@@ -156,6 +160,7 @@ export type DriverProfile = {
   phoneVerified?: boolean;
   status: 'PENDING_KYC' | 'KYC_SUBMITTED' | 'ACTIVE' | 'SUSPENDED' | 'OFFLINE' | 'ONLINE';
   kycStatus: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  vehicleStatus?: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
   rating: number;
   totalDeliveries: number;
   isOnline: boolean;

@@ -156,29 +156,35 @@ export class PaymentProviderService {
   }
 
   async initiateBankTransfer(provider: PaymentProvider, data: { name: string; accountNumber: string; bankCode: string; amount: number; reference: string; reason?: string }) {
-    if (provider === PaymentProvider.PAYSTACK) {
-      const recipient = await createTransferRecipient({ name: data.name, accountNumber: data.accountNumber, bankCode: data.bankCode });
-      await initiateTransfer({ recipient: recipient.recipient_code, amount: data.amount, reference: data.reference, reason: data.reason });
-      return { recipientCode: recipient.recipient_code };
-    }
-    if (provider === PaymentProvider.MONNIFY) {
-      return initiateMonnifyTransfer({
+    try {
+      if (provider === PaymentProvider.PAYSTACK) {
+        const recipient = await createTransferRecipient({ name: data.name, accountNumber: data.accountNumber, bankCode: data.bankCode });
+        await initiateTransfer({ recipient: recipient.recipient_code, amount: data.amount, reference: data.reference, reason: data.reason });
+        return { recipientCode: recipient.recipient_code };
+      }
+      if (provider === PaymentProvider.MONNIFY) {
+        return await initiateMonnifyTransfer({
+          reference: data.reference,
+          amount: data.amount,
+          accountNumber: data.accountNumber,
+          bankCode: data.bankCode,
+          accountName: data.name,
+          reason: data.reason,
+        });
+      }
+      return await initiateSquadTransfer({
         reference: data.reference,
-        amount: data.amount,
+        amountKobo: Math.round(data.amount * 100),
         accountNumber: data.accountNumber,
         bankCode: data.bankCode,
         accountName: data.name,
         reason: data.reason,
       });
+    } catch (err: any) {
+      if (err instanceof PaymentError) throw err;
+      const msg = err?.message || 'Payment gateway unreachable';
+      throw new PaymentError(`Bank transfer failed: ${msg}`);
     }
-    return initiateSquadTransfer({
-      reference: data.reference,
-      amountKobo: Math.round(data.amount * 100),
-      accountNumber: data.accountNumber,
-      bankCode: data.bankCode,
-      accountName: data.name,
-      reason: data.reason,
-    });
   }
 
   async createVirtualAccount(provider: PaymentProvider, owner: VirtualAccountOwner): Promise<VirtualAccountResult> {

@@ -110,6 +110,11 @@ function mapDriver(driver: any) {
     name: driver.user?.fullName ?? 'Unknown driver',
     status: driver.status,
     kyc: driver.kyc?.status ?? 'PENDING',
+    vehicleStatus: driver.kyc?.vehicleStatus ?? 'PENDING',
+    vehicleRejectionReason: driver.kyc?.vehicleRejectionReason ?? undefined,
+    licenseImageUrl: driver.kyc?.licenseImageUrl ?? null,
+    selfieUrl: driver.kyc?.selfieUrl ?? null,
+    vehicleImageUrl: driver.kyc?.vehicleImageUrl ?? null,
     rating: Number(driver.rating ?? 0).toFixed(1),
     vehicle: vehicle(driver),
     email: driver.user?.email ?? 'Not available',
@@ -375,6 +380,96 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     });
 
     return success({ reactivated: true }, 'User reactivated successfully');
+  });
+
+  app.post('/admin/drivers/:id/vehicle-verification/approve', async (request) => {
+    const { id } = request.params as { id: string };
+    const driver = await app.prisma.driver.findUnique({ where: { id }, include: { kyc: true } });
+    if (!driver) throw new Error('Driver not found');
+
+    if (!driver.kyc) {
+      await app.prisma.driverKYC.create({
+        data: {
+          driverId: id,
+          ninNumber: '',
+          bvnNumber: '',
+          vehicleStatus: 'APPROVED',
+          vehicleReviewedAt: new Date(),
+        },
+      });
+    } else {
+      await app.prisma.driverKYC.update({
+        where: { id: driver.kyc.id },
+        data: {
+          vehicleStatus: 'APPROVED',
+          vehicleRejectionReason: null,
+          vehicleReviewedAt: new Date(),
+        },
+      });
+    }
+
+    // If identity KYC is also approved, activate driver
+    if (driver.kyc?.status === 'APPROVED' || driver.status === 'PENDING_KYC') {
+      await app.prisma.driver.update({
+        where: { id },
+        data: { status: 'ACTIVE' },
+      });
+    }
+
+    await app.prisma.notification.create({
+      data: {
+        userId: driver.userId,
+        type: NotificationType.SYSTEM,
+        title: 'Vehicle Verification Approved',
+        body: 'Your vehicle verification application has been approved by administration.',
+        data: { vehicleStatus: 'APPROVED' },
+      },
+    });
+
+    return success({ approved: true, driverId: id }, 'Vehicle verification approved');
+  });
+
+  app.post('/admin/drivers/:id/vehicle-verification/reject', async (request) => {
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body ?? {}) as { reason?: string };
+    const driver = await app.prisma.driver.findUnique({ where: { id }, include: { kyc: true } });
+    if (!driver) throw new Error('Driver not found');
+
+    const rejectionReason = reason || 'Vehicle documentation did not meet requirement standards.';
+
+    if (!driver.kyc) {
+      await app.prisma.driverKYC.create({
+        data: {
+          driverId: id,
+          ninNumber: '',
+          bvnNumber: '',
+          vehicleStatus: 'REJECTED',
+          vehicleRejectionReason: rejectionReason,
+          vehicleReviewedAt: new Date(),
+        },
+      });
+    } else {
+      await app.prisma.driverKYC.update({
+        where: { id: driver.kyc.id },
+        data: {
+          vehicleStatus: 'REJECTED',
+          vehicleRejectionReason: rejectionReason,
+          vehicleReviewedAt: new Date(),
+        },
+      });
+    }
+
+    await app.prisma.notification.create({
+      data: {
+        userId: driver.userId,
+        type: NotificationType.SYSTEM,
+        title: 'Vehicle Verification Declined',
+        body: `Your vehicle verification application was declined: ${rejectionReason}`,
+        data: { vehicleStatus: 'REJECTED', reason: rejectionReason },
+      },
+    });
+
+    return success({ rejected: true, driverId: id, reason: rejectionReason }, 'Vehicle verification rejected');
   });
 
   app.post('/admin/orders/:id/cancel', async (request) => {

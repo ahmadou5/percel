@@ -137,6 +137,51 @@ export function DriverDetailView({ initialDriver }: { initialDriver: AdminDriver
   const [customSuspendReason, setCustomSuspendReason] = useState('');
   const [suspending, setSuspending] = useState(false);
 
+  // Vehicle Verification State
+  const [vehicleStatus, setVehicleStatus] = useState<string>(
+    (driver as any).vehicleStatus || 'PENDING'
+  );
+  const [vehicleRejectionReason, setVehicleRejectionReason] = useState<string | undefined>(
+    (driver as any).vehicleRejectionReason
+  );
+  const [vehicleProcessing, setVehicleProcessing] = useState(false);
+
+  const handleApproveVehicle = async () => {
+    setVehicleProcessing(true);
+    try {
+      const res = await fetch(`/api/admin/drivers/${driver.id}/vehicle-verification/approve`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Failed to approve vehicle verification');
+      setVehicleStatus('APPROVED');
+      setVehicleRejectionReason(undefined);
+      showToast('Driver vehicle verification approved successfully!');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Approval failed', 'error');
+    } finally {
+      setVehicleProcessing(false);
+    }
+  };
+
+  const handleRejectVehicle = async (reason?: string) => {
+    setVehicleProcessing(true);
+    try {
+      const res = await fetch(`/api/admin/drivers/${driver.id}/vehicle-verification/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || 'Vehicle documentation did not meet requirements.' }),
+      });
+      if (!res.ok) throw new Error('Failed to reject vehicle verification');
+      setVehicleStatus('REJECTED');
+      setVehicleRejectionReason(reason || 'Vehicle documentation did not meet requirements.');
+      showToast('Driver vehicle verification rejected.', 'error');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Rejection failed', 'error');
+    } finally {
+      setVehicleProcessing(false);
+    }
+  };
+
   // Reviews Moderation State
   const [reviews, setReviews] = useState<DriverReview[]>(
     (driver.reviews || [
@@ -594,6 +639,87 @@ export function DriverDetailView({ initialDriver }: { initialDriver: AdminDriver
                 </div>
               );
             })}
+          </div>
+        </Card>
+
+        {/* 2. Vehicle Verification Admin Approval Card */}
+        <Card className="space-y-4 p-6 border-border/80 bg-card/90 backdrop-blur-md shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" /> Vehicle Verification (Admin Approval)
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Review submitted vehicle category, license plate, model & photos
+              </p>
+            </div>
+            <span
+              className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${
+                vehicleStatus === 'APPROVED'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : vehicleStatus === 'SUBMITTED'
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                  : vehicleStatus === 'REJECTED'
+                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                  : 'border-border bg-muted text-muted-foreground'
+              }`}
+            >
+              {vehicleStatus === 'APPROVED'
+                ? 'APPROVED'
+                : vehicleStatus === 'SUBMITTED'
+                ? 'SUBMITTED — REVIEW REQUIRED'
+                : vehicleStatus === 'REJECTED'
+                ? 'DECLINED'
+                : 'NOT SUBMITTED'}
+            </span>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-xl border border-border p-3.5 bg-muted/20">
+              <div>
+                <span className="text-muted-foreground block text-[11px]">Vehicle Category</span>
+                <span className="font-bold text-sm text-foreground">{driver.vehicle?.split('-')[0] || 'BIKE'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px]">License Plate</span>
+                <span className="font-bold text-sm text-foreground font-mono">{driver.vehicle?.split('-')[1] || 'Not provided'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px]">Vehicle Model</span>
+                <span className="font-bold text-sm text-foreground">{driver.vehicle?.split('-')[2] || 'Not provided'}</span>
+              </div>
+            </div>
+
+            {vehicleRejectionReason && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-300">
+                <span className="font-bold block">Rejection Reason:</span>
+                <p className="mt-0.5">{vehicleRejectionReason}</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+              <span className="text-muted-foreground text-xs">Admin Verification Action:</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  disabled={vehicleProcessing || vehicleStatus === 'APPROVED'}
+                  onClick={handleApproveVehicle}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Vehicle
+                </Button>
+                <Button
+                  disabled={vehicleProcessing || vehicleStatus === 'REJECTED'}
+                  onClick={() => {
+                    const reason = window.prompt('Enter reason for declining vehicle verification:');
+                    if (reason !== null) handleRejectVehicle(reason);
+                  }}
+                  variant="danger"
+                  className="font-bold text-xs"
+                >
+                  <XCircle className="h-4 w-4 mr-1" /> Reject Vehicle
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
 

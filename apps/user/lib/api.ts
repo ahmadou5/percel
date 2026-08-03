@@ -24,6 +24,12 @@ api.interceptors.response.use(
       if (serverMsg && typeof serverMsg === 'string') {
         error.message = serverMsg;
       }
+    } else if (!error.response) {
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        error.message = 'Connection timed out. Please try again.';
+      } else if (error.message?.includes('Network Error') || error.message?.includes('connection') || error.code === 'ERR_NETWORK') {
+        error.message = 'Unable to connect to Percel servers. Please check your network and try again.';
+      }
     }
 
     if (error.response?.status !== 401 || original?._retried) {
