@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { Sentry } from '@/lib/sentry';
+import { identifyDevice } from 'vexo-analytics';
 
 export type AuthUser = {
   id: string;
@@ -55,6 +56,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user, isAuthenticated: Boolean(user && get().tokens) });
     void persistUser(user);
     Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+    void identifyDevice(user ? user.id : null);
   },
   setTokens: async (tokens) => {
     if (tokens) {
@@ -98,6 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY), SecureStore.deleteItemAsync(USER_KEY)]);
     set({ user: null, tokens: null, isAuthenticated: false, isLoading: false, isUnlocked: false });
     Sentry.setUser(null);
+    void identifyDevice(null);
   },
 }));
 

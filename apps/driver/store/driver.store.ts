@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 
 import { Sentry } from '@/lib/sentry';
 import type { AuthSessionUser, AuthTokens, DriverOrder } from '@/lib/types';
+import { identifyDevice } from 'vexo-analytics';
 
 type DriverState = {
   user: AuthSessionUser | null;
@@ -132,6 +133,7 @@ async function setSession(session: { user: AuthSessionUser; tokens: AuthTokens; 
   };
   await persist();
   Sentry.setUser({ id: session.user.id, email: session.user.email });
+  void identifyDevice(session.user.id);
   emit();
 }
 
@@ -139,6 +141,7 @@ async function setUser(user: AuthSessionUser | null) {
   state = { ...state, user, isAuthenticated: Boolean(user && state.tokens) };
   await persist();
   Sentry.setUser(user ? { id: user.id, email: user.email } : null);
+  void identifyDevice(user ? user.id : null);
   emit();
 }
 
@@ -217,6 +220,7 @@ async function logout() {
     currentLocation: null,
   };
   Sentry.setUser(null);
+  void identifyDevice(null);
   emit();
 }
 

@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { Image, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
+import { vexo } from 'vexo-analytics';
 
 import { UserRuntime } from "@/components/UserRuntime";
 import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
@@ -29,6 +30,8 @@ try {
   // Safe fallback when running in web or dev mode without native CodePush binary
 }
 
+
+vexo('37952d92-e7de-4b19-ac09-ed62a5e1e8fb')
 // Show notifications as banners even when the app is in the foreground.
 // Without this handler, Expo silently discards foreground notifications.
 Notifications.setNotificationHandler({

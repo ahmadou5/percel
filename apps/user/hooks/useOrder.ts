@@ -4,6 +4,7 @@ import { http } from '@/lib/api';
 import { Sentry } from '@/lib/sentry';
 import type { Order, OrderDetailResponse, OrderDraft, OrderListResponse, OrderQuoteResponse, OrderRateResult, TrackingResponse } from '@/lib/order';
 import type { Hub } from '@/types/hubs';
+import { customEvent } from 'vexo-analytics';
 
 export function useActiveHubs() {
   return useQuery<Hub[]>({
@@ -91,7 +92,8 @@ export function useCreateOrder() {
       Sentry.addBreadcrumb({ category: 'order', message: 'order.created', level: 'info', data: { orderId: response.data.data.id } });
       return response.data.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      customEvent('order-created', { orderId: data.id, amount: data.price });
       await queryClient.invalidateQueries({ queryKey: ['orders'] });
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
     },

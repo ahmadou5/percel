@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
+import { vexo } from 'vexo-analytics';
 
 import { DriverRuntime } from '@/components/DriverRuntime';
 import { MaintenanceOverlay } from '@/components/MaintenanceOverlay';
@@ -28,6 +29,8 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
+vexo('1d748634-e842-4103-97e1-9ea3ef10abbb')
+
 
 const queryClient = new QueryClient();
 
@@ -43,7 +46,7 @@ function RootLayout() {
 
   const hydrate = useDriverStore((state) => state.hydrate);
   const isLoading = useDriverStore((state) => state.isLoading);
-  
+
   const hydratePreferences = usePreferencesStore((state) => state.hydrate);
   const preferencesLoading = usePreferencesStore((state) => state.isLoading);
   const activePresetId = usePreferencesStore((state) => state.activePresetId);

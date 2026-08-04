@@ -5,6 +5,7 @@ import { Sentry } from '@/lib/sentry';
 import { emitDriverEvent } from '@/lib/socket';
 import type { ApiResponse, DriverOrder } from '@/lib/types';
 import { useDriverStore } from '@/store/driver.store';
+import { customEvent } from 'vexo-analytics';
 
 export function useAvailableOrders() {
   const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
@@ -61,6 +62,7 @@ export function useAcceptOrder() {
       return response.data.data;
     },
     onSuccess: async (data) => {
+      customEvent('order-accepted', { orderId: data.order.id, amount: data.order.price });
       await setCurrentOrder(data.order);
       emitDriverEvent('order_status_update', { orderId: data.order.id, status: data.order.status });
       await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
@@ -104,6 +106,9 @@ export function useUpdateOrderStatus() {
       return response.data.data;
     },
     onSuccess: async (order) => {
+      if (order.status === 'DELIVERED') {
+        customEvent('order-delivered', { orderId: order.id });
+      }
       emitDriverEvent('order_status_update', { orderId: order.id, status: order.status });
       await setCurrentOrder(order.status === 'COMPLETED' ? null : order);
       await queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
