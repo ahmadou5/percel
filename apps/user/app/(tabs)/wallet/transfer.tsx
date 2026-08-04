@@ -1722,6 +1722,8 @@ export default function TransferScreen() {
                   }
                 }}
                 disabled={pinStatus === "loading"}
+                leftAction="bio"
+                onBiometricPress={handleOpenPinModal}
               />
 
               <Pressable

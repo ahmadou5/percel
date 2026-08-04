@@ -26,6 +26,7 @@ type PaymentPinModalProps = {
   onClose: () => void;
   canClose?: boolean;
   footerHint?: ReactNode;
+  onBiometricPress?: () => void;
 };
 
 export function PaymentPinModal({
@@ -45,6 +46,7 @@ export function PaymentPinModal({
   onClose,
   canClose = true,
   footerHint,
+  onBiometricPress,
 }: PaymentPinModalProps) {
   const palette = useAppPalette();
   const canSubmit = pin.length >= 4 && !loading;
@@ -124,6 +126,8 @@ export function PaymentPinModal({
             onDelete={handleDeletePress}
             onClear={handleClearPress}
             disabled={loading}
+            leftAction={onBiometricPress ? "bio" : "none"}
+            onBiometricPress={onBiometricPress}
           />
 
           {footerHint ? footerHint : null}

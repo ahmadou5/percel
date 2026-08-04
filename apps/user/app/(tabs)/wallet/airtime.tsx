@@ -514,6 +514,7 @@ export default function AirtimeScreen() {
       </Modal>
 
       <PaymentPinModal
+        onBiometricPress={openPaymentAuth}
         visible={pinModalOpen}
         title="Enter transfer PIN"
         subtitle={`You are about to send ${formatNaira(selectedAmount)}.`}

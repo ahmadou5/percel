@@ -286,6 +286,7 @@ export default function DriverDataScreen() {
       </ScrollView>
 
       <PaymentPinModal
+        onBiometricPress={handleInitiate}
         visible={pinModalVisible}
         onClose={() => setPinModalVisible(false)}
         onConfirm={handleConfirmPin}

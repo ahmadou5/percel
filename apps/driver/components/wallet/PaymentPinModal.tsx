@@ -1,144 +1,157 @@
-import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Lock, ShieldCheck, X } from 'lucide-react-native';
+import { ReactNode } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { SearchCheck } from 'lucide-react-native';
 
+import { CustomNumericKeypad } from '@/components/ui/CustomNumericKeypad';
+import { PinInput } from '@/components/ui/PinInput';
+import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useAppPalette } from '@/lib/theme';
+import { haptics } from '@/utils/haptics';
 
 type PaymentPinModalProps = {
   visible: boolean;
-  onClose: () => void;
-  onConfirm: (pin: string) => Promise<void> | void;
-  title?: string;
-  subtitle?: string;
+  title: string;
+  subtitle: string;
+  reviewLabel: string;
+  reviewTitle: string;
+  reviewMeta?: string;
+  reviewAmount: string;
+  pin: string;
+  onPinChange: (value: string) => void;
   loading?: boolean;
+  error?: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  canClose?: boolean;
+  footerHint?: ReactNode;
+  onBiometricPress?: () => void;
 };
 
 export function PaymentPinModal({
   visible,
-  onClose,
-  onConfirm,
-  title = 'Enter Transaction PIN',
-  subtitle = 'Enter your 4-digit security PIN to authorize this payment',
+  title,
+  subtitle,
+  reviewLabel,
+  reviewTitle,
+  reviewMeta,
+  reviewAmount,
+  pin,
+  onPinChange,
   loading = false,
+  error,
+  confirmLabel,
+  onConfirm,
+  onClose,
+  canClose = true,
+  footerHint,
+  onBiometricPress,
 }: PaymentPinModalProps) {
   const palette = useAppPalette();
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
+  const canSubmit = pin.length >= 4 && !loading;
 
-  const handleKeyPress = (num: string) => {
-    if (loading) return;
-    setError('');
-    if (pin.length < 4) {
-      const nextPin = pin + num;
-      setPin(nextPin);
-      if (nextPin.length === 4) {
-        handleSubmit(nextPin);
-      }
+  const handleDigitPress = (digit: string) => {
+    if (pin.length < 4 && !loading) {
+      onPinChange(pin + digit);
     }
   };
 
-  const handleDelete = () => {
-    if (loading) return;
-    setError('');
-    setPin((prev) => prev.slice(0, -1));
+  const handleDeletePress = () => {
+    if (pin.length > 0 && !loading) {
+      onPinChange(pin.slice(0, -1));
+    }
   };
 
-  const handleSubmit = async (enteredPin: string) => {
-    try {
-      await onConfirm(enteredPin);
-      setPin('');
-    } catch (err: any) {
-      setError(err?.message || 'Invalid PIN. Please try again.');
-      setPin('');
+  const handleClearPress = () => {
+    if (!loading) {
+      onPinChange('');
     }
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Pressable style={styles.closeBtn} onPress={onClose}>
-            <X color={palette.textSecondary} size={20} />
-          </Pressable>
-
-          <View style={styles.content}>
-            <View style={[styles.iconWrap, { backgroundColor: palette.primary + '18' }]}>
-              <Lock color={palette.primary} size={24} />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {
+      if (!canClose || loading) return;
+      onClose();
+    }}>
+      <View style={styles.backdrop}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => {
+            if (!canClose || loading) return;
+            onClose();
+          }}
+        />
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.header}>
+            <View>
+              <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
+              <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
             </View>
+            <Pressable
+              onPress={() => {
+                if (!canClose || loading) return;
+                onClose();
+              }}
+              style={[styles.closeButton, { backgroundColor: palette.bg }]}
+            >
+              <Text style={[styles.closeText, { color: palette.text }]}>Close</Text>
+            </Pressable>
+          </View>
 
-            <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
-            <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
-
-            {/* PIN Dots */}
-            <View style={styles.dotsRow}>
-              {[0, 1, 2, 3].map((i) => {
-                const filled = pin.length > i;
-                return (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      {
-                        borderColor: error
-                          ? palette.error
-                          : filled
-                          ? palette.primary
-                          : palette.border,
-                        backgroundColor: filled ? palette.primary : 'transparent',
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
-
-            {error ? <Text style={[styles.errorText, { color: palette.error }]}>{error}</Text> : null}
-
-            {/* Keypad */}
-            {loading ? (
-              <View style={styles.loadingWrap}>
-                <ActivityIndicator color={palette.primary} size="large" />
-                <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Processing transaction…</Text>
-              </View>
-            ) : (
-              <View style={styles.keypad}>
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'DEL'].map((k, idx) => {
-                  if (!k) return <View key={idx} style={styles.keyCell} />;
-                  return (
-                    <Pressable
-                      key={idx}
-                      style={({ pressed }) => [
-                        styles.keyCell,
-                        styles.keyBtn,
-                        { backgroundColor: palette.card },
-                        pressed && { opacity: 0.5 },
-                      ]}
-                      onPress={() => (k === 'DEL' ? handleDelete() : handleKeyPress(k))}
-                    >
-                      <Text style={[styles.keyText, { color: palette.text }]}>
-                        {k === 'DEL' ? '⌫' : k}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-
-            <View style={styles.securityBadge}>
-              <ShieldCheck color={palette.primary} size={14} />
-              <Text style={[styles.securityText, { color: palette.textSecondary }]}>256-bit Encrypted Security</Text>
+          <View style={[styles.reviewCard, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+            <Text style={[styles.reviewLabel, { color: palette.textSecondary }]}>{reviewLabel}</Text>
+            <Text style={[styles.reviewTitle, { color: palette.text }]}>{reviewTitle}</Text>
+            {reviewMeta ? <Text style={[styles.reviewMeta, { color: palette.textSecondary }]}>{reviewMeta}</Text> : null}
+            <View style={[styles.reviewAmountBox, { borderColor: palette.border }]}>
+              <Text style={[styles.reviewAmountLabel, { color: palette.textSecondary }]}>Amount</Text>
+              <Text style={[styles.reviewAmountValue, { color: palette.text }]}>{reviewAmount}</Text>
             </View>
           </View>
+
+          <PinInput
+            value={pin}
+            onChangeText={(value) => {
+              onPinChange(value.replace(/\s/g, ''));
+            }}
+            loading={loading}
+            error={error}
+            useCustomKeypad
+            autoFocus={false}
+          />
+
+          <CustomNumericKeypad
+            mode="pin"
+            onPressDigit={handleDigitPress}
+            onDelete={handleDeletePress}
+            onClear={handleClearPress}
+            disabled={loading}
+            leftAction={onBiometricPress ? "bio" : "none"}
+            onBiometricPress={onBiometricPress}
+          />
+
+          {footerHint ? footerHint : null}
+
+          <Pressable
+            onPress={() => {
+              void haptics.tap();
+              onConfirm();
+            }}
+            disabled={!canSubmit}
+            style={({ pressed }) => [
+              styles.confirmButton,
+              { backgroundColor: palette.primary, opacity: canSubmit ? (pressed ? 0.92 : 1) : 0.45 },
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator color={palette.card} />
+            ) : (
+              <>
+                <SearchCheck size={18} color={palette.card} />
+                <Text style={[styles.confirmText, { color: palette.card }]}>{confirmLabel}</Text>
+              </>
+            )}
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -146,104 +159,91 @@ export function PaymentPinModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
-  sheet: {
+  card: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xl,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    maxHeight: '90%',
   },
-  closeBtn: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xs,
-  },
-  content: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-  },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: 10,
   },
   title: {
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-    textAlign: 'center',
+    fontSize: Typography.lg,
+    fontFamily: Typography.family.bold,
   },
   subtitle: {
-    fontSize: Typography.xs,
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: Spacing.md,
+    marginTop: 2,
+    fontSize: Typography.sm,
   },
-  dotsRow: {
+  closeButton: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  closeText: {
+    fontSize: Typography.sm,
+    fontFamily: Typography.family.bold,
+  },
+  reviewCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  reviewLabel: {
+    fontSize: Typography.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontFamily: Typography.family.bold,
+  },
+  reviewTitle: {
+    fontSize: Typography.md,
+    fontFamily: Typography.family.bold,
+  },
+  reviewMeta: {
+    fontSize: Typography.xs,
+  },
+  reviewAmountBox: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 2,
+  },
+  reviewAmountLabel: {
+    fontSize: Typography.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontFamily: Typography.family.bold,
+  },
+  reviewAmountValue: {
+    fontSize: 28,
+    fontFamily: Typography.family.bold,
+    marginTop: 2,
+  },
+  confirmButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: Spacing.sm,
-  },
-  dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-  },
-  errorText: {
-    fontSize: Typography.xs,
-    marginBottom: Spacing.sm,
-    fontWeight: Typography.semibold,
-  },
-  loadingWrap: {
-    paddingVertical: Spacing.xl,
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  loadingText: {
-    fontSize: Typography.xs,
-  },
-  keypad: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 280,
-    justifyContent: 'center',
-    marginTop: Spacing.sm,
-  },
-  keyCell: {
-    width: 76,
-    height: 52,
-    margin: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 54,
     borderRadius: 16,
-  },
-  keyBtn: {
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  keyText: {
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-  },
-  securityBadge: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: Spacing.md,
+    justifyContent: 'center',
+    gap: 8,
   },
-  securityText: {
-    fontSize: 11,
+  confirmText: {
+    fontSize: Typography.md,
+    fontFamily: Typography.family.bold,
   },
 });

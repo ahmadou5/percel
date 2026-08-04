@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LocalAuthentication } from '@/lib/localAuthentication';
 import { router } from 'expo-router';
-import { Fingerprint, MoveLeft } from 'lucide-react-native';
 
 import { AuthBackdrop } from '@/components/auth/AuthBackdrop';
 import { useAppPalette } from '@/lib/theme';
@@ -12,9 +11,9 @@ import { useLogout } from '@/hooks/useAuth';
 import { useVerifyTransferPin, useWallet } from '@/hooks/useWallet';
 import { useAuthStore } from '@/store/auth.store';
 import { usePreferencesStore } from '@/store/preferences.store';
+import { CustomNumericKeypad } from '@/components/ui/CustomNumericKeypad';
 
 const PIN_LENGTH = 4;
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'bio', '0', 'back'] as const;
 
 export default function AuthLockScreen() {
   const palette = useAppPalette();
@@ -190,30 +189,15 @@ export default function AuthLockScreen() {
         </Animated.View>
         {error ? <Text style={[styles.error, { color: palette.error }]}>{error}</Text> : <Text style={[styles.helper, { color: palette.textSecondary }]}>{appLockEnabled ? 'Biometric unlock is available when your device supports it.' : 'You can turn app lock back on in security settings.'}</Text>}
 
-        <View style={styles.keypad}>
-          {KEYS.map((key) => {
-            if (key === 'bio') {
-              return (
-                <Pressable key={key} onPress={() => void triggerBiometric()} style={({ pressed }) => [styles.key, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.keyPressed : null]}>
-                  <Fingerprint size={26} color={palette.primary} />
-                </Pressable>
-              );
-            }
-
-            if (key === 'back') {
-              return (
-                <Pressable key={key} onPress={() => removeDigit()} style={({ pressed }) => [styles.key, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.keyPressed : null]}>
-                  <MoveLeft size={24} color={palette.text} />
-                </Pressable>
-              );
-            }
-
-            return (
-              <Pressable key={key} onPress={() => appendDigit(key)} style={({ pressed }) => [styles.key, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.keyPressed : null]}>
-                <Text style={[styles.keyText, { color: palette.text }]}>{key}</Text>
-              </Pressable>
-            );
-          })}
+        <View style={styles.keypadContainer}>
+          <CustomNumericKeypad
+            mode="pin"
+            onPressDigit={appendDigit}
+            onDelete={removeDigit}
+            leftAction="bio"
+            onBiometricPress={() => void triggerBiometric()}
+            disabled={verifyPin.isPending || success}
+          />
         </View>
 
         <Pressable onPress={() => router.push('/settings/reset-pin')}>
@@ -241,9 +225,6 @@ const styles = StyleSheet.create({
   dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5 },
   error: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'center', marginBottom: 2 },
   helper: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textAlign: 'center', marginBottom: 2 },
-  keypad: { width: '100%', maxWidth: 380, flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
-  key: { width: '31%', minHeight: 72, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  keyText: { fontSize: 24, lineHeight: 26, fontFamily: Typography.family.bold },
-  keyPressed: { transform: [{ scale: 0.88 }], opacity: 0.92 },
+  keypadContainer: { width: '100%', maxWidth: 380, marginTop: 10 },
   forgot: { marginTop: 4, fontSize: Typography.md, fontFamily: Typography.family.bold, textAlign: 'center' },
 });

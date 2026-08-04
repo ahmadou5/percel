@@ -465,6 +465,7 @@ export default function DriverTransferScreen() {
       />
 
       <PaymentPinModal
+        onBiometricPress={handleInitiate}
         visible={pinModalVisible}
         onClose={() => setPinModalVisible(false)}
         onConfirm={handleConfirmPin}

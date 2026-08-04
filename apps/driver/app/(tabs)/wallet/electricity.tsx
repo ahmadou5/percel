@@ -226,6 +226,7 @@ export default function DriverElectricityScreen() {
       </ScrollView>
 
       <PaymentPinModal
+        onBiometricPress={handleInitiate}
         visible={pinModalVisible}
         onClose={() => setPinModalVisible(false)}
         onConfirm={handleConfirmPin}

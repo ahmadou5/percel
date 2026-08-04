@@ -539,6 +539,7 @@ export default function DataScreen() {
       />
 
       <PaymentPinModal
+        onBiometricPress={openPaymentAuth}
         visible={pinModalOpen}
         title="Enter transfer PIN"
         subtitle={`You are about to buy ${formatNaira(selectedPrice)} of data.`}

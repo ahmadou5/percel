@@ -323,6 +323,7 @@ export default function DriverAirtimeScreen() {
       </ScrollView>
 
       <PaymentPinModal
+        onBiometricPress={handleInitiate}
         visible={pinModalVisible}
         onClose={() => setPinModalVisible(false)}
         onConfirm={handleConfirmPin}

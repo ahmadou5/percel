@@ -405,6 +405,7 @@ export default function ElectricityScreen() {
       />
 
       <PaymentPinModal
+        onBiometricPress={openPaymentAuth}
         visible={pinModalOpen}
         title="Enter transfer PIN"
         subtitle={`You are about to pay ${formatNaira(amountValue)} for electricity.`}

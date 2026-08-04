@@ -519,6 +519,7 @@ export default function TvScreen() {
       </Modal>
 
       <PaymentPinModal
+        onBiometricPress={openPaymentAuth}
         visible={pinModalOpen}
         title="Enter transfer PIN"
         subtitle={`You are about to renew ${formatNaira(selectedPrice)}.`}
