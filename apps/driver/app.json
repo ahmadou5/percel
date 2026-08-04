@@ -24,7 +24,6 @@
         "NSCameraUsageDescription": "Percel uses your camera to capture KYC documents and delivery verification photos.",
         "NSPhotoLibraryUsageDescription": "Percel uses your photo library when you choose existing KYC documents or delivery photos.",
         "UIBackgroundModes": [
-          "location",
           "location"
         ]
       }
@@ -45,13 +44,6 @@
         }
       },
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
@@ -176,15 +168,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "c8e8b69d-24b1-471c-bf1a-7f0a52fa045a"
+        "projectId": "63477541-d52e-4a62-b274-56828f8568af"
       }
     },
-    "owner": "ahmadousol",
+    "owner": "ahmadou5",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/c8e8b69d-24b1-471c-bf1a-7f0a52fa045a"
+      "url": "https://u.expo.dev/63477541-d52e-4a62-b274-56828f8568af"
     }
   }
 }

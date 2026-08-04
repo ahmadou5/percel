@@ -1120,8 +1120,8 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     return success(updated, 'Admin setting saved');
   });
 
-  // Admin Disputes & Support Desk Endpoints
-  app.get('/admin/disputes', async () => {
+  // Admin Support Desk Endpoints (Support Tickets)
+  app.get('/admin/support-tickets', async () => {
     const tickets = await app.prisma.supportTicket.findMany({
       include: {
         user: { select: { id: true, fullName: true, email: true, phone: true, role: true } },
@@ -1162,10 +1162,10 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       assignedTo: 'Admin Operator',
     }));
 
-    return success(formatted, 'Admin disputes retrieved');
+    return success(formatted, 'Admin support tickets retrieved');
   });
 
-  app.patch('/admin/disputes/:id', async (request) => {
+  app.patch('/admin/support-tickets/:id', async (request) => {
     const { id } = request.params as { id: string };
     const body = request.body as { status?: string; resolutionNote?: string };
 
@@ -1177,10 +1177,10 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       },
     });
 
-    return success(updated, 'Dispute updated successfully');
+    return success(updated, 'Support ticket updated successfully');
   });
 
-  app.post('/admin/disputes/:id/messages', async (request) => {
+  app.post('/admin/support-tickets/:id/messages', async (request) => {
     const { id } = request.params as { id: string };
     const body = request.body as { text: string; senderName?: string };
     if (!body.text) throw new Error('Message text is required');

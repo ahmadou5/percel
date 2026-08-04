@@ -152,15 +152,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6074075d-15bb-44aa-b777-6bef939bb79a"
+        "projectId": "30f2a6fc-c536-4065-9b28-3a9aba55f1f1"
       }
     },
-    "owner": "ahmadousol",
+    "owner": "ahmadou5",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/6074075d-15bb-44aa-b777-6bef939bb79a"
+      "url": "https://u.expo.dev/30f2a6fc-c536-4065-9b28-3a9aba55f1f1"
     }
   }
 }
