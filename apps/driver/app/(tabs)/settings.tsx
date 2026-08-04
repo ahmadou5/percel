@@ -1,7 +1,7 @@
 import { useState, type ComponentType } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { BadgeCheck, Bell, ChevronLeft, ChevronRight, CircleHelp, History, LogOut, Palette, Shield, User2 } from 'lucide-react-native';
+import { BadgeCheck, Bell, ChevronLeft, ChevronRight, CircleHelp, History, LogOut, Palette, Shield, User2, Car } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
@@ -17,6 +17,7 @@ const preferenceItems = [
 
 const accountItems = [
   { title: 'Profile', subtitle: 'Driver profile & details', href: '/profile/edit', Icon: User2 },
+  { title: 'Vehicle', subtitle: 'Vehicle info & verification', href: '/settings/vehicle', Icon: Car },
   { title: 'Transactions', subtitle: 'Ledger wallet & payout history', href: '/(tabs)/wallet/transactions', Icon: History },
 ] as const;
 

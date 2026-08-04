@@ -126,9 +126,9 @@ export default function ProfileScreen() {
                 >
                   <BadgeCheck size={20} color={palette.success} />
                   <View style={styles.kycVerifiedTextWrap}>
-                    <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity & Vehicle Verified</Text>
+                    <Text style={[styles.kycVerifiedTitle, { color: palette.text }]}>Identity Verified</Text>
                     <Text style={[styles.kycVerifiedSubtitle, { color: palette.textSecondary }]}>
-                      Your account is active and eligible for order dispatch.
+                      Your identity check is complete.
                     </Text>
                   </View>
                 </View>
@@ -145,34 +145,11 @@ export default function ProfileScreen() {
                 >
                   <Text style={[styles.kycTitle, { color: palette.text }]}>Complete KYC verification</Text>
                   <Text style={[styles.kycSubtitle, { color: palette.textSecondary }]}>
-                    Upload your ID, driver license, and vehicle details to go live.
+                    Verify your identity to go live.
                   </Text>
                 </Pressable>
               )}
             </View>
-
-            {/* Vehicle Profile Row */}
-            <Pressable
-              onPress={() => router.push('/vehicle-verification' as any)}
-              style={({ pressed }) => [
-                styles.vehicleCard,
-                { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border },
-                pressed ? styles.pressed : null,
-              ]}
-            >
-              <View style={[styles.vehicleIcon, { backgroundColor: palette.primary }]}>
-                <VehicleIcon type={profile?.vehicleType} color={palette.card} />
-              </View>
-              <View style={styles.vehicleCopy}>
-                <Text style={[styles.vehicleTitle, { color: palette.text }]}>
-                  {profile?.vehicleModel || 'Vehicle Details & Verification'}
-                </Text>
-                <Text style={[styles.vehicleSubtitle, { color: palette.textSecondary }]}>
-                  {profile?.vehicleType ? `${profile.vehicleType} • ${profile.vehiclePlate || 'Set plate number'}` : 'Manage & verify vehicle (Bike, Tricycle, Car)'}
-                </Text>
-              </View>
-              <ChevronRight size={18} color={palette.textSecondary} />
-            </Pressable>
 
             {/* Menu Links */}
             <Pressable
@@ -283,11 +260,6 @@ const styles = StyleSheet.create({
   kycVerifiedTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   kycVerifiedSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
 
-  vehicleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 22, padding: Spacing.md, borderWidth: 1 },
-  vehicleIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  vehicleCopy: { flex: 1, gap: 2 },
-  vehicleTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  vehicleSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
 
   settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md, width: '100%' },
   settingsIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
