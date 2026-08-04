@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { SearchCheck } from 'lucide-react-native';
 
+import { CustomNumericKeypad } from '@/components/ui/CustomNumericKeypad';
 import { PinInput } from '@/components/ui/PinInput';
 import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
@@ -47,6 +48,24 @@ export function PaymentPinModal({
 }: PaymentPinModalProps) {
   const palette = useAppPalette();
   const canSubmit = pin.length >= 4 && !loading;
+
+  const handleDigitPress = (digit: string) => {
+    if (pin.length < 4 && !loading) {
+      onPinChange(pin + digit);
+    }
+  };
+
+  const handleDeletePress = () => {
+    if (pin.length > 0 && !loading) {
+      onPinChange(pin.slice(0, -1));
+    }
+  };
+
+  const handleClearPress = () => {
+    if (!loading) {
+      onPinChange('');
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {
@@ -95,6 +114,16 @@ export function PaymentPinModal({
             }}
             loading={loading}
             error={error}
+            useCustomKeypad
+            autoFocus={false}
+          />
+
+          <CustomNumericKeypad
+            mode="pin"
+            onPressDigit={handleDigitPress}
+            onDelete={handleDeletePress}
+            onClear={handleClearPress}
+            disabled={loading}
           />
 
           {footerHint ? footerHint : null}

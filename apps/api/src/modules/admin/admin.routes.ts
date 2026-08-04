@@ -1119,6 +1119,89 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
     return success(updated, 'Admin setting saved');
   });
+
+  // Admin Disputes & Support Desk Endpoints
+  app.get('/admin/disputes', async () => {
+    const tickets = await app.prisma.supportTicket.findMany({
+      include: {
+        user: { select: { id: true, fullName: true, email: true, phone: true, role: true } },
+        order: { select: { id: true, trackingCode: true, price: true, status: true } },
+        messages: { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const formatted = tickets.map((t) => ({
+      id: t.id,
+      orderId: t.orderId ?? '',
+      trackingCode: t.order?.trackingCode ?? t.ticketNumber,
+      orderValue: t.order ? `₦${Number(t.order.price).toLocaleString()}` : 'N/A',
+      rawOrderValue: t.order ? Number(t.order.price) : 0,
+      customerName: t.user.fullName,
+      customerId: t.user.id,
+      customerPhone: t.user.phone ?? '',
+      driverName: 'Assigned Courier',
+      driverId: null,
+      driverPhone: '',
+      reason: t.description,
+      subject: t.subject,
+      category: t.category === 'WRONG_CHARGE' ? 'Payment Issue' : t.category === 'LATE_DELIVERY' ? 'Late Delivery' : t.category === 'DAMAGED_PACKAGE' ? 'Damaged Package' : t.category === 'DRIVER_CONDUCT' ? 'Driver Conduct' : 'Payment Issue',
+      status: t.status === 'OPEN' ? 'UNDER_REVIEW' : t.status === 'UNDER_REVIEW' ? 'UNDER_REVIEW' : 'RESOLVED',
+      openedAt: t.createdAt.toISOString(),
+      openedMinutesAgo: Math.round((Date.now() - t.createdAt.getTime()) / 60000),
+      chatMessages: t.messages.map((m) => ({
+        sender: m.senderName,
+        senderId: m.senderId,
+        role: m.senderRole,
+        text: m.text,
+        at: m.createdAt.toISOString(),
+      })),
+      evidence: [],
+      customerPriorDisputes: 0,
+      driverPriorDisputes: 0,
+      assignedTo: 'Admin Operator',
+    }));
+
+    return success(formatted, 'Admin disputes retrieved');
+  });
+
+  app.patch('/admin/disputes/:id', async (request) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { status?: string; resolutionNote?: string };
+
+    const updated = await app.prisma.supportTicket.update({
+      where: { id },
+      data: {
+        ...(body.status ? { status: body.status as any } : {}),
+        ...(body.resolutionNote ? { resolutionNote: body.resolutionNote } : {}),
+      },
+    });
+
+    return success(updated, 'Dispute updated successfully');
+  });
+
+  app.post('/admin/disputes/:id/messages', async (request) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { text: string; senderName?: string };
+    if (!body.text) throw new Error('Message text is required');
+
+    const created = await app.prisma.supportMessage.create({
+      data: {
+        ticketId: id,
+        senderId: 'admin-system',
+        senderName: body.senderName ?? 'Support Team',
+        senderRole: 'ADMIN',
+        text: body.text,
+      },
+    });
+
+    await app.prisma.supportTicket.update({
+      where: { id },
+      data: { updatedAt: new Date(), status: 'UNDER_REVIEW' },
+    });
+
+    return success(created, 'Admin message posted');
+  });
 };
 
 export default adminRoutes;

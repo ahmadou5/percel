@@ -1,7 +1,7 @@
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Radio, Search, ShieldCheck, Tv2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useBeneficiaryStore } from '@/store/beneficiary.store';
 import { haptics } from '@/utils/haptics';
@@ -210,8 +210,11 @@ export default function TvScreen() {
   const displayService = selectedService ? providerLabelFromService(selectedService.serviceID, selectedService.name) : 'Choose a provider';
 
   return (
-    <>
-      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
             <ArrowLeft size={18} color={palette.text} />
@@ -595,7 +598,7 @@ export default function TvScreen() {
         </View>
       </Modal>
       <AppModal config={modal.config} onClose={modal.hide} />
-    </>
+    </KeyboardAvoidingView>
   );
 }
 

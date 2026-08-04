@@ -153,7 +153,7 @@ export default function ProfileScreen() {
 
             {/* Vehicle Profile Row */}
             <Pressable
-              onPress={() => router.push('/profile/edit')}
+              onPress={() => router.push('/vehicle-verification' as any)}
               style={({ pressed }) => [
                 styles.vehicleCard,
                 { backgroundColor: lightBg ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.14)', borderColor: palette.border },
@@ -165,10 +165,10 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.vehicleCopy}>
                 <Text style={[styles.vehicleTitle, { color: palette.text }]}>
-                  {profile?.vehicleModel || 'Vehicle Details'}
+                  {profile?.vehicleModel || 'Vehicle Details & Verification'}
                 </Text>
                 <Text style={[styles.vehicleSubtitle, { color: palette.textSecondary }]}>
-                  {profile?.vehicleType ? `${profile.vehicleType} • ${profile.vehiclePlate || 'Set plate number'}` : 'Manage vehicle information'}
+                  {profile?.vehicleType ? `${profile.vehicleType} • ${profile.vehiclePlate || 'Set plate number'}` : 'Manage & verify vehicle (Bike, Tricycle, Car)'}
                 </Text>
               </View>
               <ChevronRight size={18} color={palette.textSecondary} />
@@ -199,6 +199,20 @@ export default function ProfileScreen() {
               <View style={styles.settingsCopy}>
                 <Text style={[styles.settingsTitle, { color: palette.text }]}>Security</Text>
                 <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Password, PIN & biometrics</Text>
+              </View>
+              <ChevronRight size={18} color={palette.textSecondary} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/support' as any)}
+              style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}
+            >
+              <View style={[styles.settingsIcon, { backgroundColor: palette.primary }]}>
+                <ShieldCheck size={16} color="#FFF" />
+              </View>
+              <View style={styles.settingsCopy}>
+                <Text style={[styles.settingsTitle, { color: palette.text }]}>Driver Help & Disputes</Text>
+                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Earnings issues, trip disputes, or complaints</Text>
               </View>
               <ChevronRight size={18} color={palette.textSecondary} />
             </Pressable>

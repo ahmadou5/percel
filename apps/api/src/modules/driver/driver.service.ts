@@ -7,6 +7,7 @@ import { uploadImageBuffer } from '../../lib/cloudinary.js';
 import { verifyBVN, verifyNIN } from '../../lib/smileIdentity.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import type { DriverKycDocumentType, DriverProfileResponse, VerifyResponse } from './driver.types.js';
+import { PaymentProviderService } from '../payment/payment.service.js';
 
 type DriverRecord = {
   id: string;
@@ -375,10 +376,10 @@ export class DriverService {
     }
   }
 
-  async submitKYCBVN(driverId: string, bvn: string): Promise<VerifyResponse & { message?: string }> {
+  async submitKYCBVN(driverId: string, bvn: string): Promise<VerifyResponse & { message?: string; virtualAccount?: { accountNumber: string; bankName: string; accountName: string } }> {
     const driver = await this.prisma.driver.findUnique({
       where: { id: driverId },
-      include: { user: true },
+      include: { user: { include: { wallet: true } } },
     });
 
     if (!driver) throw new NotFoundError('Driver not found');
@@ -405,6 +406,8 @@ export class DriverService {
         },
       });
 
+      let virtualAccDetails: { accountNumber: string; bankName: string; accountName: string } | undefined;
+
       if (result.verified) {
         await this.prisma.user.update({
           where: { id: driver.userId },
@@ -416,9 +419,52 @@ export class DriverService {
             address: driver.user.address ?? (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria'),
           },
         });
+
+        // Provision Virtual Account NUBAN for Driver Wallet if not already set
+        const wallet = driver.user.wallet;
+        if (wallet && (!wallet.nuban || !wallet.bankName)) {
+          const providers = new PaymentProviderService(this.prisma);
+          try {
+            const provider = await providers.getActiveProvider();
+            const account = await providers.createVirtualAccountWithFallback(provider, {
+              id: driver.userId,
+              email: driver.user.email,
+              fullName: driver.user.fullName,
+              phone: driver.user.phone,
+              bvn: bvn,
+            });
+
+            await this.prisma.wallet.update({
+              where: { id: wallet.id },
+              data: {
+                nuban: account.accountNumber,
+                bankName: account.bankName,
+                bankCode: account.bankCode ?? null,
+                paymentProvider: account.provider,
+              },
+            });
+
+            virtualAccDetails = {
+              accountNumber: account.accountNumber,
+              bankName: account.bankName,
+              accountName: account.accountName || driver.user.fullName,
+            };
+          } catch (err) {
+            this.logger.error({ err, driverId }, 'Failed to create dedicated virtual account for driver during BVN verification');
+          }
+        } else if (wallet?.nuban && wallet?.bankName) {
+          virtualAccDetails = {
+            accountNumber: wallet.nuban,
+            bankName: wallet.bankName,
+            accountName: driver.user.fullName,
+          };
+        }
       }
 
-      return result;
+      return {
+        ...result,
+        virtualAccount: virtualAccDetails,
+      };
     } catch {
       return {
         verified: false,

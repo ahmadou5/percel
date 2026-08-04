@@ -176,6 +176,7 @@ model User {
   sentReferrals     Referral[] @relation("ReferralInviter")
   receivedReferral  Referral?  @relation("ReferralInvitee")
   savedAddresses    SavedAddress[]
+  supportTickets    SupportTicket[]
 }
 
 model AppConfig {
@@ -297,6 +298,7 @@ model Order {
   transactions  WalletTransaction[]
   earnings      DriverEarning[]
   chatMessages  OrderChatMessage[]
+  supportTickets SupportTicket[]
 
   @@index([userId])
   @@index([driverId])
@@ -555,6 +557,73 @@ model SavedAddress {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+enum TicketCategory {
+  WRONG_CHARGE
+  FAILED_ORDER
+  LATE_DELIVERY
+  DAMAGED_PACKAGE
+  DRIVER_CONDUCT
+  PAYMENT_ISSUE
+  ACCOUNT_ISSUE
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  ticketNumber    String         @unique
+  userId          String         @db.Uuid
+  userRole        String         @default("USER") // 'USER' or 'DRIVER'
+  orderId         String?        @db.Uuid
+  category        TicketCategory @default(OTHER)
+  subject         String
+  description     String
+  status          TicketStatus   @default(OPEN)
+  priority        TicketPriority @default(MEDIUM)
+  refundRequested Boolean        @default(false)
+  refundAmount    Decimal?       @db.Decimal(14, 2)
+  resolutionNote  String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id])
+  order    Order?           @relation(fields: [orderId], references: [id])
+  messages SupportMessage[]
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([ticketNumber])
+}
+
+model SupportMessage {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  ticketId   String   @db.Uuid
+  senderId   String   @db.Uuid
+  senderName String
+  senderRole String   // 'USER' | 'DRIVER' | 'ADMIN'
+  text       String
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([createdAt])
 }
 
 

@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowUpRight, Banknote, CheckCircle2, ChevronDown, ChevronRight, ContactRound, Search, ShieldCheck, Smartphone } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useBeneficiaryStore } from '@/store/beneficiary.store';
 import { haptics } from '@/utils/haptics';
@@ -238,8 +238,12 @@ export default function AirtimeScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
             <ArrowLeft size={18} color={palette.text} />
@@ -554,6 +558,7 @@ export default function AirtimeScreen() {
         onSelect={handleContactSelect}
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

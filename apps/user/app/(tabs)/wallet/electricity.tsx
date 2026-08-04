@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowUpRight, CheckCircle2, ChevronDown, ChevronRight, Search, ShieldCheck, Smartphone, Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Input } from '@/components/ui/Input';
 import { StateCard } from '@/components/ui/StateCard';
@@ -191,8 +191,11 @@ export default function ElectricityScreen() {
     setPinModalOpen(true);
   };
   return (
-    <>
-      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <Pressable style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={headerBack}>
             <ArrowLeft size={18} color={palette.text} />
@@ -477,7 +480,7 @@ export default function ElectricityScreen() {
           </View>
         </View>
       </Modal>
-    </>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -13,6 +13,7 @@ interface PinInputProps {
   loading?: boolean;
   error?: string;
   autoFocus?: boolean;
+  useCustomKeypad?: boolean;
 }
 
 export function PinInput({
@@ -23,6 +24,7 @@ export function PinInput({
   loading = false,
   error,
   autoFocus = true,
+  useCustomKeypad = false,
 }: PinInputProps) {
   const palette = useAppPalette();
 
@@ -36,18 +38,18 @@ export function PinInput({
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (autoFocus && refs.current[0]) {
+    if (!useCustomKeypad && autoFocus && refs.current[0]) {
       refs.current[0].focus();
     }
-  }, [autoFocus]);
+  }, [autoFocus, useCustomKeypad]);
 
   // Keep focus in sync when loading becomes false
   useEffect(() => {
-    if (!loading && value.length < length) {
+    if (!useCustomKeypad && !loading && value.length < length) {
       const nextIndex = value.length;
       refs.current[nextIndex]?.focus();
     }
-  }, [loading, value.length, length]);
+  }, [loading, value.length, length, useCustomKeypad]);
 
   const handleChangeText = (text: string, index: number) => {
     const cleaned = text.replace(/[^0-9]/g, '');

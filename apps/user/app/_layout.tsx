@@ -13,6 +13,7 @@ import "react-native-reanimated";
 
 import { UserRuntime } from "@/components/UserRuntime";
 import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
+import { NetworkBanner } from "@/components/ui/NetworkBanner";
 import { useAppPalette, buildNavigationTheme, isLight } from "@/lib/theme";
 import { StatusBar } from "expo-status-bar";
 import { initSentry } from "@/lib/sentry";
@@ -118,6 +119,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={buildNavigationTheme(palette)}>
+      <NetworkBanner />
       <MaintenanceOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />

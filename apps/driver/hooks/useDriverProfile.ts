@@ -164,3 +164,52 @@ export function useConfirmPhoneVerification() {
     },
   });
 }
+
+export function useVerifyDriverBvn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      bvn: string;
+      accountNumber?: string;
+      bankCode?: string;
+      firstName?: string;
+      lastName?: string;
+    }) => {
+      Sentry.addBreadcrumb({ category: 'kyc', message: 'driver.bvn_verify_requested', level: 'info' });
+      const response = await http.post<ApiResponse<{
+        verified: boolean;
+        message?: string;
+        virtualAccount?: { accountNumber: string; bankName: string; accountName: string };
+      }>>('/api/v1/driver/kyc/verify-bvn', payload);
+      return response.data.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    },
+  });
+}
+
+export function useSubmitVehicleVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      vehicleType: 'BIKE' | 'TRICYCLE' | 'CAR';
+      vehiclePlate: string;
+      vehicleModel: string;
+      licenseImageUrl?: string;
+      selfieUrl?: string;
+      vehicleImageUrl?: string;
+    }) => {
+      Sentry.addBreadcrumb({ category: 'kyc', message: 'driver.vehicle_verification_submitted', level: 'info' });
+      const response = await http.post<ApiResponse<DriverProfile>>('/api/v1/driver/vehicle-verification', payload);
+      return response.data.data;
+    },
+    onSuccess: async (data) => {
+      queryClient.setQueryData(['driver-profile'], data);
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
+    },
+  });
+}

@@ -17,7 +17,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +31,7 @@ import {
 import { useSafeBack } from "@/components/navigation/useSafeBack";
 import { TransactionResultModal } from "@/components/TransactionResultModal";
 import { AppModal, useAppModal } from "@/components/ui/AppModal";
+import { CustomNumericKeypad } from "@/components/ui/CustomNumericKeypad";
 import { Input } from "@/components/ui/Input";
 import { PinInput } from "@/components/ui/PinInput";
 import { StateCard } from "@/components/ui/StateCard";
@@ -607,11 +610,16 @@ export default function TransferScreen() {
       : accountDigits || "Account pending";
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.headerRow}>
           <Pressable
             onPress={headerBack}
@@ -1682,6 +1690,38 @@ export default function TransferScreen() {
                 }}
                 loading={pinStatus === "loading"}
                 error={pinError || undefined}
+                useCustomKeypad
+                autoFocus={false}
+              />
+
+              <CustomNumericKeypad
+                mode="pin"
+                onPressDigit={(digit) => {
+                  if (pin.length < 4 && pinStatus !== "loading") {
+                    const nextPin = pin + digit;
+                    setPin(nextPin);
+                    if (pinStatus !== "idle") setPinStatus("idle");
+                    if (pinError) setPinError("");
+                    if (nextPin.length === 4) {
+                      void handleSubmitTransfer(nextPin);
+                    }
+                  }
+                }}
+                onDelete={() => {
+                  if (pin.length > 0 && pinStatus !== "loading") {
+                    setPin(pin.slice(0, -1));
+                    if (pinStatus !== "idle") setPinStatus("idle");
+                    if (pinError) setPinError("");
+                  }
+                }}
+                onClear={() => {
+                  if (pinStatus !== "loading") {
+                    setPin("");
+                    if (pinStatus !== "idle") setPinStatus("idle");
+                    if (pinError) setPinError("");
+                  }
+                }}
+                disabled={pinStatus === "loading"}
               />
 
               <Pressable
@@ -1984,6 +2024,7 @@ export default function TransferScreen() {
         <AppModal config={modal.config} onClose={modal.hide} />
       </ScrollView>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

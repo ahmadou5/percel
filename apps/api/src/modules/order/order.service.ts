@@ -340,28 +340,44 @@ export class OrderService {
           include: { originHub: true, destinationHub: true },
         })
       : null;
-    const routeContext = !dbRouteContext ? resolveHubRouteContext(data.originHubId, data.destinationHubId, data.routeId) : null;
-    const effectiveRouteContext = dbRouteContext
+
+    let originHubObj = dbRouteContext?.originHub ?? null;
+    let destHubObj = dbRouteContext?.destinationHub ?? null;
+
+    if (!dbRouteContext && data.originHubId && data.destinationHubId) {
+      const [oHub, dHub] = await Promise.all([
+        this.prisma.hub.findUnique({ where: { id: data.originHubId } }),
+        this.prisma.hub.findUnique({ where: { id: data.destinationHubId } }),
+      ]);
+      if (oHub && dHub) {
+        originHubObj = oHub;
+        destHubObj = dHub;
+      }
+    }
+
+    const routeContext = !dbRouteContext && !originHubObj ? resolveHubRouteContext(data.originHubId, data.destinationHubId, data.routeId) : null;
+
+    const effectiveRouteContext = originHubObj && destHubObj
       ? {
           originHub: {
-            ...dbRouteContext.originHub,
-            lat: Number(dbRouteContext.originHub.lat),
-            lng: Number(dbRouteContext.originHub.lng),
-            createdAt: dbRouteContext.originHub.createdAt.toISOString(),
-            type: dbRouteContext.originHub.type as HubType,
-            contactPhone: dbRouteContext.originHub.contactPhone ?? undefined,
+            ...originHubObj,
+            lat: Number(originHubObj.lat),
+            lng: Number(originHubObj.lng),
+            createdAt: originHubObj.createdAt instanceof Date ? originHubObj.createdAt.toISOString() : String(originHubObj.createdAt),
+            type: originHubObj.type as HubType,
+            contactPhone: originHubObj.contactPhone ?? undefined,
           },
           destinationHub: {
-            ...dbRouteContext.destinationHub,
-            lat: Number(dbRouteContext.destinationHub.lat),
-            lng: Number(dbRouteContext.destinationHub.lng),
-            createdAt: dbRouteContext.destinationHub.createdAt.toISOString(),
-            type: dbRouteContext.destinationHub.type as HubType,
-            contactPhone: dbRouteContext.destinationHub.contactPhone ?? undefined,
+            ...destHubObj,
+            lat: Number(destHubObj.lat),
+            lng: Number(destHubObj.lng),
+            createdAt: destHubObj.createdAt instanceof Date ? destHubObj.createdAt.toISOString() : String(destHubObj.createdAt),
+            type: destHubObj.type as HubType,
+            contactPhone: destHubObj.contactPhone ?? undefined,
           },
           route: dbRouteContext,
-          distanceKm: haversineDistanceKm(Number(dbRouteContext.originHub.lat), Number(dbRouteContext.originHub.lng), Number(dbRouteContext.destinationHub.lat), Number(dbRouteContext.destinationHub.lng)),
-          durationMin: Math.max(Number(dbRouteContext.estimatedDays) * 12 * 60, 60),
+          distanceKm: haversineDistanceKm(Number(originHubObj.lat), Number(originHubObj.lng), Number(destHubObj.lat), Number(destHubObj.lng)),
+          durationMin: Math.max((dbRouteContext?.estimatedDays ?? Math.max(1, Math.ceil(haversineDistanceKm(Number(originHubObj.lat), Number(originHubObj.lng), Number(destHubObj.lat), Number(destHubObj.lng)) / 400))) * 12 * 60, 60),
         }
       : routeContext;
     const pickupContactName = cleanText(data.contactName);

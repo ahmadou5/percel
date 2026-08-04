@@ -226,12 +226,12 @@ export default function OrderDetailScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* ── Active Orders Switcher Carousel ── */}
+        {/* ── Active Orders Switcher Carousel ── 
         <ActiveOrdersCarousel
           orders={activeOrders}
           selectedOrderId={order.id}
           onSelectOrder={(selectedId) => router.replace({ pathname: '/(tabs)/orders/[id]', params: { id: selectedId } })}
-        />
+        /> */}
 
         {/* ── Map Header ── */}
         <View style={styles.mapContainer}>

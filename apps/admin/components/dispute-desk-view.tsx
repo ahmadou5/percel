@@ -267,8 +267,18 @@ export function DisputeDeskView({
   const handleRefundConfirm = async () => {
     if (!refundModal) return;
     setRefunding(true);
-    await new Promise((r) => setTimeout(r, 900));
     const amt = refundAmount || refundModal.orderValue;
+
+    try {
+      await fetch(`/api/v1/admin/disputes/${refundModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'RESOLVED', resolutionNote: `Refund of ${amt}: ${refundNote || 'Customer refund'}` }),
+      });
+    } catch {
+      // Fallback
+    }
+
     addAuditLog(
       'Dispute Refund Issued',
       `${refundModal.customerName} — ${refundModal.trackingCode}`,
@@ -301,8 +311,18 @@ export function DisputeDeskView({
   const handleResolveConfirm = async () => {
     if (!resolveModal) return;
     setResolving(true);
-    await new Promise((r) => setTimeout(r, 700));
     const reason = resolveReason === 'Other' ? resolveReasonCustom || 'Other' : resolveReason;
+
+    try {
+      await fetch(`/api/v1/admin/disputes/${resolveModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'RESOLVED', resolutionNote: reason }),
+      });
+    } catch {
+      // Fallback
+    }
+
     addAuditLog('Dispute Resolved (No Refund)', `${resolveModal.trackingCode}`, reason);
     setResolvedHistory((prev) => [
       {
