@@ -22,7 +22,7 @@ const accountItems = [
 ] as const;
 
 const activityItems = [
-  { title: 'Notification Preferences', subtitle: 'Manage delivery and account alerts', href: '/(tabs)/notifications', Icon: Bell },
+  { title: 'Notification Preferences', subtitle: 'Manage delivery and account alerts', href: '/settings/notifications', Icon: Bell },
 ] as const;
 
 const securityItems = [

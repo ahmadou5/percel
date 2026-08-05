@@ -20,8 +20,8 @@ async function registerPushToken() {
   }
 }
 
-export default function DriverNotificationsSettingsScreen() {
-  const back = useSafeBack('/(tabs)/settings');
+export default function NotificationsSettingsScreen() {
+  const back = useSafeBack('/settings');
   const palette = useAppPalette();
   const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
   const setNotificationsEnabled = usePreferencesStore((state) => state.setNotificationsEnabled);
@@ -73,7 +73,7 @@ export default function DriverNotificationsSettingsScreen() {
       await registerPushToken();
       modal.show({
         title: 'Notifications enabled',
-        description: 'You will receive delivery offers, chat updates, and payment alerts.',
+        description: 'You will receive delivery updates and payment alerts.',
         type: 'success',
         primaryText: 'Great',
         onPrimaryPress: modal.hide,
@@ -112,8 +112,8 @@ export default function DriverNotificationsSettingsScreen() {
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Percel Driver Test',
-          body: 'Delivery requests and chat updates are active.',
+          title: 'Test notification',
+          body: 'Delivery updates and payment alerts are active.',
         },
         trigger: null,
       });
@@ -132,69 +132,70 @@ export default function DriverNotificationsSettingsScreen() {
 
   return (
     <>
-    <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <ChevronLeft size={18} color={palette.text} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Notifications</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScrollView style={[styles.screen, { backgroundColor: palette.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <ChevronLeft size={18} color={palette.text} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: palette.text }]}>Notifications</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      <View style={[styles.heroCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Alerts</Text>
-        <Text style={[styles.heroTitle, { color: palette.text }]}>Choose when the app should ping you about important delivery activity.</Text>
-      </View>
+        <View style={[styles.heroCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Text style={[styles.heroLabel, { color: palette.textSecondary }]}>Alerts</Text>
+          <Text style={[styles.heroTitle, { color: palette.text }]}>Choose when the app should ping you about important activity.</Text>
+        </View>
 
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <View style={styles.rowTop}>
-          <View style={[styles.iconWrap, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.10)' }]}>
-            <Bell size={22} color={enabled ? palette.primary : palette.textSecondary} />
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <View style={styles.rowTop}>
+            <View style={[styles.iconWrap, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.10)' }]}>
+              <Bell size={22} color={enabled ? palette.primary : palette.textSecondary} />
+            </View>
+            <View style={[styles.badge, { backgroundColor: enabled ? 'rgba(20,184,166,0.14)' : 'rgba(148,163,184,0.16)' }]}>
+              <View style={[styles.badgeDot, { backgroundColor: enabled ? '#14B8A6' : palette.textSecondary }]} />
+              <Text style={[styles.badgeText, { color: enabled ? '#14B8A6' : palette.textSecondary }]}>{enabled ? 'Enabled' : 'Disabled'}</Text>
+            </View>
           </View>
-          <View style={[styles.badge, { backgroundColor: enabled ? 'rgba(48,209,88,0.14)' : 'rgba(148,163,184,0.16)' }]}>
-            <View style={[styles.badgeDot, { backgroundColor: enabled ? palette.success : palette.textSecondary }]} />
-            <Text style={[styles.badgeText, { color: enabled ? palette.success : palette.textSecondary }]}>{enabled ? 'Enabled' : 'Disabled'}</Text>
+
+          <View style={styles.copyBlock}>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>Push Notifications</Text>
+            <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Get delivery updates, payment alerts, and important security reminders the moment they happen.</Text>
+          </View>
+
+          <View style={styles.actions}>
+            {enabled ? (
+              <Pressable onPress={() => void testNotification()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
+                <Check size={16} color={palette.card} />
+                <Text style={[styles.primaryText, { color: palette.card }]}>Test Notification</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => void enableNotifications()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
+                <Check size={16} color={palette.card} />
+                <Text style={[styles.primaryText, { color: palette.card }]}>Enable Notifications</Text>
+              </Pressable>
+            )}
+
+            {enabled ? (
+              <Pressable onPress={() => void disableNotifications()} disabled={busy} style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}>
+                <Text style={[styles.linkText, { color: palette.textSecondary }]}>Disable</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
-        <View style={styles.copyBlock}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Push Notifications</Text>
-          <Text style={[styles.sectionCopy, { color: palette.textSecondary }]}>Get new delivery offers, route changes, support replies, and payout updates instantly.</Text>
+        <View style={[styles.noteCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <Text style={[styles.noteTitle, { color: palette.text }]}>Permission state</Text>
+          <Text style={[styles.noteText, { color: palette.textSecondary }]}>
+            {permissionStatus == null
+              ? 'Checking permission state…'
+              : permissionStatus === 'granted'
+                ? 'Notifications are allowed on this device.'
+                : 'Notifications are blocked or not yet granted on this device.'}
+          </Text>
         </View>
+      </ScrollView>
 
-        <View style={styles.actions}>
-          {enabled ? (
-            <Pressable onPress={() => void testNotification()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
-              <Check size={16} color={palette.card} />
-              <Text style={[styles.primaryText, { color: palette.card }]}>Test Notification</Text>
-            </Pressable>
-          ) : (
-            <Pressable onPress={() => void enableNotifications()} disabled={busy} style={({ pressed }) => [styles.primaryButton, { backgroundColor: palette.primary, borderColor: palette.primary }, pressed ? styles.pressed : null]}>
-              <Check size={16} color={palette.card} />
-              <Text style={[styles.primaryText, { color: palette.card }]}>Enable Notifications</Text>
-            </Pressable>
-          )}
-
-          {enabled ? (
-            <Pressable onPress={() => void disableNotifications()} disabled={busy} style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}>
-              <Text style={[styles.linkText, { color: palette.textSecondary }]}>Disable</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={[styles.noteCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-        <Text style={[styles.noteTitle, { color: palette.text }]}>Permission state</Text>
-        <Text style={[styles.noteText, { color: palette.textSecondary }]}>
-          {permissionStatus == null
-            ? 'Checking permission state…'
-            : permissionStatus === 'granted'
-              ? 'Notifications are allowed on this device.'
-              : 'Notifications are blocked or not yet granted on this device.'}
-        </Text>
-      </View>
-    </ScrollView>
-    <AppModal config={modal.config} onClose={modal.hide} />
+      <AppModal config={modal.config} onClose={modal.hide} />
     </>
   );
 }

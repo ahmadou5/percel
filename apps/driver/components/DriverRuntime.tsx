@@ -38,20 +38,34 @@ export function DriverRuntime() {
     }
   }, [appLockEnabled, isAuthenticated, isUnlocked]);
 
+  const lastBackgroundTimeRef = useRef<number | null>(null);
+  const LOCK_GRACE_PERIOD_MS = 300000; // 5 minutes
+
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       const auth = useDriverStore.getState();
-      if (auth.isBiometricPromptActive) {
+      
+      if (nextState === 'background' || nextState === 'inactive') {
+        if (!lastBackgroundTimeRef.current) {
+          lastBackgroundTimeRef.current = Date.now();
+        }
         return;
       }
 
-      if (nextState !== 'active') {
-        if (auth.isAuthenticated && appLockEnabled) auth.lock();
-        return;
-      }
+      if (nextState === 'active') {
+        const bgDuration = lastBackgroundTimeRef.current ? Date.now() - lastBackgroundTimeRef.current : 0;
+        lastBackgroundTimeRef.current = null;
 
-      if (auth.isAuthenticated && appLockEnabled && !auth.isUnlocked) {
-        router.replace('/auth-lock');
+        if (auth.isBiometricPromptActive || bgDuration < LOCK_GRACE_PERIOD_MS) {
+          return;
+        }
+
+        if (auth.isAuthenticated && appLockEnabled && !auth.isUnlocked) {
+          auth.lock();
+          setTimeout(() => {
+            router.replace('/auth-lock');
+          }, 100);
+        }
       }
     };
 
