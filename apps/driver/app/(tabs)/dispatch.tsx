@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, Radar, Zap } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Radar, Zap } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
@@ -60,6 +60,13 @@ export default function DispatchBoardScreen() {
         }
         contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.lg, paddingBottom: 120 }]}
       >
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <ChevronLeft size={20} color={palette.text} />
+          </Pressable>
+
+          <View style={styles.headerSpacer} />
+        </View>
         {/* ── Hero ── */}
         <View style={[styles.hero, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.heroDecorA} />
@@ -200,7 +207,10 @@ const styles = StyleSheet.create({
   },
   heroStatVal: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
   heroStatLabel: { fontSize: 10, fontFamily: 'SpaceGrotesk_500Medium' },
-
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerSpacer: { width: 42 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   // ── section header ──
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },

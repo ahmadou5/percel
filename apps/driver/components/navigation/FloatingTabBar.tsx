@@ -5,7 +5,6 @@ import {
   ClipboardList,
   Settings,
   BadgeDollarSign,
-  Wallet,
 } from 'lucide-react-native';
 import { type ComponentType, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -49,7 +48,6 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'Home', Icon: House, routeName: 'home', href: '/(tabs)/home' },
   { key: 'history', label: 'History', Icon: ClipboardList, routeName: 'history', href: '/(tabs)/history' },
-
   { key: 'earnings', label: 'Earnings', Icon: BadgeDollarSign, routeName: 'earnings', href: '/(tabs)/earnings' },
   { key: 'settings', label: 'Settings', Icon: Settings, routeName: 'settings', href: '/(tabs)/settings' },
 ];

@@ -224,8 +224,8 @@ export default function VehicleSettingsScreen() {
           </Pressable>
 
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: palette.text }]}>Vehicle & Fleet</Text>
-            <Text style={[styles.headerSub, { color: palette.textSecondary }]}>Verification & Fleet Info</Text>
+            <Text style={[styles.headerTitle, { color: palette.text }]}>Vehicle verification</Text>
+
           </View>
 
           <View style={{ width: 42 }} />
@@ -480,6 +480,7 @@ export default function VehicleSettingsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    paddingTop: Spacing.xl
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,

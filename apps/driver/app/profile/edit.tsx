@@ -220,7 +220,7 @@ export default function EditProfileScreen() {
             <View style={styles.avatarCopy}>
               <Text style={[styles.cardLabel, { color: palette.textSecondary }]}>Profile photo</Text>
               <Text style={[styles.cardTitle, { color: palette.text }]}>{profile?.fullName ?? 'Driver account'}</Text>
-              <Text style={[styles.cardMeta, { color: palette.textSecondary }]}>A clear photo helps support and dispatch teams recognize your account.</Text>
+
               <ActionButton title={updateAvatar.isPending ? 'Uploading...' : 'Change avatar'} variant="secondary" onPress={changeAvatar} disabled={updateAvatar.isPending} />
             </View>
           </View>

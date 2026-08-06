@@ -35,7 +35,8 @@ const PREFERENCE_ITEMS: ReadonlyArray<MenuItem> = [
 ];
 
 const ACCOUNT_ITEMS: ReadonlyArray<MenuItem> = [
-  { title: 'Profile', subtitle: 'Driver profile', href: '/profile/edit', Icon: User2 },
+  { title: 'Profile', subtitle: 'Driver profile', href: '/(tabs)/profile', Icon: User2 },
+  { title: 'KYC', subtitle: 'Courier ID verification', href: '/(kyc)', Icon: BadgeCheck },
   { title: 'Vehicle', subtitle: 'Vehicle info.', href: '/settings/vehicle', Icon: Car },
   { title: 'Transactions', subtitle: 'Ledger history', href: '/(tabs)/wallet/transactions', Icon: History },
 ];
@@ -45,7 +46,7 @@ const ACTIVITY_ITEMS: ReadonlyArray<MenuItem> = [
 ];
 
 const SECURITY_ITEMS: ReadonlyArray<MenuItem> = [
-  { title: 'KYC', subtitle: 'Courier ID verification', href: '/(kyc)', Icon: BadgeCheck },
+
   { title: 'Security', subtitle: 'Password, PIN, and biometrics', href: '/profile/security', Icon: Shield },
   { title: 'Support', subtitle: 'Get help from us', href: '/modal', Icon: CircleHelp },
 ];
@@ -193,8 +194,9 @@ export default function DriverSettingsScreen() {
           </View>
         </View>
       </Modal>
-
       <AppVersionFooter />
+
+
     </ScrollView>
   );
 }

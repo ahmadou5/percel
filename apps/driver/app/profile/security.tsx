@@ -62,14 +62,13 @@ export default function DriverSecurityScreen() {
 
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Protection</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Account security & biometrics</Text>
-          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Manage your password, biometrics authentication, and privacy settings.</Text>
+
         </View>
 
         {/* Change Password Card */}
         <Card>
           <View style={styles.sectionHeaderRow}>
-            <KeyRound size={18} color={palette.primary} />
+
             <SectionHeader title="Change password" caption="Authentication" />
           </View>
 
@@ -89,7 +88,7 @@ export default function DriverSecurityScreen() {
         {/* Biometrics & App Lock Card */}
         <Card>
           <View style={styles.sectionHeaderRow}>
-            <Fingerprint size={18} color={palette.primary} />
+
             <SectionHeader title="Biometric Security" caption="Face ID & Touch ID" />
           </View>
 
@@ -123,7 +122,7 @@ export default function DriverSecurityScreen() {
         {/* Privacy Card */}
         <Card>
           <View style={styles.sectionHeaderRow}>
-            <EyeOff size={18} color={palette.primary} />
+
             <SectionHeader title="Privacy & Screen Capture" caption="Protection" />
           </View>
 
