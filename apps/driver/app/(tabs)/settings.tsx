@@ -48,7 +48,7 @@ const ACTIVITY_ITEMS: ReadonlyArray<MenuItem> = [
 const SECURITY_ITEMS: ReadonlyArray<MenuItem> = [
 
   { title: 'Security', subtitle: 'Password, PIN, and biometrics', href: '/profile/security', Icon: Shield },
-  { title: 'Support', subtitle: 'Get help from us', href: '/modal', Icon: CircleHelp },
+  { title: 'Support', subtitle: 'Get help from us', href: '/support', Icon: CircleHelp },
 ];
 
 const MenuItemRow = memo(function MenuItemRow({
