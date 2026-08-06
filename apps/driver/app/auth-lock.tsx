@@ -229,6 +229,7 @@ const styles = StyleSheet.create({
   dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5 },
   error: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'center', marginBottom: 2 },
   helper: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textAlign: 'center', marginBottom: 2 },
+  alert: { width: '100%', borderRadius: 14, borderWidth: 1, padding: Spacing.md },
   keypadContainer: { width: '100%', maxWidth: 380, marginTop: 10 },
   forgot: { marginTop: 4, fontSize: Typography.md, fontFamily: Typography.family.bold, textAlign: 'center' },
 });
