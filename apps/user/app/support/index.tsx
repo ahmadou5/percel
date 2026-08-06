@@ -44,7 +44,7 @@ export default function SupportIndexScreen() {
         >
           <ArrowLeft size={18} color={palette.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Help & Complaints</Text>
+        <Text style={[styles.headerTitle, { color: palette.text }]}>Support</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -133,7 +133,7 @@ export default function SupportIndexScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, paddingTop: Spacing.xs },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   heroCopy: { flex: 1, gap: 4 },
   heroTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, color: '#FFF' },
-  heroSub: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.85)' },
+  heroSub: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.85)', fontFamily: Typography.family.medium },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   createTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  createSub: { fontSize: Typography.xs },
+  createSub: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   sectionHeader: { marginTop: 8 },
   sectionTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   ticketCard: {

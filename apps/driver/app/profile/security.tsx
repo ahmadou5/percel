@@ -15,7 +15,7 @@ import { useAppPalette } from '@/lib/theme';
 export default function DriverSecurityScreen() {
   const modal = useAppModal();
   const palette = useAppPalette();
-  const back = useSafeBack('/profile');
+  const back = useSafeBack('/(tabs)/profile');
   const changePassword = useChangePassword();
 
   // Password state

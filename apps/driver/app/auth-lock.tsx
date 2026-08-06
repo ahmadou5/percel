@@ -154,7 +154,7 @@ export default function DriverAuthLockScreen() {
         <Pressable onPress={() => void logout.mutateAsync().then(() => router.replace('/(auth)/login'))} style={styles.topAction}>
           <Text style={[styles.logOutText, { color: palette.error }]}>Log out</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/settings/support')} style={[styles.helpPill, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+        <Pressable onPress={() => router.push('/modal')} style={[styles.helpPill, { backgroundColor: palette.card, borderColor: palette.border }]}> 
           <Text style={[styles.helpText, { color: palette.text }]}>Help</Text>
         </Pressable>
       </View>
@@ -204,7 +204,7 @@ export default function DriverAuthLockScreen() {
           />
         </View>
 
-        <Pressable onPress={() => router.push('/settings/reset-pin')}>
+        <Pressable onPress={() => router.push('/profile/security')}>
           <Text style={[styles.forgot, { color: palette.primary }]}>Forgot PIN?</Text>
         </Pressable>
       </View>

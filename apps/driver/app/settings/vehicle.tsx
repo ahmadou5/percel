@@ -15,6 +15,8 @@ import { useDriverStore } from '@/store/driver.store';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDriverProfile } from '@/hooks/useDriverProfile';
 
+import { useSafeBack } from '@/components/navigation/useSafeBack';
+
 type UploadKey = 'license' | 'selfie' | 'vehicle';
 
 type UploadSlot = {
@@ -43,6 +45,7 @@ function mimeFor(uri: string) {
 
 export default function VehicleSettingsScreen() {
   const modal = useAppModal();
+  const back = useSafeBack('/(tabs)/settings');
   const queryClient = useQueryClient();
   const driver = useDriverStore((state) => state.driver);
   const profileQuery = useDriverProfile();
@@ -161,7 +164,7 @@ export default function VehicleSettingsScreen() {
         primaryText: 'OK',
         onPrimaryPress: () => {
           modal.hide();
-          router.back();
+          back();
         },
       });
     } catch (error) {
@@ -176,7 +179,7 @@ export default function VehicleSettingsScreen() {
       <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.lg, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => back()}
             style={({ pressed }) => [
               styles.backButton,
               pressed && { opacity: 0.7 },

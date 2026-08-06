@@ -219,12 +219,11 @@ export default function ProfileSecurityScreen() {
 
           <View style={styles.headerCopy}>
             <Text style={[styles.eyebrowLabel, { color: palette.primary }]}>Security</Text>
-            <Text style={[styles.pageTitle, { color: palette.text }]}>Manage your transfer PIN and biometric protection.</Text>
           </View>
 
           <View style={[styles.heroCard, { backgroundColor: palette.primaryDark, borderColor: 'rgba(255,255,255,0.12)' }]}>
             <Text style={styles.eyebrow}>{user?.fullName ?? 'Account'} protection</Text>
-            <Text style={styles.subtitle}>Set a transfer PIN, then decide how strongly the app should lock and confirm transactions.</Text>
+            <Text style={styles.subtitle}>Protect your funds.</Text>
 
             <View style={styles.statsRow}>
               <View style={styles.statChip}>

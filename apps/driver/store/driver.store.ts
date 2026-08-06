@@ -123,67 +123,57 @@ async function hydrate() {
 }
 
 async function setSession(session: { user: AuthSessionUser; tokens: AuthTokens; driver?: Driver | null }) {
-  state = {
-    ...state,
+  setState({
     user: session.user,
     tokens: session.tokens,
     driver: session.driver ?? state.driver,
     isAuthenticated: true,
     isUnlocked: true,
-  };
+  });
   await persist();
   Sentry.setUser({ id: session.user.id, email: session.user.email });
   void identifyDevice(session.user.id);
-  emit();
 }
 
 async function setUser(user: AuthSessionUser | null) {
-  state = { ...state, user, isAuthenticated: Boolean(user && state.tokens) };
+  setState({ user, isAuthenticated: Boolean(user && state.tokens) });
   await persist();
   Sentry.setUser(user ? { id: user.id, email: user.email } : null);
   void identifyDevice(user ? user.id : null);
-  emit();
 }
 
 async function setDriver(driver: Driver | null) {
-  state = { ...state, driver, isOnline: Boolean(driver?.isOnline ?? state.isOnline) };
+  setState({ driver, isOnline: Boolean(driver?.isOnline ?? state.isOnline) });
   await persist();
-  emit();
 }
 
 async function setTokens(tokens: AuthTokens | null) {
-  state = { ...state, tokens, isAuthenticated: Boolean(state.user && tokens) };
+  setState({ tokens, isAuthenticated: Boolean(state.user && tokens) });
   await persist();
   if (!tokens && !state.user) {
     Sentry.setUser(null);
   }
-  emit();
 }
 
 async function setOnlineStatus(isOnline: boolean) {
-  state = {
-    ...state,
+  setState({
     isOnline,
     driver: state.driver ? { ...state.driver, isOnline } : state.driver,
-  };
+  });
   await persist();
-  emit();
 }
 
 async function setCurrentOrder(order: DriverOrder | null) {
-  state = { ...state, currentOrder: order };
+  setState({ currentOrder: order });
   await persist();
-  emit();
 }
 
 async function updateLocation(location: DriverLocation) {
-  state = {
-    ...state,
+  setState({
     currentLocation: location,
     driver: state.driver ? { ...state.driver, currentLocation: location } : state.driver,
-  };
+  });
   await persist();
-  emit();
 }
 
 function unlock() {
@@ -199,15 +189,7 @@ function setBiometricPromptActive(isBiometricPromptActive: boolean) {
 }
 
 async function logout() {
-  await Promise.all([
-    SecureStore.deleteItemAsync(USER_KEY),
-    SecureStore.deleteItemAsync(DRIVER_KEY),
-    SecureStore.deleteItemAsync(TOKENS_KEY),
-    SecureStore.deleteItemAsync(ONLINE_KEY),
-    SecureStore.deleteItemAsync(ORDER_KEY),
-    SecureStore.deleteItemAsync(LOCATION_KEY),
-  ]);
-  state = {
+  setState({
     user: null,
     driver: null,
     tokens: null,
@@ -218,10 +200,17 @@ async function logout() {
     isUnlocked: false,
     isBiometricPromptActive: false,
     currentLocation: null,
-  };
+  });
+  await Promise.all([
+    SecureStore.deleteItemAsync(USER_KEY),
+    SecureStore.deleteItemAsync(DRIVER_KEY),
+    SecureStore.deleteItemAsync(TOKENS_KEY),
+    SecureStore.deleteItemAsync(ONLINE_KEY),
+    SecureStore.deleteItemAsync(ORDER_KEY),
+    SecureStore.deleteItemAsync(LOCATION_KEY),
+  ]);
   Sentry.setUser(null);
   void identifyDevice(null);
-  emit();
 }
 
 const actions: DriverActions = {

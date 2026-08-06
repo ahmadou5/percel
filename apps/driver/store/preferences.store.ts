@@ -175,27 +175,24 @@ async function hydrate() {
 }
 
 async function setThemeMode(mode: ThemeMode) {
-  state = { ...state, themeMode: mode };
+  setState({ themeMode: mode });
   await AsyncStorage.setItem(THEME_MODE_KEY, mode);
-  emit();
 }
 
 async function setCustomTheme(theme: CustomTheme) {
-  state = { ...state, customTheme: theme };
+  setState({ customTheme: theme });
   await AsyncStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(theme));
-  emit();
 }
 
 async function setThemePreset(presetId: ThemePresetId) {
   const preset = PRESET_THEMES[presetId] ?? DEFAULT_THEME_PRESET;
   const customTheme: CustomTheme = { accent: preset.primary, background: preset.bg };
 
-  state = {
-    ...state,
+  setState({
     themeMode: "custom",
     activePresetId: preset.id,
     customTheme,
-  };
+  });
 
   await Promise.all([
     AsyncStorage.setItem(THEME_MODE_KEY, "custom"),
@@ -203,39 +200,33 @@ async function setThemePreset(presetId: ThemePresetId) {
     AsyncStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(customTheme)),
   ]);
 
-  emit();
-
   // Switch app icon natively
   await changeAppIcon(preset.iconId);
 }
 
 async function setNotificationsEnabled(enabled: boolean) {
-  state = { ...state, notificationsEnabled: enabled };
+  setState({ notificationsEnabled: enabled });
   await AsyncStorage.setItem(NOTIFICATIONS_KEY, enabled ? "true" : "false");
-  emit();
 }
 
 async function setNotificationsReminderDismissedAt(timestamp: number | null) {
-  state = { ...state, notificationsReminderDismissedAt: timestamp };
+  setState({ notificationsReminderDismissedAt: timestamp });
   if (timestamp == null) {
     await AsyncStorage.removeItem(NOTIFICATIONS_REMINDER_KEY);
   } else {
     await AsyncStorage.setItem(NOTIFICATIONS_REMINDER_KEY, String(timestamp));
   }
-  emit();
 }
 
 async function setWalletAccessBiometricEnabled(enabled: boolean) {
-  state = { ...state, walletAccessBiometricEnabled: enabled, appLockEnabled: enabled };
+  setState({ walletAccessBiometricEnabled: enabled, appLockEnabled: enabled });
   await AsyncStorage.setItem(WALLET_ACCESS_BIOMETRIC_KEY, enabled ? "true" : "false");
   await AsyncStorage.setItem(APP_LOCK_KEY, enabled ? "true" : "false");
-  emit();
 }
 
 async function setConfirmTransactionsBiometricEnabled(enabled: boolean) {
-  state = { ...state, confirmTransactionsBiometricEnabled: enabled };
+  setState({ confirmTransactionsBiometricEnabled: enabled });
   await AsyncStorage.setItem(CONFIRM_TRANSACTIONS_BIOMETRIC_KEY, enabled ? "true" : "false");
-  emit();
 }
 
 async function setAppLockEnabled(enabled: boolean) {
@@ -243,9 +234,8 @@ async function setAppLockEnabled(enabled: boolean) {
 }
 
 async function setAllowScreenshots(enabled: boolean) {
-  state = { ...state, allowScreenshots: enabled };
+  setState({ allowScreenshots: enabled });
   await AsyncStorage.setItem(ALLOW_SCREENSHOTS_KEY, enabled ? "true" : "false");
-  emit();
 }
 
 const actions: PreferencesActions = {

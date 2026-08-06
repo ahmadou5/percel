@@ -133,16 +133,7 @@ export default function ProfileScreen() {
             <ChevronRight size={18} color={palette.textSecondary} />
           </Pressable>
 
-          <Pressable onPress={() => router.push('/support')} style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border, marginTop: 10 }, pressed ? styles.pressed : null]}>
-            <View style={[styles.settingsIcon, { backgroundColor: palette.primary }]}>
-              <ShieldCheck size={16} color="#FFF" />
-            </View>
-            <View style={styles.settingsCopy}>
-              <Text style={[styles.settingsTitle, { color: palette.text }]}>Help & Support</Text>
-              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Report disputes, failed orders, or wrong charges</Text>
-            </View>
-            <ChevronRight size={18} color={palette.textSecondary} />
-          </Pressable>
+
         </View>
       </View>
       <AppModal config={modal.config} onClose={modal.hide} />

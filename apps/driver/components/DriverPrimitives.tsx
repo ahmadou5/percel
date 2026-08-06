@@ -128,6 +128,8 @@ export function InputField({
   secureTextEntry,
   multiline,
   helperText,
+  maxLength,
+  editable,
 }: {
   label: string;
   value: string;
@@ -137,6 +139,8 @@ export function InputField({
   secureTextEntry?: boolean;
   multiline?: boolean;
   helperText?: string;
+  maxLength?: number;
+  editable?: boolean;
 }) {
   const palette = useAppPalette();
   return (
@@ -145,7 +149,9 @@ export function InputField({
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
+        editable={editable}
         keyboardType={keyboardType}
+        maxLength={maxLength}
         multiline={multiline}
         placeholder={placeholder}
         placeholderTextColor={palette.textSecondary}
@@ -184,18 +190,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
   },
   sectionHeader: {
+    width: '100%',
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    padding: Spacing.xs,
   },
   sectionTitle: {
     fontSize: Typography.lg,
-    fontWeight: Typography.bold,
     fontFamily: Typography.family.bold,
+
   },
   sectionCaption: {
     fontSize: Typography.xs,
-    fontWeight: Typography.semibold,
     fontFamily: Typography.family.semibold,
   },
   pill: {

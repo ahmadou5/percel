@@ -915,14 +915,14 @@ function KycSkeleton() {
               <View style={{ width: '80%', height: 14, borderRadius: 7, backgroundColor: palette.border }} />
             </View>
           </View>
-          
+
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
             <View style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: palette.border }} />
             <View style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: palette.border }} />
           </View>
           <View style={{ height: 56, borderRadius: 16, backgroundColor: palette.border }} />
           <View style={{ height: 56, borderRadius: 16, backgroundColor: palette.border }} />
-          
+
           <View style={{ height: 56, borderRadius: 16, backgroundColor: palette.border, marginTop: 10 }} />
         </View>
       </SkeletonGroup>
@@ -931,7 +931,7 @@ function KycSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, paddingTop: Spacing.sm },
   content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, gap: Spacing.lg, paddingBottom: Spacing.huge },
   centerContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xxl, paddingBottom: Spacing.huge, gap: Spacing.lg, alignItems: 'center' },
   headerRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -30,7 +30,7 @@ import {
   View,
 } from 'react-native';
 
-import { Input } from '@/components/ui/Input';
+import { InputField as Input } from '@/components/DriverPrimitives';
 import { StateCard } from '@/components/ui/StateCard';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { FlowProgressDots, useSlideStepTransition, useStepBackHandler } from '@/components/wallet/WalletFlowProgress';
@@ -38,7 +38,7 @@ import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useDriverProfile as useProfile, useVerifyDriverBvn as useVerifyBvn } from '@/hooks/useProfile';
+import { useDriverProfile as useProfile, useVerifyDriverBvn as useVerifyBvn, useVerifyDriverNin as useVerifyNin } from '@/hooks/useDriverProfile';
 import { useBanks, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
@@ -86,6 +86,7 @@ export default function KycScreen() {
   const walletQuery = useWallet();
   
   const verifyBvn = useVerifyBvn();
+  const verifyNin = useVerifyNin();
   
   const banksQuery = useBanks();
 
@@ -111,7 +112,7 @@ export default function KycScreen() {
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
 
   const { opacity, translateX } = useSlideStepTransition(step);
-  const back = useSafeBack('/profile');
+  const back = useSafeBack('/(tabs)/profile');
   useStepBackHandler(step, () => {
     if (step > 1) {
       setStep((current) => (current - 1) as typeof step);
@@ -129,7 +130,7 @@ export default function KycScreen() {
     profile?.status === 'ACTIVE' || profile?.kyc?.bvnVerified || profile?.kycStatus === 'APPROVED'
   );
   const verificationPending =
-    (profile?.status === 'PENDING_VERIFICATION' || submitted) && !kycComplete && !forceEdit;
+    (profile?.status === 'KYC_SUBMITTED' || profile?.kycStatus === 'SUBMITTED' || submitted) && !kycComplete && !forceEdit;
   const verificationRejected = profile?.status === 'SUSPENDED' || profile?.kycStatus === 'REJECTED';
 
   // Polling when verification is pending
@@ -208,7 +209,7 @@ export default function KycScreen() {
     setLastName(name.lastName);
     setAddress(profile?.address ?? '');
     setDateOfBirth(profile?.dateOfBirth ? profile.dateOfBirth.slice(0, 10) : '');
-    setBvn(profile?.bvnNumber ?? '');
+    setBvn(profile?.bvnNumber ?? profile?.kyc?.bvnNumber ?? '');
   }, [profile]);
 
   useEffect(() => {
@@ -460,7 +461,7 @@ export default function KycScreen() {
                 { backgroundColor: 'rgba(255,159,10,0.12)', borderColor: '#FF9F0A', transform: [{ scale: pulseAnim }] },
               ]}
             >
-              <Animated.View >
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
                 <BadgeInfo size={44} color="#FF9F0A" />
               </Animated.View>
             </Animated.View>
@@ -543,7 +544,7 @@ export default function KycScreen() {
         queryClient.invalidateQueries({ queryKey: ['driver-profile'] }),
         queryClient.invalidateQueries({ queryKey: ['banks'] }),
       ]);
-      if (result.verified || result.kycComplete) {
+      if (result.verified) {
         modal.alert('Verification Approved!', 'Your identity is verified.', 'success');
       } else {
         setSubmitted(true);
@@ -648,6 +649,7 @@ export default function KycScreen() {
                 <Input
                   label="Date of birth"
                   value={dateOfBirth}
+                  onChangeText={setDateOfBirth}
                   placeholder="Select date of birth"
                   editable={false}
                   helperText="Date of birth (Must be at least 18 years old)."
@@ -822,7 +824,7 @@ export default function KycScreen() {
                 ]}
               >
                 <Text style={styles.primaryActionText}>
-                  {updateProfile.isPending || verifyBvn.isPending ? 'Verifying Identity…' : 'Submit Verification'}
+                  {verifyBvn.isPending ? 'Verifying Identity…' : 'Submit Verification'}
                 </Text>
               </Pressable>
             </View>

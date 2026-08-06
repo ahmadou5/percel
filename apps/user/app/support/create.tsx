@@ -179,7 +179,7 @@ export default function CreateSupportTicketScreen() {
             <ActivityIndicator color="#FFF" />
           ) : (
             <>
-              <Send size={18} color="#FFF" />
+
               <Text style={styles.submitText}>Submit Complaint</Text>
             </>
           )}
@@ -191,7 +191,7 @@ export default function CreateSupportTicketScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, paddingTop: Spacing.sm },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -233,6 +233,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     fontSize: Typography.sm,
+    fontFamily: Typography.family.regular
   },
   textArea: {
     minHeight: 120,
@@ -240,6 +241,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     fontSize: Typography.sm,
+    fontFamily: Typography.family.regular
   },
   toggleRow: {
     flexDirection: 'row',
@@ -251,7 +253,7 @@ const styles = StyleSheet.create({
   },
   toggleTextWrap: { flex: 1, gap: 2 },
   toggleTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  toggleSub: { fontSize: Typography.xs },
+  toggleSub: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   checkbox: {
     width: 22,
     height: 22,

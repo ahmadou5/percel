@@ -28,7 +28,7 @@ const vehicleTypes = ['BIKE', 'TRICYCLE', 'CAR'] as const;
 export default function EditProfileScreen() {
   const modal = useAppModal();
   const palette = useAppPalette();
-  const back = useSafeBack('/profile');
+  const back = useSafeBack('/(tabs)/profile');
   const user = useDriverStore((state) => state.user);
   const profileQuery = useDriverProfile();
   const profile = profileQuery.data;
@@ -201,8 +201,6 @@ export default function EditProfileScreen() {
 
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.primary }]}>Profile</Text>
-          <Text style={[styles.title, { color: palette.text }]}>Keep your driver details ready for dispatch.</Text>
-          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>Update vehicle information and account security before your next shift.</Text>
         </View>
 
         <Card>
@@ -228,36 +226,10 @@ export default function EditProfileScreen() {
           </View>
         </Card>
 
-        <Card>
-          <View style={styles.sectionHeaderRow}>
-            <Truck size={18} color={palette.primary} />
-            <SectionHeader title="Vehicle details" caption="Editable" />
-          </View>
-
-          <View style={styles.vehicleTypeRow}>
-            {vehicleTypes.map((type) => (
-              <Pressable
-                key={type}
-                onPress={() => setVehicleType(type)}
-                style={[
-                  styles.vehicleTypePill,
-                  { backgroundColor: palette.card, borderColor: palette.border },
-                  vehicleType === type ? { backgroundColor: palette.primary, borderColor: palette.primary } : null,
-                ]}
-              >
-                <Text style={[styles.vehicleTypeText, { color: palette.textSecondary }, vehicleType === type ? { color: palette.card } : null]}>{type}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <InputField label="Vehicle plate" value={vehiclePlate} onChangeText={setVehiclePlate} placeholder="LAG-482XY" />
-          <InputField label="Vehicle model" value={vehicleModel} onChangeText={setVehicleModel} placeholder="Bajaj Boxer" />
-          <ActionButton title={updateVehicle.isPending ? 'Saving…' : 'Save vehicle'} onPress={saveVehicle} disabled={!canSaveVehicle || updateVehicle.isPending} />
-        </Card>
 
         <Card>
           <View style={styles.sectionHeaderRow}>
-            <ShieldCheck size={18} color={palette.primary} />
+
             <SectionHeader title="Verification Status" caption="Identity" />
           </View>
 
@@ -296,59 +268,11 @@ export default function EditProfileScreen() {
           </View>
         </Card>
 
-        {/* Premium Theme & Dynamic App Icon Switcher Card */}
-        <Card>
-          <View style={styles.sectionHeaderRow}>
-            <PaletteIcon size={18} color={palette.primary} />
-            <SectionHeader title="App Icon & Theme Accent" caption="Premium Feature" />
-          </View>
 
-          <Text style={[styles.cardMeta, { color: palette.textSecondary }]}>
-            Selecting a theme preset instantly changes your UI color palette and syncs your home screen launcher app icon to match.
-          </Text>
-
-          <View style={styles.presetGrid}>
-            {(Object.keys(PRESET_THEMES) as ThemePresetId[]).map((presetId) => {
-              const preset = PRESET_THEMES[presetId];
-              const isSelected = activePresetId === presetId;
-
-              return (
-                <Pressable
-                  key={presetId}
-                  onPress={() => void setThemePreset(presetId)}
-                  style={({ pressed }) => [
-                    styles.presetCard,
-                    { backgroundColor: preset.bg, borderColor: isSelected ? preset.primary : palette.border },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={styles.presetHeader}>
-                    {/* Simulated App Icon Badge */}
-                    <View style={[styles.appIconBadge, { backgroundColor: preset.primary }]}>
-                      <Sparkles size={14} color="#FFFFFF" />
-                    </View>
-                    {isSelected && (
-                      <View style={[styles.selectedCheck, { backgroundColor: preset.primary }]}>
-                        <Check size={12} color="#FFFFFF" strokeWidth={3} />
-                      </View>
-                    )}
-                  </View>
-
-                  <Text style={[styles.presetName, { color: preset.text }]}>{preset.name}</Text>
-                  <View style={styles.swatchRow}>
-                    <View style={[styles.swatch, { backgroundColor: preset.primary }]} />
-                    <View style={[styles.swatch, { backgroundColor: preset.card }]} />
-                    <View style={[styles.swatch, { backgroundColor: preset.border }]} />
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
 
         <Card>
           <View style={styles.sectionHeaderRow}>
-            <ShieldCheck size={18} color={palette.primary} />
+
             <SectionHeader title="Change password" caption="Security" />
           </View>
           <InputField label="Current password" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Current password" secureTextEntry />

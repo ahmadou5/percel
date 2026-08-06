@@ -180,8 +180,25 @@ export function useVerifyDriverBvn() {
       const response = await http.post<ApiResponse<{
         verified: boolean;
         message?: string;
+        kycComplete?: boolean;
         virtualAccount?: { accountNumber: string; bankName: string; accountName: string };
       }>>('/api/v1/driver/kyc/verify-bvn', payload);
+      return response.data.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    },
+  });
+}
+
+export function useVerifyDriverNin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { nin: string }) => {
+      Sentry.addBreadcrumb({ category: 'kyc', message: 'driver.nin_verify_requested', level: 'info' });
+      const response = await http.post<ApiResponse<{ verified: boolean; message?: string }>>('/api/v1/driver/kyc/verify-nin', payload);
       return response.data.data;
     },
     onSuccess: async () => {

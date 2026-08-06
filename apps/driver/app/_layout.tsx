@@ -102,6 +102,12 @@ function RootLayoutNav() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(kyc)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="profile/edit" />
+        <Stack.Screen name="profile/security" />
+        <Stack.Screen name="settings/preferences" />
+        <Stack.Screen name="settings/notifications" />
+        <Stack.Screen name="settings/vehicle" />
+        <Stack.Screen name="support" />
         <Stack.Screen name="auth-lock" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>

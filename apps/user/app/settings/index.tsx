@@ -13,25 +13,25 @@ import { useLogout } from '@/hooks/useAuth';
 import { AppVersionFooter } from '@/components/AppVersionFooter';
 
 const preferenceItems = [
-  { title: 'Preferences', subtitle: 'Choose your theme and custom palette', href: '/settings/preferences', Icon: Palette },
+  { title: 'Preferences', subtitle: 'Customize your view', href: '/settings/preferences', Icon: Palette },
 ] as const;
 
 const accountItems = [
   { title: 'My Profile', subtitle: 'View your profile', href: '/profile', Icon: User },
   { title: 'KYC', subtitle: 'Verify your identity', href: '/settings/kyc', Icon: BadgeCheck },
-  { title: 'Spending Limits', subtitle: 'Manage your transaction limits', href: '/settings/spending-limits', Icon: CreditCard },
-  { title: 'Beneficiaries', subtitle: 'Manage saved bank accounts', href: '/settings/beneficiaries', Icon: Users },
-  { title: 'Saved Addresses', subtitle: 'Manage Home, Office & frequent locations', href: '/settings/addresses', Icon: MapPin },
+  { title: 'Spending Limits', subtitle: 'Transaction limits', href: '/settings/spending-limits', Icon: CreditCard },
+  { title: 'Beneficiaries', subtitle: 'Manage saved accounts', href: '/settings/beneficiaries', Icon: Users },
+  { title: 'Saved Addresses', subtitle: 'Manage addresses', href: '/settings/addresses', Icon: MapPin },
 ] as const;
 
 const activityItems = [
-  { title: 'Transactions', subtitle: 'View your transaction history', href: '/wallet/transactions', Icon: History },
-  { title: 'Notifications', subtitle: 'Manage notification preferences', href: '/settings/notifications', Icon: Bell },
+  { title: 'Transactions', subtitle: 'View transaction history', href: '/wallet/transactions', Icon: History },
+  { title: 'Notifications', subtitle: 'Manage notification', href: '/settings/notifications', Icon: Bell },
 ] as const;
 
 const securityItems = [
-  { title: 'Security', subtitle: 'Change password, PIN, and biometrics', href: '/profile/security', Icon: Shield },
-  { title: 'Support', subtitle: 'Talk to us', href: '/settings/support', Icon: CircleHelp },
+  { title: 'Security', subtitle: 'Protect your account', href: '/profile/security', Icon: Shield },
+  { title: 'Support', subtitle: 'Talk to us', href: '/support', Icon: CircleHelp },
 ] as const;
 
 export default function SettingsScreen() {

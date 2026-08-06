@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { ReactNode } from 'react';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useAppPalette } from '@/lib/theme';
 
 type FormSkeletonProps = {
@@ -18,6 +19,15 @@ export function FormSkeleton({ count = 2 }: FormSkeletonProps) {
       ))}
     </View>
   );
+}
+
+type SkeletonGroupProps = {
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function SkeletonGroup({ children, style }: SkeletonGroupProps) {
+  return <View style={style}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

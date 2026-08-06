@@ -21,7 +21,7 @@ async function registerPushToken() {
 }
 
 export default function NotificationsSettingsScreen() {
-  const back = useSafeBack('/settings');
+  const back = useSafeBack('/(tabs)/settings');
   const palette = useAppPalette();
   const notificationsEnabled = usePreferencesStore((state) => state.notificationsEnabled);
   const setNotificationsEnabled = usePreferencesStore((state) => state.setNotificationsEnabled);

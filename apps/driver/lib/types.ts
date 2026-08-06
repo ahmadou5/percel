@@ -156,6 +156,12 @@ export type DriverProfile = {
   email: string;
   phone: string;
   avatarUrl: string | null;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  bvnNumber?: string | null;
+  bvnVerified?: boolean;
+  ninVerified?: boolean;
+  kycComplete?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   status: 'PENDING_KYC' | 'KYC_SUBMITTED' | 'ACTIVE' | 'SUSPENDED' | 'OFFLINE' | 'ONLINE';
