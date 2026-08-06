@@ -85,6 +85,15 @@ async function persist() {
   ]);
 }
 
+function safeJsonParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 async function hydrate() {
   setState({ isLoading: true });
   try {
@@ -97,11 +106,11 @@ async function hydrate() {
       SecureStore.getItemAsync(LOCATION_KEY),
     ]);
 
-    const user = rawUser ? (JSON.parse(rawUser) as AuthSessionUser) : null;
-    const driver = rawDriver ? (JSON.parse(rawDriver) as Driver) : null;
-    const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
-    const currentOrder = rawOrder ? (JSON.parse(rawOrder) as DriverOrder) : null;
-    const currentLocation = rawLocation ? (JSON.parse(rawLocation) as DriverLocation) : null;
+    const user = safeJsonParse<AuthSessionUser>(rawUser);
+    const driver = safeJsonParse<Driver>(rawDriver);
+    const tokens = safeJsonParse<AuthTokens>(rawTokens);
+    const currentOrder = safeJsonParse<DriverOrder>(rawOrder);
+    const currentLocation = safeJsonParse<DriverLocation>(rawLocation);
 
     setState({
       user,

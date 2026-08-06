@@ -192,7 +192,9 @@ export function useDriverSocketLifecycle() {
         return;
       }
 
-      disconnectDriverSocket();
+      if (nextState === 'background') {
+        disconnectDriverSocket();
+      }
     });
 
     const unsubscribeNetInfo = netInfo?.addEventListener?.((state: { isConnected?: boolean }) => {

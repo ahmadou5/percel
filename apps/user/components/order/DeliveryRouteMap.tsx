@@ -105,27 +105,27 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/**
- * Drives a 0-99 phase counter at ~50 fps (20 ms tick).
- * Two full ring cycles complete every ~2 s.
- * Consumers stagger ring offsets to get the ripple effect.
- */
-function usePulsePhase() {
-  const [phase, setPhase] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setPhase((p) => (p + 2) % 100), 100);
-    return () => clearInterval(id);
-  }, []);
-  return phase;
-}
-
-/** Compute radius (meters) and fill-opacity for one ripple ring at a given phase offset. */
-function ringProps(phase: number, offset: number, maxRadius = 130) {
-  const t = ((phase + offset) % 100) / 100; // 0 → 1
-  return {
-    radius: 15 + t * maxRadius,
-    opacity: 0.55 * (1 - t),
-  };
+function buildInterpolatedRoute(points: TrackingLocation[]): TrackingLocation[] {
+  if (points.length < 2) return points;
+  const result: TrackingLocation[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const start = points[i];
+    const end = points[i + 1];
+    result.push(start);
+    const dist = Math.hypot(end.latitude - start.latitude, end.longitude - start.longitude);
+    if (dist > 0.005) {
+      result.push({
+        latitude: start.latitude + (end.latitude - start.latitude) * 0.33,
+        longitude: start.longitude + (end.longitude - start.longitude) * 0.33,
+      });
+      result.push({
+        latitude: start.latitude + (end.latitude - start.latitude) * 0.66,
+        longitude: start.longitude + (end.longitude - start.longitude) * 0.66,
+      });
+    }
+  }
+  result.push(points[points.length - 1]);
+  return result;
 }
 
 /**
@@ -163,8 +163,6 @@ function SettledMarker({
 export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
   const palette = useAppPalette();
   const isLightTheme = isLight(palette.bg);
-  // Phase counter that drives the native Circle pulse overlays (0-99, cycles ~every 2s)
-  const pulsePhase = usePulsePhase();
   const mapRef = useRef<MapView>(null);
   // Track whether the user has manually moved the map so we don't fight them
   const userInteracted = useRef(false);
@@ -179,7 +177,16 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
     [originLocation, destinationLocation, driverLocation],
   );
   const initialRegion = useMemo(() => getRegion(points), [points]); // stable for initialRegion
-  const route = routeCoordinates.length ? routeCoordinates : [originLocation, destinationLocation];
+
+  const route = useMemo(() => {
+    if (routeCoordinates && routeCoordinates.length >= 2) {
+      return routeCoordinates;
+    }
+    const basePoints = driverLocation
+      ? [originLocation, driverLocation, destinationLocation]
+      : [originLocation, destinationLocation];
+    return buildInterpolatedRoute(basePoints);
+  }, [routeCoordinates, originLocation, driverLocation, destinationLocation]);
 
   // Smoothly follow the driver when location changes (unless user interacted)
   useEffect(() => {
@@ -257,56 +264,28 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
           <Polyline
             coordinates={route}
             strokeColor={palette.primary}
-            strokeWidth={4}
+            strokeWidth={5}
             lineCap="round"
             lineJoin="round"
           />
         ) : null}
 
-        {/* ── Pulse rings – rendered as native Circle overlays so they actually animate ── */}
-        {/* Origin ripples (green, 2 staggered rings) */}
-        {[0, 50].map((offset, i) => {
-          const rp = ringProps(pulsePhase, offset, 110);
-          return (
-            <Circle
-              key={`origin-ring-${i}`}
-              center={originLocation}
-              radius={rp.radius}
-              fillColor={hexToRgba('#10B981', rp.opacity)}
-              strokeWidth={0}
-            />
-          );
-        })}
+        {/* ── Stable location halos – zero re-renders/bridge congestion ── */}
+        {/* Origin ripples */}
+        <Circle center={originLocation} radius={45} fillColor={hexToRgba('#10B981', 0.22)} strokeWidth={0} />
+        <Circle center={originLocation} radius={90} fillColor={hexToRgba('#10B981', 0.08)} strokeWidth={0} />
 
-        {/* Destination ripples (primary color, 2 staggered rings) */}
-        {[0, 50].map((offset, i) => {
-          const rp = ringProps(pulsePhase, offset, 110);
-          return (
-            <Circle
-              key={`dest-ring-${i}`}
-              center={destinationLocation}
-              radius={rp.radius}
-              fillColor={hexToRgba(palette.primary, rp.opacity)}
-              strokeWidth={0}
-            />
-          );
-        })}
+        {/* Destination ripples */}
+        <Circle center={destinationLocation} radius={45} fillColor={hexToRgba(palette.primary, 0.22)} strokeWidth={0} />
+        <Circle center={destinationLocation} radius={90} fillColor={hexToRgba(palette.primary, 0.08)} strokeWidth={0} />
 
-        {/* Driver ripples (primary color, 3 staggered rings for stronger effect) */}
-        {driverLocation
-          ? [0, 33, 66].map((offset, i) => {
-              const rp = ringProps(pulsePhase, offset, 140);
-              return (
-                <Circle
-                  key={`driver-ring-${i}`}
-                  center={driverLocation}
-                  radius={rp.radius}
-                  fillColor={hexToRgba(palette.primary, rp.opacity)}
-                  strokeWidth={0}
-                />
-              );
-            })
-          : null}
+        {/* Driver ripples */}
+        {driverLocation ? (
+          <>
+            <Circle center={driverLocation} radius={50} fillColor={hexToRgba(palette.primary, 0.25)} strokeWidth={0} />
+            <Circle center={driverLocation} radius={110} fillColor={hexToRgba(palette.primary, 0.10)} strokeWidth={0} />
+          </>
+        ) : null}
 
         {/* Origin Pin */}
         <SettledMarker coordinate={originLocation} anchor={{ x: 0.5, y: 1 }}>

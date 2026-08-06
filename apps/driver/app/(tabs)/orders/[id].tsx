@@ -236,7 +236,13 @@ export default function OrderDetailScreen() {
         {/* ── Map Header ── */}
         <View style={styles.mapContainer}>
           <DeliveryRouteMap
-            driverLocation={{ latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) }} // Fallback simulated driver loc
+            driverLocation={
+              currentLocation
+                ? { latitude: currentLocation.lat, longitude: currentLocation.lng }
+                : { latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) }
+            }
+            driverName={order.driver?.fullName ?? 'Driver'}
+            driverAvatarUrl={null}
             originLocation={{ latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) }}
             destinationLocation={{ latitude: Number(order.deliveryLat), longitude: Number(order.deliveryLng) }}
             routeCoordinates={[]}

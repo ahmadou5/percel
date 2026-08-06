@@ -78,8 +78,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         SecureStore.getItemAsync(USER_KEY),
       ]);
 
-      const tokens = rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null;
-      const user = rawUser ? (JSON.parse(rawUser) as AuthUser) : null;
+      const tokens = (() => { try { return rawTokens ? (JSON.parse(rawTokens) as AuthTokens) : null; } catch { return null; } })();
+      const user = (() => { try { return rawUser ? (JSON.parse(rawUser) as AuthUser) : null; } catch { return null; } })();
 
       set({ user, tokens, isAuthenticated: Boolean(user && tokens), isLoading: false, isUnlocked: false });
       Sentry.setUser(user ? { id: user.id, email: user.email } : null);

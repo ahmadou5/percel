@@ -212,12 +212,12 @@ export default function KycScreen() {
   }, [profile]);
 
   useEffect(() => {
-    if (!bankCode && banks.length) {
+    if (!bankCode && banks?.length) {
       setBankCode(banks[0].code);
     }
   }, [bankCode, banks]);
 
-  const selectedBank = banks.find((item) => item.code === bankCode) ?? null;
+  const selectedBank = banks?.find((item) => item.code === bankCode) ?? null;
 
   const personalInfoComplete =
     firstName.trim().length >= 1 &&

@@ -30,7 +30,7 @@ import { TransactionItem } from '@/components/wallet/TransactionItem';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useWallet } from '@/hooks/useWallet';
-import { useAppPalette } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { formatNaira } from '@/lib/wallet';
 
 let Clipboard: typeof import('expo-clipboard') | null = null;
@@ -153,7 +153,7 @@ export default function DriverWalletHub() {
               <Pressable
                 style={({ pressed }) => [
                   styles.copyBtn,
-                  { backgroundColor: palette.primary + '18' },
+                  { backgroundColor: hexToRgba(palette.primary, 0.12) },
                   pressed && { opacity: 0.6 },
                 ]}
                 onPress={copyNuban}
@@ -180,7 +180,7 @@ export default function DriverWalletHub() {
               ]}
               onPress={() => router.push(action.href as never)}
             >
-              <View style={[styles.actionIconWrap, { backgroundColor: action.color + '1A' }]}>
+              <View style={[styles.actionIconWrap, { backgroundColor: hexToRgba(action.color ?? '#888888', 0.12) }]}>
                 <action.icon size={22} color={action.color} />
               </View>
               <Text style={[styles.actionLabel, { color: palette.text }]}>{action.label}</Text>

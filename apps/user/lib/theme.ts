@@ -11,6 +11,11 @@ function clamp(value: number) {
   return Math.max(0, Math.min(255, value));
 }
 
+export function hexToRgba(hex: string, alpha = 1) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function hexToRgb(hex: string) {
   const normalized = hex.replace('#', '');
   const value = normalized.length === 3 ? normalized.split('').map((part) => part + part).join('') : normalized;

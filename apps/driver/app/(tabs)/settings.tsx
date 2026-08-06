@@ -1,35 +1,108 @@
-import { useState, type ComponentType } from 'react';
+import { memo, useCallback, useState, type ComponentType } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { BadgeCheck, Bell, ChevronLeft, ChevronRight, CircleHelp, History, LogOut, Palette, Shield, User2, Car } from 'lucide-react-native';
+import {
+  BadgeCheck,
+  Bell,
+  Car,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  History,
+  LogOut,
+  Palette,
+  Shield,
+  User2,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppVersionFooter } from '@/components/AppVersionFooter';
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useAppPalette } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
-import { AppVersionFooter } from '@/components/AppVersionFooter';
 
-const preferenceItems = [
-  { title: 'Appearance', subtitle: 'Choose your theme and custom palette', href: '/settings/preferences', Icon: Palette },
-] as const;
+type MenuItem = {
+  title: string;
+  subtitle: string;
+  href: string;
+  Icon: ComponentType<{ color?: string; size?: number }>;
+};
 
-const accountItems = [
-  { title: 'Profile', subtitle: 'Driver profile & details', href: '/profile/edit', Icon: User2 },
-  { title: 'Vehicle', subtitle: 'Vehicle info & verification', href: '/settings/vehicle', Icon: Car },
-  { title: 'Transactions', subtitle: 'Ledger wallet & payout history', href: '/(tabs)/wallet/transactions', Icon: History },
-] as const;
+const PREFERENCE_ITEMS: ReadonlyArray<MenuItem> = [
+  { title: 'Appearance', subtitle: 'Customize your view', href: '/settings/preferences', Icon: Palette },
+];
 
-const activityItems = [
-  { title: 'Notification Preferences', subtitle: 'Manage delivery and account alerts', href: '/settings/notifications', Icon: Bell },
-] as const;
+const ACCOUNT_ITEMS: ReadonlyArray<MenuItem> = [
+  { title: 'Profile', subtitle: 'Driver profile', href: '/profile/edit', Icon: User2 },
+  { title: 'Vehicle', subtitle: 'Vehicle info.', href: '/settings/vehicle', Icon: Car },
+  { title: 'Transactions', subtitle: 'Ledger history', href: '/(tabs)/wallet/transactions', Icon: History },
+];
 
-const securityItems = [
-  { title: 'KYC', subtitle: 'Vehicle info & ID verification', href: '/(kyc)', Icon: BadgeCheck },
+const ACTIVITY_ITEMS: ReadonlyArray<MenuItem> = [
+  { title: 'Notification Preferences', subtitle: 'Manage Notifications', href: '/settings/notifications', Icon: Bell },
+];
+
+const SECURITY_ITEMS: ReadonlyArray<MenuItem> = [
+  { title: 'KYC', subtitle: 'Courier ID verification', href: '/(kyc)', Icon: BadgeCheck },
   { title: 'Security', subtitle: 'Password, PIN, and biometrics', href: '/profile/security', Icon: Shield },
-  { title: 'Support', subtitle: 'Get help from dispatch support', href: '/modal', Icon: CircleHelp },
-] as const;
+  { title: 'Support', subtitle: 'Get help from us', href: '/modal', Icon: CircleHelp },
+];
+
+const MenuItemRow = memo(function MenuItemRow({
+  item,
+  palette,
+  onPress,
+}: {
+  item: MenuItem;
+  palette: ReturnType<typeof useAppPalette>;
+  onPress: (href: string) => void;
+}) {
+  const Icon = item.Icon;
+  return (
+    <Pressable
+      onPress={() => onPress(item.href)}
+      style={({ pressed }) => [
+        styles.menuRow,
+        { borderColor: palette.border },
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={[styles.iconBox, { backgroundColor: hexToRgba(palette.primary, 0.12) }]}>
+        <Icon size={18} color={palette.primary} />
+      </View>
+      <View style={styles.menuCopy}>
+        <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
+        <Text style={[styles.menuSubtitle, { color: palette.textSecondary }]}>{item.subtitle}</Text>
+      </View>
+      <ChevronRight size={18} color={palette.textSecondary} />
+    </Pressable>
+  );
+});
+
+const SectionGroup = memo(function SectionGroup({
+  label,
+  items,
+  palette,
+  onPress,
+}: {
+  label: string;
+  items: ReadonlyArray<MenuItem>;
+  palette: ReturnType<typeof useAppPalette>;
+  onPress: (href: string) => void;
+}) {
+  return (
+    <View style={styles.group}>
+      <Text style={[styles.groupLabel, { color: palette.textSecondary }]}>{label}</Text>
+      <View style={styles.groupList}>
+        {items.map((item) => (
+          <MenuItemRow key={item.title} item={item} palette={palette} onPress={onPress} />
+        ))}
+      </View>
+    </View>
+  );
+});
 
 export default function DriverSettingsScreen() {
   const palette = useAppPalette();
@@ -38,19 +111,19 @@ export default function DriverSettingsScreen() {
   const logout = useDriverStore((state) => state.logout);
   const [logoutVisible, setLogoutVisible] = useState(false);
 
-  const confirmLogout = async () => {
+  const confirmLogout = useCallback(async () => {
     setLogoutVisible(false);
     await logout();
     router.replace('/(auth)/login');
-  };
+  }, [logout]);
 
-  const openLink = (href: string) => {
+  const openLink = useCallback((href: string) => {
     if (href.startsWith('/(tabs)')) {
       router.navigate(href as never);
     } else {
       router.push(href as never);
     }
-  };
+  }, []);
 
   return (
     <ScrollView
@@ -58,7 +131,7 @@ export default function DriverSettingsScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header — back button + centered title (matches user app) */}
+      {/* Header */}
       <View style={styles.headerRow}>
         <Pressable
           onPress={() => back()}
@@ -72,19 +145,23 @@ export default function DriverSettingsScreen() {
 
       {/* Settings groups card */}
       <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <SectionGroup label="Preferences" items={preferenceItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Preferences" items={PREFERENCE_ITEMS} palette={palette} onPress={openLink} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Account" items={accountItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Account" items={ACCOUNT_ITEMS} palette={palette} onPress={openLink} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Activity" items={activityItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Activity" items={ACTIVITY_ITEMS} palette={palette} onPress={openLink} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Security" items={securityItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Security" items={SECURITY_ITEMS} palette={palette} onPress={openLink} />
       </View>
 
       {/* Logout button */}
       <Pressable
         onPress={() => setLogoutVisible(true)}
-        style={({ pressed }) => [styles.logoutButton, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.pressed : null]}
+        style={({ pressed }) => [
+          styles.logoutButton,
+          { backgroundColor: palette.card, borderColor: palette.border },
+          pressed && styles.pressed,
+        ]}
       >
         <LogOut size={18} color={palette.error} />
         <Text style={[styles.logoutText, { color: palette.error }]}>Log out</Text>
@@ -116,56 +193,19 @@ export default function DriverSettingsScreen() {
           </View>
         </View>
       </Modal>
+
       <AppVersionFooter />
     </ScrollView>
-  );
-}
-
-function SectionGroup({
-  label,
-  items,
-  palette,
-  onPress,
-}: {
-  label: string;
-  items: ReadonlyArray<{ title: string; subtitle: string; href: string; Icon: ComponentType<{ color?: string; size?: number }> }>;
-  palette: ReturnType<typeof useAppPalette>;
-  onPress: (href: string) => void;
-}) {
-  return (
-    <View style={styles.group}>
-      <Text style={[styles.groupLabel, { color: palette.textSecondary }]}>{label}</Text>
-      <View style={styles.groupList}>
-        {items.map((item) => (
-          <Pressable
-            key={item.title}
-            onPress={() => onPress(item.href)}
-            style={({ pressed }) => [styles.menuRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}
-          >
-            <View style={[styles.iconBox, { backgroundColor: palette.text }]}>
-              <item.Icon size={18} color={palette.primary} />
-            </View>
-            <View style={styles.menuCopy}>
-              <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
-              <Text style={[styles.menuSubtitle, { color: palette.textSecondary }]}>{item.subtitle}</Text>
-            </View>
-            <ChevronRight size={18} color={palette.textSecondary} />
-          </Pressable>
-        ))}
-      </View>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: Spacing.md, paddingBottom: 110, gap: Spacing.lg },
-  // Header
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerSpacer: { width: 42 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  // Card
   sectionCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg },
   group: { gap: 10 },
   groupLabel: { fontSize: 11, fontFamily: Typography.family.bold, letterSpacing: 1.2, textTransform: 'uppercase' },
@@ -176,10 +216,8 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, gap: 2 },
   menuTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   menuSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
-  // Logout
   logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 18, borderWidth: 1, minHeight: 54 },
   logoutText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: Spacing.xl, gap: 12 },
   sheetTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, textAlign: 'center' },
@@ -187,5 +225,6 @@ const styles = StyleSheet.create({
   sheetActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   sheetButton: { flex: 1, minHeight: 52, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   sheetButtonText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  pressed: { opacity: 0.92 },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });
+

@@ -69,7 +69,7 @@ export function ActiveOrdersCarousel({ orders, selectedOrderId, onSelectOrder }:
               <View style={styles.routeRow}>
                 <MapPin size={12} color={palette.textSecondary} />
                 <Text style={[styles.routeText, { color: palette.textSecondary }]} numberOfLines={1}>
-                  {order.pickupFormattedAddress.split(',')[0]} → {order.deliveryFormattedAddress.split(',')[0]}
+                  {(order.pickupFormattedAddress ?? 'Pickup').split(',')[0]} → {(order.deliveryFormattedAddress ?? 'Delivery').split(',')[0]}
                 </Text>
               </View>
 

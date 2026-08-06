@@ -7,10 +7,13 @@ import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Image, View } from "react-native";
+import { Image, View, LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { vexo } from 'vexo-analytics';
+import LogRocket from '@logrocket/react-native';
+
+LogBox.ignoreAllLogs();
 
 import { UserRuntime } from "@/components/UserRuntime";
 import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
@@ -69,6 +72,9 @@ function RootLayout() {
   }, [fontError]);
 
   useEffect(() => {
+    LogRocket.init('wcpsf8/percel-user');
+  }, []);
+  useEffect(() => {
     void hydrateAuth();
   }, [hydrateAuth]);
 
@@ -89,7 +95,7 @@ function RootLayout() {
           source={require("../assets/images/icons/icon-blue.png")}
           style={{ width: 84, height: 84, resizeMode: "contain", marginBottom: 20 }}
         />
-        <FontAwesome name="spinner" size={20} color={palette.primary} />
+
       </View>
     );
   }

@@ -14,7 +14,7 @@ import { getBankLogoUrl } from '@percel/shared';
 
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useAppPalette } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 
 export type BankItem = {
   name: string;
@@ -52,7 +52,7 @@ function BankAvatar({ name, size = 38 }: { name: string; size?: number }) {
       width: size,
       height: size,
       borderRadius: size / 4,
-      backgroundColor: color + '22',
+      backgroundColor: hexToRgba(color ?? '#888888', 0.14),
       alignItems: 'center',
       justifyContent: 'center',
     }}>
@@ -195,7 +195,7 @@ export function BankPickerModal({
                   <Pressable
                     style={({ pressed }) => [
                       styles.bankRow,
-                      isSelected && { backgroundColor: palette.primary + '14' },
+                      isSelected && { backgroundColor: hexToRgba(palette.primary, 0.08) },
                       pressed && { opacity: 0.7 },
                     ]}
                     onPress={() => {

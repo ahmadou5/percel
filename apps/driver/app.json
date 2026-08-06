@@ -75,6 +75,15 @@
         }
       ],
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 25
+          }
+        }
+      ],
+      "@logrocket/react-native",
+      [
         "expo-alternate-app-icons",
         {
           "icons": [

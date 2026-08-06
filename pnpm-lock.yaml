@@ -378,6 +378,9 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5.2.14
         version: 5.2.14(@types/react@19.1.17)(react-native-gesture-handler@2.28.0)(react-native-reanimated@4.1.7)(react-native@0.81.5)(react@19.1.0)
+      '@logrocket/react-native':
+        specifier: ^3.7.1
+        version: 3.7.1(expo-build-properties@1.0.10)(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)
       '@percel/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -411,6 +414,9 @@ importers:
       expo-application:
         specifier: ^57.0.2
         version: 57.0.2(expo@54.0.35)
+      expo-build-properties:
+        specifier: ~1.0.10
+        version: 1.0.10(expo@54.0.35)
       expo-clipboard:
         specifier: ~8.0.8
         version: 8.0.8(expo@54.0.35)(react-native@0.81.5)(react@19.1.0)
@@ -3305,6 +3311,23 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /@logrocket/react-native@3.7.1(expo-build-properties@1.0.10)(expo@54.0.35)(react-native@0.81.5)(react@19.1.0):
+    resolution: {integrity: sha512-2YRM0IlG3rWjjrdppzlKXSLb66bAptYJNBXo8L7JnAKrh/MbchI/jj5NBlSm9YOUSx7V7snymEAeim/is66bXw==}
+    peerDependencies:
+      expo: '>=45.0.0'
+      expo-build-properties: '*'
+      react: '*'
+      react-native: '>=0.60.0-rc.0 <1.0.x'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+    dependencies:
+      expo: 54.0.35(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5)(react@19.1.0)(typescript@5.9.3)
+      expo-build-properties: 1.0.10(expo@54.0.35)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
+    dev: false
 
   /@lukeed/ms@2.0.2:
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -8780,6 +8803,16 @@ packages:
     transitivePeerDependencies:
       - supports-color
       - typescript
+    dev: false
+
+  /expo-build-properties@1.0.10(expo@54.0.35):
+    resolution: {integrity: sha512-mFCZbrbrv0AP5RB151tAoRzwRJelqM7bCJzCkxpu+owOyH+p/rFC/q7H5q8B9EpVWj8etaIuszR+gKwohpmu1Q==}
+    peerDependencies:
+      expo: '*'
+    dependencies:
+      ajv: 8.20.0
+      expo: 54.0.35(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5)(react@19.1.0)(typescript@5.9.3)
+      semver: 7.8.0
     dev: false
 
   /expo-clipboard@8.0.8(expo@54.0.35)(react-native@0.81.5)(react@19.1.0):

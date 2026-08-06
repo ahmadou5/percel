@@ -21,7 +21,7 @@ import {
   useValidateProviderAccount,
   useWallet,
 } from '@/hooks/useWallet';
-import { useAppPalette } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { discos, formatNaira } from '@/lib/wallet';
 
 export default function DriverElectricityScreen() {
@@ -137,7 +137,7 @@ export default function DriverElectricityScreen() {
                 style={[
                   styles.discoChip,
                   { backgroundColor: palette.card, borderColor: palette.border },
-                  selectedDisco === d && { backgroundColor: palette.primary + '20', borderColor: palette.primary },
+                  selectedDisco === d && { backgroundColor: hexToRgba(palette.primary, 0.14), borderColor: palette.primary },
                 ]}
                 onPress={() => setSelectedDisco(d)}
               >

@@ -290,7 +290,7 @@ export default function TransferScreen() {
   }, [allowScreenshots]);
 
   useEffect(() => {
-    if (banks.length > 0 && !banks.some((item) => item.code === bankCode)) {
+    if (banks && banks.length > 0 && !banks.some((item) => item.code === bankCode)) {
       setBankCode(banks[0].code);
     }
   }, [banks, bankCode]);

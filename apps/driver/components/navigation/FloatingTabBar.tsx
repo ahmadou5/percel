@@ -72,7 +72,7 @@ function getFocusKey(pathname: string) {
 
 function shouldShowDock(pathname: string) {
   const base = pathname.replace('/(tabs)', '').replace(/^\//, '');
-  return ['home', 'dispatch', 'orders', 'active', 'history', 'wallet', 'earnings', 'profile', 'settings', ''].some(
+  return ['home', 'orders', 'history', 'earnings', ''].some(
     (seg) => base === seg || base.startsWith(seg + '/'),
   );
 }

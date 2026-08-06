@@ -11,8 +11,12 @@ export function useSafeBack(fallbackHref?: RouteHref) {
 
   return useCallback(() => {
     if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
+      try {
+        navigation.goBack();
+        return;
+      } catch {
+        // Screen unmounted mid-navigation, fall through to fallback
+      }
     }
 
     if (fallbackHref) {

@@ -53,6 +53,15 @@
         }
       ],
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 25
+          }
+        }
+      ],
+      "@logrocket/react-native",
+      [
         "react-native-maps",
         {
           "androidGoogleMapsApiKey": "AIzaSyDnMvVmGdj8xI_LrOEJ447dTeLX-KDywik",

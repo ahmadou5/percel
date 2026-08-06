@@ -6,9 +6,12 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Image, LogBox } from 'react-native';
 import 'react-native-reanimated';
 import { vexo } from 'vexo-analytics';
+import LogRocket from '@logrocket/react-native';
+
+LogBox.ignoreAllLogs();
 
 import { DriverRuntime } from '@/components/DriverRuntime';
 import { MaintenanceOverlay } from '@/components/MaintenanceOverlay';
@@ -57,6 +60,10 @@ function RootLayout() {
   }, [error]);
 
   useEffect(() => {
+    LogRocket.init('wcpsf8/percel');
+  }, []);
+
+  useEffect(() => {
     void hydrate();
   }, []);
 
@@ -71,7 +78,14 @@ function RootLayout() {
   }, [loaded, isLoading, preferencesLoading]);
 
   if (!loaded || isLoading || preferencesLoading) {
-    return <ThemedSplashScreen palette={palette} presetName={PRESET_THEMES[activePresetId]?.name} />;
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.bg }}>
+        <Image
+          source={require("../assets/images/splash-icon.png")}
+          style={{ width: 84, height: 84, resizeMode: "contain", marginBottom: 20 }}
+        />
+      </View>
+    );
   }
 
   return (
@@ -107,7 +121,9 @@ function RootLayoutNav() {
         <Stack.Screen name="settings/preferences" />
         <Stack.Screen name="settings/notifications" />
         <Stack.Screen name="settings/vehicle" />
-        <Stack.Screen name="support" />
+        <Stack.Screen name="support/index" />
+        <Stack.Screen name="support/create" />
+        <Stack.Screen name="support/[id]" />
         <Stack.Screen name="auth-lock" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>

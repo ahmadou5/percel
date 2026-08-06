@@ -22,7 +22,7 @@ import {
   useValidateProviderAccount,
   useWallet,
 } from '@/hooks/useWallet';
-import { useAppPalette } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { formatNaira, type ProviderVariation } from '@/lib/wallet';
 
 export default function DriverTvScreen() {
@@ -135,7 +135,7 @@ export default function DriverTvScreen() {
                   styles.providerChip,
                   { backgroundColor: palette.card, borderColor: palette.border },
                   selectedProvider.serviceID === prov.serviceID && {
-                    backgroundColor: palette.primary + '20',
+                    backgroundColor: hexToRgba(palette.primary, 0.14),
                     borderColor: palette.primary,
                   },
                 ]}
@@ -204,7 +204,7 @@ export default function DriverTvScreen() {
                     style={({ pressed }) => [
                       styles.planCard,
                       { backgroundColor: palette.card, borderColor: palette.border },
-                      isSelected && { backgroundColor: palette.primary + '15', borderColor: palette.primary },
+                      isSelected && { backgroundColor: hexToRgba(palette.primary, 0.10), borderColor: palette.primary },
                       pressed && { opacity: 0.7 },
                     ]}
                     onPress={() => setSelectedPlan(plan)}

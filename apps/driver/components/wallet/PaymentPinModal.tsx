@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { SearchCheck } from 'lucide-react-native';
 
@@ -11,18 +11,18 @@ import { haptics } from '@/utils/haptics';
 
 type PaymentPinModalProps = {
   visible: boolean;
-  title: string;
-  subtitle: string;
-  reviewLabel: string;
-  reviewTitle: string;
+  title?: string;
+  subtitle?: string;
+  reviewLabel?: string;
+  reviewTitle?: string;
   reviewMeta?: string;
-  reviewAmount: string;
-  pin: string;
-  onPinChange: (value: string) => void;
+  reviewAmount?: string;
+  pin?: string;
+  onPinChange?: (value: string) => void;
   loading?: boolean;
   error?: string;
-  confirmLabel: string;
-  onConfirm: () => void;
+  confirmLabel?: string;
+  onConfirm?: (pin: string) => void;
   onClose: () => void;
   canClose?: boolean;
   footerHint?: ReactNode;
@@ -31,17 +31,17 @@ type PaymentPinModalProps = {
 
 export function PaymentPinModal({
   visible,
-  title,
-  subtitle,
-  reviewLabel,
-  reviewTitle,
+  title = 'Security PIN',
+  subtitle = 'Enter your 4-digit transaction PIN to continue',
+  reviewLabel = 'Transaction',
+  reviewTitle = 'Confirm Payment',
   reviewMeta,
-  reviewAmount,
-  pin,
-  onPinChange,
+  reviewAmount = '—',
+  pin: controlledPin,
+  onPinChange: controlledOnPinChange,
   loading = false,
   error,
-  confirmLabel,
+  confirmLabel = 'Confirm Transaction',
   onConfirm,
   onClose,
   canClose = true,
@@ -49,23 +49,42 @@ export function PaymentPinModal({
   onBiometricPress,
 }: PaymentPinModalProps) {
   const palette = useAppPalette();
-  const canSubmit = pin.length >= 4 && !loading;
+  const [internalPin, setInternalPin] = useState('');
+
+  useEffect(() => {
+    if (!visible) {
+      setInternalPin('');
+    }
+  }, [visible]);
+
+  const effectivePin = controlledPin !== undefined ? controlledPin : internalPin;
+
+  const setPin = (val: string) => {
+    if (controlledOnPinChange) {
+      controlledOnPinChange(val);
+    } else {
+      setInternalPin(val);
+    }
+  };
+
+  const currentPin = effectivePin ?? '';
+  const canSubmit = currentPin.length >= 4 && !loading;
 
   const handleDigitPress = (digit: string) => {
-    if (pin.length < 4 && !loading) {
-      onPinChange(pin + digit);
+    if (currentPin.length < 4 && !loading) {
+      setPin(currentPin + digit);
     }
   };
 
   const handleDeletePress = () => {
-    if (pin.length > 0 && !loading) {
-      onPinChange(pin.slice(0, -1));
+    if (currentPin.length > 0 && !loading) {
+      setPin(currentPin.slice(0, -1));
     }
   };
 
   const handleClearPress = () => {
     if (!loading) {
-      onPinChange('');
+      setPin('');
     }
   };
 
@@ -110,9 +129,9 @@ export function PaymentPinModal({
           </View>
 
           <PinInput
-            value={pin}
+            value={currentPin}
             onChangeText={(value) => {
-              onPinChange(value.replace(/\s/g, ''));
+              setPin(value.replace(/\s/g, ''));
             }}
             loading={loading}
             error={error}
@@ -135,7 +154,7 @@ export function PaymentPinModal({
           <Pressable
             onPress={() => {
               void haptics.tap();
-              onConfirm();
+              onConfirm?.(currentPin);
             }}
             disabled={!canSubmit}
             style={({ pressed }) => [

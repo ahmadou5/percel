@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useAppPalette } from '@/lib/theme';
+import { hexToRgba, useAppPalette } from '@/lib/theme';
 
 type DobDatePickerModalProps = {
   visible: boolean;
@@ -125,7 +125,7 @@ export function DobDatePickerModal({
                       onPress={() => setSelectedDay(item)}
                       style={[
                         styles.itemRow,
-                        active && { backgroundColor: palette.primary + '18', borderRadius: 10 }
+                        active && { backgroundColor: hexToRgba(palette.primary, 0.12), borderRadius: 10 }
                       ]}
                     >
                       <Text style={[styles.itemText, { color: active ? palette.primary : palette.text }, active && { fontFamily: Typography.family.bold }]}>
@@ -152,7 +152,7 @@ export function DobDatePickerModal({
                       onPress={() => setSelectedMonth(item.value)}
                       style={[
                         styles.itemRow,
-                        active && { backgroundColor: palette.primary + '18', borderRadius: 10 }
+                        active && { backgroundColor: hexToRgba(palette.primary, 0.12), borderRadius: 10 }
                       ]}
                     >
                       <Text style={[styles.itemText, { color: active ? palette.primary : palette.text }, active && { fontFamily: Typography.family.bold }]}>
@@ -179,7 +179,7 @@ export function DobDatePickerModal({
                       onPress={() => setSelectedYear(item)}
                       style={[
                         styles.itemRow,
-                        active && { backgroundColor: palette.primary + '18', borderRadius: 10 }
+                        active && { backgroundColor: hexToRgba(palette.primary, 0.12), borderRadius: 10 }
                       ]}
                     >
                       <Text style={[styles.itemText, { color: active ? palette.primary : palette.text }, active && { fontFamily: Typography.family.bold }]}>
