@@ -18,6 +18,7 @@ export class SupportService {
     priority?: TicketPriority;
     refundRequested?: boolean;
     refundAmount?: number;
+    imageUrl?: string;
   }) {
     const subject = cleanText(data.subject);
     const description = cleanText(data.description);
@@ -25,8 +26,13 @@ export class SupportService {
       throw new ValidationError('Subject and description are required');
     }
 
-    if (data.orderId) {
-      const order = await this.prisma.order.findUnique({ where: { id: data.orderId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    const userName = user?.fullName || (userRole === 'DRIVER' ? 'Driver' : 'Customer');
+
+    const cleanOrderId = data.orderId && data.orderId.trim().length > 0 ? data.orderId.trim() : undefined;
+
+    if (cleanOrderId) {
+      const order = await this.prisma.order.findUnique({ where: { id: cleanOrderId } });
       if (!order) throw new NotFoundError('Associated order not found');
     }
 
@@ -37,21 +43,31 @@ export class SupportService {
         ticketNumber,
         userId,
         userRole,
-        orderId: data.orderId ?? null,
+        orderId: cleanOrderId ?? null,
         category: data.category ?? 'OTHER',
         subject,
         description,
+        imageUrl: data.imageUrl ?? null,
         priority: data.priority ?? 'MEDIUM',
         refundRequested: data.refundRequested ?? false,
         refundAmount: data.refundAmount ?? null,
         status: 'OPEN',
         messages: {
-          create: {
-            senderId: userId,
-            senderName: userRole === 'DRIVER' ? 'Driver' : 'Customer',
-            senderRole: userRole,
-            text: description,
-          },
+          create: [
+            {
+              senderId: userId,
+              senderName: userName,
+              senderRole: userRole,
+              text: description,
+              imageUrl: data.imageUrl ?? null,
+            },
+            {
+              senderId: '00000000-0000-0000-0000-000000000000',
+              senderName: '🛡️ Percel Support',
+              senderRole: 'SYSTEM',
+              text: `Thank you for contacting Percel Support. We have received your ticket (${ticketNumber}) and assigned it to our support queue. A specialist will review your complaint and respond within a few minutes.`,
+            },
+          ],
         },
       },
       include: {
@@ -86,9 +102,9 @@ export class SupportService {
     return ticket;
   }
 
-  async addMessage(userId: string, userName: string, userRole: string, ticketId: string, text: string) {
+  async addMessage(userId: string, userName: string, userRole: string, ticketId: string, text: string, imageUrl?: string) {
     const clean = cleanText(text);
-    if (!clean) throw new ValidationError('Message text cannot be empty');
+    if (!clean && !imageUrl) throw new ValidationError('Message text or image attachment is required');
 
     const ticket = await this.prisma.supportTicket.findUnique({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundError('Support ticket not found');
@@ -99,7 +115,8 @@ export class SupportService {
         senderId: userId,
         senderName: userName,
         senderRole: userRole,
-        text: clean,
+        text: clean || (imageUrl ? '📸 Attached screenshot' : ''),
+        imageUrl: imageUrl ?? null,
       },
     });
 
@@ -107,6 +124,23 @@ export class SupportService {
       where: { id: ticketId },
       data: { updatedAt: new Date(), status: ticket.status === 'CLOSED' ? 'REOPENED' as any : ticket.status },
     });
+
+    // Notify user if support team or admin replied
+    if (userRole === 'ADMIN' || userRole === 'SYSTEM') {
+      try {
+        await this.prisma.notification.create({
+          data: {
+            userId: ticket.userId,
+            type: 'SYSTEM',
+            title: `Support Reply: Ticket #${ticket.ticketNumber}`,
+            body: `Percel Support replied: "${(clean || 'Sent an image attachment').slice(0, 80)}"`,
+            data: JSON.stringify({ ticketId, screen: '/support/[id]' }),
+          },
+        });
+      } catch (err) {
+        // Log notification error silently
+      }
+    }
 
     return message;
   }

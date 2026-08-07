@@ -48,18 +48,7 @@ export function WalletDashboardTable({
   initialTransactions: AdminWalletTransaction[];
 }) {
   const [stats] = useState<WalletStat[]>(initialStats);
-  const [transactions] = useState<AdminWalletTransaction[]>(() => {
-    if (initialTransactions.length > 0) return initialTransactions;
-    // Mock dataset if backend returns empty list for demo
-    return [
-      { id: 'tx-1', type: 'DEBIT', reference: 'TX-99201A', category: 'ORDER_PAYMENT', amount: '₦4,500', rawAmount: 4500, status: 'COMPLETED', note: 'Order PCL-9821XA payment', createdAt: 'Today', userName: 'Emeka Obi', userId: 'u-1', userRole: 'USER' },
-      { id: 'tx-2', type: 'CREDIT', reference: 'TX-99202B', category: 'ORDER_EARNING', amount: '₦3,825', rawAmount: 3825, status: 'COMPLETED', note: 'Courier payout for PCL-9821XA', createdAt: 'Today', userName: 'Chinedu Okafor', userId: 'd-1', userRole: 'DRIVER' },
-      { id: 'tx-3', type: 'CREDIT', reference: 'TX-99203C', category: 'TOP_UP', amount: '₦150,000', rawAmount: 150000, status: 'COMPLETED', note: 'Card top-up via Paystack', createdAt: 'Yesterday', userName: 'High Volume Corp', userId: 'u-99', userRole: 'USER', isAnomalous: true, anomalyReason: 'Top-up amount > ₦100,000' },
-      { id: 'tx-4', type: 'CREDIT', reference: 'TX-99204D', category: 'REFUND', amount: '₦2,500', rawAmount: 2500, status: 'COMPLETED', note: 'Customer dispute refund for PCL-2JX5ZCN', createdAt: '2 days ago', userName: 'Ngozi Umeh', userId: 'u-2', userRole: 'USER' },
-      { id: 'tx-5', type: 'DEBIT', reference: 'TX-99205E', category: 'TRANSFER_OUT', amount: '₦75,000', rawAmount: 75000, status: 'COMPLETED', note: 'Large wallet transfer to external bank', createdAt: '3 days ago', userName: 'Aisha Bello', userId: 'd-4', userRole: 'DRIVER', isAnomalous: true, anomalyReason: 'Suspended courier account activity' },
-      { id: 'tx-6', type: 'DEBIT', reference: 'TX-99206F', category: 'AIRTIME', amount: '₦1,000', rawAmount: 1000, status: 'COMPLETED', note: 'MTN Airtime purchase', createdAt: '3 days ago', userName: 'Ibrahim Sani', userId: 'd-3', userRole: 'DRIVER' },
-    ];
-  });
+  const [transactions] = useState<AdminWalletTransaction[]>(initialTransactions || []);
 
   // State Controls
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');

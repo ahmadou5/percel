@@ -12,6 +12,8 @@ import { useLogout } from '@/hooks/useAuth';
 
 import { AppVersionFooter } from '@/components/AppVersionFooter';
 
+import { useSupportTickets } from '@/hooks/useSupport';
+
 const preferenceItems = [
   { title: 'Preferences', subtitle: 'Customize your view', href: '/settings/preferences', Icon: Palette },
 ] as const;
@@ -40,6 +42,8 @@ export default function SettingsScreen() {
   const back = useSafeBack('/profile');
   const logout = useLogout();
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const { data: tickets = [] } = useSupportTickets();
+  const activeSupportCount = tickets.filter((t) => t.status === 'OPEN' || t.status === 'UNDER_REVIEW').length;
 
   const confirmLogout = async () => {
     setLogoutVisible(false);
@@ -66,13 +70,13 @@ export default function SettingsScreen() {
       </View>
 
       <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <SectionGroup label="Preferences" items={preferenceItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Preferences" items={preferenceItems} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Account" items={accountItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Account" items={accountItems} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Activity" items={activityItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Activity" items={activityItems} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Security" items={securityItems} palette={palette} onPress={openLink} />
+        <SectionGroup label="Security" items={securityItems} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
       </View>
 
       <Pressable onPress={() => setLogoutVisible(true)} style={({ pressed }) => [styles.logoutButton, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.pressed : null]}>
@@ -103,23 +107,35 @@ export default function SettingsScreen() {
   );
 }
 
-function SectionGroup({ label, items, palette, onPress }: { label: string; items: ReadonlyArray<{ title: string; subtitle: string; href: string; Icon: ComponentType<{ color?: string; size?: number }>; external?: boolean }>; palette: (typeof Colors)[keyof typeof Colors]; onPress: (href: string) => void; }) {
+function SectionGroup({ label, items, palette, onPress, activeSupportCount }: { label: string; items: ReadonlyArray<{ title: string; subtitle: string; href: string; Icon: ComponentType<{ color?: string; size?: number }>; external?: boolean }>; palette: (typeof Colors)[keyof typeof Colors]; onPress: (href: string) => void; activeSupportCount?: number; }) {
   return (
     <View style={styles.group}>
       <Text style={[styles.groupLabel, { color: palette.textSecondary }]}>{label}</Text>
       <View style={styles.groupList}>
-        {items.map((item) => (
-          <Pressable key={item.title} onPress={() => void onPress(item.href)} style={({ pressed }) => [styles.menuRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
-            <View style={[styles.iconBox, { backgroundColor: palette.text }]}>
-              <item.Icon size={18} color={palette.primary} />
-            </View>
-            <View style={styles.menuCopy}>
-              <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
-              <Text style={[styles.menuSubtitle, { color: palette.textSecondary }]}>{item.subtitle}</Text>
-            </View>
-            <ChevronRight size={18} color={palette.textSecondary} />
-          </Pressable>
-        ))}
+        {items.map((item) => {
+          const isSupport = item.href === '/support';
+          const hasActiveSupport = isSupport && (activeSupportCount ?? 0) > 0;
+
+          return (
+            <Pressable key={item.title} onPress={() => void onPress(item.href)} style={({ pressed }) => [styles.menuRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}>
+              <View style={[styles.iconBox, { backgroundColor: palette.text }]}>
+                <item.Icon size={18} color={palette.primary} />
+              </View>
+              <View style={styles.menuCopy}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
+                  {hasActiveSupport ? (
+                    <View style={[styles.badgePill, { backgroundColor: palette.primary }]}>
+                      <Text style={styles.badgePillText}>{activeSupportCount} open</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={[styles.menuSubtitle, { color: palette.textSecondary }]}>{item.subtitle}</Text>
+              </View>
+              <ChevronRight size={18} color={palette.textSecondary} />
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -141,6 +157,8 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, gap: 2 },
   menuTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   menuSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  badgePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
+  badgePillText: { color: '#FFF', fontSize: 10, fontFamily: Typography.family.bold },
   groupSpacer: { height: 16 },
   logoutButton: { marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 18, borderWidth: 1, minHeight: 54 },
   logoutText: { fontSize: Typography.md, fontFamily: Typography.family.bold },

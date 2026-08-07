@@ -449,7 +449,13 @@ export async function loadDriverPayouts() {
 }
 
 export async function loadDisputes() {
-  return adminFetch<any[]>('/disputes');
+  const [tickets, disputes] = await Promise.all([
+    adminFetch<any[]>('/support-tickets'),
+    adminFetch<any[]>('/disputes'),
+  ]);
+  const allTickets = Array.isArray(tickets) ? tickets : [];
+  const allDisputes = Array.isArray(disputes) ? disputes : [];
+  return [...allTickets, ...allDisputes];
 }
 
 export async function loadConnectedUsers() {

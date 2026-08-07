@@ -145,31 +145,7 @@ export function DisputeDeskView({
   initialDisputes: Dispute[];
 }) {
   const [disputes, setDisputes] = useState<Dispute[]>(initialDisputes);
-  const [resolvedHistory, setResolvedHistory] = useState<ResolvedDispute[]>([
-    {
-      id: 'rsp-1',
-      trackingCode: 'PCL-881021',
-      customerName: 'Zainab Musa',
-      driverName: 'Chukwuemeka Eze',
-      outcome: 'REFUNDED',
-      refundAmount: '₦3,500',
-      resolvedBy: 'Admin Operator',
-      resolvedAt: 'Today 09:15',
-      reason: 'Driver did not deliver package to correct address',
-      openDuration: '8 mins',
-    },
-    {
-      id: 'rsp-2',
-      trackingCode: 'PCL-772119',
-      customerName: 'Seun Adeola',
-      driverName: 'Mohammed Salisu',
-      outcome: 'NO_REFUND',
-      resolvedBy: 'Admin Operator',
-      resolvedAt: 'Today 08:02',
-      reason: 'Customer reported late delivery but package was delivered on time per GPS logs',
-      openDuration: '5 mins',
-    },
-  ]);
+  const [resolvedHistory, setResolvedHistory] = useState<ResolvedDispute[]>([]);
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 

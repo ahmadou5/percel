@@ -128,11 +128,8 @@ const DEFAULT_INTERSTATE_ROUTES: AdminInterstateRoute[] = [
 ];
 
 export function ServiceAreasManager({ initialAreas }: { initialAreas: AdminServiceArea[] }) {
-  // Merge initial API areas with fallback default areas if empty
-  const [areas, setAreas] = useState<AdminServiceArea[]>(
-    initialAreas && initialAreas.length > 0 ? initialAreas : DEFAULT_AREAS
-  );
-  const [interstateRoutes, setInterstateRoutes] = useState<AdminInterstateRoute[]>(DEFAULT_INTERSTATE_ROUTES);
+  const [areas, setAreas] = useState<AdminServiceArea[]>(initialAreas || []);
+  const [interstateRoutes, setInterstateRoutes] = useState<AdminInterstateRoute[]>([]);
 
   // Active Tab: 'intra' | 'interstate' | 'audit'
   const [activeTab, setActiveTab] = useState<'intra' | 'interstate' | 'audit'>('intra');

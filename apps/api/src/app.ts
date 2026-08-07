@@ -69,7 +69,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   };
 
   const app = Fastify({
-    bodyLimit: 100 * 1024,
+    bodyLimit: 15 * 1024 * 1024,
     logger: loggerOptions,
   });
 

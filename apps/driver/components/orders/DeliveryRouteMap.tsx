@@ -255,6 +255,17 @@ function RouteMapContent({ driverLocation, driverName, driverAvatarUrl, originLo
     return buildInterpolatedRoute(basePoints);
   }, [routeCoordinates, originLocation, driverLocation, destinationLocation]);
 
+  // Auto-fit origin, destination, and driver location on mount and coordinate changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      mapRef.current?.fitToCoordinates(points, {
+        edgePadding: { top: 120, right: 60, bottom: 260, left: 60 },
+        animated: true,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [originLocation.latitude, originLocation.longitude, destinationLocation.latitude, destinationLocation.longitude]);
+
   // Smoothly follow the driver when location changes (unless user interacted)
   useEffect(() => {
     if (!driverLocation) return;
@@ -271,7 +282,7 @@ function RouteMapContent({ driverLocation, driverName, driverAvatarUrl, originLo
     if (isFirstFix) {
       // Fit to see everything on start
       mapRef.current?.fitToCoordinates(points, {
-        edgePadding: { top: 100, right: 50, bottom: 250, left: 50 },
+        edgePadding: { top: 120, right: 60, bottom: 260, left: 60 },
         animated: true,
       });
       userInteracted.current = false;

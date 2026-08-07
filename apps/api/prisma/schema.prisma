@@ -593,6 +593,7 @@ model SupportTicket {
   category        TicketCategory @default(OTHER)
   subject         String
   description     String
+  imageUrl        String?
   status          TicketStatus   @default(OPEN)
   priority        TicketPriority @default(MEDIUM)
   refundRequested Boolean        @default(false)
@@ -618,6 +619,7 @@ model SupportMessage {
   senderName String
   senderRole String   // 'USER' | 'DRIVER' | 'ADMIN'
   text       String
+  imageUrl   String?
   createdAt  DateTime @default(now())
 
   ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)

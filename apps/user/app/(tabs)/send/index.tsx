@@ -16,7 +16,7 @@ import {
   Package,
   Map,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -242,9 +242,36 @@ export default function SendOrderEntryScreen() {
 
   const [quoteData, setQuoteData] = useState<OrderQuoteResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const mainMapRef = useRef<MapView>(null);
 
   const directionsRouteQuery = useGetDirectionsRoute(pickupPoint, deliveryPoint);
   const roadRoutePoints = directionsRouteQuery.data ?? [];
+
+  useEffect(() => {
+    if (pickupPoint && deliveryPoint) {
+      const timer = setTimeout(() => {
+        mainMapRef.current?.fitToCoordinates([pickupPoint, deliveryPoint], {
+          edgePadding: { top: 160, right: 60, bottom: 300, left: 60 },
+          animated: true,
+        });
+      }, 300);
+      return () => clearTimeout(timer);
+    } else if (pickupPoint) {
+      mainMapRef.current?.animateToRegion({
+        latitude: pickupPoint.latitude,
+        longitude: pickupPoint.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 600);
+    } else if (deliveryPoint) {
+      mainMapRef.current?.animateToRegion({
+        latitude: deliveryPoint.latitude,
+        longitude: deliveryPoint.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 600);
+    }
+  }, [pickupPoint?.latitude, pickupPoint?.longitude, deliveryPoint?.latitude, deliveryPoint?.longitude]);
 
   const resetFormState = useCallback(() => {
     setPickupAddress('');
@@ -740,6 +767,7 @@ export default function SendOrderEntryScreen() {
     <View style={[styles.container, { backgroundColor: palette.bg }]}>
       {/* ── Background Map ── */}
       <MapView
+        ref={mainMapRef}
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFillObject}
         region={mapRegion}

@@ -25,6 +25,7 @@ import { ActiveOrdersCarousel } from '@/components/orders/ActiveOrdersCarousel';
 import { useToggleOnlineStatus } from '@/hooks/useDriverProfile';
 import { useQueryClient } from '@tanstack/react-query';
 import { emitDriverEvent, subscribeDriverSocket } from '@/lib/socket';
+import { api } from '@/lib/api';
 import type { DriverOrder } from '@/lib/types';
 
 function formatNaira(value: number) {
@@ -345,11 +346,56 @@ export default function DriverHomeScreen() {
 
   const isLoading = walletQuery.isLoading && !wallet;
 
+  const [readableAddress, setReadableAddress] = useState<string | null>(null);
+
+  useEffect(() => {
+    const lat = driver?.currentLocation?.lat;
+    const lng = driver?.currentLocation?.lng;
+
+    if (lat == null || lng == null || (lat === 0 && lng === 0)) {
+      setReadableAddress(null);
+      return;
+    }
+
+    let isMounted = true;
+    const resolveAddress = async () => {
+      // 1. Try Google Maps API via backend helper
+      try {
+        const res = await api.post<{ data: { formattedAddress: string; city: string; state: string } }>('/api/v1/orders/reverse-geocode', { lat, lng });
+        if (isMounted && res.data?.data?.formattedAddress) {
+          setReadableAddress(res.data.data.formattedAddress);
+          return;
+        }
+      } catch {}
+
+      // 2. Try native Location.reverseGeocodeAsync fallback
+      try {
+        const Location = require('expo-location');
+        const results = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+        if (isMounted && results && results.length > 0) {
+          const item = results[0];
+          const street = item.street || item.name || item.district;
+          const city = item.city || item.subregion || item.region || 'Lagos';
+          const formatted = street && street.toLowerCase() !== city.toLowerCase() ? `${street}, ${city}` : city;
+          setReadableAddress(formatted);
+        }
+      } catch {}
+    };
+
+    void resolveAddress();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [driver?.currentLocation?.lat, driver?.currentLocation?.lng]);
+
   // Derived human-readable location label
   const locationLabel = useMemo(() => {
+    if (readableAddress) return readableAddress;
     if (!driver?.currentLocation) return 'Locating...';
     const lat = driver.currentLocation.lat;
     const lng = driver.currentLocation.lng;
+    if (lat === 0 && lng === 0) return 'Locating...';
     const latDir = lat >= 0 ? 'N' : 'S';
     const lngDir = lng >= 0 ? 'E' : 'W';
 
@@ -358,7 +404,7 @@ export default function DriverHomeScreen() {
     const citySuffix = isLagos ? ' (Lagos)' : '';
 
     return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}${citySuffix}`;
-  }, [driver?.currentLocation]);
+  }, [readableAddress, driver?.currentLocation]);
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.bg }]}>

@@ -126,14 +126,14 @@ export function SystemSettingsManager() {
   const [switchReason, setSwitchReason] = useState('');
 
   // ── 3. Roles & Access Management State (Order #3) ────────────────────────
-  const [roleUsers, setRoleUsers] = useState<AdminRoleUser[]>(DEFAULT_ROLE_USERS);
+  const [roleUsers, setRoleUsers] = useState<AdminRoleUser[]>([]);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [newAdminName, setNewAdminName] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminRole, setNewAdminRole] = useState<'Super Admin' | 'Finance' | 'Dispatch' | 'Support'>('Support');
 
   // ── 4. Alerts / Thresholds State (Order #4) ──────────────────────────────
-  const [thresholds, setThresholds] = useState<OpsThresholdConfig[]>(DEFAULT_THRESHOLDS);
+  const [thresholds, setThresholds] = useState<OpsThresholdConfig[]>([]);
 
   // ── 5. Admin Profile & Security State ────────────────────────────────────
   const [currentPassword, setCurrentPassword] = useState('');
@@ -144,7 +144,7 @@ export function SystemSettingsManager() {
   const [is2FAEnabled, setIs2FAEnabled] = useState(true);
 
   // ── 6. Global Audit Log State (Order #5) ─────────────────────────────────
-  const [auditLog, setAuditLog] = useState<SettingsAuditEntry[]>(DEFAULT_SETTINGS_AUDIT);
+  const [auditLog, setAuditLog] = useState<SettingsAuditEntry[]>([]);
 
   // Fetch real settings & maintenance config on mount
   useMemo(() => {

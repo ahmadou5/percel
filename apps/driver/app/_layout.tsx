@@ -6,10 +6,20 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, View, Image, LogBox } from 'react-native';
+import { ActivityIndicator, View, Image, LogBox, NativeModules } from 'react-native';
 import 'react-native-reanimated';
 import { vexo } from 'vexo-analytics';
-import LogRocket from '@logrocket/react-native';
+
+if (typeof self === 'undefined') {
+  (global as any).self = global;
+}
+
+let LogRocket: any = null;
+try {
+  LogRocket = require('@logrocket/react-native')?.default || require('@logrocket/react-native');
+} catch {
+  // Safe fallback for web/SSG export
+}
 
 LogBox.ignoreAllLogs();
 
@@ -60,7 +70,11 @@ function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    LogRocket.init('wcpsf8/percel');
+    if (LogRocket && (NativeModules.RNLogRocket || NativeModules.LogRocket)) {
+      try {
+        LogRocket.init('wcpsf8/percel');
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {

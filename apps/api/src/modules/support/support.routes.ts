@@ -8,7 +8,7 @@ export const supportRoutes: FastifyPluginAsync = async (app) => {
 
   // Authenticated user/driver endpoints
   app.post('/support/tickets', {
-    onRequest: [app.authenticate],
+    preHandler: [app.authenticate],
   }, async (request) => {
     const userId = (request.user as { sub: string }).sub;
     const body = request.body as {
@@ -16,6 +16,7 @@ export const supportRoutes: FastifyPluginAsync = async (app) => {
       category: TicketCategory;
       subject: string;
       description: string;
+      imageUrl?: string;
       priority?: TicketPriority;
       refundRequested?: boolean;
       refundAmount?: number;
@@ -28,7 +29,7 @@ export const supportRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get('/support/tickets', {
-    onRequest: [app.authenticate],
+    preHandler: [app.authenticate],
   }, async (request) => {
     const userId = (request.user as { sub: string }).sub;
     const tickets = await service.getUserTickets(userId);
@@ -36,7 +37,7 @@ export const supportRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get('/support/tickets/:id', {
-    onRequest: [app.authenticate],
+    preHandler: [app.authenticate],
   }, async (request) => {
     const userId = (request.user as { sub: string }).sub;
     const { id } = request.params as { id: string };
@@ -45,16 +46,16 @@ export const supportRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post('/support/tickets/:id/messages', {
-    onRequest: [app.authenticate],
+    preHandler: [app.authenticate],
   }, async (request) => {
     const userId = (request.user as { sub: string }).sub;
     const { id } = request.params as { id: string };
-    const body = request.body as { text: string; senderName?: string; senderRole?: string };
+    const body = request.body as { text: string; senderName?: string; senderRole?: string; imageUrl?: string };
     const user = await app.prisma.user.findUnique({ where: { id: userId } });
     const userName = body.senderName ?? user?.fullName ?? 'User';
-    const userRole = body.senderRole ?? (user?.role === 'ADMIN' ? 'ADMIN' : 'USER');
+    const userRole = body.senderRole ?? ((user?.role as string) === 'ADMIN' || (user?.role as string) === 'SUPER_ADMIN' || (user?.role as string) === 'SUPPORT' ? 'ADMIN' : (user?.role as string) === 'DRIVER' ? 'DRIVER' : 'USER');
 
-    const message = await service.addMessage(userId, userName, userRole, id, body.text);
+    const message = await service.addMessage(userId, userName, userRole, id, body.text, body.imageUrl);
     return success(message, 'Message added to support ticket');
   });
 };

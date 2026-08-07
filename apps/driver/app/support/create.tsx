@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Send } from 'lucide-react-native';
+import { ArrowLeft, Image as ImageIcon, Send, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -25,8 +26,25 @@ export default function CreateDriverSupportTicketScreen() {
   const [category, setCategory] = useState<DriverTicketCategory>('WRONG_CHARGE');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const createTicket = useCreateDriverSupportTicket();
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      base64: true,
+      allowsEditing: true,
+    });
+    if (!res.canceled && res.assets[0]) {
+      const asset = res.assets[0];
+      const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+      setSelectedImage(uri);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!subject.trim() || !description.trim()) {
@@ -40,6 +58,7 @@ export default function CreateDriverSupportTicketScreen() {
         category,
         subject: subject.trim(),
         description: description.trim(),
+        imageUrl: selectedImage || undefined,
       });
 
       Alert.alert('Dispute Submitted', `Your ticket (${ticket.ticketNumber}) has been submitted. Our support team will review it.`, [
@@ -123,6 +142,27 @@ export default function CreateDriverSupportTicketScreen() {
           />
         </View>
 
+        {/* Screenshot Attachment */}
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, { color: palette.textSecondary }]}>Attach Screenshot / Proof (Optional)</Text>
+          {selectedImage ? (
+            <View style={[styles.imagePreviewBox, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <Image source={{ uri: selectedImage }} style={styles.previewImage} resizeMode="cover" />
+              <Pressable onPress={() => setSelectedImage(null)} style={styles.removeImageBtn}>
+                <X size={14} color="#FFF" />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={pickImage}
+              style={[styles.uploadBox, { backgroundColor: palette.card, borderColor: palette.border }]}
+            >
+              <ImageIcon size={20} color={palette.primary} />
+              <Text style={[styles.uploadText, { color: palette.text }]}>Upload Photo or Screenshot</Text>
+            </Pressable>
+          )}
+        </View>
+
         {/* Submit */}
         <Pressable
           onPress={handleSubmit}
@@ -196,6 +236,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     fontSize: Typography.sm,
+  },
+  uploadBox: {
+    minHeight: 60,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  uploadText: { fontSize: Typography.xs, fontFamily: Typography.family.semibold },
+  imagePreviewBox: {
+    height: 120,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  previewImage: { width: '100%', height: '100%' },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   submitButton: {
     minHeight: 54,

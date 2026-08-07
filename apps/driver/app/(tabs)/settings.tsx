@@ -23,6 +23,8 @@ import { Typography } from '@/constants/typography';
 import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
 
+import { useDriverSupportTickets } from '@/hooks/useDriverSupport';
+
 type MenuItem = {
   title: string;
   subtitle: string;
@@ -38,10 +40,10 @@ const ACCOUNT_ITEMS: ReadonlyArray<MenuItem> = [
   { title: 'Profile', subtitle: 'Driver profile', href: '/(tabs)/profile', Icon: User2 },
   { title: 'KYC', subtitle: 'Courier ID verification', href: '/(kyc)', Icon: BadgeCheck },
   { title: 'Vehicle', subtitle: 'Vehicle info.', href: '/settings/vehicle', Icon: Car },
-  { title: 'Transactions', subtitle: 'Ledger history', href: '/(tabs)/wallet/transactions', Icon: History },
 ];
 
 const ACTIVITY_ITEMS: ReadonlyArray<MenuItem> = [
+  { title: 'Transactions', subtitle: 'Ledger history', href: '/(tabs)/wallet/transactions', Icon: History },
   { title: 'Notification Preferences', subtitle: 'Manage Notifications', href: '/settings/notifications', Icon: Bell },
 ];
 
@@ -55,12 +57,17 @@ const MenuItemRow = memo(function MenuItemRow({
   item,
   palette,
   onPress,
+  activeSupportCount,
 }: {
   item: MenuItem;
   palette: ReturnType<typeof useAppPalette>;
   onPress: (href: string) => void;
+  activeSupportCount?: number;
 }) {
   const Icon = item.Icon;
+  const isSupport = item.href === '/support';
+  const hasActiveSupport = isSupport && (activeSupportCount ?? 0) > 0;
+
   return (
     <Pressable
       onPress={() => onPress(item.href)}
@@ -74,7 +81,14 @@ const MenuItemRow = memo(function MenuItemRow({
         <Icon size={18} color={palette.primary} />
       </View>
       <View style={styles.menuCopy}>
-        <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[styles.menuTitle, { color: palette.text }]}>{item.title}</Text>
+          {hasActiveSupport ? (
+            <View style={[styles.badgePill, { backgroundColor: palette.primary }]}>
+              <Text style={styles.badgePillText}>{activeSupportCount} open</Text>
+            </View>
+          ) : null}
+        </View>
         <Text style={[styles.menuSubtitle, { color: palette.textSecondary }]}>{item.subtitle}</Text>
       </View>
       <ChevronRight size={18} color={palette.textSecondary} />
@@ -87,18 +101,20 @@ const SectionGroup = memo(function SectionGroup({
   items,
   palette,
   onPress,
+  activeSupportCount,
 }: {
   label: string;
   items: ReadonlyArray<MenuItem>;
   palette: ReturnType<typeof useAppPalette>;
   onPress: (href: string) => void;
+  activeSupportCount?: number;
 }) {
   return (
     <View style={styles.group}>
       <Text style={[styles.groupLabel, { color: palette.textSecondary }]}>{label}</Text>
       <View style={styles.groupList}>
         {items.map((item) => (
-          <MenuItemRow key={item.title} item={item} palette={palette} onPress={onPress} />
+          <MenuItemRow key={item.title} item={item} palette={palette} onPress={onPress} activeSupportCount={activeSupportCount} />
         ))}
       </View>
     </View>
@@ -111,6 +127,8 @@ export default function DriverSettingsScreen() {
   const back = useSafeBack('/(tabs)/home');
   const logout = useDriverStore((state) => state.logout);
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const { data: tickets = [] } = useDriverSupportTickets();
+  const activeSupportCount = tickets.filter((t) => t.status === 'OPEN' || t.status === 'UNDER_REVIEW').length;
 
   const confirmLogout = useCallback(async () => {
     setLogoutVisible(false);
@@ -146,13 +164,13 @@ export default function DriverSettingsScreen() {
 
       {/* Settings groups card */}
       <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <SectionGroup label="Preferences" items={PREFERENCE_ITEMS} palette={palette} onPress={openLink} />
+        <SectionGroup label="Preferences" items={PREFERENCE_ITEMS} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Account" items={ACCOUNT_ITEMS} palette={palette} onPress={openLink} />
+        <SectionGroup label="Account" items={ACCOUNT_ITEMS} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Activity" items={ACTIVITY_ITEMS} palette={palette} onPress={openLink} />
+        <SectionGroup label="Activity" items={ACTIVITY_ITEMS} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
         <View style={styles.groupSpacer} />
-        <SectionGroup label="Security" items={SECURITY_ITEMS} palette={palette} onPress={openLink} />
+        <SectionGroup label="Security" items={SECURITY_ITEMS} palette={palette} onPress={openLink} activeSupportCount={activeSupportCount} />
       </View>
 
       {/* Logout button */}
@@ -218,6 +236,8 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, gap: 2 },
   menuTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   menuSubtitle: { fontSize: Typography.sm, fontFamily: Typography.family.regular },
+  badgePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
+  badgePillText: { color: '#FFF', fontSize: 10, fontFamily: Typography.family.bold },
   logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 18, borderWidth: 1, minHeight: 54 },
   logoutText: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },

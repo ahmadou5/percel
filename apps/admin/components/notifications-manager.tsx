@@ -154,15 +154,15 @@ export function NotificationsManager({ initialNotifications }: { initialNotifica
       ? initialNotifications.map((n) => ({
           ...n,
           isTransactional: false,
-          totalRecipients: n.totalRecipients || 1240,
-          deliveredCount: n.deliveredCount || 1215,
-          failedCount: n.failedCount || 25,
-          openRatePct: n.openRatePct || 42.5,
+          totalRecipients: n.totalRecipients || 0,
+          deliveredCount: n.deliveredCount || 0,
+          failedCount: n.failedCount || 0,
+          openRatePct: n.openRatePct || 0,
         }))
-      : DEFAULT_CAMPAIGNS
+      : []
   );
 
-  const [systemNotifications] = useState<AdminNotification[]>(DEFAULT_SYSTEM_TRANSACTIONAL);
+  const [systemNotifications] = useState<AdminNotification[]>([]);
   const [templates, setTemplates] = useState<BroadcastTemplate[]>(PRESET_TEMPLATES);
 
   // Active Tab

@@ -17,6 +17,7 @@ export type SupportMessage = {
   senderName: string;
   senderRole: string;
   text: string;
+  imageUrl?: string | null;
   createdAt: string;
 };
 
@@ -29,6 +30,7 @@ export type SupportTicket = {
   category: TicketCategory;
   subject: string;
   description: string;
+  imageUrl?: string | null;
   status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'CLOSED';
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   refundRequested: boolean;
@@ -48,7 +50,7 @@ export function useSupportTickets() {
   return useQuery<SupportTicket[]>({
     queryKey: ['support-tickets'],
     queryFn: async () => {
-      const res = await api.get('/support/tickets');
+      const res = await api.get('/api/v1/support/tickets');
       return res.data.data;
     },
   });
@@ -59,7 +61,7 @@ export function useSupportTicketDetails(id?: string) {
     queryKey: ['support-tickets', id],
     queryFn: async () => {
       if (!id) throw new Error('Ticket ID is required');
-      const res = await api.get(`/support/tickets/${id}`);
+      const res = await api.get(`/api/v1/support/tickets/${id}`);
       return res.data.data;
     },
     enabled: Boolean(id),
@@ -76,11 +78,12 @@ export function useCreateSupportTicket() {
       category: TicketCategory;
       subject: string;
       description: string;
+      imageUrl?: string;
       refundRequested?: boolean;
       refundAmount?: number;
       userRole?: 'USER' | 'DRIVER';
     }) => {
-      const res = await api.post('/support/tickets', payload);
+      const res = await api.post('/api/v1/support/tickets', payload);
       return res.data.data;
     },
     onSuccess: () => {
@@ -93,8 +96,8 @@ export function useSendSupportMessage(ticketId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { text: string; senderName?: string; senderRole?: string }) => {
-      const res = await api.post(`/support/tickets/${ticketId}/messages`, payload);
+    mutationFn: async (payload: { text: string; imageUrl?: string; senderName?: string; senderRole?: string }) => {
+      const res = await api.post(`/api/v1/support/tickets/${ticketId}/messages`, payload);
       return res.data.data;
     },
     onSuccess: () => {

@@ -122,7 +122,7 @@ export default function DriverSupportIndexScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, paddingTop: Spacing.sm },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   heroCopy: { flex: 1, gap: 4 },
   heroTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold, color: '#FFF' },
-  heroSub: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.85)' },
+  heroSub: { fontSize: Typography.xs, color: 'rgba(255,255,255,0.85)', fontFamily: Typography.family.regular },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,12 +174,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   createTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
-  createSub: { fontSize: Typography.xs },
+  createSub: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   sectionHeader: { marginTop: 8 },
   sectionTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
   emptyCard: { padding: Spacing.xl, borderRadius: 20, borderWidth: 1, alignItems: 'center', gap: 6, marginVertical: 12 },
   emptyTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  emptySub: { fontSize: Typography.xs, textAlign: 'center' },
+  emptySub: { fontSize: Typography.xs, textAlign: 'center', fontFamily: Typography.family.regular },
   ticketCard: {
     padding: Spacing.md,
     borderRadius: 16,

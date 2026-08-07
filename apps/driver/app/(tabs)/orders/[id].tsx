@@ -33,10 +33,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppPalette, hexToRgba } from '@/lib/theme';
 import { useDriverRateOrder, useUpdateOrderStatus, useDriverActiveOrders, useDriverOrderDetail } from '@/hooks/useDriverOrders';
+import { api } from '@/lib/api';
 import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline';
 import { DeliveryRouteMap } from '@/components/orders/DeliveryRouteMap';
+import { DriverLiveNavigationModal } from '@/components/orders/DriverLiveNavigationModal';
 import { ActiveOrdersCarousel } from '@/components/orders/ActiveOrdersCarousel';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -130,13 +132,36 @@ export default function OrderDetailScreen() {
   const [feedbackRating, setFeedbackRating] = useState<1 | 5>(5);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [navModalVisible, setNavModalVisible] = useState(false);
 
   const queryClient = useQueryClient();
 
-  // ⚠️ Must be above any conditional early returns — Rules of Hooks
   const currentLocation = useDriverStore((s) => s.currentLocation);
   const activeOrdersQuery = useDriverActiveOrders();
   const activeOrders = activeOrdersQuery.data ?? [];
+  const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+
+  useEffect(() => {
+    if (!order?.pickupLat || !order?.pickupLng || !order?.deliveryLat || !order?.deliveryLng) return;
+    const pickupLat = Number(order.pickupLat);
+    const pickupLng = Number(order.pickupLng);
+    const destLat = Number(order.deliveryLat);
+    const destLng = Number(order.deliveryLng);
+
+    let isMounted = true;
+    api.post<{ data: Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
+      originLat: pickupLat,
+      originLng: pickupLng,
+      destLat,
+      destLng,
+    }).then((res) => {
+      if (isMounted && res.data?.data && Array.isArray(res.data.data)) {
+        setRouteCoordinates(res.data.data);
+      }
+    }).catch(() => {});
+
+    return () => { isMounted = false; };
+  }, [order?.pickupLat, order?.pickupLng, order?.deliveryLat, order?.deliveryLng]);
 
   useEffect(() => {
     const invalidate = () => {
@@ -233,48 +258,41 @@ export default function OrderDetailScreen() {
           onSelectOrder={(selectedId) => router.replace({ pathname: '/(tabs)/orders/[id]', params: { id: selectedId } })}
         /> */}
 
-        {/* ── Map Header ── */}
-        <View style={styles.mapContainer}>
-          <DeliveryRouteMap
-            driverLocation={
-              currentLocation
-                ? { latitude: currentLocation.lat, longitude: currentLocation.lng }
-                : { latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) }
-            }
-            driverName={order.driver?.fullName ?? 'Driver'}
-            driverAvatarUrl={null}
-            originLocation={{ latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) }}
-            destinationLocation={{ latitude: Number(order.deliveryLat), longitude: Number(order.deliveryLng) }}
-            routeCoordinates={[]}
-          />
-
-          {/* ── Turn-by-turn Overlay ── */}
-          {(order.status === 'ACCEPTED' || order.status === 'IN_TRANSIT') && (
-            <View style={[styles.tbtOverlay, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <View style={[styles.tbtIconBox, { backgroundColor: palette.primary }]}>
-                <CornerUpLeft size={24} color="#fff" />
-              </View>
-              <View style={styles.tbtCopy}>
-                <Text style={[styles.tbtInstruction, { color: palette.text }]}>In 40m, turn left</Text>
-                <Text style={[styles.tbtStreet, { color: palette.textSecondary }]}>onto {order.status === 'ACCEPTED' ? order.pickupFormattedAddress.split(',')[0] : order.deliveryFormattedAddress.split(',')[0]}</Text>
-              </View>
+        {/* ── Full-Screen Live Navigation Banner ── */}
+        <View style={[styles.navCardBanner, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.navCardHeader}>
+            <View style={[styles.navPulseBadge, { backgroundColor: hexToRgba('#30D158', 0.14) }]}>
+              <View style={[styles.pulseDot, { backgroundColor: '#30D158' }]} />
+              <Text style={[styles.pulseText, { color: '#30D158' }]}>LIVE GPS READY</Text>
             </View>
-          )}
-
-          {/* Quick stats floating on map */}
-          <View style={[styles.mapStatsBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            {[
-              { icon: <MapPin size={14} color={palette.primary} />, value: `${order.distanceKm.toFixed(1)} km`, color: palette.primary },
-              { icon: <Clock size={14} color="#FFD60A" />, value: `${order.estimatedDurationMin} min`, color: '#FFD60A' },
-              { icon: <DollarSign size={14} color="#30D158" />, value: formatNaira(order.price), color: '#30D158' },
-            ].map(({ icon, value, color }, i) => (
-              <View key={value + i} style={[styles.mapStat, { backgroundColor: hexToRgba(color, 0.1) }]}>
-                {icon}
-                <Text style={[styles.mapStatText, { color }]}>{value}</Text>
-              </View>
-            ))}
+            <Text style={[styles.navCardTitle, { color: palette.text }]}>Full-Screen GPS Navigation</Text>
+            <Text style={[styles.navCardSub, { color: palette.textSecondary }]}>
+              Turn-by-turn directions with real-time automatic rerouting as you drive.
+            </Text>
           </View>
+
+          <Pressable
+            onPress={() => setNavModalVisible(true)}
+            style={({ pressed }) => [
+              styles.startNavBtn,
+              { backgroundColor: palette.primary, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Navigation size={18} color="#fff" />
+            <Text style={styles.startNavBtnText}>Start Live Navigation (Full Screen)</Text>
+          </Pressable>
         </View>
+
+        {/* Full-Screen Live Navigation System Modal */}
+        <DriverLiveNavigationModal
+          visible={navModalVisible}
+          onClose={() => setNavModalVisible(false)}
+          order={order}
+          currentLocation={currentLocation}
+          advanceLabel={canAdvance ? advanceLabel : null}
+          onAdvance={canAdvance ? () => void advance() : undefined}
+          isAdvancing={updateStatus.isPending}
+        />
 
         {/* ── CTA ── */}
         {canAdvance && (
@@ -357,7 +375,7 @@ export default function OrderDetailScreen() {
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <SectionLabel palette={palette}>PARCEL ITEMS & PHOTOS</SectionLabel>
             <View style={{ gap: 10, marginTop: 4 }}>
-              {(order.items ?? []).map((item, idx) => (
+              {(order.items ?? []).map((item: any, idx: number) => (
                 <View key={`driver-item-${idx}`} style={{ gap: 4 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: palette.text, fontFamily: Typography.family.regular }}>{item.description}</Text>
@@ -749,4 +767,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalBtnText: { fontSize: Typography.md, fontFamily: 'SpaceGrotesk_700Bold' },
+
+  // ── nav card ──
+  navCardBanner: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.sm,
+  },
+  navCardHeader: {
+    gap: 4,
+  },
+  navPulseBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  pulseText: {
+    fontSize: 10,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: 0.5,
+  },
+  navCardTitle: {
+    fontSize: Typography.lg,
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  navCardSub: {
+    fontSize: Typography.sm,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    lineHeight: 20,
+  },
+  startNavBtn: {
+    flexDirection: 'row',
+    height: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  startNavBtnText: {
+    color: '#FFF',
+    fontSize: Typography.md,
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
 });

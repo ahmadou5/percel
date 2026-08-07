@@ -1,31 +1,55 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Send } from 'lucide-react-native';
+import { ArrowLeft, Image as ImageIcon, Send, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useSafeBack } from '@/components/navigation/useSafeBack';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useSupportTicketDetails, useSendSupportMessage } from '@/hooks/useSupport';
 import { useAppPalette } from '@/lib/theme';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function SupportTicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const back = useSafeBack('/support');
   const palette = useAppPalette();
+  const user = useAuthStore((s) => s.user);
+  const currentUserId = user?.id;
 
   const { data: ticket, isLoading } = useSupportTicketDetails(id);
   const sendMessage = useSendSupportMessage(id || '');
   const [inputText, setInputText] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      base64: true,
+      allowsEditing: true,
+    });
+    if (!res.canceled && res.assets[0]) {
+      const asset = res.assets[0];
+      const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+      setSelectedImage(uri);
+    }
+  };
 
   const handleSend = async () => {
-    if (!inputText.trim() || sendMessage.isPending) return;
+    if ((!inputText.trim() && !selectedImage) || sendMessage.isPending) return;
     const text = inputText.trim();
+    const image = selectedImage;
     setInputText('');
+    setSelectedImage(null);
     try {
-      await sendMessage.mutateAsync({ text });
+      await sendMessage.mutateAsync({ text, imageUrl: image || undefined });
     } catch {
       setInputText(text);
+      setSelectedImage(image);
     }
   };
 
@@ -77,6 +101,9 @@ export default function SupportTicketDetailScreen() {
               </View>
             </View>
             <Text style={[styles.subject, { color: palette.text }]}>{ticket.subject}</Text>
+            {ticket.imageUrl ? (
+              <Image source={{ uri: ticket.imageUrl }} style={styles.attachedImagePreview} resizeMode="cover" />
+            ) : null}
             {ticket.resolutionNote ? (
               <View style={[styles.resolutionBox, { backgroundColor: 'rgba(48,209,88,0.08)', borderColor: '#30D158' }]}>
                 <Text style={[styles.resolutionTitle, { color: '#30D158' }]}>Resolution Note</Text>
@@ -88,8 +115,8 @@ export default function SupportTicketDetailScreen() {
           {/* Chat Messages */}
           <ScrollView contentContainerStyle={styles.messagesContent} showsVerticalScrollIndicator={false}>
             {ticket.messages.map((m) => {
-              const isMe = m.senderRole === 'USER';
-              const isAdmin = m.senderRole === 'ADMIN';
+              const isAdmin = m.senderRole === 'ADMIN' || m.senderRole === 'SYSTEM' || m.senderRole === 'SUPPORT';
+              const isMe = !isAdmin && (m.senderId === currentUserId || m.senderRole === 'USER' || m.senderId === ticket.userId);
 
               return (
                 <View
@@ -104,16 +131,35 @@ export default function SupportTicketDetailScreen() {
                   ]}
                 >
                   <Text style={[styles.senderName, { color: isMe ? 'rgba(255,255,255,0.85)' : palette.textSecondary }]}>
-                    {isAdmin ? '🛡️ Percel Support' : m.senderName}
+                    {isAdmin ? '🛡️ Percel Support' : isMe ? 'You' : m.senderName}
                   </Text>
-                  <Text style={[styles.messageText, { color: isMe ? '#FFF' : palette.text }]}>{m.text}</Text>
+                  {m.imageUrl ? (
+                    <Image source={{ uri: m.imageUrl }} style={styles.chatImage} resizeMode="cover" />
+                  ) : null}
+                  {m.text ? (
+                    <Text style={[styles.messageText, { color: isMe ? '#FFF' : palette.text }]}>{m.text}</Text>
+                  ) : null}
                 </View>
               );
             })}
           </ScrollView>
 
+          {/* Image Attachment Bar */}
+          {selectedImage ? (
+            <View style={[styles.attachmentPreviewBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <Image source={{ uri: selectedImage }} style={styles.thumbImage} />
+              <Text style={[styles.thumbText, { color: palette.text }]}>Screenshot attached</Text>
+              <Pressable onPress={() => setSelectedImage(null)} style={styles.removeThumb}>
+                <X size={16} color={palette.textSecondary} />
+              </Pressable>
+            </View>
+          ) : null}
+
           {/* Message Input */}
           <View style={[styles.inputBar, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <Pressable onPress={pickImage} style={[styles.attachButton, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+              <ImageIcon size={18} color={palette.primary} />
+            </Pressable>
             <TextInput
               value={inputText}
               onChangeText={setInputText}
@@ -123,8 +169,8 @@ export default function SupportTicketDetailScreen() {
             />
             <Pressable
               onPress={handleSend}
-              disabled={!inputText.trim() || sendMessage.isPending}
-              style={[styles.sendButton, { backgroundColor: palette.primary, opacity: !inputText.trim() ? 0.4 : 1 }]}
+              disabled={(!inputText.trim() && !selectedImage) || sendMessage.isPending}
+              style={[styles.sendButton, { backgroundColor: palette.primary, opacity: (!inputText.trim() && !selectedImage) ? 0.4 : 1 }]}
             >
               {sendMessage.isPending ? <ActivityIndicator size="small" color="#FFF" /> : <Send size={16} color="#FFF" />}
             </Pressable>
@@ -207,6 +253,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     borderTopWidth: 1,
     gap: 10,
+  },
+  attachedImagePreview: { width: '100%', height: 140, borderRadius: 10, marginTop: 4 },
+  chatImage: { width: 180, height: 140, borderRadius: 12, marginTop: 4 },
+  attachmentPreviewBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  thumbImage: { width: 36, height: 36, borderRadius: 6 },
+  thumbText: { flex: 1, fontSize: Typography.xs, fontFamily: Typography.family.semibold },
+  removeThumb: { padding: 4 },
+  attachButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chatInput: { flex: 1, minHeight: 44, fontSize: Typography.sm },
   sendButton: {
