@@ -160,25 +160,15 @@ function SettledMarker({
   coordinate,
   anchor,
   children,
-  alwaysTrack = false,
   zIndex,
 }: {
   coordinate: { latitude: number; longitude: number };
   anchor: { x: number; y: number };
   children: React.ReactNode;
-  alwaysTrack?: boolean;
   zIndex?: number;
 }) {
-  const [tracksViewChanges, setTracksViewChanges] = useState(true);
-
-  useEffect(() => {
-    if (alwaysTrack) return;
-    const timer = setTimeout(() => setTracksViewChanges(false), 600);
-    return () => clearTimeout(timer);
-  }, [alwaysTrack]);
-
   return (
-    <Marker coordinate={coordinate} anchor={anchor} zIndex={zIndex} tracksViewChanges={alwaysTrack || tracksViewChanges}>
+    <Marker coordinate={coordinate} anchor={anchor} zIndex={zIndex} tracksViewChanges={true}>
       {children}
     </Marker>
   );
@@ -308,8 +298,7 @@ function DeliveryRouteMapContent({ driverLocation, driverName, driverAvatarUrl, 
             coordinates={route}
             strokeColor={palette.primary}
             strokeWidth={5}
-            lineCap="round"
-            lineJoin="round"
+            zIndex={5}
           />
         ) : null}
 
