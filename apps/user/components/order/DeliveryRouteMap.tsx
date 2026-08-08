@@ -139,11 +139,13 @@ function SettledMarker({
   anchor,
   children,
   alwaysTrack = false,
+  zIndex,
 }: {
   coordinate: { latitude: number; longitude: number };
   anchor: { x: number; y: number };
   children: React.ReactNode;
   alwaysTrack?: boolean;
+  zIndex?: number;
 }) {
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
@@ -154,7 +156,7 @@ function SettledMarker({
   }, [alwaysTrack]);
 
   return (
-    <Marker coordinate={coordinate} anchor={anchor} tracksViewChanges={alwaysTrack || tracksViewChanges}>
+    <Marker coordinate={coordinate} anchor={anchor} zIndex={zIndex} tracksViewChanges={alwaysTrack || tracksViewChanges}>
       {children}
     </Marker>
   );
@@ -168,13 +170,12 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
   const userInteracted = useRef(false);
   const prevDriverLocation = useRef<TrackingLocation | null>(null);
 
+  // Fallback to originLocation if driverLocation is null so all 3 markers are always visible
+  const effectiveDriverLoc = driverLocation ?? originLocation;
+
   const points = useMemo(
-    () => {
-      const all = [originLocation, destinationLocation];
-      if (driverLocation) all.push(driverLocation);
-      return all;
-    },
-    [originLocation, destinationLocation, driverLocation],
+    () => [originLocation, destinationLocation, effectiveDriverLoc],
+    [originLocation, destinationLocation, effectiveDriverLoc],
   );
   const initialRegion = useMemo(() => getRegion(points), [points]); // stable for initialRegion
 
@@ -182,11 +183,9 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
     if (routeCoordinates && routeCoordinates.length >= 2) {
       return routeCoordinates;
     }
-    const basePoints = driverLocation
-      ? [originLocation, driverLocation, destinationLocation]
-      : [originLocation, destinationLocation];
+    const basePoints = [originLocation, effectiveDriverLoc, destinationLocation];
     return buildInterpolatedRoute(basePoints);
-  }, [routeCoordinates, originLocation, driverLocation, destinationLocation]);
+  }, [routeCoordinates, originLocation, effectiveDriverLoc, destinationLocation]);
 
   // Auto-fit origin, destination, and driver location on mount and coordinate changes
   useEffect(() => {
@@ -235,22 +234,15 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
 
   const handleLocateDriver = () => {
     userInteracted.current = false;
-    if (driverLocation) {
-      mapRef.current?.animateToRegion(
-        {
-          latitude: driverLocation.latitude,
-          longitude: driverLocation.longitude,
-          latitudeDelta: 0.012,
-          longitudeDelta: 0.012,
-        },
-        600,
-      );
-    } else {
-      mapRef.current?.fitToCoordinates([originLocation, destinationLocation], {
-        edgePadding: { top: 100, right: 50, bottom: 250, left: 50 },
-        animated: true,
-      });
-    }
+    mapRef.current?.animateToRegion(
+      {
+        latitude: effectiveDriverLoc.latitude,
+        longitude: effectiveDriverLoc.longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+      },
+      600,
+    );
   };
 
   return (
@@ -291,15 +283,11 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
         <Circle center={destinationLocation} radius={90} fillColor={hexToRgba(palette.primary, 0.08)} strokeWidth={0} />
 
         {/* Driver ripples */}
-        {driverLocation ? (
-          <>
-            <Circle center={driverLocation} radius={50} fillColor={hexToRgba(palette.primary, 0.25)} strokeWidth={0} />
-            <Circle center={driverLocation} radius={110} fillColor={hexToRgba(palette.primary, 0.10)} strokeWidth={0} />
-          </>
-        ) : null}
+        <Circle center={effectiveDriverLoc} radius={50} fillColor={hexToRgba(palette.primary, 0.25)} strokeWidth={0} />
+        <Circle center={effectiveDriverLoc} radius={110} fillColor={hexToRgba(palette.primary, 0.10)} strokeWidth={0} />
 
-        {/* Origin Pin */}
-        <SettledMarker coordinate={originLocation} anchor={{ x: 0.5, y: 1 }}>
+        {/* 1st Marker: Pickup Location */}
+        <SettledMarker coordinate={originLocation} anchor={{ x: 0.5, y: 1 }} zIndex={1}>
           <View style={styles.pinWrap}>
             <View style={styles.pinBubble_origin}>
               <MapPin size={14} color="#10B981" strokeWidth={2.5} />
@@ -308,8 +296,8 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
           </View>
         </SettledMarker>
 
-        {/* Destination pin */}
-        <SettledMarker coordinate={destinationLocation} anchor={{ x: 0.5, y: 1 }}>
+        {/* 2nd Marker: Destination Location */}
+        <SettledMarker coordinate={destinationLocation} anchor={{ x: 0.5, y: 1 }} zIndex={2}>
           <View style={styles.pinWrap}>
             <View style={[styles.pinBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
               <MapPin size={14} color={palette.primary} strokeWidth={2.5} />
@@ -318,27 +306,25 @@ export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, 
           </View>
         </SettledMarker>
 
-        {/* Driver marker – no animation inside the marker; rings are Circle overlays above */}
-        {driverLocation ? (
-          <SettledMarker coordinate={driverLocation} anchor={{ x: 0.5, y: 0.5 }} alwaysTrack>
-            <View style={styles.vehicleMarkerWrap}>
-              <View style={[styles.vehicleBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
-                {driverAvatarUrl &&
-                driverAvatarUrl.trim() !== '' &&
-                driverAvatarUrl !== 'null' &&
-                (driverAvatarUrl.startsWith('http://') ||
-                  driverAvatarUrl.startsWith('https://') ||
-                  driverAvatarUrl.startsWith('data:')) ? (
-                  <Image source={{ uri: driverAvatarUrl }} style={styles.driverAvatar} />
-                ) : (
-                  <Text style={[styles.driverInitials, { color: palette.primary }]}>
-                    {getInitials(driverName)}
-                  </Text>
-                )}
-              </View>
+        {/* 3rd Marker: Driver Location */}
+        <SettledMarker coordinate={effectiveDriverLoc} anchor={{ x: 0.5, y: 0.5 }} alwaysTrack zIndex={10}>
+          <View style={styles.vehicleMarkerWrap}>
+            <View style={[styles.vehicleBubble, { backgroundColor: palette.card, borderColor: palette.primary }]}>
+              {driverAvatarUrl &&
+              driverAvatarUrl.trim() !== '' &&
+              driverAvatarUrl !== 'null' &&
+              (driverAvatarUrl.startsWith('http://') ||
+                driverAvatarUrl.startsWith('https://') ||
+                driverAvatarUrl.startsWith('data:')) ? (
+                <Image source={{ uri: driverAvatarUrl }} style={styles.driverAvatar} />
+              ) : (
+                <Text style={[styles.driverInitials, { color: palette.primary }]}>
+                  {getInitials(driverName)}
+                </Text>
+              )}
             </View>
-          </SettledMarker>
-        ) : null}
+          </View>
+        </SettledMarker>
       </MapView>
 
       {/* Locate driver FAB */}

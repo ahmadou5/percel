@@ -71,6 +71,20 @@ type Props = {
   isAdvancing?: boolean;
 };
 
+class MapErrorBoundary extends React.Component<{ children: React.ReactNode; fallback: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: any) {
+    console.warn('[DriverLiveNavigationModal] Native map error captured:', error?.message);
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
 export function DriverLiveNavigationModal({
   visible,
   onClose,
@@ -86,6 +100,10 @@ export function DriverLiveNavigationModal({
   const isLightTheme = isLight(palette.bg);
 
   const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const [liveMetrics, setLiveMetrics] = useState<{ distanceKm: number | null; durationMin: number | null }>({
+    distanceKm: null,
+    durationMin: null,
+  });
   const [loadingRoute, setLoadingRoute] = useState(false);
   const lastFetchedLocation = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -118,6 +136,11 @@ export function DriverLiveNavigationModal({
     const driverLat = driverPoint.latitude;
     const driverLng = driverPoint.longitude;
 
+    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLng) ||
+        !Number.isFinite(targetLocation.latitude) || !Number.isFinite(targetLocation.longitude)) {
+      return;
+    }
+
     const last = lastFetchedLocation.current;
     if (last) {
       const distKm = Math.hypot(driverLat - last.lat, driverLng - last.lng) * 111;
@@ -130,14 +153,23 @@ export function DriverLiveNavigationModal({
 
     let isMounted = true;
     setLoadingRoute(true);
-    api.post<{ data: Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
+    api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
       originLat: driverLat,
       originLng: driverLng,
       destLat: targetLocation.latitude,
       destLng: targetLocation.longitude,
     }).then((res) => {
-      if (isMounted && res.data?.data && Array.isArray(res.data.data)) {
-        setRouteCoordinates(res.data.data);
+      if (!isMounted) return;
+      const rawData = res.data?.data;
+      if (Array.isArray(rawData)) {
+        setRouteCoordinates(rawData.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+      } else if (rawData && typeof rawData === 'object') {
+        if (Array.isArray(rawData.route)) {
+          setRouteCoordinates(rawData.route.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+        }
+        if (typeof rawData.distanceKm === 'number' && typeof rawData.durationMin === 'number') {
+          setLiveMetrics({ distanceKm: rawData.distanceKm, durationMin: rawData.durationMin });
+        }
       }
     }).catch(() => {
       if (isMounted) {
@@ -152,10 +184,13 @@ export function DriverLiveNavigationModal({
 
   // Center / Fit camera to show driver and target
   const handleRecenter = () => {
-    mapRef.current?.fitToCoordinates([driverPoint, targetLocation], {
-      edgePadding: { top: insets.top + 160, right: 60, bottom: insets.bottom + 220, left: 60 },
-      animated: true,
-    });
+    const pts = [driverPoint, targetLocation].filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+    if (pts.length >= 2) {
+      mapRef.current?.fitToCoordinates(pts, {
+        edgePadding: { top: insets.top + 160, right: 60, bottom: insets.bottom + 220, left: 60 },
+        animated: true,
+      });
+    }
   };
 
   useEffect(() => {
@@ -165,58 +200,68 @@ export function DriverLiveNavigationModal({
     }
   }, [visible]);
 
+  const validPolyline = useMemo(() => {
+    const pts = routeCoordinates.length > 1 ? routeCoordinates : [driverPoint, targetLocation];
+    return pts.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+  }, [routeCoordinates, driverPoint, targetLocation]);
+
+  const mapFallback = (
+    <View style={styles.fallbackCenter}>
+      <Navigation size={48} color={palette.primary} />
+      <Text style={[styles.fallbackTitle, { color: palette.text }]}>Full-Screen GPS Navigation</Text>
+      <Text style={[styles.fallbackSub, { color: palette.textSecondary }]}>
+        Live navigation mode is active. Drive safely to {targetAddress}.
+      </Text>
+    </View>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: palette.bg }]}>
         {hasNativeMaps && MapView ? (
-          <MapView
-            ref={mapRef}
-            provider={PROVIDER_GOOGLE}
-            style={StyleSheet.absoluteFillObject}
-            initialRegion={{
-              latitude: (driverPoint.latitude + targetLocation.latitude) / 2,
-              longitude: (driverPoint.longitude + targetLocation.longitude) / 2,
-              latitudeDelta: 0.03,
-              longitudeDelta: 0.03,
-            }}
-            customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
-          >
-            {/* Driver Pulse Marker */}
-            <Marker coordinate={driverPoint} anchor={{ x: 0.5, y: 0.5 }}>
-              <View style={styles.driverMarkerOuter}>
-                <View style={[styles.driverMarkerPulse, { backgroundColor: hexToRgba(palette.primary, 0.25) }]} />
-                <View style={[styles.driverMarkerCore, { backgroundColor: palette.primary }]}>
-                  <Navigation2 size={16} color="#FFF" style={{ transform: [{ rotate: '45deg' }] }} />
+          <MapErrorBoundary fallback={mapFallback}>
+            <MapView
+              ref={mapRef}
+              provider={PROVIDER_GOOGLE}
+              style={StyleSheet.absoluteFillObject}
+              initialRegion={{
+                latitude: (driverPoint.latitude + targetLocation.latitude) / 2,
+                longitude: (driverPoint.longitude + targetLocation.longitude) / 2,
+                latitudeDelta: 0.03,
+                longitudeDelta: 0.03,
+              }}
+              customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
+            >
+              {/* Driver Pulse Marker */}
+              <Marker coordinate={driverPoint} anchor={{ x: 0.5, y: 0.5 }}>
+                <View style={styles.driverMarkerOuter}>
+                  <View style={[styles.driverMarkerPulse, { backgroundColor: hexToRgba(palette.primary, 0.25) }]} />
+                  <View style={[styles.driverMarkerCore, { backgroundColor: palette.primary }]}>
+                    <Navigation2 size={16} color="#FFF" style={{ transform: [{ rotate: '45deg' }] }} />
+                  </View>
                 </View>
-              </View>
-            </Marker>
+              </Marker>
 
-            {/* Target Destination Marker */}
-            <Marker coordinate={targetLocation} anchor={{ x: 0.5, y: 0.5 }}>
-              <View style={[styles.targetPin, { backgroundColor: isHeadingToPickup ? '#30D158' : palette.primary }]}>
-                {isHeadingToPickup ? <MapPin size={18} color="#FFF" /> : <MapPinned size={18} color="#FFF" />}
-              </View>
-            </Marker>
+              {/* Target Destination Marker */}
+              <Marker coordinate={targetLocation} anchor={{ x: 0.5, y: 0.5 }}>
+                <View style={[styles.targetPin, { backgroundColor: isHeadingToPickup ? '#30D158' : palette.primary }]}>
+                  {isHeadingToPickup ? <MapPin size={18} color="#FFF" /> : <MapPinned size={18} color="#FFF" />}
+                </View>
+              </Marker>
 
-            {/* Polyline Navigation Route */}
-            {(routeCoordinates.length > 1 || true) && (
-              <Polyline
-                coordinates={routeCoordinates.length > 1 ? routeCoordinates : [driverPoint, targetLocation]}
-                strokeColor={palette.primary}
-                strokeWidth={6}
-                lineDashPattern={[0]}
-              />
-            )}
-          </MapView>
-        ) : (
-          <View style={styles.fallbackCenter}>
-            <Navigation size={48} color={palette.primary} />
-            <Text style={[styles.fallbackTitle, { color: palette.text }]}>Full-Screen GPS Navigation</Text>
-            <Text style={[styles.fallbackSub, { color: palette.textSecondary }]}>
-              Live navigation mode is active. Drive safely to {targetAddress}.
-            </Text>
-          </View>
-        )}
+              {/* Polyline Navigation Route */}
+              {validPolyline.length > 1 ? (
+                <Polyline
+                  coordinates={validPolyline}
+                  strokeColor={palette.primary}
+                  strokeWidth={5}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              ) : null}
+            </MapView>
+          </MapErrorBoundary>
+        ) : mapFallback}
 
         {/* Top Turn-by-Turn Instruction Banner */}
         <View style={[styles.topBanner, { paddingTop: insets.top + Spacing.sm }]}>
@@ -266,12 +311,12 @@ export function DriverLiveNavigationModal({
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { backgroundColor: palette.bg }]}>
               <MapPin size={14} color={palette.primary} />
-              <Text style={[styles.statVal, { color: palette.text }]}>{order.distanceKm.toFixed(1)} km</Text>
+              <Text style={[styles.statVal, { color: palette.text }]}>{(liveMetrics.distanceKm ?? order.distanceKm).toFixed(1)} km</Text>
               <Text style={[styles.statLbl, { color: palette.textSecondary }]}>Distance</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: palette.bg }]}>
               <Clock size={14} color="#FF9500" />
-              <Text style={[styles.statVal, { color: palette.text }]}>{order.estimatedDurationMin} min</Text>
+              <Text style={[styles.statVal, { color: palette.text }]}>{liveMetrics.durationMin ?? order.estimatedDurationMin} min</Text>
               <Text style={[styles.statLbl, { color: palette.textSecondary }]}>Est. Time</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: palette.bg }]}>

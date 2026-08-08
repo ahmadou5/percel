@@ -1008,11 +1008,14 @@ export class OrderService {
     const destLat = Number(order.deliveryLat);
     const destLng = Number(order.deliveryLng);
 
-    // Fetch road-following route from pickup/origin position to destination.
-    const routeCoordinates = await getDirectionsRoute(pickupLat, pickupLng, destLat, destLng);
+    // Fetch road-following route from driver location (or pickup if driver location pending) to destination.
+    const startLat = driverLat ?? pickupLat;
+    const startLng = driverLng ?? pickupLng;
+    const directionsResult = await getDirectionsRoute(startLat, startLng, destLat, destLng);
+    const routeCoordinates = directionsResult.route;
 
-    // Estimated delivery: use order estimate as a proxy.
-    const estimatedMinutes = order.estimatedDurationMin ?? 60;
+    // Dynamic estimated delivery calculation based on remaining travel time
+    const estimatedMinutes = directionsResult.durationMin || order.estimatedDurationMin || 30;
     const estimatedDelivery = new Date(Date.now() + estimatedMinutes * 60 * 1000).toISOString();
 
     return {
@@ -1032,7 +1035,8 @@ export class OrderService {
       origin_hub: order.pickupFormattedAddress,
       destination_hub: order.deliveryFormattedAddress,
       departed_at: order.pickedUpAt?.toISOString() ?? order.createdAt.toISOString(),
-      distance_km: Number(order.distanceKm),
+      distance_km: directionsResult.distanceKm || Number(order.distanceKm),
+      estimated_duration_min: estimatedMinutes,
       weight_kg: await this.prisma.orderItem
         .aggregate({ where: { orderId }, _sum: { weightKg: true } })
         .then((r) => Number(r._sum.weightKg ?? 0)),

@@ -73,6 +73,13 @@ export async function getDistanceAndDuration(
   destLat: number,
   destLng: number,
 ) {
+  if (
+    !Number.isFinite(originLat) || !Number.isFinite(originLng) ||
+    !Number.isFinite(destLat)   || !Number.isFinite(destLng)
+  ) {
+    return { distanceKm: 1.0, durationMin: 10 };
+  }
+
   try {
     const { data } = await googleMaps.get('/distancematrix/json', {
       params: {
@@ -100,17 +107,18 @@ export async function getDistanceAndDuration(
     const osrmRoute = osrmData?.routes?.[0];
     if (osrmRoute?.distance && osrmRoute?.duration) {
       const distanceKm = Math.max(0.5, Number((osrmRoute.distance / 1000).toFixed(2)));
-      const durationMin = Math.max(5, Math.ceil(osrmRoute.duration / 60));
+      const durationMin = Math.max(3, Math.ceil(osrmRoute.duration / 60));
       return { distanceKm, durationMin };
     }
   } catch (osrmErr) {
     console.warn('[googleMaps] OSRM Distance Matrix fallback error:', osrmErr);
   }
 
-  // 2. Haversine distance with estimated driving speed (30km/h) fallback
-  const dist = haversineDistanceKm(originLat, originLng, destLat, destLng);
-  const distanceKm = Math.max(0.5, Number(dist.toFixed(2)));
-  const durationMin = Math.max(10, Math.ceil((distanceKm / 30) * 60));
+  // 2. Realistic Urban Road Haversine fallback (1.35x circuity multiplier + 24 km/h city speed)
+  const straightDist = haversineDistanceKm(originLat, originLng, destLat, destLng);
+  const roadDist = straightDist * 1.35;
+  const distanceKm = Math.max(0.5, Number(roadDist.toFixed(2)));
+  const durationMin = Math.max(5, Math.ceil((distanceKm / 24) * 60 + 2));
   return { distanceKm, durationMin };
 }
 
@@ -162,6 +170,12 @@ export async function geocodeAddress(address: string) {
   };
 }
 
+export type DirectionsResult = {
+  route: Array<{ latitude: number; longitude: number }>;
+  distanceKm: number;
+  durationMin: number;
+};
+
 /**
  * Fetch a road-following route between two coordinates via Google Directions API
  * or OpenSource Routing Machine (OSRM) street navigation engine.
@@ -171,8 +185,8 @@ export async function getDirectionsRoute(
   originLng: number,
   destLat: number,
   destLng: number,
-): Promise<Array<{ latitude: number; longitude: number }>> {
-  const straight = [
+): Promise<DirectionsResult> {
+  const straightRoute = [
     { latitude: originLat, longitude: originLng },
     { latitude: destLat, longitude: destLng },
   ];
@@ -183,7 +197,7 @@ export async function getDirectionsRoute(
     !Number.isFinite(destLat)   || !Number.isFinite(destLng)
   ) {
     console.error('[googleMaps] getDirectionsRoute: non-finite coordinates', { originLat, originLng, destLat, destLng });
-    return straight;
+    return { route: straightRoute, distanceKm: 1.0, durationMin: 10 };
   }
 
   try {
@@ -199,10 +213,20 @@ export async function getDirectionsRoute(
 
     if (data?.status === 'OK' && Array.isArray(data.routes) && data.routes.length > 0) {
       const route = data.routes[0];
-      const legs: Array<{ steps?: Array<{ polyline?: { points?: string } }> }> = route?.legs ?? [];
+      const legs: Array<{
+        distance?: { value?: number };
+        duration?: { value?: number };
+        steps?: Array<{ polyline?: { points?: string } }>;
+      }> = route?.legs ?? [];
+
       const stepPoints: Array<{ latitude: number; longitude: number }> = [];
+      let totalDistMeters = 0;
+      let totalDurationSec = 0;
 
       for (const leg of legs) {
+        if (leg.distance?.value) totalDistMeters += leg.distance.value;
+        if (leg.duration?.value) totalDurationSec += leg.duration.value;
+
         for (const step of leg.steps ?? []) {
           const encoded = step?.polyline?.points;
           if (encoded) {
@@ -211,10 +235,17 @@ export async function getDirectionsRoute(
         }
       }
 
-      if (stepPoints.length > 1) return stepPoints;
+      const distKm = Number((totalDistMeters / 1000).toFixed(2));
+      const durMin = Math.ceil(totalDurationSec / 60);
+
+      if (stepPoints.length > 1) {
+        return { route: stepPoints, distanceKm: distKm || 1.0, durationMin: durMin || 5 };
+      }
 
       const overviewPolyline: string | undefined = route?.overview_polyline?.points;
-      if (overviewPolyline) return decodePolyline(overviewPolyline);
+      if (overviewPolyline) {
+        return { route: decodePolyline(overviewPolyline), distanceKm: distKm || 1.0, durationMin: durMin || 5 };
+      }
     }
   } catch (err) {
     console.warn('[googleMaps] Google Directions API error/fallback:', err);
@@ -224,19 +255,25 @@ export async function getDirectionsRoute(
   try {
     const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
     const { data: osrmData } = await axios.get(osrmUrl, { timeout: 5000 });
-    const coordinates: Array<[number, number]> = osrmData?.routes?.[0]?.geometry?.coordinates ?? [];
+    const osrmRoute = osrmData?.routes?.[0];
+    const coordinates: Array<[number, number]> = osrmRoute?.geometry?.coordinates ?? [];
 
     if (Array.isArray(coordinates) && coordinates.length > 1) {
-      return coordinates.map(([lng, lat]) => ({
+      const routePoints = coordinates.map(([lng, lat]) => ({
         latitude: lat,
         longitude: lng,
       }));
+      const distKm = Math.max(0.5, Number(((osrmRoute?.distance ?? 0) / 1000).toFixed(2)));
+      const durMin = Math.max(3, Math.ceil((osrmRoute?.duration ?? 0) / 60));
+      return { route: routePoints, distanceKm: distKm, durationMin: durMin };
     }
   } catch (osrmErr) {
     console.warn('[googleMaps] OSRM street directions fallback error:', osrmErr);
   }
 
-  return straight;
+  // Fallback distance & duration estimation
+  const fallbackMetrics = await getDistanceAndDuration(originLat, originLng, destLat, destLng);
+  return { route: straightRoute, ...fallbackMetrics };
 }
 
 export async function reverseGeocode(lat: number, lng: number) {

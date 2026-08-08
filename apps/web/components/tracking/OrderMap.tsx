@@ -65,8 +65,8 @@ export function OrderMap({ order }: OrderMapProps) {
     if (order.courierLat != null && order.courierLng != null) {
       return { lat: Number(order.courierLat), lng: Number(order.courierLng) };
     }
-    return null;
-  }, [order.courierLat, order.courierLng]);
+    return pickup;
+  }, [order.courierLat, order.courierLng, pickup]);
 
   const defaultCenter = courier || pickup;
 
