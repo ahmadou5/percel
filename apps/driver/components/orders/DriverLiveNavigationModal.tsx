@@ -71,6 +71,24 @@ type Props = {
   isAdvancing?: boolean;
 };
 
+function SettledMarker({
+  coordinate,
+  anchor,
+  children,
+  tracksViewChanges = false,
+}: {
+  coordinate: { latitude: number; longitude: number };
+  anchor: { x: number; y: number };
+  children: React.ReactNode;
+  tracksViewChanges?: boolean;
+}) {
+  return (
+    <Marker coordinate={coordinate} anchor={anchor} tracksViewChanges={tracksViewChanges}>
+      {children}
+    </Marker>
+  );
+}
+
 class MapErrorBoundary extends React.Component<{ children: React.ReactNode; fallback: React.ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() {
@@ -104,8 +122,8 @@ export function DriverLiveNavigationModal({
     distanceKm: null,
     durationMin: null,
   });
-  const [loadingRoute, setLoadingRoute] = useState(false);
   const lastFetchedLocation = useRef<{ lat: number; lng: number } | null>(null);
+  const prevDriverPoint = useRef<{ latitude: number; longitude: number } | null>(null);
 
   const pickup = useMemo(() => ({
     latitude: Number(order.pickupLat),
@@ -129,7 +147,18 @@ export function DriverLiveNavigationModal({
     return pickup;
   }, [currentLocation, pickup]);
 
-  // Fetch or re-route whenever driver moves significantly (> 40m)
+  // Stable initial region computed ONCE to prevent continuous map flickering/camera fighting
+  const initialRegionRef = useRef<any>(null);
+  if (!initialRegionRef.current) {
+    initialRegionRef.current = {
+      latitude: (pickup.latitude + dest.latitude) / 2,
+      longitude: (pickup.longitude + dest.longitude) / 2,
+      latitudeDelta: 0.03,
+      longitudeDelta: 0.03,
+    };
+  }
+
+  // Fetch or re-route whenever driver moves significantly (> 100m)
   useEffect(() => {
     if (!visible) return;
 
@@ -144,7 +173,7 @@ export function DriverLiveNavigationModal({
     const last = lastFetchedLocation.current;
     if (last) {
       const distKm = Math.hypot(driverLat - last.lat, driverLng - last.lng) * 111;
-      if (distKm < 0.04 && routeCoordinates.length > 0) {
+      if (distKm < 0.1 && routeCoordinates.length > 0) {
         return;
       }
     }
@@ -152,7 +181,6 @@ export function DriverLiveNavigationModal({
     lastFetchedLocation.current = { lat: driverLat, lng: driverLng };
 
     let isMounted = true;
-    setLoadingRoute(true);
     api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
       originLat: driverLat,
       originLng: driverLng,
@@ -175,14 +203,12 @@ export function DriverLiveNavigationModal({
       if (isMounted) {
         setRouteCoordinates([driverPoint, targetLocation]);
       }
-    }).finally(() => {
-      if (isMounted) setLoadingRoute(false);
     });
 
     return () => { isMounted = false; };
   }, [visible, driverPoint.latitude, driverPoint.longitude, targetLocation.latitude, targetLocation.longitude]);
 
-  // Center / Fit camera to show driver and target
+  // Center / Fit camera to show driver and target on open
   const handleRecenter = () => {
     const pts = [driverPoint, targetLocation].filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
     if (pts.length >= 2) {
@@ -195,10 +221,25 @@ export function DriverLiveNavigationModal({
 
   useEffect(() => {
     if (visible) {
-      const timer = setTimeout(() => handleRecenter(), 400);
+      const timer = setTimeout(() => handleRecenter(), 500);
       return () => clearTimeout(timer);
     }
   }, [visible]);
+
+  // Smoothly follow driver when location updates without resetting region
+  useEffect(() => {
+    if (!visible || !driverPoint) return;
+    const prev = prevDriverPoint.current;
+    if (!prev) {
+      prevDriverPoint.current = driverPoint;
+      return;
+    }
+    const dist = Math.hypot(driverPoint.latitude - prev.latitude, driverPoint.longitude - prev.longitude);
+    if (dist > 0.0002) {
+      prevDriverPoint.current = driverPoint;
+      mapRef.current?.animateCamera({ center: driverPoint }, { duration: 1000 });
+    }
+  }, [visible, driverPoint.latitude, driverPoint.longitude]);
 
   const validPolyline = useMemo(() => {
     const pts = routeCoordinates.length > 1 ? routeCoordinates : [driverPoint, targetLocation];
@@ -224,30 +265,25 @@ export function DriverLiveNavigationModal({
               ref={mapRef}
               provider={PROVIDER_GOOGLE}
               style={StyleSheet.absoluteFillObject}
-              initialRegion={{
-                latitude: (driverPoint.latitude + targetLocation.latitude) / 2,
-                longitude: (driverPoint.longitude + targetLocation.longitude) / 2,
-                latitudeDelta: 0.03,
-                longitudeDelta: 0.03,
-              }}
+              initialRegion={initialRegionRef.current}
               customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
             >
               {/* Driver Pulse Marker */}
-              <Marker coordinate={driverPoint} anchor={{ x: 0.5, y: 0.5 }}>
+              <SettledMarker coordinate={driverPoint} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
                 <View style={styles.driverMarkerOuter}>
                   <View style={[styles.driverMarkerPulse, { backgroundColor: hexToRgba(palette.primary, 0.25) }]} />
                   <View style={[styles.driverMarkerCore, { backgroundColor: palette.primary }]}>
                     <Navigation2 size={16} color="#FFF" style={{ transform: [{ rotate: '45deg' }] }} />
                   </View>
                 </View>
-              </Marker>
+              </SettledMarker>
 
               {/* Target Destination Marker */}
-              <Marker coordinate={targetLocation} anchor={{ x: 0.5, y: 0.5 }}>
+              <SettledMarker coordinate={targetLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
                 <View style={[styles.targetPin, { backgroundColor: isHeadingToPickup ? '#30D158' : palette.primary }]}>
                   {isHeadingToPickup ? <MapPin size={18} color="#FFF" /> : <MapPinned size={18} color="#FFF" />}
                 </View>
-              </Marker>
+              </SettledMarker>
 
               {/* Polyline Navigation Route */}
               {validPolyline.length > 1 ? (

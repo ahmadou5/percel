@@ -22,12 +22,32 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+
+let MapView: any = null;
+let Marker: any = null;
+let Polyline: any = null;
+let PROVIDER_GOOGLE: any = null;
+type Region = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
+let hasNativeMaps = false;
+
+if (Platform.OS !== 'web') {
+  try {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default || Maps;
+    Marker = Maps.Marker;
+    Polyline = Maps.Polyline;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+    hasNativeMaps = Boolean(MapView);
+  } catch {
+    hasNativeMaps = false;
+  }
+}
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -766,40 +786,42 @@ export default function SendOrderEntryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: palette.bg }]}>
       {/* ── Background Map ── */}
-      <MapView
-        ref={mainMapRef}
-        provider={PROVIDER_GOOGLE}
-        style={StyleSheet.absoluteFillObject}
-        region={mapRegion}
-        showsUserLocation={false}
-        showsCompass={false}
-
-        toolbarEnabled={false}
-        customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
-      >
-        {pickupPoint && (
-          <Marker coordinate={pickupPoint} anchor={{ x: 0.5, y: 0.5 }}>
-            <View style={[styles.markerPin, { backgroundColor: palette.primary }]}>
-              <MapPin size={16} color="#fff" />
-            </View>
-          </Marker>
-        )}
-        {deliveryPoint && (
-          <Marker coordinate={deliveryPoint} anchor={{ x: 0.5, y: 0.5 }}>
-            <View style={[styles.markerPinSquare, { backgroundColor: palette.primary }]}>
-              <MapPinned size={16} color="#fff" />
-            </View>
-          </Marker>
-        )}
-        {(roadRoutePoints.length > 1 || mapRoutePoints.length === 2) && (
-          <Polyline
-            coordinates={roadRoutePoints.length > 1 ? roadRoutePoints : mapRoutePoints}
-            strokeColor={palette.primary}
-            strokeWidth={5}
-            lineDashPattern={[0]}
-          />
-        )}
-      </MapView>
+      {hasNativeMaps && MapView ? (
+        <MapView
+          ref={mainMapRef}
+          provider={PROVIDER_GOOGLE}
+          style={StyleSheet.absoluteFillObject}
+          region={mapRegion}
+          showsUserLocation={false}
+          showsCompass={false}
+          toolbarEnabled={false}
+          customMapStyle={isLightTheme ? LIGHT_MAP_STYLE : DARK_MAP_STYLE}
+        >
+          {pickupPoint && (
+            <Marker coordinate={pickupPoint} anchor={{ x: 0.5, y: 0.5 }}>
+              <View style={[styles.markerPin, { backgroundColor: palette.primary }]}>
+                <MapPin size={16} color="#fff" />
+              </View>
+            </Marker>
+          )}
+          {deliveryPoint && (
+            <Marker coordinate={deliveryPoint} anchor={{ x: 0.5, y: 0.5 }}>
+              <View style={[styles.markerPinSquare, { backgroundColor: palette.primary }]}>
+                <MapPinned size={16} color="#fff" />
+              </View>
+            </Marker>
+          )}
+          {(roadRoutePoints.length > 1 || mapRoutePoints.length === 2) && (
+            <Polyline
+              coordinates={roadRoutePoints.length > 1 ? roadRoutePoints : mapRoutePoints}
+              strokeColor={palette.primary}
+              strokeWidth={5}
+              lineCap="round"
+              lineJoin="round"
+            />
+          )}
+        </MapView>
+      ) : null}
 
       {/* ── Top Floating panel (Hero Card) ── */}
       <Animated.View

@@ -1,7 +1,29 @@
 import { Navigation, Truck, MapPin } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Circle, Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { Platform } from 'react-native';
+
+let MapView: any = null;
+let Circle: any = null;
+let Marker: any = null;
+let Polyline: any = null;
+let PROVIDER_GOOGLE: any = null;
+type Region = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
+let hasNativeMaps = false;
+
+if (Platform.OS !== 'web') {
+  try {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default || Maps;
+    Circle = Maps.Circle;
+    Marker = Maps.Marker;
+    Polyline = Maps.Polyline;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+    hasNativeMaps = Boolean(MapView);
+  } catch {
+    hasNativeMaps = false;
+  }
+}
 
 import { Colors } from '@/constants/palette';
 import { Spacing } from '@/constants/spacing';
@@ -162,10 +184,23 @@ function SettledMarker({
   );
 }
 
-export function DeliveryRouteMap({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
+export function DeliveryRouteMap(props: Props) {
+  const palette = useAppPalette();
+  if (!hasNativeMaps || !MapView) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.bg }}>
+        <Navigation size={32} color={palette.primary} />
+        <Text style={{ fontSize: Typography.md, fontFamily: Typography.family.bold, color: palette.text, marginTop: 8 }}>Live Delivery Route</Text>
+      </View>
+    );
+  }
+  return <DeliveryRouteMapContent {...props} />;
+}
+
+function DeliveryRouteMapContent({ driverLocation, driverName, driverAvatarUrl, originLocation, destinationLocation, routeCoordinates }: Props) {
   const palette = useAppPalette();
   const isLightTheme = isLight(palette.bg);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
   // Track whether the user has manually moved the map so we don't fight them
   const userInteracted = useRef(false);
   const prevDriverLocation = useRef<TrackingLocation | null>(null);
