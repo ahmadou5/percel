@@ -216,6 +216,11 @@ function DeliveryRouteMapContent({ driverLocation, driverName, driverAvatarUrl, 
 
   const route = useMemo(() => {
     if (routeCoordinates && routeCoordinates.length >= 2) {
+      const first = routeCoordinates[0];
+      const distFromPickup = Math.hypot(first.latitude - originLocation.latitude, first.longitude - originLocation.longitude);
+      if (distFromPickup > 0.0005) {
+        return [originLocation, ...routeCoordinates];
+      }
       return routeCoordinates;
     }
     const basePoints = [originLocation, effectiveDriverLoc, destinationLocation];

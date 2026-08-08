@@ -111,34 +111,34 @@ function serializeOrder(order: OrderLike): OrderSummary {
     recipientPhone: order.recipientPhone ?? null,
     items: order.items
       ? order.items.map((i) => ({
-          id: i.id,
-          description: i.description,
-          quantity: i.quantity,
-          weightKg: asNumber(i.weightKg),
-          fragile: i.fragile ?? false,
-          imageUrl: i.imageUrl ?? null,
-        }))
+        id: i.id,
+        description: i.description,
+        quantity: i.quantity,
+        weightKg: asNumber(i.weightKg),
+        fragile: i.fragile ?? false,
+        imageUrl: i.imageUrl ?? null,
+      }))
       : [],
     driver: order.driver
       ? {
-          id: order.driver.id,
-          userId: order.driver.userId,
-          fullName: order.driver.user.fullName,
-          phone: order.driver.user.phone ?? null,
-          rating: asNumber(order.driver.rating),
-          vehicleType: order.driver.vehicleType,
-          vehicleModel: order.driver.vehicleModel,
-          vehiclePlate: order.driver.vehiclePlate,
-          isOnline: order.driver.isOnline,
-        }
+        id: order.driver.id,
+        userId: order.driver.userId,
+        fullName: order.driver.user.fullName,
+        phone: order.driver.user.phone ?? null,
+        rating: asNumber(order.driver.rating),
+        vehicleType: order.driver.vehicleType,
+        vehicleModel: order.driver.vehicleModel,
+        vehiclePlate: order.driver.vehiclePlate,
+        isOnline: order.driver.isOnline,
+      }
       : null,
     customer: order.user
       ? {
-          id: order.user.id,
-          fullName: order.user.fullName,
-          phone: order.user.phone,
-          avatarUrl: order.user.avatarUrl ?? null,
-        }
+        id: order.user.id,
+        fullName: order.user.fullName,
+        phone: order.user.phone,
+        avatarUrl: order.user.avatarUrl ?? null,
+      }
       : null,
   };
 }
@@ -149,7 +149,7 @@ export class OrderService {
     private readonly walletService: WalletService,
     private readonly logger: FastifyBaseLogger,
     private readonly app: FastifyInstance,
-  ) {}
+  ) { }
 
   private async findLocalServiceArea(city: string, state: string) {
     let serviceArea = await this.prisma.localServiceArea.findFirst({
@@ -190,13 +190,13 @@ export class OrderService {
     // Try DB-backed route first
     const dbRoute = (payload.originHubId && payload.destinationHubId)
       ? await this.prisma.route.findFirst({
-          where: {
-            originHubId: payload.originHubId,
-            destinationHubId: payload.destinationHubId,
-            isActive: true,
-          },
-          include: { originHub: true, destinationHub: true },
-        })
+        where: {
+          originHubId: payload.originHubId,
+          destinationHubId: payload.destinationHubId,
+          isActive: true,
+        },
+        include: { originHub: true, destinationHub: true },
+      })
       : null;
 
     let originHubObj = dbRoute?.originHub ?? null;
@@ -257,28 +257,28 @@ export class OrderService {
 
     const pickup = (payload.pickupLat !== undefined && payload.pickupLng !== undefined && !isNaN(payload.pickupLat) && !isNaN(payload.pickupLng))
       ? {
-          street: payload.pickupAddress,
-          city: 'City',
-          state: 'State',
-          country: 'Nigeria',
-          lat: payload.pickupLat,
-          lng: payload.pickupLng,
-          formattedAddress: payload.pickupAddress,
-          placeId: 'pickup-coord',
-        }
+        street: payload.pickupAddress,
+        city: 'City',
+        state: 'State',
+        country: 'Nigeria',
+        lat: payload.pickupLat,
+        lng: payload.pickupLng,
+        formattedAddress: payload.pickupAddress,
+        placeId: 'pickup-coord',
+      }
       : await geocodeAddress(cleanText(payload.pickupAddress) ?? payload.pickupAddress);
 
     const delivery = (payload.deliveryLat !== undefined && payload.deliveryLng !== undefined && !isNaN(payload.deliveryLat) && !isNaN(payload.deliveryLng))
       ? {
-          street: payload.deliveryAddress,
-          city: 'City',
-          state: 'State',
-          country: 'Nigeria',
-          lat: payload.deliveryLat,
-          lng: payload.deliveryLng,
-          formattedAddress: payload.deliveryAddress,
-          placeId: 'delivery-coord',
-        }
+        street: payload.deliveryAddress,
+        city: 'City',
+        state: 'State',
+        country: 'Nigeria',
+        lat: payload.deliveryLat,
+        lng: payload.deliveryLng,
+        formattedAddress: payload.deliveryAddress,
+        placeId: 'delivery-coord',
+      }
       : await geocodeAddress(cleanText(payload.deliveryAddress) ?? payload.deliveryAddress);
     const route = await getDistanceAndDuration(pickup.lat, pickup.lng, delivery.lat, delivery.lng);
     const onlineDriversCacheKey = 'cache:drivers:online:active';
@@ -336,9 +336,9 @@ export class OrderService {
     // Prefer DB-backed route over seed-based static hubs
     const dbRouteContext = (data.originHubId && data.destinationHubId)
       ? await this.prisma.route.findFirst({
-          where: { originHubId: data.originHubId, destinationHubId: data.destinationHubId, isActive: true },
-          include: { originHub: true, destinationHub: true },
-        })
+        where: { originHubId: data.originHubId, destinationHubId: data.destinationHubId, isActive: true },
+        include: { originHub: true, destinationHub: true },
+      })
       : null;
 
     let originHubObj = dbRouteContext?.originHub ?? null;
@@ -359,26 +359,26 @@ export class OrderService {
 
     const effectiveRouteContext = originHubObj && destHubObj
       ? {
-          originHub: {
-            ...originHubObj,
-            lat: Number(originHubObj.lat),
-            lng: Number(originHubObj.lng),
-            createdAt: originHubObj.createdAt instanceof Date ? originHubObj.createdAt.toISOString() : String(originHubObj.createdAt),
-            type: originHubObj.type as HubType,
-            contactPhone: originHubObj.contactPhone ?? undefined,
-          },
-          destinationHub: {
-            ...destHubObj,
-            lat: Number(destHubObj.lat),
-            lng: Number(destHubObj.lng),
-            createdAt: destHubObj.createdAt instanceof Date ? destHubObj.createdAt.toISOString() : String(destHubObj.createdAt),
-            type: destHubObj.type as HubType,
-            contactPhone: destHubObj.contactPhone ?? undefined,
-          },
-          route: dbRouteContext,
-          distanceKm: haversineDistanceKm(Number(originHubObj.lat), Number(originHubObj.lng), Number(destHubObj.lat), Number(destHubObj.lng)),
-          durationMin: Math.max((dbRouteContext?.estimatedDays ?? Math.max(1, Math.ceil(haversineDistanceKm(Number(originHubObj.lat), Number(originHubObj.lng), Number(destHubObj.lat), Number(destHubObj.lng)) / 400))) * 12 * 60, 60),
-        }
+        originHub: {
+          ...originHubObj,
+          lat: Number(originHubObj.lat),
+          lng: Number(originHubObj.lng),
+          createdAt: originHubObj.createdAt instanceof Date ? originHubObj.createdAt.toISOString() : String(originHubObj.createdAt),
+          type: originHubObj.type as HubType,
+          contactPhone: originHubObj.contactPhone ?? undefined,
+        },
+        destinationHub: {
+          ...destHubObj,
+          lat: Number(destHubObj.lat),
+          lng: Number(destHubObj.lng),
+          createdAt: destHubObj.createdAt instanceof Date ? destHubObj.createdAt.toISOString() : String(destHubObj.createdAt),
+          type: destHubObj.type as HubType,
+          contactPhone: destHubObj.contactPhone ?? undefined,
+        },
+        route: dbRouteContext,
+        distanceKm: haversineDistanceKm(Number(originHubObj.lat), Number(originHubObj.lng), Number(destHubObj.lat), Number(destHubObj.lng)),
+        durationMin: Math.max((dbRouteContext?.estimatedDays ?? Math.max(1, Math.ceil(haversineDistanceKm(Number(originHubObj.lat), Number(originHubObj.lng), Number(destHubObj.lat), Number(destHubObj.lng)) / 400))) * 12 * 60, 60),
+      }
       : routeContext;
     const pickupContactName = cleanText(data.contactName);
     const pickupContactPhone = cleanText(data.contactPhone);
@@ -403,28 +403,28 @@ export class OrderService {
 
     const pickup = effectiveRouteContext
       ? {
-          street: cleanText(data.localPickupAddress) ?? effectiveRouteContext.originHub.address,
-          city: effectiveRouteContext.originHub.city,
-          state: effectiveRouteContext.originHub.state,
-          country: 'Nigeria',
-          lat: Number(effectiveRouteContext.originHub.lat),
-          lng: Number(effectiveRouteContext.originHub.lng),
-          placeId: effectiveRouteContext.originHub.id,
-          formattedAddress: composePickupAddress(effectiveRouteContext.originHub, cleanText(data.localPickupAddress) ?? ''),
-        }
+        street: cleanText(data.localPickupAddress) ?? effectiveRouteContext.originHub.address,
+        city: effectiveRouteContext.originHub.city,
+        state: effectiveRouteContext.originHub.state,
+        country: 'Nigeria',
+        lat: Number(effectiveRouteContext.originHub.lat),
+        lng: Number(effectiveRouteContext.originHub.lng),
+        placeId: effectiveRouteContext.originHub.id,
+        formattedAddress: composePickupAddress(effectiveRouteContext.originHub, cleanText(data.localPickupAddress) ?? ''),
+      }
       : await geocodeAddress(data.pickupAddress ?? '');
 
     const delivery = effectiveRouteContext
       ? {
-          street: effectiveRouteContext.destinationHub.address,
-          city: effectiveRouteContext.destinationHub.city,
-          state: effectiveRouteContext.destinationHub.state,
-          country: 'Nigeria',
-          lat: Number(effectiveRouteContext.destinationHub.lat),
-          lng: Number(effectiveRouteContext.destinationHub.lng),
-          placeId: effectiveRouteContext.destinationHub.id,
-          formattedAddress: composeDeliveryAddress(effectiveRouteContext.destinationHub),
-        }
+        street: effectiveRouteContext.destinationHub.address,
+        city: effectiveRouteContext.destinationHub.city,
+        state: effectiveRouteContext.destinationHub.state,
+        country: 'Nigeria',
+        lat: Number(effectiveRouteContext.destinationHub.lat),
+        lng: Number(effectiveRouteContext.destinationHub.lng),
+        placeId: effectiveRouteContext.destinationHub.id,
+        formattedAddress: composeDeliveryAddress(effectiveRouteContext.destinationHub),
+      }
       : await geocodeAddress(data.deliveryAddress ?? '');
 
     if (!effectiveRouteContext && (!data.pickupAddress || !data.deliveryAddress)) {
@@ -1008,14 +1008,16 @@ export class OrderService {
     const destLat = Number(order.deliveryLat);
     const destLng = Number(order.deliveryLng);
 
-    // Fetch road-following route from driver location (or pickup if driver location pending) to destination.
-    const startLat = driverLat ?? pickupLat;
-    const startLng = driverLng ?? pickupLng;
-    const directionsResult = await getDirectionsRoute(startLat, startLng, destLat, destLng);
-    const routeCoordinates = directionsResult.route;
+    // Full road route from pickup to destination for visual polyline
+    const fullDirectionsResult = await getDirectionsRoute(pickupLat, pickupLng, destLat, destLng);
 
-    // Dynamic estimated delivery calculation based on remaining travel time
-    const estimatedMinutes = directionsResult.durationMin || order.estimatedDurationMin || 30;
+    // Remaining segment from driver's current position to destination for live ETA
+    const remainingResult = (driverLat != null && driverLng != null)
+      ? await getDirectionsRoute(driverLat, driverLng, destLat, destLng)
+      : fullDirectionsResult;
+
+    const routeCoordinates = fullDirectionsResult.route;
+    const estimatedMinutes = remainingResult.durationMin || order.estimatedDurationMin || 30;
     const estimatedDelivery = new Date(Date.now() + estimatedMinutes * 60 * 1000).toISOString();
 
     return {
@@ -1035,7 +1037,7 @@ export class OrderService {
       origin_hub: order.pickupFormattedAddress,
       destination_hub: order.deliveryFormattedAddress,
       departed_at: order.pickedUpAt?.toISOString() ?? order.createdAt.toISOString(),
-      distance_km: directionsResult.distanceKm || Number(order.distanceKm),
+      distance_km: fullDirectionsResult.distanceKm || Number(order.distanceKm),
       estimated_duration_min: estimatedMinutes,
       weight_kg: await this.prisma.orderItem
         .aggregate({ where: { orderId }, _sum: { weightKg: true } })
@@ -1399,10 +1401,10 @@ export class OrderService {
         realtimeApp.io.to(`order:${order.id}`).emit('chat_message', serializedMsg);
         try {
           realtimeApp.io.of('/user')?.to(`order:${order.id}`)?.emit('chat_message', serializedMsg);
-        } catch {}
+        } catch { }
         try {
           realtimeApp.io.of('/driver')?.to(`order:${order.id}`)?.emit('chat_message', serializedMsg);
-        } catch {}
+        } catch { }
       }
     } catch (err) {
       this.logger.warn({ err, orderId: order.id }, 'chat_message.broadcast_failed');
