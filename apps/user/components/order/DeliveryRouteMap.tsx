@@ -161,11 +161,13 @@ function SettledMarker({
   anchor,
   children,
   zIndex,
+  alwaysTrack,
 }: {
   coordinate: { latitude: number; longitude: number };
   anchor: { x: number; y: number };
   children: React.ReactNode;
   zIndex?: number;
+  alwaysTrack?: boolean;
 }) {
   return (
     <Marker coordinate={coordinate} anchor={anchor} zIndex={zIndex} tracksViewChanges={true}>

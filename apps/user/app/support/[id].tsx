@@ -71,7 +71,7 @@ export default function SupportTicketDetailScreen() {
   const badge = getStatusBadge(ticket?.status);
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.screen, { backgroundColor: palette.bg }]}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.screen, { backgroundColor: palette.bg }]}>
       <View style={styles.headerRow}>
         <Pressable
           onPress={() => back()}

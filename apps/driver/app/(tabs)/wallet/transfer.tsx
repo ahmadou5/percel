@@ -13,6 +13,8 @@ import {
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -164,8 +166,9 @@ export default function DriverTransferScreen() {
   const stepDots = [1, 2, 3] as const;
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.bg }]}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* back */}
         <View style={styles.headerRow}>
@@ -486,6 +489,7 @@ export default function DriverTransferScreen() {
       />
       <AppModal config={modal.config} onClose={modal.hide} />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

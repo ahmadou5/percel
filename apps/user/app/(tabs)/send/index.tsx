@@ -262,7 +262,7 @@ export default function SendOrderEntryScreen() {
 
   const [quoteData, setQuoteData] = useState<OrderQuoteResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const mainMapRef = useRef<MapView>(null);
+  const mainMapRef = useRef<any>(null);
 
   const directionsRouteQuery = useGetDirectionsRoute(pickupPoint, deliveryPoint);
   const roadRoutePoints = directionsRouteQuery.data ?? [];

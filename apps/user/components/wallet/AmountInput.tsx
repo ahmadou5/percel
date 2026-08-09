@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -45,14 +45,32 @@ export function AmountInput({ label, value, onChangeText, placeholder, helperTex
       {helperText ? <Text style={[styles.helper, { color: theme.textSecondary }]}>{helperText}</Text> : null}
 
       {focused && (
-        <View style={styles.keypadWrapper}>
-          <CustomNumericKeypad
-            mode="currency"
-            onPressDigit={(d) => onChangeText(value + d)}
-            onDelete={() => onChangeText(value.slice(0, -1))}
-            onClear={() => onChangeText('')}
-          />
-        </View>
+        <Modal
+          visible={focused}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setFocused(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setFocused(false)} />
+            <View style={[styles.keypadSheet, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={styles.sheetHeader}>
+                <Text style={[styles.sheetTitle, { color: theme.text }]}>
+                  {label}: ₦{value || '0'}
+                </Text>
+                <Pressable onPress={() => setFocused(false)} style={[styles.doneBtn, { backgroundColor: theme.primary }]}>
+                  <Text style={styles.doneBtnText}>Done</Text>
+                </Pressable>
+              </View>
+              <CustomNumericKeypad
+                mode="currency"
+                onPressDigit={(d) => onChangeText(value + d)}
+                onDelete={() => onChangeText(value.slice(0, -1))}
+                onClear={() => onChangeText('')}
+              />
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -72,5 +90,25 @@ const styles = StyleSheet.create({
   prefix: { color: '#8B5CF6', fontSize: Typography.xl, fontFamily: Typography.family.bold, marginRight: 8 },
   input: { flex: 1, fontSize: Typography.xl, fontFamily: Typography.family.bold },
   helper: { fontSize: Typography.xs },
-  keypadWrapper: { marginTop: Spacing.sm },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  keypadSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 32,
+    gap: Spacing.sm,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  sheetTitle: { fontSize: Typography.md, fontFamily: Typography.family.bold },
+  doneBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  doneBtnText: { color: '#fff', fontSize: Typography.sm, fontFamily: Typography.family.bold },
 });

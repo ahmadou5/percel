@@ -150,7 +150,7 @@ export function OrderChatModal({ visible, orderId, driverName = 'Driver', driver
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.backdrop}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <View style={[styles.container, { backgroundColor: palette.card, borderColor: palette.border }]}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: palette.border }]}>
