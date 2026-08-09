@@ -63,8 +63,8 @@ const driverRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/driver/kyc/verify-bvn', { preHandler: [app.authenticateDriver] }, async (request) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
-    const body = request.body as { bvn: string };
-    const result = await service.submitKYCBVN(driverId, body.bvn);
+    const body = request.body as { bvn: string; dob?: string; firstName?: string; lastName?: string; accountNumber?: string; bankCode?: string; address?: string };
+    const result = await service.submitKYCBVN(driverId, body);
     return success(result, result.verified ? 'BVN verified' : result.message ?? 'BVN verification failed');
   });
 

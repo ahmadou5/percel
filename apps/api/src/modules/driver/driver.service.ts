@@ -376,7 +376,13 @@ export class DriverService {
     }
   }
 
-  async submitKYCBVN(driverId: string, bvn: string): Promise<VerifyResponse & { message?: string; virtualAccount?: { accountNumber: string; bankName: string; accountName: string } }> {
+  async submitKYCBVN(
+    driverId: string,
+    input: string | { bvn: string; dob?: string; firstName?: string; lastName?: string; accountNumber?: string; bankCode?: string; address?: string },
+  ): Promise<VerifyResponse & { message?: string; virtualAccount?: { accountNumber: string; bankName: string; accountName: string } }> {
+    const payload = typeof input === 'string' ? { bvn: input } : input;
+    const bvn = payload.bvn.trim();
+
     const driver = await this.prisma.driver.findUnique({
       where: { id: driverId },
       include: { user: { include: { wallet: true } } },
@@ -385,14 +391,17 @@ export class DriverService {
     if (!driver) throw new NotFoundError('Driver not found');
 
     const name = splitName(driver.user.fullName);
+    const firstName = payload.firstName?.trim() || name.firstName;
+    const lastName = payload.lastName?.trim() || name.lastName;
+    const dobString = payload.dob?.trim() || (driver.user.dateOfBirth ? driver.user.dateOfBirth.toISOString().slice(0, 10) : '1995-01-01');
 
     try {
       const result = await verifyBVN(
         env.SMILE_IDENTITY_PARTNER_ID,
         bvn,
-        name.firstName,
-        name.lastName,
-        driver.createdAt.toISOString().slice(0, 10),
+        firstName,
+        lastName,
+        dobString,
       );
 
       await ensureDriverKyc(this.prisma, driverId);
@@ -409,14 +418,17 @@ export class DriverService {
       let virtualAccDetails: { accountNumber: string; bankName: string; accountName: string } | undefined;
 
       if (result.verified) {
+        const parsedDob = payload.dob ? new Date(payload.dob) : driver.user.dateOfBirth ?? new Date('1995-01-01');
+        const userAddress = payload.address?.trim() || driver.user.address || (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria');
+
         await this.prisma.user.update({
           where: { id: driver.userId },
           data: {
             bvnNumber: bvn,
             bvnVerified: true,
             kycMethod: 'BVN',
-            dateOfBirth: driver.user.dateOfBirth ?? new Date('1995-01-01'),
-            address: driver.user.address ?? (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria'),
+            dateOfBirth: parsedDob,
+            address: userAddress,
           },
         });
 

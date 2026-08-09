@@ -24,10 +24,10 @@ export const RefreshTokenSchema = z.object({
 });
 
 export const RegisterDriverSchema = RegisterUserSchema.extend({
-  vehicleType: z.enum(['BIKE', 'TRICYCLE', 'CAR', 'VAN', 'TRUCK']),
-  vehiclePlate: z.string().min(2),
-  vehicleModel: z.string().min(2),
-  licenseNumber: z.string().min(3),
+  vehicleType: z.enum(['BIKE', 'TRICYCLE', 'CAR', 'VAN', 'TRUCK']).optional(),
+  vehiclePlate: z.string().min(2).optional(),
+  vehicleModel: z.string().min(2).optional(),
+  licenseNumber: z.string().min(3).optional(),
 });
 
 export const VerifyOTPSchema = z.object({
@@ -67,16 +67,16 @@ export const RegisterDriverBody = Type.Object({
   phone: Type.String(),
   password: Type.String({ minLength: 8 }),
   fullName: Type.String({ minLength: 2 }),
-  vehicleType: Type.Union([
+  vehicleType: Type.Optional(Type.Union([
     Type.Literal('BIKE'),
     Type.Literal('TRICYCLE'),
     Type.Literal('CAR'),
     Type.Literal('VAN'),
     Type.Literal('TRUCK'),
-  ]),
-  vehiclePlate: Type.String(),
-  vehicleModel: Type.String(),
-  licenseNumber: Type.String(),
+  ])),
+  vehiclePlate: Type.Optional(Type.String()),
+  vehicleModel: Type.Optional(Type.String()),
+  licenseNumber: Type.Optional(Type.String()),
 });
 
 export const LoginBody = Type.Object({

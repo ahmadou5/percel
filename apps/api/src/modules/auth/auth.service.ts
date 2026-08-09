@@ -216,10 +216,10 @@ export class AuthService {
       await tx.driver.create({
         data: {
           userId: created.id,
-          licenseNumber: payload.licenseNumber,
-          vehicleType: payload.vehicleType,
-          vehiclePlate: payload.vehiclePlate,
-          vehicleModel: payload.vehicleModel,
+          licenseNumber: payload.licenseNumber || 'PENDING',
+          vehicleType: payload.vehicleType || 'BIKE',
+          vehiclePlate: payload.vehiclePlate || 'PENDING',
+          vehicleModel: payload.vehicleModel || 'UNSET',
           status: 'PENDING_KYC',
         },
       });

@@ -120,106 +120,96 @@ export function BankPickerModal({
   onSelect,
   selectedBankCode,
   banks,
-  banksLoading,
+  banksLoading = false,
 }: BankPickerModalProps) {
   const palette = useAppPalette();
   const [search, setSearch] = useState('');
 
+  const filteredBanks = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return banks;
+    return banks.filter((bank) =>
+      `${bank.name} ${bank.code} ${bank.slug ?? ''}`.toLowerCase().includes(term)
+    );
+  }, [search, banks]);
+
   useEffect(() => {
-    if (visible) setSearch('');
+    if (!visible) setSearch('');
   }, [visible]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return banks;
-    return banks.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        b.code.includes(q) ||
-        (b.slug && b.slug.toLowerCase().includes(q)),
-    );
-  }, [banks, search]);
-
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
-
-          {/* Header handle */}
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: palette.border }]} />
-          </View>
-
-          {/* Title */}
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: palette.text }]}>Select Bank</Text>
-            <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-              Choose recipient financial institution
-            </Text>
+        <View style={[styles.modalCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <View style={styles.modalHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.modalTitle, { color: palette.text }]}>Select Bank</Text>
+              <Text style={[styles.modalSubtitle, { color: palette.textSecondary }]}>Choose your bank for NUBAN account lookup</Text>
+            </View>
+            <Pressable onPress={onClose} style={[styles.modalClose, { backgroundColor: palette.bg }]}>
+              <Text style={[styles.modalCloseText, { color: palette.text }]}>Close</Text>
+            </Pressable>
           </View>
 
           <View style={[styles.searchBox, { backgroundColor: palette.bg, borderColor: palette.border }]}>
             <Search size={16} color={palette.textSecondary} />
             <TextInput
               style={[styles.searchInput, { color: palette.text }]}
-              placeholder="Search bank name or code…"
-              placeholderTextColor={palette.textSecondary}
               value={search}
               onChangeText={setSearch}
-              autoCorrect={false}
-              autoCapitalize="none"
+              placeholder="Search bank name..."
+              placeholderTextColor={palette.textSecondary}
             />
           </View>
 
-          {/* Bank List */}
           {banksLoading ? (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Loading bank list…</Text>
+            <View style={styles.bankLoading}>
+              <Text style={{ color: palette.textSecondary }}>Loading bank list…</Text>
             </View>
-          ) : filtered.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-                {search ? `No banks matching "${search}"` : 'No banks available.'}
+          ) : filteredBanks.length === 0 ? (
+            <View style={styles.bankLoading}>
+              <Text style={{ color: palette.textSecondary }}>
+                {search ? 'No banks matched your search.' : 'No banks available.'}
               </Text>
             </View>
           ) : (
             <FlatList
-              data={filtered}
-              keyExtractor={(item) => item.code + item.name}
+              data={filteredBanks}
+              keyExtractor={(item) => item.code}
+              style={styles.bankList}
+              contentContainerStyle={styles.bankListContent}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
-                const isSelected = item.code === selectedBankCode;
+                const active = item.code === selectedBankCode;
                 return (
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.bankRow,
-                      isSelected && { backgroundColor: hexToRgba(palette.primary, 0.08) },
-                      pressed && { opacity: 0.7 },
-                    ]}
                     onPress={() => {
                       onSelect(item);
                       onClose();
                     }}
+                    style={[
+                      styles.bankRow,
+                      {
+                        backgroundColor: active ? 'rgba(10,132,255,0.08)' : palette.bg,
+                        borderColor: active ? palette.primary : palette.border,
+                      },
+                    ]}
                   >
-                    <BankLogo name={item.name} slug={item.slug} bankCode={item.code} size={38} />
-                    <View style={styles.bankInfo}>
-                      <Text
-                        style={[
-                          styles.bankName,
-                          { color: isSelected ? palette.primary : palette.text },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                      <Text style={[styles.bankCode, { color: palette.textSecondary }]}>
-                        Code: {item.code}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <CheckCircle2 color={palette.primary} size={20} style={styles.checkIcon} />
+                    <BankLogo name={item.name} slug={item.slug} bankCode={item.code} size={40} />
+                    <Text
+                      style={[styles.bankRowName, { color: palette.text, flex: 1, marginLeft: 12 }]}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </Text>
+                    {active ? (
+                      <View style={[styles.checkboxCheck, { backgroundColor: palette.primary }]}>
+                        <CheckCircle2 size={14} color="#fff" />
+                      </View>
+                    ) : (
+                      <View style={[styles.checkboxEmpty, { borderColor: palette.border }]} />
                     )}
                   </Pressable>
                 );
@@ -233,90 +223,49 @@ export function BankPickerModal({
 }
 
 const styles = StyleSheet.create({
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    height: 46,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: Typography.sm,
-    fontFamily: Typography.family.regular,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    height: '75%',
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.50)', justifyContent: 'flex-end' },
+  modalCard: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    overflow: 'hidden',
-  },
-  handleContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xs + 2,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-  },
-  header: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.lg,
+    paddingBottom: 40,
+    gap: Spacing.md,
+    height: '80%',
+    maxHeight: '80%',
   },
-  title: {
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-  },
-  subtitle: {
-    fontSize: Typography.xs,
-    marginTop: 2,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
-  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center' },
+  modalTitle: { fontSize: Typography.lg, fontFamily: Typography.family.bold },
+  modalSubtitle: { fontSize: Typography.xs, marginTop: 2 },
+  modalClose: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  modalCloseText: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, height: 48, borderRadius: 14, borderWidth: 1 },
+  searchInput: { flex: 1, height: '100%', fontSize: Typography.sm },
+  bankLoading: { paddingVertical: Spacing.xl, alignItems: 'center', justifyContent: 'center' },
+  bankList: { flex: 1, minHeight: 160 },
+  bankListContent: { paddingBottom: Spacing.md },
   bankRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm + 2,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: 14,
-    marginBottom: 2,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
   },
-  bankInfo: {
-    flex: 1,
-    marginLeft: Spacing.sm + 2,
-  },
-  bankName: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-  },
-  bankCode: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  checkIcon: {
-    marginLeft: Spacing.xs,
-  },
-  emptyState: {
-    flex: 1,
+  bankRowName: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  checkboxCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
   },
-  emptyText: {
-    fontSize: Typography.sm,
-    textAlign: 'center',
+  checkboxEmpty: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
   },
 });

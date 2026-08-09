@@ -13,8 +13,7 @@ const phoneRegex = /^\+234\d{10}$/;
 const passRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
 const vehicleTypes = ['BIKE', 'TRICYCLE', 'CAR'] as const;
 
-type Step = 1 | 2 | 3 | 4 | 5;
-type VehicleType = (typeof vehicleTypes)[number];
+type Step = 1 | 2 | 3;
 
 function normalizePhone(value: string) {
   const cleaned = value.replace(/[\s-]/g, '');
@@ -33,10 +32,6 @@ export default function DriverRegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [vehicleType, setVehicleType] = useState<VehicleType>('BIKE');
-  const [vehiclePlate, setVehiclePlate] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
-  const [licenseNumber, setLicenseNumber] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,17 +54,13 @@ export default function DriverRegisterScreen() {
         return phoneRegex.test(`+234${phoneValue}`) && emailRegex.test(email.trim());
       case 3:
         return passRegex.test(password);
-      case 4:
-        return Boolean(vehicleType) && vehiclePlate.trim().length >= 5 && vehicleModel.trim().length >= 2;
-      case 5:
-        return licenseNumber.trim().length >= 4;
       default:
         return false;
     }
-  }, [acceptedTerms, email, fullName, licenseNumber, password, phoneValue, step, vehicleModel, vehiclePlate, vehicleType]);
+  }, [acceptedTerms, email, fullName, password, phoneValue, step]);
 
   const next = () => {
-    if (stepValid && step < 5) setStep((current) => (current + 1) as Step);
+    if (stepValid && step < 3) setStep((current) => (current + 1) as Step);
   };
 
   const back = () => {
@@ -88,16 +79,12 @@ export default function DriverRegisterScreen() {
       email: email.trim().toLowerCase(),
       phone: `+234${phoneValue}`,
       password,
-      vehicleType,
-      vehiclePlate: vehiclePlate.trim().toUpperCase(),
-      vehicleModel: vehicleModel.trim(),
-      licenseNumber: licenseNumber.trim().toUpperCase(),
     });
   };
 
   return (
     <KeyboardView>
-      <View style={[styles.screen, { backgroundColor: palette.bg }]}> 
+      <View style={[styles.screen, { backgroundColor: palette.bg }]}>
         <AuthBackdrop />
         <View style={[styles.overlay, { backgroundColor: light ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)' }]} />
 
@@ -107,7 +94,7 @@ export default function DriverRegisterScreen() {
           </Pressable>
 
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${(Math.min(step, 5) / 5) * 100}%`, backgroundColor: palette.primary }]} />
+            <View style={[styles.progressFill, { width: `${(Math.min(step, 3) / 3) * 100}%`, backgroundColor: palette.primary }]} />
           </View>
 
           <Pressable accessibilityRole="button" onPress={() => router.replace('/(auth)/login')} style={[styles.topLink, { borderColor: palette.border, backgroundColor: palette.card }]}>
@@ -116,7 +103,7 @@ export default function DriverRegisterScreen() {
         </View>
 
         <View style={styles.cardWrap}>
-          <Animated.View entering={FadeInDown.duration(600)} style={[styles.card, { backgroundColor: light ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.06)', borderColor: light ? palette.border : 'rgba(255,255,255,0.08)' }]}> 
+          <Animated.View entering={FadeInDown.duration(600)} style={[styles.card, { backgroundColor: light ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.06)', borderColor: light ? palette.border : 'rgba(255,255,255,0.08)' }]}>
             {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
             {step === 1 ? (
@@ -192,67 +179,6 @@ export default function DriverRegisterScreen() {
                   secureTextEntry
                   secureToggle
                   error={password && !passRegex.test(password) ? 'Min 8 chars, one uppercase, one number' : undefined}
-                  autoFocus
-                />
-
-                <AuthButton title="Continue" disabled={!stepValid} onPress={next} />
-              </Animated.View>
-            ) : null}
-
-            {step === 4 ? (
-              <Animated.View key="step-4" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
-                <Text style={[styles.heading, { color: palette.text }]}>VEHICLE DETAILS</Text>
-                <Text style={[styles.subheading, { color: palette.textSecondary }]}>Add the vehicle dispatch will assign to deliveries.</Text>
-
-                <View style={styles.vehicleRow}>
-                  {vehicleTypes.map((type) => {
-                    const selected = vehicleType === type;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={type}
-                        onPress={() => setVehicleType(type)}
-                        style={[styles.vehicleChip, { borderColor: selected ? palette.primary : palette.border, backgroundColor: selected ? palette.primary : palette.card }]}
-                      >
-                        <Text style={[styles.vehicleChipText, { color: selected ? '#fff' : palette.textSecondary }]}>{type}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                <AuthInput
-                  label="Plate number"
-                  placeholder="LAG-482XY"
-                  value={vehiclePlate}
-                  onChangeText={setVehiclePlate}
-                  autoCapitalize="characters"
-                  error={vehiclePlate && vehiclePlate.trim().length < 5 ? 'Enter a valid plate number' : undefined}
-                />
-                <AuthInput
-                  label="Vehicle model"
-                  placeholder="Bajaj Boxer"
-                  value={vehicleModel}
-                  onChangeText={setVehicleModel}
-                  autoCapitalize="words"
-                  error={vehicleModel && vehicleModel.trim().length < 2 ? 'Enter your vehicle model' : undefined}
-                />
-
-                <AuthButton title="Continue" disabled={!stepValid} onPress={next} />
-              </Animated.View>
-            ) : null}
-
-            {step === 5 ? (
-              <Animated.View key="step-5" entering={FadeInDown.duration(400)} exiting={FadeOut.duration(300)}>
-                <Text style={[styles.heading, { color: palette.text }]}>LICENSE NUMBER</Text>
-                <Text style={[styles.subheading, { color: palette.textSecondary }]}>This links your account to the driver verification flow.</Text>
-
-                <AuthInput
-                  label="License number"
-                  placeholder="LIC-004200"
-                  value={licenseNumber}
-                  onChangeText={setLicenseNumber}
-                  autoCapitalize="characters"
-                  error={licenseNumber && licenseNumber.trim().length < 4 ? 'Enter your license number' : undefined}
                   autoFocus
                 />
 

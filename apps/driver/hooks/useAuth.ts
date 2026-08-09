@@ -66,10 +66,10 @@ export function useRegisterDriver(
     phone: string;
     password: string;
     fullName: string;
-    vehicleType: VehicleType;
-    vehiclePlate: string;
-    vehicleModel: string;
-    licenseNumber: string;
+    vehicleType?: VehicleType;
+    vehiclePlate?: string;
+    vehicleModel?: string;
+    licenseNumber?: string;
   }> & {
     onRequiresVerification?: (phone: string) => void;
   }
@@ -82,10 +82,10 @@ export function useRegisterDriver(
       phone: string;
       password: string;
       fullName: string;
-      vehicleType: VehicleType;
-      vehiclePlate: string;
-      vehicleModel: string;
-      licenseNumber: string;
+      vehicleType?: VehicleType;
+      vehiclePlate?: string;
+      vehicleModel?: string;
+      licenseNumber?: string;
     }) => {
       const response = await http.post<ApiResponse<AuthResponse>>('/api/v1/auth/register/driver', payload);
       return response.data;

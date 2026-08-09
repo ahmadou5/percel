@@ -534,10 +534,12 @@ export default function KycScreen() {
     try {
       const result = await verifyBvn.mutateAsync({
         bvn: bvn.trim(),
+        dob: dateOfBirth,
         accountNumber: accountNumber.trim(),
         bankCode,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        address: address.trim(),
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['wallet'] }),

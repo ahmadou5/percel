@@ -43,7 +43,6 @@ export function DobDatePickerModal({
   const currentYear = new Date().getFullYear();
   const maxYear = currentYear - 18; // Must be 18+
 
-  // Generate lists
   const years = useMemo(() => {
     const arr = [];
     for (let y = maxYear; y >= 1930; y--) {
@@ -60,12 +59,10 @@ export function DobDatePickerModal({
     return arr;
   }, []);
 
-  // Selected values states
   const [selectedYear, setSelectedYear] = useState(maxYear);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [selectedDay, setSelectedDay] = useState(1);
 
-  // Parse initial value if present
   useEffect(() => {
     if (initialValue && /^\d{4}-\d{2}-\d{2}$/.test(initialValue)) {
       const parts = initialValue.split('-');
@@ -80,7 +77,6 @@ export function DobDatePickerModal({
 
   const handleConfirm = () => {
     const pad = (num: number) => String(num).padStart(2, '0');
-    // Enforce valid day of month (e.g. Feb 30 -> Feb 28/29)
     let finalDay = selectedDay;
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
     if (finalDay > daysInMonth) {
@@ -96,7 +92,7 @@ export function DobDatePickerModal({
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          
+
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={onClose}>
@@ -110,7 +106,7 @@ export function DobDatePickerModal({
 
           {/* Scroller Area */}
           <View style={styles.pickerContainer}>
-            
+
             {/* Day Column */}
             <View style={styles.column}>
               <Text style={[styles.columnLabel, { color: palette.textSecondary }]}>Day</Text>
@@ -195,7 +191,7 @@ export function DobDatePickerModal({
           </View>
 
           <Text style={[styles.helper, { color: palette.textSecondary }]}>
-            Enforcing age limit. Must be born on or before {maxYear}.
+            Driver age limit enforcement. Must be born on or before {maxYear}.
           </Text>
 
         </View>

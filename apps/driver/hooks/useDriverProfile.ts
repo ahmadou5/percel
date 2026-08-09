@@ -171,10 +171,12 @@ export function useVerifyDriverBvn() {
   return useMutation({
     mutationFn: async (payload: {
       bvn: string;
+      dob?: string;
       accountNumber?: string;
       bankCode?: string;
       firstName?: string;
       lastName?: string;
+      address?: string;
     }) => {
       Sentry.addBreadcrumb({ category: 'kyc', message: 'driver.bvn_verify_requested', level: 'info' });
       const response = await http.post<ApiResponse<{
