@@ -405,21 +405,29 @@ export class DriverService {
       );
 
       await ensureDriverKyc(this.prisma, driverId);
-      await this.prisma.driverKYC.update({
-        where: { driverId },
-        data: {
-          bvnNumber: bvn,
-          bvnVerified: Boolean(result.verified),
-          status: DriverKYCStatus.PENDING,
-          rejectionReason: null,
-        },
-      });
+
+      const parsedDob = payload.dob ? new Date(payload.dob) : driver.user.dateOfBirth ?? new Date('1995-01-01');
+      const userAddress = payload.address?.trim() || driver.user.address || (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria');
 
       let virtualAccDetails: { accountNumber: string; bankName: string; accountName: string } | undefined;
 
       if (result.verified) {
-        const parsedDob = payload.dob ? new Date(payload.dob) : driver.user.dateOfBirth ?? new Date('1995-01-01');
-        const userAddress = payload.address?.trim() || driver.user.address || (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria');
+        await this.prisma.driverKYC.update({
+          where: { driverId },
+          data: {
+            bvnNumber: bvn,
+            bvnVerified: true,
+            status: DriverKYCStatus.APPROVED,
+            rejectionReason: null,
+          },
+        });
+
+        await this.prisma.driver.update({
+          where: { id: driverId },
+          data: {
+            status: 'ACTIVE',
+          },
+        });
 
         await this.prisma.user.update({
           where: { id: driver.userId },
@@ -431,6 +439,17 @@ export class DriverService {
             address: userAddress,
           },
         });
+      } else {
+        await this.prisma.driverKYC.update({
+          where: { driverId },
+          data: {
+            bvnNumber: bvn,
+            bvnVerified: false,
+            status: DriverKYCStatus.PENDING,
+            rejectionReason: result.message ?? null,
+          },
+        });
+      }
 
         // Provision Virtual Account NUBAN for Driver Wallet if not already set
         const wallet = driver.user.wallet;

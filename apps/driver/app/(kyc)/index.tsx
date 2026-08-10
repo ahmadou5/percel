@@ -580,10 +580,18 @@ export default function KycScreen() {
         queryClient.invalidateQueries({ queryKey: ['driver-profile'] }),
         queryClient.invalidateQueries({ queryKey: ['banks'] }),
       ]);
-      if (result.verified) {
-        modal.alert('Verification Approved!', 'Your identity is verified.', 'success');
+
+      if (result.verified || (result as any).kycComplete || (result as any).bvnVerified) {
+        const currentDriver = useDriverStore.getState().driver;
+        if (currentDriver) {
+          await useDriverStore.getState().setDriver({
+            ...currentDriver,
+            status: 'ACTIVE',
+          });
+        }
+        modal.alert('Verification Approved!', 'Your identity is verified and your dedicated account is ready.', 'success');
       } else {
-        setSubmitted(true);
+        modal.alert('Verification Failed', result.message || 'Identity verification could not be completed. Please check your BVN and account details.', 'error');
       }
     } catch (error) {
       modal.alert('Verification Failed', error instanceof Error ? error.message : 'Please check your details and try again.', 'error');
