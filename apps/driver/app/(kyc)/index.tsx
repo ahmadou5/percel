@@ -105,7 +105,7 @@ export default function KycScreen() {
   const [bankCode, setBankCode] = useState('');
   const [bankPickerOpen, setBankPickerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [nin, setNin] = useState('');
   const [ninSubmitting, setNinSubmitting] = useState(false);
@@ -223,17 +223,15 @@ export default function KycScreen() {
   const personalInfoComplete =
     firstName.trim().length >= 1 &&
     lastName.trim().length >= 1 &&
-    address.trim().length >= 8 &&
+    address.trim().length >= 3 &&
     isOfAge(dateOfBirth);
   const identityComplete =
-    isValidIdInput(bvn, 11) &&
-    isValidIdInput(accountNumber, 10) &&
-    Boolean(bankCode) &&
-    consent;
+    isValidIdInput(bvn.replace(/\D/g, ''), 11) &&
+    isValidIdInput(accountNumber.replace(/\D/g, ''), 10) &&
+    Boolean(bankCode);
   const canSubmit =
     personalInfoComplete &&
     identityComplete &&
-
     !verifyBvn.isPending;
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -518,11 +516,47 @@ export default function KycScreen() {
   };
 
   const handleNext = () => {
-    if (step === 1 && personalInfoComplete) {
+    if (step === 1) {
+      if (!firstName.trim()) {
+        modal.alert('First Name Required', 'Please enter your legal first name.', 'warning');
+        return;
+      }
+      if (!lastName.trim()) {
+        modal.alert('Last Name Required', 'Please enter your legal last name.', 'warning');
+        return;
+      }
+      if (address.trim().length < 3) {
+        modal.alert('Address Required', 'Please enter your residential address.', 'warning');
+        return;
+      }
+      if (!dateOfBirth || !isOfAge(dateOfBirth)) {
+        modal.alert('Date of Birth Required', 'Please select a valid date of birth (must be 18 or older).', 'warning');
+        return;
+      }
       setStep(2);
+      return;
     }
-    if (step === 2 && identityComplete) {
+
+    if (step === 2) {
+      const cleanBvn = bvn.replace(/\D/g, '');
+      const cleanAcc = accountNumber.replace(/\D/g, '');
+      if (cleanBvn.length !== 11) {
+        modal.alert('Invalid BVN', 'Please enter your 11-digit Bank Verification Number.', 'warning');
+        return;
+      }
+      if (!bankCode) {
+        modal.alert('Bank Required', 'Please select your bank from the list.', 'warning');
+        return;
+      }
+      if (cleanAcc.length !== 10) {
+        modal.alert('Invalid Account Number', 'Please enter your 10-digit NUBAN account number.', 'warning');
+        return;
+      }
+      if (!consent) {
+        setConsent(true);
+      }
       setStep(3);
+      return;
     }
   };
 
@@ -661,11 +695,10 @@ export default function KycScreen() {
 
             <Pressable
               onPress={handleNext}
-              disabled={!personalInfoComplete}
               style={({ pressed }) => [
                 styles.primaryAction,
-                { backgroundColor: personalInfoComplete ? palette.primary : palette.border },
-                pressed && personalInfoComplete ? { opacity: 0.9 } : null,
+                { backgroundColor: palette.primary },
+                pressed ? { opacity: 0.85 } : null,
               ]}
             >
               <Text style={styles.primaryActionText}>Continue to Bank & BVN</Text>
@@ -698,7 +731,7 @@ export default function KycScreen() {
             <Input
               label="BVN (Bank Verification Number)"
               value={bvn}
-              onChangeText={setBvn}
+              onChangeText={(val) => setBvn(val.replace(/\D/g, ''))}
               placeholder="11 digit BVN"
               keyboardType="number-pad"
               helperText="Used strictly for identity validation via NIBSS."
@@ -721,7 +754,7 @@ export default function KycScreen() {
             <Input
               label="Account number"
               value={accountNumber}
-              onChangeText={setAccountNumber}
+              onChangeText={(val) => setAccountNumber(val.replace(/\D/g, ''))}
               placeholder="10 digit NUBAN account number"
               keyboardType="number-pad"
               helperText="10-digit NUBAN linked to your BVN."
@@ -765,12 +798,11 @@ export default function KycScreen() {
               </Pressable>
               <Pressable
                 onPress={handleNext}
-                disabled={!identityComplete}
                 style={({ pressed }) => [
                   styles.primaryAction,
                   styles.stepActionFlex,
-                  { backgroundColor: identityComplete ? palette.primary : palette.border },
-                  pressed && identityComplete ? { opacity: 0.9 } : null,
+                  { backgroundColor: palette.primary },
+                  pressed ? { opacity: 0.85 } : null,
                 ]}
               >
                 <Text style={styles.primaryActionText}>Review Details</Text>
