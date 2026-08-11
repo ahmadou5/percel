@@ -26,6 +26,8 @@ function buildTitle(type: NotificationJobType) {
       return 'Order created';
     case 'ORDER_MATCHED':
       return 'Driver found';
+    case 'NEW_ORDER_AVAILABLE':
+      return 'New Order Nearby! 📦';
     case 'ORDER_ACCEPTED':
       return 'Order accepted';
     case 'ORDER_PICKED_UP':
@@ -63,6 +65,12 @@ export function buildNotificationPayload(type: NotificationJobType, payload: Rec
       return {
         title: buildTitle(type),
         body: `Driver found. ${String(payload.driverName ?? 'A driver')} is on the way 🕖🕖.`,
+        data: payload,
+      };
+    case 'NEW_ORDER_AVAILABLE':
+      return {
+        title: buildTitle(type),
+        body: payload.pickupStreet ? `New delivery request! Pickup at ${String(payload.pickupStreet)}. Tap to accept.` : 'A new delivery request is available nearby. Tap to view and accept.',
         data: payload,
       };
     case 'ORDER_ACCEPTED':

@@ -9,6 +9,7 @@ export const WALLET_OPS_QUEUE = 'wallet-ops';
 export type NotificationJobType =
   | 'ORDER_CREATED'
   | 'ORDER_MATCHED'
+  | 'NEW_ORDER_AVAILABLE'
   | 'ORDER_ACCEPTED'
   | 'ORDER_PICKED_UP'
   | 'ORDER_DELIVERED'

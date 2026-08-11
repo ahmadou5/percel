@@ -686,6 +686,13 @@ export class OrderService {
     await addNotificationJob(this.app, userId, 'ORDER_CANCELLED', { orderId, reason });
     if (order.driverId) {
       await clearActiveDriverTracking(this.app, order.driverId);
+      const assignedDriver = await this.prisma.driver.findUnique({
+        where: { id: order.driverId },
+        select: { userId: true },
+      });
+      if (assignedDriver?.userId) {
+        await addNotificationJob(this.app, assignedDriver.userId, 'ORDER_CANCELLED', { orderId, reason });
+      }
     }
     this.logger.info({ userId, orderId, reason, status: OrderStatus.CANCELLED }, 'order.cancelled');
     await this.emitStatusUpdate(order.id, OrderStatus.CANCELLED, userId, order.driverId ?? undefined);
@@ -755,6 +762,18 @@ export class OrderService {
 
     if (order.driverId) {
       await clearActiveDriverTracking(this.app, order.driverId);
+      const assignedDriver = await this.prisma.driver.findUnique({
+        where: { id: order.driverId },
+        select: { userId: true },
+      });
+      if (assignedDriver?.userId) {
+        const payoutAmount = Number(order.price) * 0.8;
+        await addNotificationJob(this.app, assignedDriver.userId, 'PAYMENT_RECEIVED', {
+          amount: payoutAmount,
+          orderId: order.id,
+          kind: 'order_earning',
+        });
+      }
     }
 
     await addNotificationJob(this.app, userId, 'ORDER_COMPLETED', { orderId: order.id });

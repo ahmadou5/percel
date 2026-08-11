@@ -165,6 +165,17 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
           driverName: 'driver',
         });
 
+        const matchedDriverUser = await app.prisma.driver.findUnique({
+          where: { id: candidate.driverId },
+          select: { userId: true },
+        });
+        if (matchedDriverUser?.userId) {
+          await addNotificationJob(app, matchedDriverUser.userId, 'NEW_ORDER_AVAILABLE', {
+            orderId,
+            pickupStreet: fullOrder?.pickupFormattedAddress ?? null,
+          });
+        }
+
         // Poll for up to 60 seconds to see if this driver accepts
         let accepted = false;
         for (let i = 0; i < 60; i += 1) {
