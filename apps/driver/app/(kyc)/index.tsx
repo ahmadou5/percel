@@ -153,9 +153,16 @@ export default function KycScreen() {
     }
   }, [profile?.status, kycComplete]);
 
-  // Verified card animation
+  // Verified card animation & store status sync
   useEffect(() => {
     if (kycComplete) {
+      const currentDriver = useDriverStore.getState().driver;
+      if (currentDriver && currentDriver.status !== 'ACTIVE') {
+        void useDriverStore.getState().setDriver({
+          ...currentDriver,
+          status: 'ACTIVE',
+        });
+      }
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 6,

@@ -15,7 +15,20 @@ export function useDriverProfile() {
     enabled: isAuthenticated,
     queryFn: async () => {
       const response = await http.get<ApiResponse<DriverProfile>>('/api/v1/driver/profile');
-      return response.data.data;
+      const profile = response.data.data;
+      if (profile) {
+        const current = useDriverStore.getState().driver;
+        if (current) {
+          await useDriverStore.getState().setDriver({
+            ...current,
+            status: profile.status as any,
+            vehicleType: profile.vehicleType as any,
+            vehiclePlate: profile.vehiclePlate,
+            vehicleModel: profile.vehicleModel,
+          });
+        }
+      }
+      return profile;
     },
     staleTime: 30_000,
   });
@@ -187,9 +200,18 @@ export function useVerifyDriverBvn() {
       }>>('/api/v1/driver/kyc/verify-bvn', payload);
       return response.data.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      if (data?.verified || (data as any)?.bvnVerified || (data as any)?.kycComplete) {
+        const current = useDriverStore.getState().driver;
+        if (current) {
+          await useDriverStore.getState().setDriver({
+            ...current,
+            status: 'ACTIVE',
+          });
+        }
+      }
     },
   });
 }
@@ -203,9 +225,18 @@ export function useVerifyDriverNin() {
       const response = await http.post<ApiResponse<{ verified: boolean; message?: string }>>('/api/v1/driver/kyc/verify-nin', payload);
       return response.data.data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ['driver-profile'] });
       await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      if (data?.verified) {
+        const current = useDriverStore.getState().driver;
+        if (current) {
+          await useDriverStore.getState().setDriver({
+            ...current,
+            status: 'ACTIVE',
+          });
+        }
+      }
     },
   });
 }
