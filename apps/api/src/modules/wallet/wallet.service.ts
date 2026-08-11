@@ -736,10 +736,11 @@ export class WalletService {
     const status = String(data.paymentStatus ?? data.status ?? '').toUpperCase();
     // product.reference = the accountReference we set when creating the reserved account ("PERCEL_<userId>")
     const product = data.product as Record<string, unknown> | undefined;
-    const customerIdentifier = String(product?.reference ?? data.accountReference ?? '');
+    const customerEmail = String(data.customerEmail ?? data.email ?? (data.customer as any)?.email ?? '');
+    const customerIdentifier = String(product?.reference ?? data.accountReference ?? customerEmail || '');
 
     if ((eventType.includes('SUCCESS') || status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL') && reference && amount > 0) {
-      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber, customerIdentifier });
+      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber: accountNumber || undefined, customerIdentifier: customerIdentifier || undefined });
     }
     return { acknowledged: true };
   }
@@ -752,12 +753,28 @@ export class WalletService {
     const amountKobo = Number(body.amount ?? payload.principal_amount ?? payload.settled_amount ?? 0);
     const isVirtualAccount = String(payload.channel ?? '').toLowerCase() === 'virtual-account' || Boolean(payload.virtual_account_number);
 
+    const accountNumber = typeof payload.virtual_account_number === 'string'
+      ? payload.virtual_account_number
+      : typeof body.virtual_account_number === 'string'
+        ? body.virtual_account_number
+        : undefined;
+
+    const email = typeof payload.email === 'string'
+      ? payload.email
+      : typeof body.email === 'string'
+        ? body.email
+        : undefined;
+
+    const customerIdentifier = typeof payload.customer_identifier === 'string'
+      ? payload.customer_identifier
+      : email;
+
     if ((status === 'success' || isVirtualAccount) && reference && amountKobo > 0) {
       await this.completeExternalWalletFunding(PaymentProvider.SQUAD, {
         reference,
         amount: isVirtualAccount ? Number(amountKobo) : amountKobo / 100,
-        accountNumber: typeof payload.virtual_account_number === 'string' ? payload.virtual_account_number : undefined,
-        customerIdentifier: typeof payload.customer_identifier === 'string' ? payload.customer_identifier : undefined,
+        accountNumber,
+        customerIdentifier,
       });
     }
     return { acknowledged: true };
