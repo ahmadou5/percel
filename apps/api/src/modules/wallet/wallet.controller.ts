@@ -1,10 +1,11 @@
+
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import type { WalletService } from './wallet.service.js';
 import { success } from '../../utils/response.js';
 
 export class WalletController {
-  constructor(private readonly service: WalletService) {}
+  constructor(private readonly service: WalletService) { }
 
   getWallet = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
@@ -169,7 +170,7 @@ export class WalletController {
   };
 
   simulateVirtualTopUp = async (request: FastifyRequest) => {
-    const userId = request.user.id;
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const { amount } = request.body as { amount: number };
     const data = await this.service.simulateVirtualAccountTopUp(userId, amount);
     return success(data);

@@ -737,7 +737,7 @@ export class WalletService {
     // product.reference = the accountReference we set when creating the reserved account ("PERCEL_<userId>")
     const product = data.product as Record<string, unknown> | undefined;
     const customerEmail = String(data.customerEmail ?? data.email ?? (data.customer as any)?.email ?? '');
-    const customerIdentifier = String(product?.reference ?? data.accountReference ?? customerEmail || '');
+    const customerIdentifier = String(product?.reference ?? data.accountReference ?? customerEmail ?? '');
 
     if ((eventType.includes('SUCCESS') || status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL') && reference && amount > 0) {
       await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber: accountNumber || undefined, customerIdentifier: customerIdentifier || undefined });
