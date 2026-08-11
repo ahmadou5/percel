@@ -11,7 +11,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@percel/shared": "workspace:*",
+    "@percel/shared": "*",
     "@vis.gl/react-google-maps": "^1.5.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.4.10",

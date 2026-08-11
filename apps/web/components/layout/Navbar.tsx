@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Download, Search, Menu, X, Palette } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Download, Search, Menu, X, Palette, Smartphone } from 'lucide-react';
 import { ThemeCustomizerModal } from '@/components/theme-customizer';
 
 export function Navbar() {
@@ -22,12 +23,16 @@ export function Navbar() {
 
   return (
     <>
-      {/* Floating Overlay Header */}
-      <header className="fixed top-0 inset-x-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-2xl transition-all shadow-sm">
+      {/* Floating Apple-Style Translucent Glass Header */}
+      <header className="fixed top-0 inset-x-0 z-50 w-full border-b border-white/10 bg-background/65 backdrop-blur-2xl saturate-180 transition-all shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-8 lg:px-12 py-3.5">
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border/80 bg-card p-1.5 shadow-sm transition-transform group-hover:scale-105">
+            <motion.div
+              whileHover={{ scale: 1.05, rotate: 2 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl p-1.5 shadow-sm"
+            >
               <Image
                 src="/logo-transparent.png"
                 alt="Percel Logo"
@@ -35,11 +40,11 @@ export function Navbar() {
                 height={28}
                 className="object-contain"
               />
-            </div>
+            </motion.div>
             <div className="flex flex-col">
-              <span className="font-black text-xl tracking-tight text-foreground">Percel</span>
-              <span className="text-[10px] font-medium text-muted-foreground tracking-wide">
-                Fast Intra & Interstate Logistics
+              <span className="font-black text-xl tracking-tight text-foreground font-sans">Percel</span>
+              <span className="text-[10px] font-semibold text-muted-foreground tracking-wide">
+                Next-Gen Logistics Platform
               </span>
             </div>
           </Link>
@@ -53,8 +58,8 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${isActive
-                      ? 'bg-primary/15 text-primary border border-primary/30 font-bold'
-                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                      ? 'bg-primary/15 text-primary border border-primary/30 font-bold shadow-xs'
+                      : 'text-muted-foreground hover:bg-white/10 hover:text-foreground'
                     }`}
                 >
                   {link.label}
@@ -66,30 +71,36 @@ export function Navbar() {
           {/* Action CTAs */}
           <div className="hidden items-center gap-3 md:flex">
             {/* Theme Customizer Trigger */}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               type="button"
               onClick={() => setThemeModalOpen(true)}
-              className="flex items-center justify-center rounded-xl border border-border/80 bg-card/80 p-2.5 text-foreground hover:bg-muted transition-all shadow-xs"
+              className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2.5 text-foreground hover:bg-white/15 transition-all shadow-xs"
               title="Customize Theme & Appearance"
             >
               <Palette className="h-4.5 w-4.5 text-primary" />
-            </button>
+            </motion.button>
 
-            <Link
-              href="/track"
-              className="flex items-center gap-2 rounded-xl border border-border/80 bg-card/80 px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:bg-muted hover:border-primary/40 shadow-xs"
-            >
-              <Search className="h-4 w-4 text-primary" />
-              <span>Track Order</span>
-            </Link>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/track"
+                className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:bg-white/15 hover:border-primary/40 shadow-xs"
+              >
+                <Search className="h-4 w-4 text-primary" />
+                <span>Track Order</span>
+              </Link>
+            </motion.div>
 
-            <Link
-              href="/download"
-              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-glow-primary transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Download className="h-4 w-4" />
-              <span>Get APK</span>
-            </Link>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+              <Link
+                href="/download"
+                className="apple-button flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-glow-primary transition-all"
+              >
+                <Download className="h-4 w-4" />
+                <span>Get APK</span>
+              </Link>
+            </motion.div>
           </div>
 
           {/* Mobile Toggle & Theme Button */}

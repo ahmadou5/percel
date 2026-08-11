@@ -11,7 +11,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@percel/shared": "workspace:*",
+    "@percel/shared": "*",
     "@sentry/nextjs": "^10.68.0",
     "@types/leaflet": "^1.9.21",
     "framer-motion": "^12.4.10",

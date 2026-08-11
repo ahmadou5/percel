@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { Search, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react';
 
 export default function TrackSearchPage() {
@@ -30,10 +31,18 @@ export default function TrackSearchPage() {
       </div>
 
       {/* Main Track Form Box */}
-      <div className="rounded-3xl border border-border/80 bg-card/90 p-8 sm:p-12 shadow-2xl backdrop-blur-xl text-center space-y-6">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/30 shadow-glow-primary">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="apple-glass rounded-3xl border border-white/15 bg-card/90 p-8 sm:p-12 shadow-2xl backdrop-blur-2xl text-center space-y-6"
+      >
+        <motion.div
+          whileHover={{ scale: 1.08, rotate: 5 }}
+          className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/30 shadow-glow-primary"
+        >
           <Search className="h-7 w-7" />
-        </div>
+        </motion.div>
 
         <div className="space-y-2">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
@@ -51,21 +60,23 @@ export default function TrackSearchPage() {
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value)}
               placeholder="e.g. TRK-AAFE9195 or Order ID"
-              className="w-full rounded-2xl border border-border/80 bg-slate-900/90 px-5 py-4 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-inner"
+              className="w-full rounded-2xl border border-white/15 bg-slate-900/90 px-5 py-4 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-inner"
               required
             />
-            <button
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               type="submit"
-              className="absolute right-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-glow-primary hover:bg-primary/90 transition-all flex items-center gap-1.5"
+              className="apple-button absolute right-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-extrabold text-white shadow-glow-primary flex items-center gap-1.5"
             >
               <span>Track</span>
               <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+            </motion.button>
           </div>
         </form>
 
         {/* Helpful Tips & Demo Shortcut */}
-        <div className="pt-4 border-t border-border/60 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="pt-4 border-t border-white/10 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
             <span>Public real-time GPS tracking</span>
@@ -74,7 +85,7 @@ export default function TrackSearchPage() {
             Tracking code is provided when your order is placed.
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
