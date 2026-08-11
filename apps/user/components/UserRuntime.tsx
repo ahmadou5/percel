@@ -13,6 +13,8 @@ import { useAuthStore } from "@/store/auth.store";
 import { usePreferencesStore } from "@/store/preferences.store";
 import { useWallet } from "@/hooks/useWallet";
 
+import { LocationPermissionModal } from '@/components/ui/LocationPermissionModal';
+
 export function UserRuntime() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const token = useAuthStore((state) => state.tokens?.accessToken);
@@ -224,5 +226,5 @@ export function UserRuntime() {
     return () => subscription.remove();
   }, [queryClient]);
 
-  return null;
+  return <LocationPermissionModal />;
 }

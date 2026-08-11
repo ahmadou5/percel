@@ -29,6 +29,7 @@ const accountItems = [
 const activityItems = [
   { title: 'Transactions', subtitle: 'View transaction history', href: '/wallet/transactions', Icon: History },
   { title: 'Notifications', subtitle: 'Manage notification', href: '/settings/notifications', Icon: Bell },
+  { title: 'Location Access', subtitle: 'GPS & tracking permissions', href: '/settings/location', Icon: MapPin },
 ] as const;
 
 const securityItems = [

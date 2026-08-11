@@ -45,6 +45,7 @@ const ACCOUNT_ITEMS: ReadonlyArray<MenuItem> = [
 const ACTIVITY_ITEMS: ReadonlyArray<MenuItem> = [
   { title: 'Transactions', subtitle: 'Ledger history', href: '/(tabs)/wallet/transactions', Icon: History },
   { title: 'Notification Preferences', subtitle: 'Manage Notifications', href: '/settings/notifications', Icon: Bell },
+  { title: 'Location Access', subtitle: 'GPS & navigation permissions', href: '/settings/location', Icon: MapPin },
 ];
 
 const SECURITY_ITEMS: ReadonlyArray<MenuItem> = [

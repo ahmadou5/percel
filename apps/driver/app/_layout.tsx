@@ -134,6 +134,7 @@ function RootLayoutNav() {
         <Stack.Screen name="profile/security" />
         <Stack.Screen name="settings/preferences" />
         <Stack.Screen name="settings/notifications" />
+        <Stack.Screen name="settings/location" />
         <Stack.Screen name="settings/vehicle" />
         <Stack.Screen name="support/index" />
         <Stack.Screen name="support/create" />

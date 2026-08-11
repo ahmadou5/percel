@@ -12,6 +12,7 @@ import { useDriverStore } from '@/store/driver.store';
 import { usePreferencesStore } from '@/store/preferences.store';
 
 import { NewOrderAlertModal } from '@/components/orders/NewOrderAlertModal';
+import { LocationPermissionModal } from '@/components/ui/LocationPermissionModal';
 
 export function DriverRuntime() {
   const isAuthenticated = useDriverStore((state) => state.isAuthenticated);
@@ -142,5 +143,10 @@ export function DriverRuntime() {
     return () => subscription.remove();
   }, []);
 
-  return <NewOrderAlertModal />;
+  return (
+    <>
+      <NewOrderAlertModal />
+      <LocationPermissionModal />
+    </>
+  );
 }

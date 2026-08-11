@@ -88,6 +88,8 @@ type PreferencesState = {
   customTheme: CustomTheme;
   notificationsEnabled: boolean;
   notificationsReminderDismissedAt: number | null;
+  locationEnabled: boolean;
+  locationReminderDismissedAt: number | null;
   walletAccessBiometricEnabled: boolean;
   confirmTransactionsBiometricEnabled: boolean;
   appLockEnabled: boolean;
@@ -101,6 +103,8 @@ type PreferencesActions = {
   setCustomTheme: (theme: CustomTheme) => Promise<void>;
   setNotificationsEnabled: (enabled: boolean) => Promise<void>;
   setNotificationsReminderDismissedAt: (timestamp: number | null) => Promise<void>;
+  setLocationEnabled: (enabled: boolean) => Promise<void>;
+  setLocationReminderDismissedAt: (timestamp: number | null) => Promise<void>;
   setWalletAccessBiometricEnabled: (enabled: boolean) => Promise<void>;
   setConfirmTransactionsBiometricEnabled: (enabled: boolean) => Promise<void>;
   setAppLockEnabled: (enabled: boolean) => Promise<void>;
@@ -118,6 +122,8 @@ const THEME_MODE_KEY = "percel_user_theme_mode";
 const CUSTOM_THEME_KEY = "percel_user_custom_theme";
 const NOTIFICATIONS_KEY = "percel_user_notifications_enabled";
 const NOTIFICATIONS_REMINDER_KEY = "percel_user_notifications_reminder_dismissed_at";
+const LOCATION_KEY = "percel_user_location_enabled";
+const LOCATION_REMINDER_KEY = "percel_user_location_reminder_dismissed_at";
 const WALLET_ACCESS_BIOMETRIC_KEY = "percel_user_wallet_access_biometric_enabled";
 const CONFIRM_TRANSACTIONS_BIOMETRIC_KEY = "percel_user_confirm_transactions_biometric_enabled";
 const APP_LOCK_KEY = "percel_user_app_lock_enabled";
@@ -128,6 +134,8 @@ let state: PreferencesState = {
   customTheme: DEFAULT_CUSTOM_THEME,
   notificationsEnabled: false,
   notificationsReminderDismissedAt: null,
+  locationEnabled: false,
+  locationReminderDismissedAt: null,
   walletAccessBiometricEnabled: false,
   confirmTransactionsBiometricEnabled: false,
   appLockEnabled: false,
@@ -168,11 +176,13 @@ function parseCustomTheme(raw: string | null): CustomTheme {
 
 async function hydrate() {
   setState({ isLoading: true });
-  const [themeModeRaw, customThemeRaw, notificationsRaw, notificationsReminderRaw, walletAccessBiometricRaw, confirmTransactionsBiometricRaw, appLockRaw, allowScreenshotsRaw] = await Promise.all([
+  const [themeModeRaw, customThemeRaw, notificationsRaw, notificationsReminderRaw, locationRaw, locationReminderRaw, walletAccessBiometricRaw, confirmTransactionsBiometricRaw, appLockRaw, allowScreenshotsRaw] = await Promise.all([
     AsyncStorage.getItem(THEME_MODE_KEY),
     AsyncStorage.getItem(CUSTOM_THEME_KEY),
     AsyncStorage.getItem(NOTIFICATIONS_KEY),
     AsyncStorage.getItem(NOTIFICATIONS_REMINDER_KEY),
+    AsyncStorage.getItem(LOCATION_KEY),
+    AsyncStorage.getItem(LOCATION_REMINDER_KEY),
     AsyncStorage.getItem(WALLET_ACCESS_BIOMETRIC_KEY),
     AsyncStorage.getItem(CONFIRM_TRANSACTIONS_BIOMETRIC_KEY),
     AsyncStorage.getItem(APP_LOCK_KEY),
@@ -184,6 +194,8 @@ async function hydrate() {
     customTheme: parseCustomTheme(customThemeRaw),
     notificationsEnabled: notificationsRaw == null ? false : notificationsRaw === "true",
     notificationsReminderDismissedAt: notificationsReminderRaw ? Number(notificationsReminderRaw) || null : null,
+    locationEnabled: locationRaw == null ? false : locationRaw === "true",
+    locationReminderDismissedAt: locationReminderRaw ? Number(locationReminderRaw) || null : null,
     walletAccessBiometricEnabled: walletAccessBiometricRaw == null ? false : walletAccessBiometricRaw === "true",
     confirmTransactionsBiometricEnabled: confirmTransactionsBiometricRaw == null ? false : confirmTransactionsBiometricRaw === "true",
     appLockEnabled: appLockRaw == null ? false : appLockRaw === "true",
@@ -222,6 +234,22 @@ async function setNotificationsReminderDismissedAt(timestamp: number | null) {
   emit();
 }
 
+async function setLocationEnabled(enabled: boolean) {
+  state = { ...state, locationEnabled: enabled };
+  await AsyncStorage.setItem(LOCATION_KEY, enabled ? "true" : "false");
+  emit();
+}
+
+async function setLocationReminderDismissedAt(timestamp: number | null) {
+  state = { ...state, locationReminderDismissedAt: timestamp };
+  if (timestamp == null) {
+    await AsyncStorage.removeItem(LOCATION_REMINDER_KEY);
+  } else {
+    await AsyncStorage.setItem(LOCATION_REMINDER_KEY, String(timestamp));
+  }
+  emit();
+}
+
 async function setWalletAccessBiometricEnabled(enabled: boolean) {
   state = { ...state, walletAccessBiometricEnabled: enabled, appLockEnabled: enabled };
   await AsyncStorage.setItem(WALLET_ACCESS_BIOMETRIC_KEY, enabled ? "true" : "false");
@@ -251,6 +279,8 @@ const actions: PreferencesActions = {
   setCustomTheme,
   setNotificationsEnabled,
   setNotificationsReminderDismissedAt,
+  setLocationEnabled,
+  setLocationReminderDismissedAt,
   setWalletAccessBiometricEnabled,
   setConfirmTransactionsBiometricEnabled,
   setAppLockEnabled,
