@@ -5,7 +5,7 @@ import { haptics } from '@/utils/haptics';
 import { Bell, ChevronDown, Eye, EyeOff, ArrowUpRight, ArrowDownLeft, Plus, Smartphone, Globe, Tv2, Zap, CircleHelp, ShieldCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
-import { TourGuideZone, useTourGuideController } from '@wrack/react-native-tour-guide';
+import { useTourGuide } from '@wrack/react-native-tour-guide';
 import { Colors } from '@/constants/palette';
 import { useAppPalette } from '@/lib/theme';
 import { Spacing } from '@/constants/spacing';
@@ -93,20 +93,51 @@ export default function HomeScreen() {
   const [pinPromptVisible, setPinPromptVisible] = useState(false);
   const [notificationPromptVisible, setNotificationPromptVisible] = useState(false);
   const isInitialLoading = walletQuery.isLoading && !wallet;
+  const tourZone1Ref = useRef<View>(null);
+  const tourZone2Ref = useRef<View>(null);
+  const tourZone3Ref = useRef<View>(null);
 
-  const { start, canStart } = useTourGuideController();
+  const { startTour } = useTourGuide();
   const hasCompletedTour = usePreferencesStore((state) => state.hasCompletedTour);
   const setHasCompletedTour = usePreferencesStore((state) => state.setHasCompletedTour);
 
   useEffect(() => {
-    if (canStart && !hasCompletedTour && !isInitialLoading) {
+    if (!hasCompletedTour && !isInitialLoading) {
       const timer = setTimeout(() => {
-        void start();
-        void setHasCompletedTour(true);
+        startTour(
+          [
+            {
+              id: 'wallet-balance',
+              targetRef: tourZone1Ref,
+              title: 'Wallet & Balance',
+              description: 'View your balance, NUBAN account number, deposit funds, or transfer money.',
+              spotlightBorderRadius: 16,
+            },
+            {
+              id: 'quick-actions',
+              targetRef: tourZone2Ref,
+              title: 'Quick Actions',
+              description: 'Top up airtime & data, pay electricity bills and TV subscriptions instantly.',
+              spotlightBorderRadius: 16,
+            },
+            {
+              id: 'recent-activity',
+              targetRef: tourZone3Ref,
+              title: 'Recent Activity',
+              description: 'Monitor your transactions, deposits, and payment history in real-time.',
+              spotlightBorderRadius: 16,
+            },
+          ],
+          {
+            onTourEnd: () => {
+              void setHasCompletedTour(true);
+            },
+          }
+        );
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [canStart, hasCompletedTour, isInitialLoading]);
+  }, [hasCompletedTour, isInitialLoading, startTour, setHasCompletedTour]);
 
   useEffect(() => {
     if (!walletQuery.isLoading && wallet && !wallet.walletPinSet && !hasPromptedForPin.current) {
@@ -207,65 +238,61 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heroWrap}>
-          <TourGuideZone zone={1} title="Wallet & Balance" text="View your balance, NUBAN account number, deposit funds, or transfer money.">
-            <View style={[styles.heroCard, { backgroundColor: palette.primaryDark, borderColor: 'rgba(255,255,255,0.10)' }]}>
-              <View style={styles.heroDecorA} />
-              <View style={styles.heroDecorB} />
-              <View style={styles.heroHeader}>
-                <Pressable onPressIn={() => void haptics.tap()} style={styles.currencyPill} onPress={() => setCurrencyOpen(true)}>
-                  <Text style={styles.currencyText}>🇳🇬 {currencies.find((item) => item.value === currency)?.label ?? 'NGN Wallet'}</Text>
-                  <ChevronDown size={16} color="#fff" />
-                </Pressable>
-                <Pressable onPressIn={() => void haptics.tap()} onPress={() => setBalanceHidden((value) => !value)} style={styles.eyeButton} hitSlop={10}>
-                  {balanceHidden ? <EyeOff size={18} color="#fff" /> : <Eye size={18} color="#fff" />}
-                </Pressable>
-              </View>
+          <View ref={tourZone1Ref} style={[styles.heroCard, { backgroundColor: palette.primaryDark, borderColor: 'rgba(255,255,255,0.10)' }]}>
+            <View style={styles.heroDecorA} />
+            <View style={styles.heroDecorB} />
+            <View style={styles.heroHeader}>
+              <Pressable onPressIn={() => void haptics.tap()} style={styles.currencyPill} onPress={() => setCurrencyOpen(true)}>
+                <Text style={styles.currencyText}>🇳🇬 {currencies.find((item) => item.value === currency)?.label ?? 'NGN Wallet'}</Text>
+                <ChevronDown size={16} color="#fff" />
+              </Pressable>
+              <Pressable onPressIn={() => void haptics.tap()} onPress={() => setBalanceHidden((value) => !value)} style={styles.eyeButton} hitSlop={10}>
+                {balanceHidden ? <EyeOff size={18} color="#fff" /> : <Eye size={18} color="#fff" />}
+              </Pressable>
+            </View>
 
-              <View style={styles.balanceBlock}>
-                <Text style={styles.balanceLabel}>Available balance</Text>
-                <Text style={styles.balanceValue}>{balanceHidden ? '••••••••' : formatNaira(balance)}</Text>
-              </View>
+            <View style={styles.balanceBlock}>
+              <Text style={styles.balanceLabel}>Available balance</Text>
+              <Text style={styles.balanceValue}>{balanceHidden ? '••••••••' : formatNaira(balance)}</Text>
+            </View>
 
-              <View style={styles.heroMeta}>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>NUBAN</Text>
-                  <Text style={styles.metaValue}>{wallet?.nuban ?? '--- --- ---'}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Bank</Text>
-                  <Text style={styles.metaValue}>{wallet?.bankName ?? '---'}</Text>
-                </View>
+            <View style={styles.heroMeta}>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>NUBAN</Text>
+                <Text style={styles.metaValue}>{wallet?.nuban ?? '--- --- ---'}</Text>
               </View>
-
-              <View style={styles.heroActions}>
-                <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction} onPress={() => router.push('/wallet/topup')}>
-                  <Plus size={16} color="#fff" />
-                  <Text style={styles.heroActionText}>Deposit</Text>
-                </Pressable>
-                <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction} onPress={() => router.push('/wallet/transfer')}>
-                  <ArrowUpRight size={16} color="#fff" />
-                  <Text style={styles.heroActionText}>Transfer</Text>
-                </Pressable>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Bank</Text>
+                <Text style={styles.metaValue}>{wallet?.bankName ?? '---'}</Text>
               </View>
             </View>
-          </TourGuideZone>
+
+            <View style={styles.heroActions}>
+              <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction} onPress={() => router.push('/wallet/topup')}>
+                <Plus size={16} color="#fff" />
+                <Text style={styles.heroActionText}>Deposit</Text>
+              </Pressable>
+              <Pressable onPressIn={() => void haptics.press()} style={styles.heroAction} onPress={() => router.push('/wallet/transfer')}>
+                <ArrowUpRight size={16} color="#fff" />
+                <Text style={styles.heroActionText}>Transfer</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Quick actions</Text>
           <Text style={[styles.sectionLink, { color: palette.textSecondary }]}>Bills & top ups</Text>
         </View>
-        <TourGuideZone zone={2} title="Quick Actions" text="Top up airtime & data, pay electricity bills and TV subscriptions instantly.">
-          <View style={styles.quickGrid}>
-            {quickActions.map(({ label, href, Icon }) => (
-              <Pressable key={label} onPressIn={() => void haptics.tap()} onPress={() => router.push(href as never)} style={({ pressed }) => [styles.quickCard, { backgroundColor: palette.card, borderColor: palette.border, opacity: pressed ? 0.94 : 1 } ]}>
-                <View style={[styles.quickIcon, {  borderColor: palette.primaryDark }]}>
-                  <Icon size={19} color={palette.primary} />
-                </View>
-                <Text style={[styles.quickLabel, { color: palette.text }]}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </TourGuideZone>
+        <View ref={tourZone2Ref} style={styles.quickGrid}>
+          {quickActions.map(({ label, href, Icon }) => (
+            <Pressable key={label} onPressIn={() => void haptics.tap()} onPress={() => router.push(href as never)} style={({ pressed }) => [styles.quickCard, { backgroundColor: palette.card, borderColor: palette.border, opacity: pressed ? 0.94 : 1 } ]}>
+              <View style={[styles.quickIcon, {  borderColor: palette.primaryDark }]}>
+                <Icon size={19} color={palette.primary} />
+              </View>
+              <Text style={[styles.quickLabel, { color: palette.text }]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Transactions</Text>
@@ -274,28 +301,26 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <TourGuideZone zone={3} title="Recent Activity" text="Monitor your transactions, deposits, and payment history in real-time.">
-          <View style={[styles.transactionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            {txQuery.isLoading && !transactions.length ? (
-              <StateCard
-                loading
-                title="Loading transactions"
-                description="We’re fetching your latest activity and payment history."
-                icon={<CircleHelp size={24} color={palette.textSecondary} />}
-              />
-            ) : transactions.length ? (
-              transactions.map((transaction, index) => <TransactionRow key={transaction.id} transaction={transaction} index={index} palette={palette} />)
-            ) : (
-              <StateCard
-                title="No transactions yet"
-                description="Your deposits, transfers, and bill payments will appear here."
-                icon={<CircleHelp size={24} color={palette.textSecondary} />}
-                actionLabel="Refresh"
-                onActionPress={refresh}
-              />
-            )}
-          </View>
-        </TourGuideZone>
+        <View ref={tourZone3Ref} style={[styles.transactionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          {txQuery.isLoading && !transactions.length ? (
+            <StateCard
+              loading
+              title="Loading transactions"
+              description="We’re fetching your latest activity and payment history."
+              icon={<CircleHelp size={24} color={palette.textSecondary} />}
+            />
+          ) : transactions.length ? (
+            transactions.map((transaction, index) => <TransactionRow key={transaction.id} transaction={transaction} index={index} palette={palette} />)
+          ) : (
+            <StateCard
+              title="No transactions yet"
+              description="Your deposits, transfers, and bill payments will appear here."
+              icon={<CircleHelp size={24} color={palette.textSecondary} />}
+              actionLabel="Refresh"
+              onActionPress={refresh}
+            />
+          )}
+        </View>
 
       </ScrollView>
 

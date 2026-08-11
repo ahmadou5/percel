@@ -595,11 +595,13 @@ export class WalletService {
     let wallet = data.walletId ? await this.prisma.wallet.findUnique({ where: { id: data.walletId } }) : null;
     if (!wallet && data.accountNumber) {
       const cleanAcc = data.accountNumber.trim();
+      const strippedAcc = cleanAcc.replace(/^0+/, '');
       wallet = await this.prisma.wallet.findFirst({
         where: {
           OR: [
             { nuban: cleanAcc },
-            { nuban: cleanAcc.replace(/^0+/, '') },
+            { nuban: strippedAcc },
+            { nuban: `0${strippedAcc}` },
           ],
         },
       });
@@ -613,6 +615,7 @@ export class WalletService {
             { paystackCustomerCode: data.customerIdentifier },
             { email: data.customerIdentifier },
             { driver: { id: cleanId } },
+            { driver: { userId: cleanId } },
           ],
         },
         select: { wallet: true },
@@ -739,17 +742,29 @@ export class WalletService {
     const eventType = String(payload.eventType ?? payload.event ?? '');
     const data = (payload.eventData ?? payload.data ?? payload) as Record<string, unknown>;
     const reference = String(data.paymentReference ?? data.transactionReference ?? data.reference ?? '');
-    // destinationAccountNumber = the reserved NUBAN the customer paid into
-    const accountNumber = String(data.destinationAccountNumber ?? '');
+
+    const destAccInfo = (data.destinationAccountInformation ?? data.accountDetails) as Record<string, unknown> | undefined;
+    const accountNumber = String(
+      destAccInfo?.accountNumber ?? data.destinationAccountNumber ?? data.accountNumber ?? ''
+    ).trim();
+
     const amount = Number(data.amountPaid ?? data.settlementAmount ?? data.amount ?? 0);
     const status = String(data.paymentStatus ?? data.status ?? '').toUpperCase();
-    // product.reference = the accountReference we set when creating the reserved account ("PERCEL_<userId>")
+
     const product = data.product as Record<string, unknown> | undefined;
-    const customerEmail = String(data.customerEmail ?? data.email ?? (data.customer as any)?.email ?? '');
-    const customerIdentifier = String(product?.reference ?? data.accountReference ?? customerEmail ?? '');
+    const customerObj = data.customer as Record<string, unknown> | undefined;
+    const customerEmail = String(data.customerEmail ?? data.email ?? customerObj?.email ?? '');
+    const customerIdentifier = String(
+      product?.reference ?? data.accountReference ?? customerEmail ?? ''
+    ).trim();
 
     if ((eventType.includes('SUCCESS') || status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL') && reference && amount > 0) {
-      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, { reference, amount, accountNumber: accountNumber || undefined, customerIdentifier: customerIdentifier || undefined });
+      await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, {
+        reference,
+        amount,
+        accountNumber: accountNumber || undefined,
+        customerIdentifier: customerIdentifier || undefined,
+      });
     }
     return { acknowledged: true };
   }

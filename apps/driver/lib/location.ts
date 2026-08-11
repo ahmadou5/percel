@@ -130,7 +130,7 @@ async function ensureBackgroundTracking() {
     // Swallow the "cannot start in background" error silently — it is harmless
     // because we will retry when the app returns to foreground.
     const msg = e instanceof Error ? e.message : String(e);
-    if (!msg.includes('background')) {
+    if (!msg.toLowerCase().includes('background')) {
       console.warn('[location] tracking error:', msg);
     }
   }
