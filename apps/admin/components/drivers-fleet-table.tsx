@@ -29,7 +29,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { AdminDriver } from '@/lib/admin-data';
 
-type StatusFilter = 'ALL' | 'ACTIVE' | 'PENDING_KYC' | 'SUSPENDED';
+type StatusFilter = 'ALL' | 'ACTIVE' | 'PENDING_KYC' | 'PENDING_VEHICLE' | 'SUSPENDED';
 type VehicleFilter = 'ALL' | 'Bike' | 'Car' | 'Van' | 'Truck';
 type SortField = 'rating' | 'completedDeliveries' | 'lastActive' | 'name';
 type SortDirection = 'asc' | 'desc';
@@ -100,32 +100,31 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
     [router, pathname, searchParams]
   );
 
-  // Handle Filter Chip click
-  const handleStatusTabChange = (status: StatusFilter) => {
-    setStatusFilter(status);
+  // Tab filter click handler
+  const handleStatusTabChange = (st: StatusFilter) => {
+    setStatusFilter(st);
     setPage(1);
-    updateUrlParams({ status, page: 1 });
+    updateUrlParams({ status: st, page: 1 });
   };
 
-  // Handle Vehicle Filter change
+  // Vehicle dropdown filter handler
   const handleVehicleChange = (v: VehicleFilter) => {
     setVehicleFilter(v);
     setPage(1);
     updateUrlParams({ vehicle: v, page: 1 });
   };
 
-  // Handle Search input change
+  // Search query handler
   const handleSearchChange = (q: string) => {
     setSearchQuery(q);
     setPage(1);
-    updateUrlParams({ q, page: 1 });
+    updateUrlParams({ q: q || null, page: 1 });
   };
 
-  // Handle Sorting toggle
+  // Sorting handler
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      const nextDir = sortDir === 'asc' ? 'desc' : 'asc';
-      setSortDir(nextDir);
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
       setSortDir('desc');
@@ -138,6 +137,7 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
       ALL: drivers.length,
       ACTIVE: 0,
       PENDING_KYC: 0,
+      PENDING_VEHICLE: 0,
       SUSPENDED: 0,
     };
     drivers.forEach((d) => {
@@ -146,6 +146,9 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
 
       if (d.kyc === 'SUBMITTED' || d.kyc === 'PENDING' || d.status === 'PENDING_KYC') {
         counts.PENDING_KYC++;
+      }
+      if (d.vehicleStatus === 'SUBMITTED' || d.vehicleStatus === 'PENDING') {
+        counts.PENDING_VEHICLE++;
       }
     });
     return counts;
@@ -179,13 +182,17 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
 
     const vehicleBreakdownStr = `${vehicleCounts.Bike || 0} bikes · ${vehicleCounts.Car || 0} cars · ${(vehicleCounts.Van || 0) + (vehicleCounts.Truck || 0)} vans/trucks`;
 
+    const pendingVehicle = statusCounts.PENDING_VEHICLE;
+
     return {
       total,
       activeNow,
       pendingKyc,
+      pendingVehicle,
       weightedAvgRating,
       vehicleBreakdownStr,
       isPendingKycAlert: pendingKyc > 0,
+      isPendingVehicleAlert: pendingVehicle > 0,
     };
   }, [drivers, statusCounts]);
 
@@ -200,6 +207,8 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
       result = result.filter((d) => d.status === 'SUSPENDED');
     } else if (statusFilter === 'PENDING_KYC') {
       result = result.filter((d) => d.kyc === 'SUBMITTED' || d.kyc === 'PENDING' || d.status === 'PENDING_KYC');
+    } else if (statusFilter === 'PENDING_VEHICLE') {
+      result = result.filter((d) => d.vehicleStatus === 'SUBMITTED' || d.vehicleStatus === 'PENDING');
     }
 
     // Vehicle type filter
@@ -327,6 +336,34 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
           <p className="mt-1 text-xs text-amber-400/90 font-medium hover:underline">Click to view pending reviews →</p>
         </Card>
 
+        {/* Pending Vehicle Verification Stat Card */}
+        <Card
+          onClick={() => handleStatusTabChange('PENDING_VEHICLE')}
+          className={`cursor-pointer transition-all duration-200 hover:-translate-y-0.5 border-border/80 p-5 shadow-xs bg-card/90 backdrop-blur-md ${summaryStats.isPendingVehicleAlert ? 'border-sky-500/50 bg-sky-500/10 ring-1 ring-sky-500/40' : ''
+            }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold">Pending Vehicles</p>
+            <Truck
+              className={`h-4 w-4 ${summaryStats.isPendingVehicleAlert ? 'text-sky-400 animate-pulse' : 'text-muted-foreground'}`}
+            />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p
+              className={`mt-3 font-mono text-3xl font-extrabold tabular-nums ${summaryStats.isPendingVehicleAlert ? 'text-sky-400' : 'text-foreground'
+                }`}
+            >
+              {summaryStats.pendingVehicle}
+            </p>
+            {summaryStats.isPendingVehicleAlert && (
+              <span className="rounded-full border border-sky-500/40 bg-sky-500/20 px-2 py-0.5 text-[10px] font-bold text-sky-300">
+                Vehicle Review
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-sky-400/90 font-medium hover:underline">Click to verify vehicles →</p>
+        </Card>
+
         <Card className="border-border/80 p-5 shadow-xs bg-card/90 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold">Weighted Rating</p>
@@ -337,15 +374,6 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
             <span className="text-warning font-bold text-sm">★</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Weighted by review volume</p>
-        </Card>
-
-        <Card className="border-border/80 p-5 shadow-xs bg-card/90 backdrop-blur-md">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground font-bold">Fleet Vehicles</p>
-            <Truck className="h-4 w-4 text-sky-400" />
-          </div>
-          <p className="mt-3 font-mono text-base font-extrabold text-foreground truncate">{summaryStats.vehicleBreakdownStr}</p>
-          <p className="mt-1 text-xs text-sky-400 font-semibold">Active logistics fleet</p>
         </Card>
       </div>
 
@@ -358,13 +386,14 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
               <Filter className="h-3.5 w-3.5 text-primary" /> Filter Fleet:
             </span>
 
-            {(['ALL', 'ACTIVE', 'PENDING_KYC', 'SUSPENDED'] as StatusFilter[]).map((st) => {
+            {(['ALL', 'ACTIVE', 'PENDING_KYC', 'PENDING_VEHICLE', 'SUSPENDED'] as StatusFilter[]).map((st) => {
               const count = statusCounts[st];
               const isActive = statusFilter === st;
 
               let activeBg = 'bg-primary text-primary-foreground font-bold shadow-xs';
               if (st === 'ACTIVE') activeBg = 'bg-emerald-500 text-white font-bold shadow-xs';
               if (st === 'PENDING_KYC') activeBg = 'bg-amber-500 text-white font-bold shadow-xs';
+              if (st === 'PENDING_VEHICLE') activeBg = 'bg-sky-500 text-white font-bold shadow-xs';
               if (st === 'SUSPENDED') activeBg = 'bg-destructive text-destructive-foreground font-bold shadow-xs';
 
               return (
@@ -374,8 +403,16 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
                   className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs transition-all duration-200 cursor-pointer ${isActive ? activeBg : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground font-medium'
                     }`}
                 >
-                  {st === 'PENDING_KYC' && count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />}
-                  <span>{st === 'ALL' ? 'All Drivers' : st === 'PENDING_KYC' ? 'Pending KYC' : st}</span>
+                  {(st === 'PENDING_KYC' || st === 'PENDING_VEHICLE') && count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />}
+                  <span>
+                    {st === 'ALL'
+                      ? 'All Drivers'
+                      : st === 'PENDING_KYC'
+                      ? 'Pending KYC'
+                      : st === 'PENDING_VEHICLE'
+                      ? 'Pending Vehicles'
+                      : st}
+                  </span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold ${isActive ? 'bg-black/20 text-white' : 'bg-muted text-muted-foreground'
                       }`}
@@ -576,7 +613,28 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
                     </td>
 
                     {/* Vehicle Record */}
-                    <td className="px-5 py-3.5 text-xs text-muted-foreground font-medium">{driver.vehicle}</td>
+                    <td className="px-5 py-3.5 text-xs font-medium">
+                      <div className="space-y-1">
+                        <div className="text-foreground font-medium">{driver.vehicle}</div>
+                        {driver.vehicleStatus === 'APPROVED' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                            <CheckCircle2 className="h-2.5 w-2.5" /> Vehicle Approved
+                          </span>
+                        ) : driver.vehicleStatus === 'REJECTED' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
+                            Vehicle Rejected
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/drivers/${driver.id}`}
+                            className="inline-flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/20 px-2 py-0.5 text-[10px] font-extrabold text-sky-300 animate-pulse hover:bg-sky-500/30"
+                            title="Click to review vehicle verification"
+                          >
+                            <Truck className="h-2.5 w-2.5 text-sky-300" /> Pending Approval
+                          </Link>
+                        )}
+                      </div>
+                    </td>
 
                     {/* Completed Deliveries */}
                     <td className="px-5 py-3.5 font-mono font-semibold tabular-nums text-foreground">{completedCount}</td>
@@ -592,18 +650,23 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
                       )}
                     </td>
 
-
-
                     {/* Action Buttons */}
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {(driver.vehicleStatus === 'SUBMITTED' || driver.vehicleStatus === 'PENDING') && (
+                          <Link
+                            href={`/drivers/${driver.id}`}
+                            className="inline-flex items-center gap-1 rounded-xl border border-sky-500/40 bg-sky-500/10 px-2.5 py-1.5 text-xs font-bold text-sky-400 transition-all hover:bg-sky-500/20 shadow-2xs"
+                          >
+                            Verify Vehicle
+                          </Link>
+                        )}
                         <Link
                           href={`/drivers/${driver.id}`}
                           className="inline-flex items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-all hover:bg-muted hover:border-primary/40 shadow-2xs"
                         >
                           View
                         </Link>
-
                       </div>
                     </td>
                   </tr>

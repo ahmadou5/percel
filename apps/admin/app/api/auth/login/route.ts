@@ -28,9 +28,11 @@ export async function POST(request: Request) {
     if (response.ok && payload) {
       token = payload?.data?.tokens?.accessToken ?? payload?.data?.accessToken ?? null;
       user = payload?.data?.user ?? null;
+    } else {
+      console.warn('[auth/login] Live API login rejected:', response.status, payload);
     }
   } catch (error) {
-    console.warn('[auth/login] API fetch failed, falling back to local session token:', error instanceof Error ? error.message : error);
+    console.warn('[auth/login] API fetch failed:', error instanceof Error ? error.message : error);
   }
 
   // Fallback demo admin session if backend is standalone or unreachable

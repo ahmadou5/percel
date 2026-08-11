@@ -690,6 +690,24 @@ export function DriverDetailView({ initialDriver }: { initialDriver: AdminDriver
               </div>
             </div>
 
+            {/* Vehicle Photo Preview */}
+            <div className="rounded-xl border border-border p-3 bg-muted/10 space-y-2">
+              <span className="text-muted-foreground block text-[11px] font-semibold">Submitted Vehicle Photo</span>
+              {driver.vehicleImageUrl ? (
+                <a href={driver.vehicleImageUrl} target="_blank" rel="noopener noreferrer" className="block relative h-40 w-full overflow-hidden rounded-lg border border-border group">
+                  <img src={driver.vehicleImageUrl} alt="Vehicle Photo" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-bold text-xs">
+                    Click to expand full image
+                  </div>
+                </a>
+              ) : (
+                <div className="h-32 w-full rounded-lg border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground bg-muted/20">
+                  <Truck className="h-8 w-8 opacity-40 mb-1" />
+                  <span className="text-xs">No vehicle photo uploaded yet</span>
+                </div>
+              )}
+            </div>
+
             {vehicleRejectionReason && (
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-300">
                 <span className="font-bold block">Rejection Reason:</span>
@@ -698,7 +716,7 @@ export function DriverDetailView({ initialDriver }: { initialDriver: AdminDriver
             )}
 
             <div className="flex items-center justify-between pt-2 border-t border-border/50">
-              <span className="text-muted-foreground text-xs">Admin Verification Action:</span>
+              <span className="text-muted-foreground text-xs font-semibold">Admin Verification Action:</span>
               <div className="flex items-center gap-2">
                 <Button
                   disabled={vehicleProcessing || vehicleStatus === 'APPROVED'}

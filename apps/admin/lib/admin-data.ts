@@ -59,6 +59,9 @@ export type AdminDriver = {
   walletBalance?: string;
   hasPendingPayout?: boolean;
   vehicleType?: 'Bike' | 'Car' | 'Van' | 'Truck';
+  vehicleStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUBMITTED' | string;
+  vehicleRejectionReason?: string;
+  vehicleImageUrl?: string;
   walletTransactions?: AdminWalletTransaction[];
   auditLogs?: Array<{ id: string; adminName: string; action: string; details: string; reason?: string; timestamp: string }>;
 };
