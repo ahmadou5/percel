@@ -46,7 +46,7 @@ function emitLocal(event: string, payload: any) {
 function bindSocketEvents() {
   if (!socket) return;
 
-  ['new_order_available', 'order_cancelled', 'order_status_update', 'driver_location', 'chat_message', 'typing', 'stop_typing'].forEach((event) => {
+  ['new_order_available', 'order_cancelled', 'order_status_update', 'driver_location', 'wallet_updated', 'chat_message', 'typing', 'stop_typing'].forEach((event) => {
     socket.off?.(event);
     socket.on?.(event, (payload: any) => emitLocal(event, payload));
   });

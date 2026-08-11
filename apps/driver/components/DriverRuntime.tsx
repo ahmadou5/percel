@@ -4,10 +4,11 @@ import { router } from 'expo-router';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { http } from '@/lib/api';
 import { useDriverLocation } from '@/lib/location';
-import { useDriverSocketLifecycle } from '@/lib/socket';
+import { subscribeDriverSocket, useDriverSocketLifecycle } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import { usePreferencesStore } from '@/store/preferences.store';
 
@@ -22,8 +23,22 @@ export function DriverRuntime() {
   const allowScreenshots = usePreferencesStore((state) => state.allowScreenshots);
   const lastRegisteredToken = useRef<string | null>(null);
 
+  const queryClient = useQueryClient();
+
   useDriverLocation();
   useDriverSocketLifecycle();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribe = subscribeDriverSocket('wallet_updated', () => {
+      void queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      void queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    });
+
+    return unsubscribe;
+  }, [isAuthenticated, queryClient]);
 
   useEffect(() => {
     if (!allowScreenshots) {

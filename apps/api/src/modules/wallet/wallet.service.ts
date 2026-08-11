@@ -594,16 +594,25 @@ export class WalletService {
 
     let wallet = data.walletId ? await this.prisma.wallet.findUnique({ where: { id: data.walletId } }) : null;
     if (!wallet && data.accountNumber) {
-      wallet = await this.prisma.wallet.findFirst({ where: { nuban: data.accountNumber } });
+      const cleanAcc = data.accountNumber.trim();
+      wallet = await this.prisma.wallet.findFirst({
+        where: {
+          OR: [
+            { nuban: cleanAcc },
+            { nuban: cleanAcc.replace(/^0+/, '') },
+          ],
+        },
+      });
     }
     if (!wallet && data.customerIdentifier) {
-      const cleanId = data.customerIdentifier.replace(/^PERCEL_/, '');
+      const cleanId = data.customerIdentifier.replace(/^PERCEL_/, '').trim();
       const user = await this.prisma.user.findFirst({
         where: {
           OR: [
             { id: cleanId },
             { paystackCustomerCode: data.customerIdentifier },
             { email: data.customerIdentifier },
+            { driver: { id: cleanId } },
           ],
         },
         select: { wallet: true },

@@ -479,7 +479,11 @@ export class DriverService {
               email: driver.user.email,
               fullName: driver.user.fullName,
               phone: driver.user.phone,
+              dateOfBirth: parsedDob ?? driver.user.dateOfBirth,
+              address: userAddress ?? driver.user.address,
               bvn: bvn,
+              nin: driver.user.ninNumber,
+              providerCustomerCode: driver.user.paystackCustomerCode,
             });
 
             await this.prisma.wallet.update({
