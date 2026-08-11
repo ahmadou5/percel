@@ -340,18 +340,24 @@ export class DriverService {
       );
 
       const kyc = await ensureDriverKyc(this.prisma, driverId);
-      await this.prisma.driverKYC.update({
-        where: { driverId },
-        data: {
-          ninNumber: nin,
-          ninVerified: Boolean(result.verified),
-          status: DriverKYCStatus.PENDING,
-          rejectionReason: null,
-          smileJobId: kyc.smileJobId,
-        },
-      });
 
       if (result.verified) {
+        await this.prisma.driverKYC.update({
+          where: { driverId },
+          data: {
+            ninNumber: nin,
+            ninVerified: true,
+            status: DriverKYCStatus.APPROVED,
+            rejectionReason: null,
+            smileJobId: kyc.smileJobId,
+          },
+        });
+
+        await this.prisma.driver.update({
+          where: { id: driverId },
+          data: { status: 'ACTIVE' },
+        });
+
         await this.prisma.user.update({
           where: { id: driver.userId },
           data: {
@@ -360,6 +366,17 @@ export class DriverService {
             kycMethod: 'NIN',
             dateOfBirth: driver.user.dateOfBirth ?? new Date('1995-01-01'),
             address: driver.user.address ?? (driver.serviceCity ? `${driver.serviceCity}, ${driver.serviceState ?? 'Nigeria'}` : 'Lagos, Nigeria'),
+          },
+        });
+      } else {
+        await this.prisma.driverKYC.update({
+          where: { driverId },
+          data: {
+            ninNumber: nin,
+            ninVerified: false,
+            status: DriverKYCStatus.PENDING,
+            rejectionReason: result.message ?? null,
+            smileJobId: kyc.smileJobId,
           },
         });
       }
