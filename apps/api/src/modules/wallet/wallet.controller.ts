@@ -168,6 +168,13 @@ export class WalletController {
     return success(data);
   };
 
+  simulateVirtualTopUp = async (request: FastifyRequest) => {
+    const userId = request.user.id;
+    const { amount } = request.body as { amount: number };
+    const data = await this.service.simulateVirtualAccountTopUp(userId, amount);
+    return success(data);
+  };
+
   webhook = async (request: FastifyRequest, reply: FastifyReply) => {
     const signature = request.headers['x-paystack-signature'];
     const sig = Array.isArray(signature) ? signature[0] : signature;

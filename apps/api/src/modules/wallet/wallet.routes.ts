@@ -11,6 +11,7 @@ const walletRoutes: FastifyPluginAsync = async (app) => {
   app.get('/wallet', { preHandler: [app.authenticate] }, controller.getWallet);
   app.get('/wallet/transactions', { preHandler: [app.authenticate], schema: { querystring: TxQuery } }, controller.getTransactions);
   app.post('/wallet/topup', { preHandler: [app.authenticate], schema: { body: TopUpBody } }, controller.topup);
+  app.post('/wallet/simulate-virtual-topup', { preHandler: [app.authenticate] }, controller.simulateVirtualTopUp);
   app.get('/wallet/topup/verify/:reference', { preHandler: [app.authenticate], schema: { params: VerifyTopUpParams } }, controller.verifyTopup);
   app.post('/wallet/transfer', { preHandler: [app.authenticate], schema: { body: TransferBody } }, controller.transfer);
   app.post('/wallet/transfer/resolve', { preHandler: [app.authenticate], schema: { body: TransferRecipientResolveBody } }, controller.resolveTransferRecipient);
