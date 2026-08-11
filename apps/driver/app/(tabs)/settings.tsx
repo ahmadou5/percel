@@ -10,6 +10,7 @@ import {
   CircleHelp,
   History,
   LogOut,
+  MapPin,
   Palette,
   Shield,
   User2,

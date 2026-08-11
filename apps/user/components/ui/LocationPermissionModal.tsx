@@ -187,15 +187,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
-    ...Typography.titleMedium,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: Spacing.xs,
   },
   description: {
-    ...Typography.bodyMedium,
-    fontSize: 14,
+    fontSize: Typography.sm,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.md,
@@ -211,13 +209,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   featureTitle: {
-    ...Typography.bodySmall,
     fontWeight: '600',
     fontSize: 13,
   },
   featureSubtitle: {
-    ...Typography.caption,
-    fontSize: 12,
+    fontSize: Typography.xs,
     marginTop: 2,
   },
   actions: {
@@ -234,7 +230,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   primaryBtnText: {
-    ...Typography.bodyMedium,
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 15,
@@ -248,7 +243,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   secondaryBtnText: {
-    ...Typography.bodyMedium,
     fontWeight: '600',
     fontSize: 14,
   },

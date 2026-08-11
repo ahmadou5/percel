@@ -305,9 +305,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    ...Typography.titleMedium,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: Typography.lg,
+    fontFamily: Typography.family.bold,
   },
   content: {
     padding: Spacing.lg,
@@ -333,9 +332,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusTitle: {
-    ...Typography.titleSmall,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: Typography.md,
+    fontFamily: Typography.family.bold,
   },
   badgePill: {
     flexDirection: 'row',
@@ -354,13 +352,12 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   badgeText: {
-    ...Typography.caption,
-    fontWeight: '700',
+    fontFamily: Typography.family.bold,
     fontSize: 11,
   },
   statusDesc: {
-    ...Typography.bodyMedium,
     fontSize: 13,
+    fontFamily: Typography.family.regular,
     lineHeight: 19,
   },
   actionBtn: {
@@ -373,9 +370,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionBtnText: {
-    ...Typography.bodyMedium,
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontFamily: Typography.family.bold,
     fontSize: 14,
   },
   actionBtnSecondary: {
@@ -387,16 +383,15 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionBtnSecondaryText: {
-    ...Typography.bodyMedium,
-    fontWeight: '600',
+    fontFamily: Typography.family.semibold,
     fontSize: 13,
   },
   section: {
     gap: Spacing.xs,
   },
   sectionTitle: {
-    ...Typography.caption,
-    fontWeight: '700',
+    fontFamily: Typography.family.bold,
+    fontSize: Typography.xs,
     letterSpacing: 0.8,
     marginLeft: Spacing.xs,
   },
@@ -423,13 +418,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionTitle: {
-    ...Typography.bodyMedium,
-    fontWeight: '600',
+    fontFamily: Typography.family.semibold,
     fontSize: 14,
   },
   optionSub: {
-    ...Typography.caption,
     fontSize: 12,
+    fontFamily: Typography.family.regular,
     marginTop: 2,
   },
 });

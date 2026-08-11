@@ -266,7 +266,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    ...Typography.titleMedium,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -294,7 +293,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusTitle: {
-    ...Typography.titleSmall,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -315,12 +313,10 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   badgeText: {
-    ...Typography.caption,
     fontWeight: '700',
     fontSize: 11,
   },
   statusDesc: {
-    ...Typography.bodyMedium,
     fontSize: 13,
     lineHeight: 19,
   },
@@ -334,7 +330,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionBtnText: {
-    ...Typography.bodyMedium,
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
@@ -348,7 +343,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionBtnSecondaryText: {
-    ...Typography.bodyMedium,
     fontWeight: '600',
     fontSize: 13,
   },
@@ -356,8 +350,8 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   sectionTitle: {
-    ...Typography.caption,
     fontWeight: '700',
+    fontSize: 12,
     letterSpacing: 0.8,
     marginLeft: Spacing.xs,
   },
@@ -384,12 +378,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionTitle: {
-    ...Typography.bodyMedium,
     fontWeight: '600',
     fontSize: 14,
   },
   optionSub: {
-    ...Typography.caption,
     fontSize: 12,
     marginTop: 2,
   },
