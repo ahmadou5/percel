@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { TrendingUp, DollarSign, Wallet, ArrowUpRight, Percent } from 'lucide-react';
 import type { AdminWalletTransaction } from '@/lib/admin-data';
 
@@ -26,9 +27,8 @@ export function FinancialAnalyticsCard({
   const commVal = parseAmount(commissionEarned);
   const pendVal = parseAmount(pendingSettlement);
   const refVal = parseAmount(refundReserve);
-  // Estimate customer fares based on pending + comm
   const totalDerived = commVal + pendVal + refVal || 1;
-  const fareVal = totalDerived * 1.5; // Rough estimate for the chart if we don't have total fares
+  const fareVal = totalDerived * 1.5;
   
   const grandTotal = fareVal + commVal + pendVal + refVal || 1;
 
@@ -39,8 +39,6 @@ export function FinancialAnalyticsCard({
     { name: 'Refund & Dispute Reserve', amount: refundReserve, percent: Math.round((refVal / grandTotal) * 100), color: 'bg-sky-400' },
   ];
 
-  // Derive monthly flow curve from transactions
-  // We bucket transactions into 10 intervals (for the 10 bars)
   const rawValues = new Array(10).fill(0);
   
   if (transactions.length > 0) {
@@ -72,13 +70,18 @@ export function FinancialAnalyticsCard({
   });
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm space-y-5">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="glass-card rounded-2xl border border-border/80 bg-card p-5 shadow-sm space-y-5"
+    >
       {/* Header & Balance Overview */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/70 pb-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-primary">Financial Intelligence</span>
-            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400 animate-pulse">
               Live Updates
             </span>
           </div>
@@ -86,20 +89,30 @@ export function FinancialAnalyticsCard({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="rounded-xl border border-border/80 bg-muted/30 px-3.5 py-2">
-            <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Platform Vault</p>
+          <motion.div
+            whileHover={{ scale: 1.03 }}
+            className="rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-2 glow-primary"
+          >
+            <p className="text-[10px] uppercase font-bold text-primary">Total Platform Vault</p>
             <p className="font-mono text-xl font-extrabold text-foreground">{platformBalance}</p>
-          </div>
+          </motion.div>
         </div>
       </div>
 
-      {/* Income Breakdown Bar Graph & Metrics (Matching Image #2 Reference) */}
+      {/* Income Breakdown Bar Graph & Metrics */}
       <div className="grid gap-6 md:grid-cols-2 items-center">
         {/* Left: Ranked Income Sources */}
         <div className="space-y-3">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Revenue Channel Share</p>
           {incomeSources.map((item, idx) => (
-            <div key={item.name} className="space-y-1.5 rounded-xl border border-border/50 bg-muted/20 p-2.5">
+            <motion.div
+              key={item.name}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.08, duration: 0.3 }}
+              whileHover={{ x: 3 }}
+              className="space-y-1.5 rounded-xl border border-border/50 bg-muted/20 p-2.5 transition-all"
+            >
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-muted-foreground text-[10px]">0{idx + 1}</span>
@@ -111,9 +124,14 @@ export function FinancialAnalyticsCard({
                 </div>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className={`h-full rounded-full ${item.color}`} style={{ width: `${item.percent}%` }} />
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${item.percent}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut', delay: idx * 0.1 }}
+                  className={`h-full rounded-full ${item.color}`}
+                />
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 
@@ -121,21 +139,23 @@ export function FinancialAnalyticsCard({
         <div className="rounded-xl border border-border/80 bg-muted/30 p-4 space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Monthly Flow Curve</p>
-            <TrendingUp className="h-4 w-4 text-emerald-400" />
+            <TrendingUp className="h-4 w-4 text-emerald-400 animate-pulse" />
           </div>
 
           {/* Glowing Minimal Visual Line Representation with Hover Tooltip */}
           <div className="h-28 w-full flex items-end justify-between gap-1.5 pt-4 px-1 border-b border-border/60 pb-2">
             {flowCurve.map((bar, i) => (
               <div key={i} className="relative flex-1 h-full flex flex-col justify-end items-center gap-1 group">
-                {/* Hover Tooltip */}
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center justify-center rounded-md bg-popover px-2 py-1 border border-border shadow-md z-10 whitespace-nowrap pointer-events-none transition-all">
                   <span className="font-mono text-[10px] font-extrabold text-foreground">{bar.displayAmount}</span>
                 </div>
 
-                <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-primary/30 to-primary transition-all duration-300 group-hover:to-emerald-400 cursor-pointer"
-                  style={{ height: `${bar.height}%` }}
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${bar.height}%` }}
+                  transition={{ type: 'spring', damping: 15, stiffness: 120, delay: i * 0.05 }}
+                  whileHover={{ scaleY: 1.1 }}
+                  className="w-full rounded-t-md bg-gradient-to-t from-primary/30 to-primary transition-colors duration-200 group-hover:to-emerald-400 cursor-pointer"
                 />
               </div>
             ))}
@@ -153,6 +173,6 @@ export function FinancialAnalyticsCard({
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

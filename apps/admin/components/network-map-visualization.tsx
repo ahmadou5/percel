@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Building2, Layers, MapPin, Truck, RefreshCw } from 'lucide-react';
 import type { AdminHub, AdminRoute } from '@/lib/admin-data';
 

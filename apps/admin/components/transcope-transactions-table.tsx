@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowDownLeft, ArrowUpRight, Calendar, Filter, Wallet, ArrowRight } from 'lucide-react';
 import type { AdminWalletTransaction } from '@/lib/admin-data';
 
@@ -18,11 +19,16 @@ export function TranscopeTransactionsTable({ transactions }: { transactions: Adm
   });
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm space-y-4">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="glass-card rounded-2xl border border-border/80 bg-card p-5 shadow-sm space-y-4"
+    >
       {/* Header & Filter Tabs */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/70 pb-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20 glow-primary">
             <Wallet className="h-4 w-4" />
           </div>
           <div>
@@ -34,10 +40,11 @@ export function TranscopeTransactionsTable({ transactions }: { transactions: Adm
         {/* Filter Pill Tabs */}
         <div className="flex items-center gap-1 rounded-xl border border-border/80 bg-muted/40 p-1 text-xs font-semibold overflow-x-auto">
           {(['ALL', 'TOPUP', 'PAYOUT', 'COMMISSION', 'REFUND'] as const).map((t) => (
-            <button
+            <motion.button
               key={t}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setTab(t)}
-              className={`rounded-lg px-3 py-1.5 transition-all whitespace-nowrap ${
+              className={`relative rounded-lg px-3 py-1.5 transition-all whitespace-nowrap ${
                 tab === t ? 'bg-primary text-primary-foreground font-extrabold shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -50,7 +57,7 @@ export function TranscopeTransactionsTable({ transactions }: { transactions: Adm
                 : t === 'COMMISSION'
                 ? 'Commissions'
                 : 'Refunds'}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -76,10 +83,16 @@ export function TranscopeTransactionsTable({ transactions }: { transactions: Adm
                 </td>
               </tr>
             ) : (
-              filtered.map((tx) => {
+              filtered.map((tx, index) => {
                 const isCredit = tx.type === 'CREDIT';
                 return (
-                  <tr key={tx.id} className="border-b border-border/50 transition-colors hover:bg-muted/30 last:border-b-0">
+                  <motion.tr
+                    key={tx.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03, duration: 0.25 }}
+                    className="border-b border-border/50 transition-colors hover:bg-muted/30 last:border-b-0"
+                  >
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <div
@@ -127,13 +140,13 @@ export function TranscopeTransactionsTable({ transactions }: { transactions: Adm
                         Details <ArrowRight className="h-3 w-3" />
                       </Link>
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })
             )}
           </tbody>
         </table>
       </div>
-    </div>
+    </motion.div>
   );
 }
