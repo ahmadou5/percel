@@ -490,7 +490,6 @@ export class DriverService {
             accountName: driver.user.fullName,
           };
         }
-      }
 
       return {
         ...result,

@@ -14,13 +14,17 @@ type SmileIdentityResponse = {
   dob?: string;
   Photo?: string;
   photo?: string;
+  ResultText?: string;
+  ResultCode?: string;
+  message?: string;
 };
 
-type VerificationResult = {
+export type VerificationResult = {
   verified: boolean;
   name: string | null;
   dob: string | null;
   photo: string | null;
+  message?: string;
 };
 
 function signPayload(payload: Record<string, unknown>) {
@@ -34,6 +38,7 @@ function normalizeResponse(data: SmileIdentityResponse): VerificationResult {
     name: (data.Name ?? data.name ?? null) as string | null,
     dob: (data.DOB ?? data.dob ?? null) as string | null,
     photo: (data.Photo ?? data.photo ?? null) as string | null,
+    message: data.ResultText ?? data.message ?? data.ResultCode ?? undefined,
   };
 }
 
