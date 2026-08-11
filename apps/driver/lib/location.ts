@@ -176,6 +176,12 @@ export function useDriverLocation() {
   const isOnline = useDriverStore((state) => state.isOnline);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      void pushCurrentPosition();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (!isAuthenticated || !isOnline) {
       // Driver went offline — stop the background service
       void stopBackgroundTracking();

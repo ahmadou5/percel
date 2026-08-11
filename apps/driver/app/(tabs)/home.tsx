@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -307,11 +308,41 @@ export default function DriverHomeScreen() {
       return;
     }
 
-    const lat = driver?.currentLocation?.lat;
-    const lng = driver?.currentLocation?.lng;
+    let lat = driver?.currentLocation?.lat;
+    let lng = driver?.currentLocation?.lng;
 
     if (next && (lat == null || lng == null || (lat === 0 && lng === 0))) {
-      modal.alert('Location required', 'Please allow location access before going online.', 'warning');
+      try {
+        const Location = require('expo-location');
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status === 'granted') {
+          const current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy?.Balanced ?? 1,
+          });
+          if (current?.coords) {
+            lat = current.coords.latitude;
+            lng = current.coords.longitude;
+            await useDriverStore.getState().updateLocation({ lat, lng });
+          }
+        }
+      } catch (err) {
+        console.warn('[toggleOnline] Location fetch error:', err);
+      }
+    }
+
+    if (next && (lat == null || lng == null || (lat === 0 && lng === 0))) {
+      modal.show({
+        title: 'Location Required',
+        description: 'Please allow location access and ensure GPS is enabled on your device before going online.',
+        type: 'warning',
+        primaryText: 'Enable Location',
+        onPrimaryPress: () => {
+          modal.hide();
+          void Linking.openSettings();
+        },
+        secondaryText: 'Cancel',
+        onSecondaryPress: modal.hide,
+      });
       return;
     }
 
