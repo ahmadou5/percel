@@ -74,7 +74,7 @@ export interface TrackedOrder {
 }
 
 function buildApiBase(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL || 'percelapi-production.up.railway.app';
+  const raw = process.env.NEXT_PUBLIC_API_URL || 'percelapi-production-4ab1.up.railway.app';
   // Ensure it starts with a protocol — Railway env var may be missing https://
   const withProtocol = raw.startsWith('http') ? raw : `https://${raw}`;
   // Strip trailing slash then append versioned prefix

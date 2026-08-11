@@ -285,7 +285,7 @@ export type AdminRoute = {
 
 type ApiEnvelope<T> = { success: boolean; data: T; message?: string };
 
-const apiUrl = process.env.PERCEL_API_URL ?? 'http://localhost:3000';
+const apiUrl = process.env.PERCEL_API_URL ?? 'https://percelapi-production-4ab1.up.railway.app';
 
 
 async function adminFetch<T>(path: string): Promise<T> {

@@ -42,6 +42,7 @@ import { useDriverProfile as useProfile, useVerifyDriverBvn as useVerifyBvn, use
 import { useBanks, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
+import { useDriverStore } from '@/store/driver.store';
 
 function isOfAge(dateString: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;

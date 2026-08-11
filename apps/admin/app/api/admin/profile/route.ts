@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { SESSION_COOKIE, SESSION_USER_COOKIE } from '@/lib/session';
 
-const API_BASE = process.env.PERCEL_API_URL ?? 'http://localhost:3000';
+const API_BASE = process.env.PERCEL_API_URL ?? 'https://percelapi-production-4ab1.up.railway.app';
 
 async function getToken() {
   const jar = await cookies();

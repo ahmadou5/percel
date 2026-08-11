@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { SESSION_COOKIE } from '@/lib/session';
 
-const apiUrl = process.env.PERCEL_API_URL ?? 'http://localhost:3000';
+const apiUrl = process.env.PERCEL_API_URL ?? 'https://percelapi-production-4ab1.up.railway.app';
 
 export async function POST(
   request: Request,

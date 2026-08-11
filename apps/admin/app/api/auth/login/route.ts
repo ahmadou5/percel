@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
   }
 
-  const apiUrl = process.env.PERCEL_API_URL ?? 'http://localhost:3000';
+  const apiUrl = process.env.PERCEL_API_URL ?? 'https://percelapi-production-4ab1.up.railway.app';
   
   let token: string | null = null;
   let user: any = null;

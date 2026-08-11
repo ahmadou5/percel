@@ -7,7 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://percelapi-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://percelapi-production-4ab1.up.railway.app"
       },
       "channel": "development"
     },
@@ -17,7 +17,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://percelapi-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://percelapi-production-4ab1.up.railway.app"
       },
       "channel": "preview"
     },
@@ -27,7 +27,7 @@
       },
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.percel.app"
+        "EXPO_PUBLIC_API_URL": "https://percelapi-production-4ab1.up.railway.app"
       },
       "channel": "production"
     }
