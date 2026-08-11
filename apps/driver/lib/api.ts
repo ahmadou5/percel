@@ -2,7 +2,7 @@ import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequ
 
 import { useDriverStore } from '@/store/driver.store';
 
-const DEFAULT_API_URL = 'https://percel-production.up.railway.app';
+const DEFAULT_API_URL = 'https://percelapi-production-4ab1.up.railway.app';
 const configuredBaseURL = process.env.EXPO_PUBLIC_API_URL?.trim();
 export const baseURL = configuredBaseURL && /^https?:\/\//.test(configuredBaseURL) ? configuredBaseURL : DEFAULT_API_URL;
 

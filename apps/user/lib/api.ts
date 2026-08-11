@@ -1,7 +1,9 @@
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/auth.store';
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL ?? '';
+const DEFAULT_API_URL = 'https://percelapi-production-4ab1.up.railway.app';
+const configuredBaseURL = process.env.EXPO_PUBLIC_API_URL?.trim();
+export const baseURL = configuredBaseURL && /^https?:\/\//.test(configuredBaseURL) ? configuredBaseURL : DEFAULT_API_URL;
 
 export const api = axios.create({ baseURL });
 
