@@ -129,7 +129,7 @@ export function emitLocation(coords: { lat: number; lng: number; heading?: numbe
 
 export function connectDriverSocket() {
   const session = useDriverStore.getState();
-  if (!session.isAuthenticated || !session.isOnline) return null;
+  if (!session.isAuthenticated) return null;
 
   const io = requireSocketIoClient();
   if (!io?.io && typeof io !== 'function') return null;
@@ -150,7 +150,7 @@ export function connectDriverSocket() {
     bindSocketEvents();
     socket.connect?.();
     const driver = session.driver ?? null;
-    if (driver) {
+    if (driver && session.isOnline) {
       socket.emit?.('go_online', {
         driverId: driver.id,
         lat: driver.currentLocation?.lat ?? 0,

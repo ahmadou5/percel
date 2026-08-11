@@ -126,6 +126,9 @@ export default fp(async (app) => {
       }
 
       socket.join(`driver:${driverId}`);
+      if (userId) {
+        socket.join(`user:${userId}`);
+      }
       await app.redis.set(`driver:socket:${driverId}`, socket.id, 'EX', 60 * 60);
 
       socket.on('join_order_chat', (data: { orderId: string }) => {

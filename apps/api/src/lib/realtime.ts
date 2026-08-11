@@ -81,6 +81,7 @@ export function emitToUser(app: RealtimeApp, userId: string, event: string, payl
   const io = getIo(app);
   if (!io) return;
   io.of('/user').to(`user:${userId}`).emit(event, payload);
+  io.of('/driver').to(`user:${userId}`).emit(event, payload);
 }
 
 export function emitToDriver(app: RealtimeApp, driverId: string, event: string, payload: unknown) {
