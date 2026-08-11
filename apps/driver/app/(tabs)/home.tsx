@@ -319,10 +319,12 @@ export default function DriverHomeScreen() {
           const current = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy?.Balanced ?? 1,
           });
-          if (current?.coords) {
-            lat = current.coords.latitude;
-            lng = current.coords.longitude;
-            await useDriverStore.getState().updateLocation({ lat, lng });
+          if (typeof current?.coords?.latitude === 'number' && typeof current?.coords?.longitude === 'number') {
+            const newLat = current.coords.latitude;
+            const newLng = current.coords.longitude;
+            lat = newLat;
+            lng = newLng;
+            await useDriverStore.getState().updateLocation({ lat: newLat, lng: newLng });
           }
         }
       } catch (err) {
