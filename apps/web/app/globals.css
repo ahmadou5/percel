@@ -77,6 +77,37 @@ body {
   border-color: hsl(var(--primary) / 0.5);
 }
 
+/* ─── APPLE DESIGN SYSTEM UTILITIES ───────────────────────── */
+.apple-glass {
+  background: hsl(var(--card) / 0.65);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.4);
+}
+
+.apple-card {
+  background: hsl(var(--card) / 0.5);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid hsl(var(--border) / 0.7);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.apple-card:hover {
+  transform: translateY(-3px) scale(1.005);
+  border-color: hsl(var(--primary) / 0.45);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 30px -10px hsl(var(--primary) / 0.2);
+}
+
+.apple-button {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.apple-button:active {
+  transform: scale(0.97);
+}
+
 /* Micro Animations & Custom Scrollbar */
 @keyframes pulse-ring {
   0% { transform: scale(0.95); opacity: 0.8; }
