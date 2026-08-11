@@ -25,6 +25,8 @@ try {
 
 LogBox.ignoreAllLogs();
 
+import { TourGuideProvider } from '@wrack/react-native-tour-guide';
+import { CustomTooltip } from '@/components/ui/CustomTooltip';
 import { UserRuntime } from "@/components/UserRuntime";
 import { MaintenanceOverlay } from "@/components/MaintenanceOverlay";
 import { NetworkBanner } from "@/components/ui/NetworkBanner";
@@ -117,9 +119,11 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style={isLight(palette.bg) ? "dark" : "light"} />
-        <UserRuntime />
-        <RootLayoutNav />
+        <TourGuideProvider tooltipComponent={CustomTooltip} borderRadius={16} dismissOnPress={true}>
+          <StatusBar style={isLight(palette.bg) ? "dark" : "light"} />
+          <UserRuntime />
+          <RootLayoutNav />
+        </TourGuideProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

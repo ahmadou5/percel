@@ -28,6 +28,7 @@
     "@sentry/react-native": "~7.2.0",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "^5.100.11",
+    "@wrack/react-native-tour-guide": "^1.0.1",
     "axios": "^1.16.1",
     "expo": "~54.0.35",
     "expo-alternate-app-icons": "^8.0.0",

@@ -254,6 +254,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.100.11
         version: 5.100.11(react@19.1.0)
+      '@wrack/react-native-tour-guide':
+        specifier: ^1.0.1
+        version: 1.0.1(react-native-svg@15.12.1)(react-native-web@0.21.2)(react-native@0.81.5)(react@19.1.0)
       axios:
         specifier: ^1.16.1
         version: 1.16.1
@@ -408,6 +411,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.100.11
         version: 5.100.11(react@19.1.0)
+      '@wrack/react-native-tour-guide':
+        specifier: ^1.0.1
+        version: 1.0.1(react-native-svg@15.12.1)(react-native-web@0.21.2)(react-native@0.81.5)(react@19.1.0)
       axios:
         specifier: ^1.16.1
         version: 1.16.1
@@ -6531,6 +6537,32 @@ packages:
     dependencies:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
+    dev: false
+
+  /@wrack/react-native-tour-guide@1.0.1(react-native-svg@15.12.1)(react-native-web@0.21.2)(react-native@0.81.5)(react@19.1.0):
+    resolution: {integrity: sha512-90h3T+uRBUC1qYkJaGoKAFrqOXksyeHyGGiyU0phIdwkOQ5CW9mRcm4RkJmZZRJyVgBOjMWyCfEAFv7lefGekQ==}
+    peerDependencies:
+      '@react-native-community/blur': '*'
+      '@react-native-masked-view/masked-view': '*'
+      react: '*'
+      react-native: '*'
+      react-native-linear-gradient: '*'
+      react-native-svg: '>=13.0.0'
+      react-native-web: '>=0.19.0'
+    peerDependenciesMeta:
+      '@react-native-community/blur':
+        optional: true
+      '@react-native-masked-view/masked-view':
+        optional: true
+      react-native-linear-gradient:
+        optional: true
+      react-native-web:
+        optional: true
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)
+      react-native-svg: 15.12.1(react-native@0.81.5)(react@19.1.0)
+      react-native-web: 0.21.2(react-dom@19.1.0)(react@19.1.0)
     dev: false
 
   /@xmldom/xmldom@0.8.13:

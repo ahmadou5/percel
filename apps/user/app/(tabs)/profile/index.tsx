@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useProfile, useUpdateAvatar } from '@/hooks/useProfile';
 import { useAuthStore } from '@/store/auth.store';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { useAppPalette, isLight } from '@/lib/theme';
 
 export default function ProfileScreen() {
@@ -129,6 +130,26 @@ export default function ProfileScreen() {
             <View style={styles.settingsCopy}>
               <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
               <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit your profile information</Text>
+            </View>
+            <ChevronRight size={18} color={palette.textSecondary} />
+          </Pressable>
+
+          <Pressable
+            onPress={async () => {
+              await usePreferencesStore.getState().setHasCompletedTour(false);
+              modal.alert('Tour Reset', 'Navigating to Home screen to start your app walkthrough.', 'success');
+              setTimeout(() => {
+                router.push('/');
+              }, 400);
+            }}
+            style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: palette.primary }]}>
+              <Settings2 size={16} color="#FFFFFF" />
+            </View>
+            <View style={styles.settingsCopy}>
+              <Text style={[styles.settingsTitle, { color: palette.text }]}>Take App Tour</Text>
+              <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Replay the interactive feature guide</Text>
             </View>
             <ChevronRight size={18} color={palette.textSecondary} />
           </Pressable>

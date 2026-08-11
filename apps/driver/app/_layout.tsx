@@ -23,6 +23,8 @@ try {
 
 LogBox.ignoreAllLogs();
 
+import { TourGuideProvider } from '@wrack/react-native-tour-guide';
+import { CustomTooltip } from '@/components/ui/CustomTooltip';
 import { DriverRuntime } from '@/components/DriverRuntime';
 import { MaintenanceOverlay } from '@/components/MaintenanceOverlay';
 import { Sentry, initSentry, isSentryInitialized } from '@/lib/sentry';
@@ -104,8 +106,10 @@ function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style={isLight(palette.bg) ? 'dark' : 'light'} />
-      <RootLayoutNav />
+      <TourGuideProvider tooltipComponent={CustomTooltip} borderRadius={16} dismissOnPress={true}>
+        <StatusBar style={isLight(palette.bg) ? 'dark' : 'light'} />
+        <RootLayoutNav />
+      </TourGuideProvider>
     </QueryClientProvider>
   );
 }

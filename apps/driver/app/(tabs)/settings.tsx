@@ -14,6 +14,7 @@ import {
   Palette,
   Shield,
   User2,
+  HelpCircle,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,6 +24,7 @@ import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { useDriverStore } from '@/store/driver.store';
+import { usePreferencesStore } from '@/store/preferences.store';
 
 import { useDriverSupportTickets } from '@/hooks/useDriverSupport';
 
@@ -35,6 +37,7 @@ type MenuItem = {
 
 const PREFERENCE_ITEMS: ReadonlyArray<MenuItem> = [
   { title: 'Appearance', subtitle: 'Customize your view', href: '/settings/preferences', Icon: Palette },
+  { title: 'Take App Tour', subtitle: 'Replay the interactive driver guide', href: 'replay_tour', Icon: HelpCircle },
 ];
 
 const ACCOUNT_ITEMS: ReadonlyArray<MenuItem> = [
@@ -138,7 +141,12 @@ export default function DriverSettingsScreen() {
     router.replace('/(auth)/login');
   }, [logout]);
 
-  const openLink = useCallback((href: string) => {
+  const openLink = useCallback(async (href: string) => {
+    if (href === 'replay_tour') {
+      await usePreferencesStore.getState().setHasCompletedTour(false);
+      router.navigate('/(tabs)/home');
+      return;
+    }
     if (href.startsWith('/(tabs)')) {
       router.navigate(href as never);
     } else {

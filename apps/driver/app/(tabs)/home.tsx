@@ -19,6 +19,8 @@ import { router } from 'expo-router';
 import { hexToRgba, useAppPalette } from '@/lib/theme';
 import { Typography } from '@/constants/typography';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
+import { TourGuideZone, useTourGuideController } from '@wrack/react-native-tour-guide';
+import { usePreferencesStore } from '@/store/preferences.store';
 import { useDriverStore } from '@/store/driver.store';
 import { useWallet } from '@/hooks/useWallet';
 import { useAcceptOrder, useAvailableOrders, useDeclineOrder, useDriverActiveOrders } from '@/hooks/useDriverOrders';
@@ -379,6 +381,20 @@ export default function DriverHomeScreen() {
 
   const isLoading = walletQuery.isLoading && !wallet;
 
+  const { start, canStart } = useTourGuideController();
+  const hasCompletedTour = usePreferencesStore((state) => state.hasCompletedTour);
+  const setHasCompletedTour = usePreferencesStore((state) => state.setHasCompletedTour);
+
+  useEffect(() => {
+    if (canStart && !hasCompletedTour && !isLoading) {
+      const timer = setTimeout(() => {
+        void start();
+        void setHasCompletedTour(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [canStart, hasCompletedTour, isLoading]);
+
   const [readableAddress, setReadableAddress] = useState<string | null>(null);
 
   useEffect(() => {
@@ -478,84 +494,61 @@ export default function DriverHomeScreen() {
         </View>
 
         {/* ── MERGED HERO CARD: online toggle + earnings + stats ── */}
-        {/* Concept change: one unified card instead of hero + stat chips + wallet card */}
-        <View style={[styles.heroCard, { backgroundColor: isOnline ? palette.primary : palette.card, borderColor: isOnline ? 'transparent' : palette.border }]}>
-          <View style={styles.heroDecorA} />
-          <View style={styles.heroDecorB} />
+        <TourGuideZone zone={1} title="Online Status & Earnings" text="Toggle Online to accept live order requests and monitor your daily revenue.">
+          <View style={[styles.heroCard, { backgroundColor: isOnline ? palette.primary : palette.card, borderColor: isOnline ? 'transparent' : palette.border }]}>
+            <View style={styles.heroDecorA} />
+            <View style={styles.heroDecorB} />
 
-          {/* Top row: status label + toggle */}
-          <View style={styles.heroTopRow}>
-            <View>
-              <Text style={[styles.heroEye, { color: isOnline ? 'rgba(255,255,255,0.65)' : palette.textSecondary }]}>
-                {isOnline ? 'Open to any delivery' : 'You are offline'}
+            {/* Top row: status label + toggle */}
+            <View style={styles.heroTopRow}>
+              <View>
+                <Text style={[styles.heroEye, { color: isOnline ? 'rgba(255,255,255,0.65)' : palette.textSecondary }]}>
+                  {isOnline ? 'Open to any delivery' : 'You are offline'}
+                </Text>
+                <Text style={[styles.heroStatusText, { color: isOnline ? '#fff' : palette.text }]}>
+                  {'Delivery Status'}
+                </Text>
+              </View>
+              <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
+            </View>
+
+            {/* DOMINANT earnings figure — the visual anchor of the whole card */}
+            <View style={styles.earningsBlock}>
+              <Text style={[styles.earningsLabel, { color: isOnline ? 'rgba(255,255,255,0.65)' : palette.textSecondary }]}>
+                Today's Earnings
               </Text>
-              <Text style={[styles.heroStatusText, { color: isOnline ? '#fff' : palette.text }]}>
-                {'Delivery Status'}
+              <Text style={[styles.earningsValue, { color: isOnline ? '#fff' : palette.text }]}>
+                {isLoading ? '---' : formatNaira(earningsToday)}
+              </Text>
+              <Text style={[styles.driverName, { color: isOnline ? 'rgba(255,255,255,0.8)' : palette.textSecondary }]}>
+                {user?.fullName ?? 'Driver'}
               </Text>
             </View>
-            <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
+
+            {/* Vehicle pill */}
+            <View style={[styles.heroPill, { backgroundColor: isOnline ? 'rgba(255,255,255,0.15)' : hexToRgba(palette.primary, 0.12) }]}>
+              <View style={[styles.statusDot, { backgroundColor: isOnline ? '#30D158' : '#FF453A' }]} />
+              <Text style={[styles.heroPillText, { color: isOnline ? '#fff' : palette.primary }]}>
+                {driver?.vehicleType ?? 'Vehicle'} • {driver?.vehiclePlate ?? '---'}
+              </Text>
+            </View>
           </View>
-
-          {/* DOMINANT earnings figure — the visual anchor of the whole card */}
-          <View style={styles.earningsBlock}>
-            <Text style={[styles.earningsLabel, { color: isOnline ? 'rgba(255,255,255,0.65)' : palette.textSecondary }]}>
-              Today's Earnings
-            </Text>
-            <Text style={[styles.earningsValue, { color: isOnline ? '#fff' : palette.text }]}>
-              {isLoading ? '---' : formatNaira(earningsToday)}
-            </Text>
-            <Text style={[styles.driverName, { color: isOnline ? 'rgba(255,255,255,0.8)' : palette.textSecondary }]}>
-              {user?.fullName ?? 'Driver'}
-            </Text>
-          </View>
-
-          {/* Sub-stats row at the bottom of the card 
-          <View style={[styles.heroStatRow, { borderTopColor: isOnline ? 'rgba(255,255,255,0.15)' : palette.border }]}>
-            {[
-              { label: 'Deliveries', value: isLoading ? '--' : String(deliveriesToday) },
-              { label: 'Rating', value: driver?.rating != null ? driver.rating.toFixed(1) : '---' },
-              { label: 'Balance', value: isLoading ? '---' : formatNaira(wallet.balance) },
-            ].map(({ label, value }, i, arr) => (
-              <View
-                key={label}
-                style={[
-                  styles.heroStat,
-                  i < arr.length - 1 && {
-                    borderRightWidth: 1,
-                    borderRightColor: isOnline ? 'rgba(255,255,255,0.15)' : palette.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.heroStatValue, { color: isOnline ? '#fff' : palette.text }]}>{value}</Text>
-                <Text style={[styles.heroStatLabel, { color: isOnline ? 'rgba(255,255,255,0.6)' : palette.textSecondary }]}>{label}</Text>
-              </View>
-            ))}
-          </View>*/}
-
-          {/* Vehicle pill */}
-          <View style={[styles.heroPill, { backgroundColor: isOnline ? 'rgba(255,255,255,0.15)' : hexToRgba(palette.primary, 0.12) }]}>
-            <View style={[styles.statusDot, { backgroundColor: isOnline ? '#30D158' : '#FF453A' }]} />
-            <Text style={[styles.heroPillText, { color: isOnline ? '#fff' : palette.primary }]}>
-              {driver?.vehicleType ?? 'Vehicle'} • {driver?.vehiclePlate ?? '---'}
-            </Text>
-          </View>
-        </View>
-
-        {/* ── DRIVER WALLET & QUICK PAYMENTS CARD ─────────────────────── */}
-
+        </TourGuideZone>
 
         {/* ── Active orders / dispatch entry ──────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>
-            {activeOrders.length > 0 ? `Active orders (${activeOrders.length})` : 'Dispatch'}
-          </Text>
-          {activeOrders.length > 0 && (
-            <View style={[styles.activeBadge, { backgroundColor: hexToRgba(palette.primary, 0.14) }]}>
-              <View style={[styles.statusDot, { backgroundColor: palette.primary }]} />
-              <Text style={[styles.activeBadgeText, { color: palette.primary }]}>{activeOrders.length} ONGOING</Text>
-            </View>
-          )}
-        </View>
+        <TourGuideZone zone={2} title="Dispatch & Delivery Requests" text="Review active orders and nearby pickup requests. Tap any order to accept or view details.">
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.text }]}>
+              {activeOrders.length > 0 ? `Active orders (${activeOrders.length})` : 'Dispatch'}
+            </Text>
+            {activeOrders.length > 0 && (
+              <View style={[styles.activeBadge, { backgroundColor: hexToRgba(palette.primary, 0.14) }]}>
+                <View style={[styles.statusDot, { backgroundColor: palette.primary }]} />
+                <Text style={[styles.activeBadgeText, { color: palette.primary }]}>{activeOrders.length} ONGOING</Text>
+              </View>
+            )}
+          </View>
+        </TourGuideZone>
 
         {activeOrders.length > 0 ? (
           <ActiveOrdersCarousel
