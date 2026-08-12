@@ -115,13 +115,20 @@ function SettledMarker({
   coordinate,
   anchor,
   children,
-  tracksViewChanges = false,
 }: {
   coordinate: { latitude: number; longitude: number };
   anchor: { x: number; y: number };
   children: React.ReactNode;
   tracksViewChanges?: boolean;
 }) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+
+  useEffect(() => {
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => setTracksViewChanges(false), 500);
+    return () => clearTimeout(timer);
+  }, [coordinate.latitude, coordinate.longitude]);
+
   if (!Marker || !isValidCoord(coordinate?.latitude, coordinate?.longitude)) {
     return null;
   }
@@ -169,15 +176,25 @@ export function DriverLiveNavigationModal({
   const lastFetchedLocation = useRef<{ lat: number; lng: number } | null>(null);
   const prevDriverPoint = useRef<{ latitude: number; longitude: number } | null>(null);
 
-  const pickup = useMemo(
-    () => safeCoord(order?.pickupLat, order?.pickupLng, 6.5244, 3.3792),
-    [order?.pickupLat, order?.pickupLng],
-  );
+  const pickup = useMemo(() => {
+    if (isValidCoord(order?.pickupLat, order?.pickupLng)) {
+      return { latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) };
+    }
+    if (isValidCoord(order?.deliveryLat, order?.deliveryLng)) {
+      return { latitude: Number(order.deliveryLat) - 0.008, longitude: Number(order.deliveryLng) - 0.008 };
+    }
+    return { latitude: 12.0022, longitude: 8.5920 };
+  }, [order?.pickupLat, order?.pickupLng, order?.deliveryLat, order?.deliveryLng]);
 
-  const dest = useMemo(
-    () => safeCoord(order?.deliveryLat, order?.deliveryLng, pickup.latitude, pickup.longitude),
-    [order?.deliveryLat, order?.deliveryLng, pickup],
-  );
+  const dest = useMemo(() => {
+    if (isValidCoord(order?.deliveryLat, order?.deliveryLng)) {
+      return { latitude: Number(order.deliveryLat), longitude: Number(order.deliveryLng) };
+    }
+    if (isValidCoord(pickup.latitude, pickup.longitude)) {
+      return { latitude: pickup.latitude + 0.008, longitude: pickup.longitude + 0.008 };
+    }
+    return { latitude: 12.0102, longitude: 8.6000 };
+  }, [order?.deliveryLat, order?.deliveryLng, pickup]);
 
   const isHeadingToPickup = order?.status === 'CREATED' || order?.status === 'ACCEPTED';
   const targetLocation = isHeadingToPickup ? pickup : dest;
@@ -197,8 +214,8 @@ export function DriverLiveNavigationModal({
     const midLat = (pickup.latitude + dest.latitude) / 2;
     const midLng = (pickup.longitude + dest.longitude) / 2;
     initialRegionRef.current = {
-      latitude: Number.isFinite(midLat) ? midLat : 6.5244,
-      longitude: Number.isFinite(midLng) ? midLng : 3.3792,
+      latitude: Number.isFinite(midLat) ? midLat : 12.0022,
+      longitude: Number.isFinite(midLng) ? midLng : 8.5920,
       latitudeDelta: 0.03,
       longitudeDelta: 0.03,
     };
@@ -226,27 +243,50 @@ export function DriverLiveNavigationModal({
     lastFetchedLocation.current = { lat: driverLat, lng: driverLng };
 
     let isMounted = true;
-    api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number; steps?: NavigationStep[] } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
-      originLat: driverLat,
-      originLng: driverLng,
-      destLat: targetLocation.latitude,
-      destLng: targetLocation.longitude,
-    }).then((res) => {
+    Promise.all([
+      api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number; steps?: NavigationStep[] } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
+        originLat: driverLat,
+        originLng: driverLng,
+        destLat: targetLocation.latitude,
+        destLng: targetLocation.longitude,
+      }),
+      api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
+        originLat: pickup.latitude,
+        originLng: pickup.longitude,
+        destLat: dest.latitude,
+        destLng: dest.longitude,
+      }),
+    ]).then(([resNav, resFull]) => {
       if (!isMounted) return;
-      const rawData = res.data?.data;
-      if (Array.isArray(rawData)) {
-        setRouteCoordinates(rawData.filter(p => isValidCoord(p?.latitude, p?.longitude)));
-      } else if (rawData && typeof rawData === 'object') {
-        if (Array.isArray(rawData.route)) {
-          setRouteCoordinates(rawData.route.filter(p => isValidCoord(p?.latitude, p?.longitude)));
+
+      const rawNav = resNav.data?.data;
+      const rawFull = resFull.data?.data;
+
+      let navPts: Array<{ latitude: number; longitude: number }> = [];
+      let fullPts: Array<{ latitude: number; longitude: number }> = [];
+
+      if (Array.isArray(rawNav)) {
+        navPts = rawNav.filter(p => isValidCoord(p?.latitude, p?.longitude));
+      } else if (rawNav && typeof rawNav === 'object') {
+        if (Array.isArray(rawNav.route)) {
+          navPts = rawNav.route.filter(p => isValidCoord(p?.latitude, p?.longitude));
         }
-        if (Array.isArray(rawData.steps) && rawData.steps.length > 0) {
-          setNavigationSteps(rawData.steps);
+        if (Array.isArray(rawNav.steps) && rawNav.steps.length > 0) {
+          setNavigationSteps(rawNav.steps);
         }
-        if (typeof rawData.distanceKm === 'number' && typeof rawData.durationMin === 'number') {
-          setLiveMetrics({ distanceKm: rawData.distanceKm, durationMin: rawData.durationMin });
+        if (typeof rawNav.distanceKm === 'number' && typeof rawNav.durationMin === 'number') {
+          setLiveMetrics({ distanceKm: rawNav.distanceKm, durationMin: rawNav.durationMin });
         }
       }
+
+      if (Array.isArray(rawFull)) {
+        fullPts = rawFull.filter(p => isValidCoord(p?.latitude, p?.longitude));
+      } else if (rawFull && typeof rawFull === 'object' && Array.isArray(rawFull.route)) {
+        fullPts = rawFull.route.filter(p => isValidCoord(p?.latitude, p?.longitude));
+      }
+
+      const combined = [...navPts, ...fullPts].filter(p => isValidCoord(p?.latitude, p?.longitude));
+      setRouteCoordinates(combined.length > 1 ? combined : [driverPoint, pickup, dest]);
     }).catch(() => {
       if (isMounted) {
         setRouteCoordinates([driverPoint, pickup, dest]);
@@ -258,10 +298,13 @@ export function DriverLiveNavigationModal({
 
   // Dynamic Turn-by-Turn step active calculation
   const activeStep = useMemo(() => {
-    if (!navigationSteps.length) {
+    const fallbackAddress = targetAddress ? String(targetAddress).split(',')[0] : 'Destination';
+    const defaultDistMeters = Math.round(Number(liveMetrics.distanceKm ?? order?.distanceKm ?? 1) * 1000);
+
+    if (!Array.isArray(navigationSteps) || navigationSteps.length === 0) {
       return {
-        instruction: `Proceed towards ${targetAddress.split(',')[0]}`,
-        distanceMeters: Math.round((liveMetrics.distanceKm ?? order?.distanceKm ?? 1) * 1000),
+        instruction: `Proceed towards ${fallbackAddress}`,
+        distanceMeters: Number.isFinite(defaultDistMeters) ? Math.max(10, defaultDistMeters) : 500,
         maneuver: 'straight' as const,
       };
     }
@@ -271,6 +314,7 @@ export function DriverLiveNavigationModal({
 
     for (let i = 0; i < navigationSteps.length; i++) {
       const s = navigationSteps[i];
+      if (!s || !isValidCoord(s.lat, s.lng)) continue;
       const dist = Math.hypot(driverPoint.latitude - s.lat, driverPoint.longitude - s.lng) * 111000;
       if (dist < minDistance) {
         minDistance = dist;
@@ -279,11 +323,20 @@ export function DriverLiveNavigationModal({
     }
 
     const currentStep = navigationSteps[closestIndex];
-    const distToStep = Math.round(minDistance > 50000 ? currentStep.distanceMeters : minDistance);
+    if (!currentStep) {
+      return {
+        instruction: `Proceed towards ${fallbackAddress}`,
+        distanceMeters: 500,
+        maneuver: 'straight' as const,
+      };
+    }
+
+    const rawDist = minDistance < Infinity ? Math.round(minDistance) : currentStep.distanceMeters;
+    const distToStep = Number.isFinite(rawDist) ? Math.max(10, rawDist) : 100;
 
     return {
-      instruction: currentStep.instruction || `Proceed towards ${targetAddress.split(',')[0]}`,
-      distanceMeters: Math.max(10, distToStep),
+      instruction: currentStep.instruction || `Proceed towards ${fallbackAddress}`,
+      distanceMeters: distToStep,
       maneuver: currentStep.maneuver || 'straight',
     };
   }, [navigationSteps, driverPoint.latitude, driverPoint.longitude, targetAddress, liveMetrics.distanceKm, order?.distanceKm]);
@@ -446,17 +499,27 @@ export function DriverLiveNavigationModal({
           <View style={styles.statsRow}>
             <View style={[styles.statBox, { backgroundColor: palette.bg }]}>
               <MapPin size={14} color={palette.primary} />
-              <Text style={[styles.statVal, { color: palette.text }]}>{(liveMetrics.distanceKm ?? order.distanceKm).toFixed(1)} km</Text>
+              <Text style={[styles.statVal, { color: palette.text }]}>
+                {Number.isFinite(liveMetrics.distanceKm)
+                  ? liveMetrics.distanceKm!.toFixed(1)
+                  : Number.isFinite(Number(order?.distanceKm))
+                  ? Number(order.distanceKm).toFixed(1)
+                  : '0.0'} km
+              </Text>
               <Text style={[styles.statLbl, { color: palette.textSecondary }]}>Distance</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: palette.bg }]}>
               <Clock size={14} color="#FF9500" />
-              <Text style={[styles.statVal, { color: palette.text }]}>{liveMetrics.durationMin ?? order.estimatedDurationMin} min</Text>
+              <Text style={[styles.statVal, { color: palette.text }]}>
+                {liveMetrics.durationMin ?? order?.estimatedDurationMin ?? 0} min
+              </Text>
               <Text style={[styles.statLbl, { color: palette.textSecondary }]}>Est. Time</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: palette.bg }]}>
               <CheckCircle size={14} color="#30D158" />
-              <Text style={[styles.statVal, { color: palette.text }]}>₦{order.price.toLocaleString()}</Text>
+              <Text style={[styles.statVal, { color: palette.text }]}>
+                ₦{Number(order?.price ?? 0).toLocaleString()}
+              </Text>
               <Text style={[styles.statLbl, { color: palette.textSecondary }]}>Payout</Text>
             </View>
           </View>

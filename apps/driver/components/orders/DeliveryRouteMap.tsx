@@ -193,7 +193,6 @@ function SettledMarker({
   coordinate,
   anchor,
   children,
-  alwaysTrack = false,
   zIndex,
 }: {
   coordinate: { latitude: number; longitude: number };
@@ -205,13 +204,13 @@ function SettledMarker({
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    if (alwaysTrack) return;
-    const timer = setTimeout(() => setTracksViewChanges(false), 600);
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => setTracksViewChanges(false), 500);
     return () => clearTimeout(timer);
-  }, [alwaysTrack]);
+  }, [coordinate.latitude, coordinate.longitude]);
 
   return (
-    <Marker coordinate={coordinate} anchor={anchor} zIndex={zIndex} tracksViewChanges={alwaysTrack || tracksViewChanges}>
+    <Marker coordinate={coordinate} anchor={anchor} zIndex={zIndex} tracksViewChanges={tracksViewChanges}>
       {children}
     </Marker>
   );

@@ -325,6 +325,17 @@ export default function OrderDetailScreen() {
         {/* ── Route ── */}
         <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <SectionLabel palette={palette}>ROUTE</SectionLabel>
+
+          {/* Embedded Interactive Route Map Preview */}
+          <View style={{ height: 220, borderRadius: 16, overflow: 'hidden', marginVertical: 4, borderWidth: 1, borderColor: palette.border }}>
+            <DeliveryRouteMap
+              driverLocation={currentLocation ? { latitude: currentLocation.lat, longitude: currentLocation.lng } : null}
+              originLocation={{ latitude: Number(order.pickupLat), longitude: Number(order.pickupLng) }}
+              destinationLocation={{ latitude: Number(order.deliveryLat), longitude: Number(order.deliveryLng) }}
+              routeCoordinates={routeCoordinates}
+            />
+          </View>
+
           <View style={[styles.routeBlock, { backgroundColor: palette.bg, borderColor: palette.border }]}>
             <View style={styles.routeRow}>
               <View style={styles.routeIconCol}>
