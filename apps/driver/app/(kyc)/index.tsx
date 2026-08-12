@@ -637,9 +637,7 @@ export default function KycScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrowLabel, { color: palette.primary }]}>Customer KYC</Text>
-        <Text style={[styles.pageTitle, { color: palette.text }]}>
-          Verify your BVN & bank to unlock dedicated account numbers.
-        </Text>
+
       </View>
 
       <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
@@ -652,9 +650,6 @@ export default function KycScreen() {
             <ShieldCheck size={22} color="#fff" />
           </View>
         </View>
-        <Text style={styles.heroBody}>
-          Verification creates a dedicated NUBAN account in your name, allowing instantaneous deposits and high transfer limits.
-        </Text>
         <FlowProgressDots
           currentStep={step}
           totalSteps={3}
@@ -673,9 +668,7 @@ export default function KycScreen() {
               </View>
               <View style={styles.sectionCopy}>
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Personal info</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
-                  Add the legal name and address associated with your bank account.
-                </Text>
+
               </View>
             </View>
 
@@ -693,7 +686,7 @@ export default function KycScreen() {
               value={address}
               onChangeText={setAddress}
               placeholder="Full residential street address"
-              helperText="Must match official residential address."
+
             />
 
             <Pressable onPress={() => setDatePickerOpen(true)}>
@@ -704,7 +697,6 @@ export default function KycScreen() {
                   onChangeText={setDateOfBirth}
                   placeholder="Select date of birth"
                   editable={false}
-                  helperText="Date of birth (Must be at least 18 years old)."
                 />
               </View>
             </Pressable>
@@ -730,9 +722,7 @@ export default function KycScreen() {
               </View>
               <View style={styles.sectionCopy}>
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Bank & BVN details</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
-                  Enter your BVN, select your bank, and enter your NUBAN account number.
-                </Text>
+
               </View>
             </View>
 
@@ -750,7 +740,7 @@ export default function KycScreen() {
               onChangeText={(val) => setBvn(val.replace(/\D/g, ''))}
               placeholder="11 digit BVN"
               keyboardType="number-pad"
-              helperText="Used strictly for identity validation via NIBSS."
+
             />
 
             <Pressable
@@ -759,7 +749,7 @@ export default function KycScreen() {
             >
               <BankLogo name={selectedBank?.name ?? 'Bank'} slug={selectedBank?.slug} size={40} />
               <View style={styles.bankButtonCopy}>
-                <Text style={[styles.bankButtonLabel, { color: palette.textSecondary }]}>Bank</Text>
+
                 <Text style={[styles.bankButtonValue, { color: palette.text }]}>
                   {selectedBank?.name ?? 'Choose your bank'}
                 </Text>
@@ -773,7 +763,7 @@ export default function KycScreen() {
               onChangeText={(val) => setAccountNumber(val.replace(/\D/g, ''))}
               placeholder="10 digit NUBAN account number"
               keyboardType="number-pad"
-              helperText="10-digit NUBAN linked to your BVN."
+
             />
 
             <Pressable
@@ -835,9 +825,7 @@ export default function KycScreen() {
               </View>
               <View style={styles.sectionCopy}>
                 <Text style={[styles.sectionTitle, { color: palette.text }]}>Confirm & Submit</Text>
-                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
-                  Review your information carefully before submitting.
-                </Text>
+
               </View>
             </View>
 
@@ -996,7 +984,7 @@ const styles = StyleSheet.create({
   summaryMini: { borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4 },
   summaryMiniLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },
   summaryMiniValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
-  summaryMiniMeta: { fontSize: Typography.xs },
+  summaryMiniMeta: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   bankButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, minHeight: 64, gap: 10 },
   bankButtonCopy: { flex: 1, gap: 4 },
   bankButtonLabel: { fontSize: Typography.xs, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: Typography.family.bold },

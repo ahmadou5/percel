@@ -49,7 +49,8 @@ export function useDriverSupportTickets() {
     queryKey: ['driver-support-tickets'],
     queryFn: async () => {
       const res = await api.get('/api/v1/support/tickets');
-      return res.data.data;
+      const data = res.data?.data;
+      return Array.isArray(data) ? data : [];
     },
   });
 }

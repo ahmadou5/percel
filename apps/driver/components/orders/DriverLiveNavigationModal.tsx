@@ -10,14 +10,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
+  ArrowUp,
   CheckCircle,
   Clock,
   CornerUpLeft,
+  CornerUpRight,
   Crosshair,
   MapPin,
   MapPinned,
   Navigation,
   Navigation2,
+  RotateCcw,
   X,
 } from 'lucide-react-native';
 
@@ -71,6 +74,43 @@ type Props = {
   isAdvancing?: boolean;
 };
 
+type NavigationStep = {
+  instruction: string;
+  distanceMeters: number;
+  maneuver: 'turn-left' | 'turn-right' | 'slight-left' | 'slight-right' | 'u-turn' | 'straight' | 'arrive';
+  lat: number;
+  lng: number;
+};
+
+function isValidCoord(lat: any, lng: any): boolean {
+  const nLat = Number(lat);
+  const nLng = Number(lng);
+  return Number.isFinite(nLat) && Number.isFinite(nLng) && Math.abs(nLat) <= 90 && Math.abs(nLng) <= 180 && (nLat !== 0 || nLng !== 0);
+}
+
+function safeCoord(lat: any, lng: any, fallbackLat = 6.5244, fallbackLng = 3.3792): { latitude: number; longitude: number } {
+  if (isValidCoord(lat, lng)) {
+    return { latitude: Number(lat), longitude: Number(lng) };
+  }
+  return { latitude: fallbackLat, longitude: fallbackLng };
+}
+
+function TurnIcon({ maneuver, size = 28, color = '#FFF' }: { maneuver: string; size?: number; color?: string }) {
+  if (maneuver === 'turn-left' || maneuver === 'slight-left') {
+    return <CornerUpLeft size={size} color={color} />;
+  }
+  if (maneuver === 'turn-right' || maneuver === 'slight-right') {
+    return <CornerUpRight size={size} color={color} />;
+  }
+  if (maneuver === 'u-turn') {
+    return <RotateCcw size={size} color={color} />;
+  }
+  if (maneuver === 'arrive') {
+    return <CheckCircle size={size} color={color} />;
+  }
+  return <ArrowUp size={size} color={color} />;
+}
+
 function SettledMarker({
   coordinate,
   anchor,
@@ -82,6 +122,9 @@ function SettledMarker({
   children: React.ReactNode;
   tracksViewChanges?: boolean;
 }) {
+  if (!Marker || !isValidCoord(coordinate?.latitude, coordinate?.longitude)) {
+    return null;
+  }
   return (
     <Marker coordinate={coordinate} anchor={anchor} tracksViewChanges={tracksViewChanges}>
       {children}
@@ -118,6 +161,7 @@ export function DriverLiveNavigationModal({
   const isLightTheme = isLight(palette.bg);
 
   const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const [navigationSteps, setNavigationSteps] = useState<NavigationStep[]>([]);
   const [liveMetrics, setLiveMetrics] = useState<{ distanceKm: number | null; durationMin: number | null }>({
     distanceKm: null,
     durationMin: null,
@@ -125,24 +169,24 @@ export function DriverLiveNavigationModal({
   const lastFetchedLocation = useRef<{ lat: number; lng: number } | null>(null);
   const prevDriverPoint = useRef<{ latitude: number; longitude: number } | null>(null);
 
-  const pickup = useMemo(() => ({
-    latitude: Number(order.pickupLat),
-    longitude: Number(order.pickupLng),
-  }), [order.pickupLat, order.pickupLng]);
+  const pickup = useMemo(
+    () => safeCoord(order?.pickupLat, order?.pickupLng, 6.5244, 3.3792),
+    [order?.pickupLat, order?.pickupLng],
+  );
 
-  const dest = useMemo(() => ({
-    latitude: Number(order.deliveryLat),
-    longitude: Number(order.deliveryLng),
-  }), [order.deliveryLat, order.deliveryLng]);
+  const dest = useMemo(
+    () => safeCoord(order?.deliveryLat, order?.deliveryLng, pickup.latitude, pickup.longitude),
+    [order?.deliveryLat, order?.deliveryLng, pickup],
+  );
 
-  const isHeadingToPickup = order.status === 'CREATED' || order.status === 'ACCEPTED';
+  const isHeadingToPickup = order?.status === 'CREATED' || order?.status === 'ACCEPTED';
   const targetLocation = isHeadingToPickup ? pickup : dest;
-  const targetAddress = isHeadingToPickup ? order.pickupFormattedAddress : order.deliveryFormattedAddress;
+  const targetAddress = (isHeadingToPickup ? order?.pickupFormattedAddress : order?.deliveryFormattedAddress) || 'Destination';
   const targetLabel = isHeadingToPickup ? 'PICKUP LOCATION' : 'DELIVERY DESTINATION';
 
   const driverPoint = useMemo(() => {
-    if (currentLocation && currentLocation.lat !== 0 && currentLocation.lng !== 0) {
-      return { latitude: currentLocation.lat, longitude: currentLocation.lng };
+    if (currentLocation && isValidCoord(currentLocation.lat, currentLocation.lng)) {
+      return { latitude: Number(currentLocation.lat), longitude: Number(currentLocation.lng) };
     }
     return pickup;
   }, [currentLocation, pickup]);
@@ -150,9 +194,11 @@ export function DriverLiveNavigationModal({
   // Stable initial region computed ONCE to prevent continuous map flickering/camera fighting
   const initialRegionRef = useRef<any>(null);
   if (!initialRegionRef.current) {
+    const midLat = (pickup.latitude + dest.latitude) / 2;
+    const midLng = (pickup.longitude + dest.longitude) / 2;
     initialRegionRef.current = {
-      latitude: (pickup.latitude + dest.latitude) / 2,
-      longitude: (pickup.longitude + dest.longitude) / 2,
+      latitude: Number.isFinite(midLat) ? midLat : 6.5244,
+      longitude: Number.isFinite(midLng) ? midLng : 3.3792,
       latitudeDelta: 0.03,
       longitudeDelta: 0.03,
     };
@@ -165,8 +211,7 @@ export function DriverLiveNavigationModal({
     const driverLat = driverPoint.latitude;
     const driverLng = driverPoint.longitude;
 
-    if (!Number.isFinite(driverLat) || !Number.isFinite(driverLng) ||
-        !Number.isFinite(targetLocation.latitude) || !Number.isFinite(targetLocation.longitude)) {
+    if (!isValidCoord(driverLat, driverLng) || !isValidCoord(targetLocation.latitude, targetLocation.longitude)) {
       return;
     }
 
@@ -181,7 +226,7 @@ export function DriverLiveNavigationModal({
     lastFetchedLocation.current = { lat: driverLat, lng: driverLng };
 
     let isMounted = true;
-    api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
+    api.post<{ data: { route?: Array<{ latitude: number; longitude: number }>; distanceKm?: number; durationMin?: number; steps?: NavigationStep[] } | Array<{ latitude: number; longitude: number }> }>('/api/v1/orders/directions', {
       originLat: driverLat,
       originLng: driverLng,
       destLat: targetLocation.latitude,
@@ -190,10 +235,13 @@ export function DriverLiveNavigationModal({
       if (!isMounted) return;
       const rawData = res.data?.data;
       if (Array.isArray(rawData)) {
-        setRouteCoordinates(rawData.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+        setRouteCoordinates(rawData.filter(p => isValidCoord(p?.latitude, p?.longitude)));
       } else if (rawData && typeof rawData === 'object') {
         if (Array.isArray(rawData.route)) {
-          setRouteCoordinates(rawData.route.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+          setRouteCoordinates(rawData.route.filter(p => isValidCoord(p?.latitude, p?.longitude)));
+        }
+        if (Array.isArray(rawData.steps) && rawData.steps.length > 0) {
+          setNavigationSteps(rawData.steps);
         }
         if (typeof rawData.distanceKm === 'number' && typeof rawData.durationMin === 'number') {
           setLiveMetrics({ distanceKm: rawData.distanceKm, durationMin: rawData.durationMin });
@@ -201,21 +249,57 @@ export function DriverLiveNavigationModal({
       }
     }).catch(() => {
       if (isMounted) {
-        setRouteCoordinates([driverPoint, targetLocation]);
+        setRouteCoordinates([driverPoint, pickup, dest]);
       }
     });
 
     return () => { isMounted = false; };
-  }, [visible, driverPoint.latitude, driverPoint.longitude, targetLocation.latitude, targetLocation.longitude]);
+  }, [visible, driverPoint.latitude, driverPoint.longitude, targetLocation.latitude, targetLocation.longitude, pickup, dest]);
 
-  // Center / Fit camera to show driver and target on open
+  // Dynamic Turn-by-Turn step active calculation
+  const activeStep = useMemo(() => {
+    if (!navigationSteps.length) {
+      return {
+        instruction: `Proceed towards ${targetAddress.split(',')[0]}`,
+        distanceMeters: Math.round((liveMetrics.distanceKm ?? order?.distanceKm ?? 1) * 1000),
+        maneuver: 'straight' as const,
+      };
+    }
+
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    for (let i = 0; i < navigationSteps.length; i++) {
+      const s = navigationSteps[i];
+      const dist = Math.hypot(driverPoint.latitude - s.lat, driverPoint.longitude - s.lng) * 111000;
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = i;
+      }
+    }
+
+    const currentStep = navigationSteps[closestIndex];
+    const distToStep = Math.round(minDistance > 50000 ? currentStep.distanceMeters : minDistance);
+
+    return {
+      instruction: currentStep.instruction || `Proceed towards ${targetAddress.split(',')[0]}`,
+      distanceMeters: Math.max(10, distToStep),
+      maneuver: currentStep.maneuver || 'straight',
+    };
+  }, [navigationSteps, driverPoint.latitude, driverPoint.longitude, targetAddress, liveMetrics.distanceKm, order?.distanceKm]);
+
+  // Center / Fit camera to show driver, pickup, and destination on open
   const handleRecenter = () => {
-    const pts = [driverPoint, targetLocation].filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
-    if (pts.length >= 2) {
-      mapRef.current?.fitToCoordinates(pts, {
-        edgePadding: { top: insets.top + 160, right: 60, bottom: insets.bottom + 220, left: 60 },
-        animated: true,
-      });
+    try {
+      const pts = [driverPoint, pickup, dest].filter(p => isValidCoord(p?.latitude, p?.longitude));
+      if (pts.length >= 2) {
+        mapRef.current?.fitToCoordinates(pts, {
+          edgePadding: { top: insets.top + 160, right: 60, bottom: insets.bottom + 220, left: 60 },
+          animated: true,
+        });
+      }
+    } catch (err) {
+      console.warn('[DriverLiveNavigationModal] fitToCoordinates failed:', err);
     }
   };
 
@@ -228,7 +312,7 @@ export function DriverLiveNavigationModal({
 
   // Smoothly follow driver when location updates without resetting region
   useEffect(() => {
-    if (!visible || !driverPoint) return;
+    if (!visible || !driverPoint || !isValidCoord(driverPoint.latitude, driverPoint.longitude)) return;
     const prev = prevDriverPoint.current;
     if (!prev) {
       prevDriverPoint.current = driverPoint;
@@ -237,14 +321,18 @@ export function DriverLiveNavigationModal({
     const dist = Math.hypot(driverPoint.latitude - prev.latitude, driverPoint.longitude - prev.longitude);
     if (dist > 0.0002) {
       prevDriverPoint.current = driverPoint;
-      mapRef.current?.animateCamera({ center: driverPoint }, { duration: 1000 });
+      try {
+        mapRef.current?.animateCamera({ center: driverPoint }, { duration: 1000 });
+      } catch (err) {
+        console.warn('[DriverLiveNavigationModal] animateCamera failed:', err);
+      }
     }
   }, [visible, driverPoint.latitude, driverPoint.longitude]);
 
   const validPolyline = useMemo(() => {
-    const pts = routeCoordinates.length > 1 ? routeCoordinates : [driverPoint, targetLocation];
-    return pts.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
-  }, [routeCoordinates, driverPoint, targetLocation]);
+    const pts = routeCoordinates.length > 1 ? routeCoordinates : [driverPoint, pickup, dest];
+    return pts.filter(p => isValidCoord(p?.latitude, p?.longitude));
+  }, [routeCoordinates, driverPoint, pickup, dest]);
 
   const mapFallback = (
     <View style={styles.fallbackCenter}>
@@ -256,10 +344,12 @@ export function DriverLiveNavigationModal({
     </View>
   );
 
+  const canRenderNativeMap = hasNativeMaps && Boolean(MapView) && Boolean(Marker) && Boolean(Polyline);
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: palette.bg }]}>
-        {hasNativeMaps && MapView ? (
+        {canRenderNativeMap ? (
           <MapErrorBoundary fallback={mapFallback}>
             <MapView
               ref={mapRef}
@@ -278,10 +368,17 @@ export function DriverLiveNavigationModal({
                 </View>
               </SettledMarker>
 
-              {/* Target Destination Marker */}
-              <SettledMarker coordinate={targetLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-                <View style={[styles.targetPin, { backgroundColor: isHeadingToPickup ? '#30D158' : palette.primary }]}>
-                  {isHeadingToPickup ? <MapPin size={18} color="#FFF" /> : <MapPinned size={18} color="#FFF" />}
+              {/* Pickup Location Marker (Green) */}
+              <SettledMarker coordinate={pickup} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+                <View style={[styles.targetPin, { backgroundColor: '#30D158' }]}>
+                  <MapPin size={18} color="#FFF" />
+                </View>
+              </SettledMarker>
+
+              {/* Delivery Destination Marker (Red/Primary) */}
+              <SettledMarker coordinate={dest} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+                <View style={[styles.targetPin, { backgroundColor: palette.primary }]}>
+                  <MapPinned size={18} color="#FFF" />
                 </View>
               </SettledMarker>
 
@@ -299,16 +396,18 @@ export function DriverLiveNavigationModal({
           </MapErrorBoundary>
         ) : mapFallback}
 
-        {/* Top Turn-by-Turn Instruction Banner */}
+        {/* Top Real Turn-by-Turn Instruction Banner */}
         <View style={[styles.topBanner, { paddingTop: insets.top + Spacing.sm }]}>
           <View style={[styles.tbtCard, { backgroundColor: '#1C1C1E', borderColor: 'rgba(255,255,255,0.12)' }]}>
             <View style={[styles.tbtIconBox, { backgroundColor: palette.primary }]}>
-              <CornerUpLeft size={28} color="#FFF" />
+              <TurnIcon maneuver={activeStep.maneuver} size={26} color="#FFF" />
             </View>
             <View style={styles.tbtTextWrap}>
-              <Text style={styles.tbtHeader}>In 150m, proceed straight</Text>
+              <Text style={styles.tbtHeader}>
+                In {activeStep.distanceMeters < 1000 ? `${activeStep.distanceMeters}m` : `${(activeStep.distanceMeters / 1000).toFixed(1)}km`}, {activeStep.instruction}
+              </Text>
               <Text style={styles.tbtSub} numberOfLines={1}>
-                towards {targetAddress.split(',')[0]}
+                Target: {targetAddress}
               </Text>
             </View>
           </View>

@@ -34,14 +34,14 @@ export default function ProfileScreen() {
   const user = useDriverStore((state) => state.user);
   const logout = useLogout();
   const profileQuery = useDriverProfile();
-  
+
   const profile = profileQuery.data;
   const displayName = profile?.fullName ?? user?.fullName ?? 'Driver account';
   const phone = profile?.phone ?? user?.phone ?? '00000000';
-  
+
   const initials = useMemo(() => initialsFor(displayName), [displayName]);
   const username = `@${phone.replace(/\D/g, '').slice(-8) || 'driver'}`;
-  
+
   const kycStatus = profile?.kyc?.status ?? 'PENDING';
   const kycRejected = kycStatus === 'REJECTED';
   const verified = profile?.status === 'ACTIVE';
@@ -70,7 +70,7 @@ export default function ProfileScreen() {
         {/* ── Centered Main Card Container ── */}
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <View style={[styles.profileCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            
+
             {/* Avatar Circle */}
             <Pressable
               onPress={() => router.push('/profile/edit')}
@@ -97,8 +97,8 @@ export default function ProfileScreen() {
                     backgroundColor: verified
                       ? 'rgba(48, 209, 88, 0.16)'
                       : kycRejected
-                      ? 'rgba(255, 69, 58, 0.16)'
-                      : 'rgba(255, 214, 10, 0.16)',
+                        ? 'rgba(255, 69, 58, 0.16)'
+                        : 'rgba(255, 214, 10, 0.16)',
                   },
                 ]}
               >
@@ -161,50 +161,14 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.settingsCopy}>
                 <Text style={[styles.settingsTitle, { color: palette.text }]}>Edit Profile</Text>
-                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit driver info & app theme</Text>
+                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Edit driver info</Text>
               </View>
               <ChevronRight size={18} color={palette.textSecondary} />
             </Pressable>
 
-            <Pressable
-              onPress={() => router.push('/profile/security')}
-              style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}
-            >
-              <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
-                <Shield size={16} color={palette.card} />
-              </View>
-              <View style={styles.settingsCopy}>
-                <Text style={[styles.settingsTitle, { color: palette.text }]}>Security</Text>
-                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Password, PIN & biometrics</Text>
-              </View>
-              <ChevronRight size={18} color={palette.textSecondary} />
-            </Pressable>
 
-            <Pressable
-              onPress={() => router.push('/support' as any)}
-              style={({ pressed }) => [styles.settingsRow, { borderColor: palette.border }, pressed ? styles.pressed : null]}
-            >
-              <View style={[styles.settingsIcon, { backgroundColor: palette.primary }]}>
-                <ShieldCheck size={16} color="#FFF" />
-              </View>
-              <View style={styles.settingsCopy}>
-                <Text style={[styles.settingsTitle, { color: palette.text }]}>Driver Help & Disputes</Text>
-                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>Earnings issues, trip disputes, or complaints</Text>
-              </View>
-              <ChevronRight size={18} color={palette.textSecondary} />
-            </Pressable>
 
-            <View style={[styles.settingsRow, { borderColor: palette.border }]}>
-              <View style={[styles.settingsIcon, { backgroundColor: palette.text }]}>
-                <MapPin size={16} color={palette.card} />
-              </View>
-              <View style={styles.settingsCopy}>
-                <Text style={[styles.settingsTitle, { color: palette.text }]}>Performance</Text>
-                <Text style={[styles.settingsSubtitle, { color: palette.textSecondary }]}>
-                  {profile?.totalDeliveries ?? 0} deliveries • {profile?.rating?.toFixed(1) ?? 'No'} ★ rating
-                </Text>
-              </View>
-            </View>
+
 
           </View>
         </View>
@@ -238,23 +202,23 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 42 },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: Typography.lg, fontFamily: Typography.family.bold },
   backButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  
+
   profileCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.lg },
   avatarWrap: { alignSelf: 'center' },
   avatar: { width: 80, height: 80, borderRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { fontSize: 28, fontFamily: Typography.family.bold, letterSpacing: -0.4 },
-  
+
   identityBlock: { alignItems: 'center', gap: 8 },
   name: { fontSize: 28, lineHeight: 32, fontFamily: Typography.family.bold, textAlign: 'center', letterSpacing: -0.8 },
   username: { fontSize: Typography.sm, fontFamily: Typography.family.medium },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   badgeText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
-  
+
   kycCallout: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 4, alignItems: 'center' },
   kycTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold, textAlign: 'center' },
   kycSubtitle: { fontSize: Typography.xs, fontFamily: Typography.family.regular, textAlign: 'center' },
-  
+
   kycVerifiedCard: { width: '100%', borderRadius: 18, borderWidth: 1, padding: Spacing.md, gap: 10, flexDirection: 'row', alignItems: 'center' },
   kycVerifiedTextWrap: { flex: 1, gap: 1 },
   kycVerifiedTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },

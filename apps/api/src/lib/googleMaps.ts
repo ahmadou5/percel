@@ -170,11 +170,49 @@ export async function geocodeAddress(address: string) {
   };
 }
 
+export type DirectionsManeuver =
+  | 'turn-left'
+  | 'turn-right'
+  | 'slight-left'
+  | 'slight-right'
+  | 'u-turn'
+  | 'straight'
+  | 'arrive';
+
+export type DirectionsStep = {
+  instruction: string;
+  distanceMeters: number;
+  maneuver: DirectionsManeuver;
+  lat: number;
+  lng: number;
+};
+
 export type DirectionsResult = {
   route: Array<{ latitude: number; longitude: number }>;
   distanceKm: number;
   durationMin: number;
+  steps: DirectionsStep[];
 };
+
+function normalizeManeuver(raw?: string): DirectionsManeuver {
+  if (!raw) return 'straight';
+  const lower = raw.toLowerCase();
+  if (lower.includes('left')) return lower.includes('slight') ? 'slight-left' : 'turn-left';
+  if (lower.includes('right')) return lower.includes('slight') ? 'slight-right' : 'turn-right';
+  if (lower.includes('u-turn') || lower.includes('uturn')) return 'u-turn';
+  if (lower.includes('arrive') || lower.includes('destination')) return 'arrive';
+  return 'straight';
+}
+
+function cleanHtmlInstruction(html?: string): string {
+  if (!html) return 'Proceed along route';
+  return html
+    .replace(/<div[^>]*>/gi, ' - ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 /**
  * Fetch a road-following route between two coordinates via Google Directions API
@@ -191,13 +229,21 @@ export async function getDirectionsRoute(
     { latitude: destLat, longitude: destLng },
   ];
 
+  const defaultStep: DirectionsStep = {
+    instruction: 'Proceed to destination',
+    distanceMeters: 1000,
+    maneuver: 'straight',
+    lat: destLat,
+    lng: destLng,
+  };
+
   // Guard: NaN or Infinity coordinates produce a useless API call.
   if (
     !Number.isFinite(originLat) || !Number.isFinite(originLng) ||
     !Number.isFinite(destLat)   || !Number.isFinite(destLng)
   ) {
     console.error('[googleMaps] getDirectionsRoute: non-finite coordinates', { originLat, originLng, destLat, destLng });
-    return { route: straightRoute, distanceKm: 1.0, durationMin: 10 };
+    return { route: straightRoute, distanceKm: 1.0, durationMin: 10, steps: [defaultStep] };
   }
 
   try {
@@ -216,10 +262,17 @@ export async function getDirectionsRoute(
       const legs: Array<{
         distance?: { value?: number };
         duration?: { value?: number };
-        steps?: Array<{ polyline?: { points?: string } }>;
+        steps?: Array<{
+          html_instructions?: string;
+          distance?: { value?: number };
+          maneuver?: string;
+          end_location?: { lat: number; lng: number };
+          polyline?: { points?: string };
+        }>;
       }> = route?.legs ?? [];
 
       const stepPoints: Array<{ latitude: number; longitude: number }> = [];
+      const stepsList: DirectionsStep[] = [];
       let totalDistMeters = 0;
       let totalDurationSec = 0;
 
@@ -232,19 +285,37 @@ export async function getDirectionsRoute(
           if (encoded) {
             stepPoints.push(...decodePolyline(encoded));
           }
+
+          if (step.end_location?.lat && step.end_location?.lng) {
+            stepsList.push({
+              instruction: cleanHtmlInstruction(step.html_instructions),
+              distanceMeters: step.distance?.value ?? 100,
+              maneuver: normalizeManeuver(step.maneuver),
+              lat: step.end_location.lat,
+              lng: step.end_location.lng,
+            });
+          }
         }
       }
 
       const distKm = Number((totalDistMeters / 1000).toFixed(2));
       const durMin = Math.ceil(totalDurationSec / 60);
 
+      const finalSteps = stepsList.length > 0 ? stepsList : [{
+        instruction: 'Arrive at destination',
+        distanceMeters: 50,
+        maneuver: 'arrive' as const,
+        lat: destLat,
+        lng: destLng,
+      }];
+
       if (stepPoints.length > 1) {
-        return { route: stepPoints, distanceKm: distKm || 1.0, durationMin: durMin || 5 };
+        return { route: stepPoints, distanceKm: distKm || 1.0, durationMin: durMin || 5, steps: finalSteps };
       }
 
       const overviewPolyline: string | undefined = route?.overview_polyline?.points;
       if (overviewPolyline) {
-        return { route: decodePolyline(overviewPolyline), distanceKm: distKm || 1.0, durationMin: durMin || 5 };
+        return { route: decodePolyline(overviewPolyline), distanceKm: distKm || 1.0, durationMin: durMin || 5, steps: finalSteps };
       }
     }
   } catch (err) {
@@ -253,7 +324,7 @@ export async function getDirectionsRoute(
 
   // High-precision OSRM Street & Highway Navigation Engine Fallback
   try {
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson&steps=true`;
     const { data: osrmData } = await axios.get(osrmUrl, { timeout: 5000 });
     const osrmRoute = osrmData?.routes?.[0];
     const coordinates: Array<[number, number]> = osrmRoute?.geometry?.coordinates ?? [];
@@ -265,7 +336,42 @@ export async function getDirectionsRoute(
       }));
       const distKm = Math.max(0.5, Number(((osrmRoute?.distance ?? 0) / 1000).toFixed(2)));
       const durMin = Math.max(3, Math.ceil((osrmRoute?.duration ?? 0) / 60));
-      return { route: routePoints, distanceKm: distKm, durationMin: durMin };
+
+      const rawOsrmSteps: Array<{
+        name?: string;
+        distance?: number;
+        maneuver?: { type?: string; modifier?: string; location?: [number, number] };
+      }> = osrmRoute?.legs?.[0]?.steps ?? [];
+
+      const parsedSteps: DirectionsStep[] = rawOsrmSteps.map((s) => {
+        const street = s.name ? `onto ${s.name}` : '';
+        const modifier = s.maneuver?.modifier ?? '';
+        const type = s.maneuver?.type ?? '';
+        let text = 'Proceed straight';
+
+        if (type === 'turn' || type === 'new name') {
+          text = `Turn ${modifier || 'straight'} ${street}`.trim();
+        } else if (type === 'arrive') {
+          text = 'Arrive at destination';
+        } else if (modifier) {
+          text = `Proceed ${modifier} ${street}`.trim();
+        }
+
+        const maneuverType = type === 'arrive' ? 'arrive' : normalizeManeuver(`${type} ${modifier}`);
+        const loc = s.maneuver?.location;
+
+        return {
+          instruction: text,
+          distanceMeters: Math.round(s.distance ?? 100),
+          maneuver: maneuverType,
+          lat: loc ? loc[1] : destLat,
+          lng: loc ? loc[0] : destLng,
+        };
+      });
+
+      const osrmSteps = parsedSteps.length > 0 ? parsedSteps : [defaultStep];
+
+      return { route: routePoints, distanceKm: distKm, durationMin: durMin, steps: osrmSteps };
     }
   } catch (osrmErr) {
     console.warn('[googleMaps] OSRM street directions fallback error:', osrmErr);
@@ -273,7 +379,7 @@ export async function getDirectionsRoute(
 
   // Fallback distance & duration estimation
   const fallbackMetrics = await getDistanceAndDuration(originLat, originLng, destLat, destLng);
-  return { route: straightRoute, ...fallbackMetrics };
+  return { route: straightRoute, ...fallbackMetrics, steps: [defaultStep] };
 }
 
 export async function reverseGeocode(lat: number, lng: number) {

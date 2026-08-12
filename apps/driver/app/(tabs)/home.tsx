@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Package, MapPin, Zap, ChevronRight, Bell, Radar, SearchX } from 'lucide-react-native';
+import { MapPin, Zap, ChevronRight, Bell, Radar, SearchX } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { hexToRgba, useAppPalette } from '@/lib/theme';
@@ -439,7 +439,7 @@ export default function DriverHomeScreen() {
           setReadableAddress(res.data.data.formattedAddress);
           return;
         }
-      } catch {}
+      } catch { }
 
       // 2. Try native Location.reverseGeocodeAsync fallback
       try {
@@ -452,7 +452,7 @@ export default function DriverHomeScreen() {
           const formatted = street && street.toLowerCase() !== city.toLowerCase() ? `${street}, ${city}` : city;
           setReadableAddress(formatted);
         }
-      } catch {}
+      } catch { }
     };
 
     void resolveAddress();

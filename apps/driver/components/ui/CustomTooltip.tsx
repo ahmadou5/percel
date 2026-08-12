@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAppPalette } from '@/lib/theme';
+import { Typography } from '@/constants/typography';
 
 export interface TooltipProps {
   isFirstStep?: boolean;
@@ -109,22 +110,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   stepBadgeText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 12,
+    fontFamily: Typography.family.medium,
+    fontSize: Typography.sm
   },
   skipText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 13,
+    fontFamily: Typography.family.medium,
+    fontSize: Typography.md,
   },
   title: {
-    fontFamily: 'SpaceGrotesk_700Bold',
-    fontSize: 17,
+    fontFamily: Typography.family.medium,
+    fontSize: Typography.lg,
     marginBottom: 6,
   },
   description: {
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: Typography.family.regular,
+    fontSize: Typography.sm,
     marginBottom: 16,
   },
   footer: {
@@ -140,8 +140,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   btnSecondaryText: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 13,
+    fontFamily: Typography.family.semibold,
+    fontSize: Typography.md,
   },
   btnPrimary: {
     paddingVertical: 10,
@@ -151,8 +151,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimaryText: {
-    fontFamily: 'SpaceGrotesk_700Bold',
+    fontFamily: Typography.family.bold,
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: Typography.md
   },
 });

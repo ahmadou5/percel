@@ -188,8 +188,11 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
             const onPress = () => {
               if (item.routeName) {
-                const route = state.routes.find((r: any) => r.name === item.routeName);
-                if (!route) return;
+                const route = state?.routes?.find((r: any) => r.name === item.routeName);
+                if (!route) {
+                  router.navigate(item.href as never);
+                  return;
+                }
                 const event = navigation.emit({
                   type: 'tabPress',
                   target: route.key,
@@ -200,7 +203,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 }
                 return;
               }
-              router.push(item.href as never);
+              router.navigate(item.href as never);
             };
 
             const onLongPress = () => {

@@ -108,7 +108,6 @@ function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <TourGuideProvider>
         <StatusBar style={isLight(palette.bg) ? 'dark' : 'light'} />
-        <DriverRuntime />
         <RootLayoutNav />
         <TourGuideOverlay />
       </TourGuideProvider>
