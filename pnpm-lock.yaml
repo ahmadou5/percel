@@ -574,9 +574,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@percel/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@vis.gl/react-google-maps':
         specifier: ^1.5.1
         version: 1.9.0(react-dom@19.1.0)(react@19.1.0)

@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@percel/shared'],
   reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,
