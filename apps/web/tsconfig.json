@@ -1,9 +1,16 @@
 {
-  "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "preserve",
+    "target": "ES2022",
+    "module": "ESNext",
     "moduleResolution": "bundler",
+    "strict": true,
     "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve",
     "types": [
       "node",
       "react",
@@ -13,9 +20,6 @@
     "paths": {
       "@/*": [
         "./*"
-      ],
-      "@percel/shared/*": [
-        "../../packages/shared/src/*"
       ]
     },
     "lib": [
