@@ -516,15 +516,19 @@ export class WalletService {
         },
       });
 
-      await trx.ledgerEntry.create({
-        data: {
-          debitWalletId: PLATFORM_WALLET_ID,
-          creditWalletId: wallet.id,
-          amount: amount,
-          reference: `LEDGER_${reference}`,
-          description: 'Top up settlement',
-        },
-      });
+      const ledgerRef = `LEDGER_${tx.id}`;
+      const existingLedger = await trx.ledgerEntry.findUnique({ where: { reference: ledgerRef } });
+      if (!existingLedger) {
+        await trx.ledgerEntry.create({
+          data: {
+            debitWalletId: PLATFORM_WALLET_ID,
+            creditWalletId: wallet.id,
+            amount: amount,
+            reference: ledgerRef,
+            description: 'Top up settlement',
+          },
+        });
+      }
     });
 
     await deleteCache(this.app.redis, `cache:wallet:balance:${walletId}`);
@@ -535,18 +539,27 @@ export class WalletService {
         this.logger.warn({ err, walletUserId }, 'Failed to emit wallet_updated socket event');
       }
 
-      await addNotificationJob(this.app, walletUserId, 'PAYMENT_RECEIVED', {
-        amount: Number(amount),
-        reference,
-        kind: 'wallet_topup',
-      });
-      await this.createNotification(
-        walletUserId,
-        PrismaNotificationType.PAYMENT,
-        'Wallet funded',
-        `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(amount))} added to your wallet.`,
-        { amount: Number(amount), reference, kind: 'wallet_topup' },
-      );
+      try {
+        await addNotificationJob(this.app, walletUserId, 'PAYMENT_RECEIVED', {
+          amount: Number(amount),
+          reference,
+          kind: 'wallet_topup',
+        });
+      } catch (err) {
+        this.logger.warn({ err, walletUserId }, 'Failed to queue PAYMENT_RECEIVED notification job');
+      }
+
+      try {
+        await this.createNotification(
+          walletUserId,
+          PrismaNotificationType.PAYMENT,
+          'Wallet funded',
+          `${new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(amount))} added to your wallet.`,
+          { amount: Number(amount), reference, kind: 'wallet_topup' },
+        );
+      } catch (err) {
+        this.logger.warn({ err, walletUserId }, 'Failed to save wallet funded notification');
+      }
     }
   }
 
@@ -582,7 +595,6 @@ export class WalletService {
     return { status: 'pending', amount: tx.amount, reference };
   }
 
-
   async completeExternalWalletFunding(
     provider: PaymentProvider,
     data: { reference: string; altReference?: string; amount: number; walletId?: string; accountNumber?: string; customerIdentifier?: string }
@@ -606,7 +618,7 @@ export class WalletService {
 
     let wallet = data.walletId ? await this.prisma.wallet.findUnique({ where: { id: data.walletId } }) : null;
     if (!wallet && data.accountNumber) {
-      const cleanAcc = data.accountNumber.trim();
+      const cleanAcc = data.accountNumber.trim().replace(/\s+/g, '');
       const strippedAcc = cleanAcc.replace(/^0+/, '');
       wallet = await this.prisma.wallet.findFirst({
         where: {
@@ -625,12 +637,11 @@ export class WalletService {
           OR: [
             { id: cleanId },
             { paystackCustomerCode: data.customerIdentifier },
-            { email: data.customerIdentifier },
-            { driver: { id: cleanId } },
-            { driver: { userId: cleanId } },
+            { email: { equals: data.customerIdentifier, mode: 'insensitive' } },
+            { phone: data.customerIdentifier },
           ],
         },
-        select: { wallet: true },
+        include: { wallet: true },
       });
       if (user?.wallet) wallet = user.wallet;
     }
