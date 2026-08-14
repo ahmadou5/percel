@@ -583,11 +583,23 @@ export class WalletService {
   }
 
 
-  async completeExternalWalletFunding(provider: PaymentProvider, data: { reference: string; amount: number; walletId?: string; accountNumber?: string; customerIdentifier?: string }) {
-    const existing = await this.prisma.walletTransaction.findUnique({ where: { reference: data.reference } });
+  async completeExternalWalletFunding(
+    provider: PaymentProvider,
+    data: { reference: string; altReference?: string; amount: number; walletId?: string; accountNumber?: string; customerIdentifier?: string }
+  ) {
+    const existing = await this.prisma.walletTransaction.findFirst({
+      where: {
+        OR: [
+          { reference: data.reference },
+          { paystackReference: data.reference },
+          ...(data.altReference ? [{ reference: data.altReference }, { paystackReference: data.altReference }] : []),
+        ],
+      },
+    });
+
     if (existing) {
       if (existing.status !== WalletTransactionStatus.COMPLETED) {
-        await this.completeTopUpTransaction(existing.id, data.reference, Number(existing.amount), existing.walletId);
+        await this.completeTopUpTransaction(existing.id, existing.reference, Number(data.amount || existing.amount), existing.walletId);
       }
       return;
     }
@@ -635,6 +647,7 @@ export class WalletService {
         category: WalletTransactionCategory.TOP_UP,
         status: WalletTransactionStatus.PENDING,
         reference: data.reference,
+        paystackReference: data.altReference ?? data.reference,
         description: `Wallet Top Up (${provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase()})`,
         metadata: { gateway: provider.toLowerCase(), accountNumber: data.accountNumber ?? null, customerIdentifier: data.customerIdentifier ?? null },
         balanceBefore: 0,
@@ -691,10 +704,14 @@ export class WalletService {
     }
 
     if (event === 'charge.success') {
-      const tx = await this.prisma.walletTransaction.findUnique({ where: { reference } });
+      const tx = await this.prisma.walletTransaction.findFirst({
+        where: {
+          OR: [{ reference }, { paystackReference: reference }],
+        },
+      });
       if (tx) {
         if (tx.status !== WalletTransactionStatus.COMPLETED) {
-          await this.completeTopUpTransaction(tx.id, reference, Number(tx.amount), tx.walletId);
+          await this.completeTopUpTransaction(tx.id, tx.reference, Number(tx.amount), tx.walletId);
         }
         return { acknowledged: true };
       }
@@ -729,7 +746,9 @@ export class WalletService {
     }
 
     if (event === 'refund.processed') {
-      const tx = await this.prisma.walletTransaction.findUnique({ where: { reference } });
+      const tx = await this.prisma.walletTransaction.findFirst({
+        where: { OR: [{ reference }, { paystackReference: reference }] },
+      });
       if (!tx) return { acknowledged: true };
       await this.prisma.walletTransaction.update({ where: { id: tx.id }, data: { status: WalletTransactionStatus.REVERSED } });
       await deleteCache(this.app.redis, `cache:wallet:balance:${tx.walletId}`);
@@ -743,7 +762,18 @@ export class WalletService {
     if (!verifyMonnifyWebhookSignature(payload, signature)) throw new PaymentError('Invalid Monnify signature');
     const eventType = String(payload.eventType ?? payload.event ?? '');
     const data = (payload.eventData ?? payload.data ?? payload) as Record<string, unknown>;
-    const reference = String(data.paymentReference ?? data.transactionReference ?? data.reference ?? '');
+    const product = (data.product ?? {}) as Record<string, unknown>;
+    const customerObj = (data.customer ?? {}) as Record<string, unknown>;
+
+    const reference = String(
+      data.paymentReference ??
+        product.reference ??
+        data.transactionReference ??
+        data.reference ??
+        ''
+    ).trim();
+
+    const altReference = String(data.transactionReference ?? '').trim();
 
     const destAccInfo = (data.destinationAccountInformation ?? data.accountDetails) as Record<string, unknown> | undefined;
     const accountNumber = String(
@@ -753,16 +783,15 @@ export class WalletService {
     const amount = Number(data.amountPaid ?? data.settlementAmount ?? data.amount ?? 0);
     const status = String(data.paymentStatus ?? data.status ?? '').toUpperCase();
 
-    const product = data.product as Record<string, unknown> | undefined;
-    const customerObj = data.customer as Record<string, unknown> | undefined;
-    const customerEmail = String(data.customerEmail ?? data.email ?? customerObj?.email ?? '');
+    const customerEmail = String(data.customerEmail ?? data.email ?? customerObj.email ?? '').trim();
     const customerIdentifier = String(
-      product?.reference ?? data.accountReference ?? customerEmail ?? ''
+      product.reference ?? data.accountReference ?? customerEmail ?? ''
     ).trim();
 
     if ((eventType.includes('SUCCESS') || status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL') && reference && amount > 0) {
       await this.completeExternalWalletFunding(PaymentProvider.MONNIFY, {
         reference,
+        altReference: altReference || undefined,
         amount,
         accountNumber: accountNumber || undefined,
         customerIdentifier: customerIdentifier || undefined,

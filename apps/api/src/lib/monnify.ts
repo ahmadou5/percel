@@ -220,19 +220,24 @@ export function verifyMonnifyWebhookSignature(payload: Record<string, unknown>, 
   const secret = env.MONNIFY_WEBHOOK_SECRET || env.MONNIFY_SECRET_KEY;
   const isSandbox = env.NODE_ENV !== 'production' || env.MONNIFY_BASE_URL.includes('sandbox');
 
-  if (!secret) {
+  if (!secret || !signature) {
     if (isSandbox) return true;
-    throw new PaymentError('MONNIFY_WEBHOOK_SECRET is not configured');
+    return false;
   }
 
-  if (!signature && isSandbox) return true;
+  // Official Monnify SHA-512 signature formula: SHA512(clientSecret + "|" + body)
+  const hashString = `${secret}|${JSON.stringify(payload)}`;
+  const computedHash = crypto.createHash('sha512').update(hashString).digest('hex');
 
-  const hash = crypto
-    .createHmac('sha512', secret)
-    .update(JSON.stringify(payload))
-    .digest('hex');
+  if (computedHash.toLowerCase() === signature.toLowerCase()) {
+    return true;
+  }
 
-  if (signature && hash === signature) return true;
+  // Fallback check using HMAC-SHA512
+  const hmacHash = crypto.createHmac('sha512', secret).update(JSON.stringify(payload)).digest('hex');
+  if (hmacHash.toLowerCase() === signature.toLowerCase()) {
+    return true;
+  }
 
   if (isSandbox) return true;
 

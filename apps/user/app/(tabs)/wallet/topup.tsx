@@ -176,4 +176,6 @@ const styles = StyleSheet.create({
   accountValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   copyButton: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   divider: { height: StyleSheet.hairlineWidth, width: "100%" },
+  simButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 48, borderRadius: 16, marginTop: 8 },
+  simButtonText: { color: "#fff", fontSize: Typography.sm, fontFamily: Typography.family.bold },
 });
