@@ -702,17 +702,19 @@ export class WalletService {
       // Handle Dedicated Virtual Account (NUBAN) bank transfer topup
       const customer = (data.customer ?? {}) as Record<string, unknown>;
       const authorization = (data.authorization ?? {}) as Record<string, unknown>;
+      const dedicated = (data.dedicated_account ?? {}) as Record<string, unknown>;
 
       const customerCode = String(customer.customer_code ?? data.customer_code ?? '');
       const customerEmail = String(customer.email ?? data.email ?? '');
       const accountNumber = String(
-        authorization.receiver_bank_account_number ??
+        dedicated.account_number ??
+          authorization.receiver_bank_account_number ??
           authorization.account_number ??
-          data.dedicated_account ??
           data.account_number ??
           data.destinationAccountNumber ??
           '',
-      );
+      ).trim();
+
       const amountKobo = Number(data.amount ?? 0);
       const amountNaira = amountKobo > 0 ? amountKobo / 100 : 0;
 
@@ -772,33 +774,41 @@ export class WalletService {
   async handleSquadWebhook(payload: Record<string, unknown>, signature?: string) {
     if (!verifySquadWebhookSignature(payload, signature)) throw new PaymentError('Invalid Squad signature');
     const body = (payload.Body ?? payload.body ?? payload) as Record<string, unknown>;
-    const reference = String(payload.TransactionRef ?? body.transaction_ref ?? payload.transaction_reference ?? '');
-    const status = String(body.transaction_status ?? '').toLowerCase();
-    const amountKobo = Number(body.amount ?? payload.principal_amount ?? payload.settled_amount ?? 0);
-    const isVirtualAccount = String(payload.channel ?? '').toLowerCase() === 'virtual-account' || Boolean(payload.virtual_account_number);
+    const reference = String(
+      payload.TransactionRef ?? body.transaction_ref ?? payload.transaction_reference ?? body.transaction_reference ?? ''
+    );
+    const status = String(body.transaction_status ?? payload.transaction_status ?? payload.event ?? '').toLowerCase();
+    const amountRaw = Number(body.amount ?? payload.principal_amount ?? payload.settled_amount ?? body.settled_amount ?? 0);
+    const isVirtualAccount = String(payload.channel ?? body.channel ?? '').toLowerCase().includes('virtual') ||
+      Boolean(payload.virtual_account_number || body.virtual_account_number || payload.account_number || body.account_number);
 
-    const accountNumber = typeof payload.virtual_account_number === 'string'
-      ? payload.virtual_account_number
-      : typeof body.virtual_account_number === 'string'
-        ? body.virtual_account_number
-        : undefined;
+    const accountNumber = String(
+      payload.virtual_account_number ??
+        body.virtual_account_number ??
+        payload.account_number ??
+        body.account_number ??
+        payload.destination_account_number ??
+        body.destination_account_number ??
+        ''
+    ).trim();
 
-    const email = typeof payload.email === 'string'
-      ? payload.email
-      : typeof body.email === 'string'
-        ? body.email
-        : undefined;
+    const email = String(payload.email ?? body.email ?? payload.customer_email ?? body.customer_email ?? '').trim();
 
-    const customerIdentifier = typeof payload.customer_identifier === 'string'
-      ? payload.customer_identifier
-      : email;
+    const customerIdentifier = String(
+      payload.customer_identifier ?? body.customer_identifier ?? email ?? ''
+    ).trim();
 
-    if ((status === 'success' || isVirtualAccount) && reference && amountKobo > 0) {
+    // Squad amounts for virtual accounts can be Naira or Kobo; normalize safely
+    const amountNaira = isVirtualAccount
+      ? (amountRaw > 1000000 ? amountRaw / 100 : amountRaw)
+      : (amountRaw > 0 ? amountRaw / 100 : 0);
+
+    if ((status === 'success' || status.includes('success') || isVirtualAccount) && reference && amountNaira > 0) {
       await this.completeExternalWalletFunding(PaymentProvider.SQUAD, {
         reference,
-        amount: isVirtualAccount ? Number(amountKobo) : amountKobo / 100,
-        accountNumber,
-        customerIdentifier,
+        amount: amountNaira,
+        accountNumber: accountNumber || undefined,
+        customerIdentifier: customerIdentifier || undefined,
       });
     }
     return { acknowledged: true };

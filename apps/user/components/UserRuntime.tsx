@@ -58,7 +58,8 @@ export function UserRuntime() {
 
     async function registerPushToken() {
       const current = await Notifications.getPermissionsAsync();
-      if (cancelled || current.status !== "granted") return;
+      const next = current.status === 'granted' ? current : await Notifications.requestPermissionsAsync();
+      if (cancelled || next.status !== "granted") return;
 
       try {
         const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
