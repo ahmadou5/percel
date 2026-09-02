@@ -32,7 +32,7 @@ function PolylineOverlay({
     const polyline = new mapsLib.Polyline({
       path,
       geodesic: true,
-      strokeColor: '#6366F1',
+      strokeColor: '#5B8CFF',
       strokeOpacity: 0.85,
       strokeWeight: 4,
     });
@@ -73,7 +73,7 @@ export function OrderMap({ order }: OrderMapProps) {
   if (!MAPS_API_KEY) {
     return (
       <div className="relative flex h-[380px] w-full flex-col items-center justify-center rounded-3xl border border-border/80 bg-slate-900/90 p-6 text-center shadow-xl">
-        <MapPin className="h-10 w-10 text-primary mb-2 animate-bounce" />
+        <MapPin className="h-10 w-10 text-primary mb-2" />
         <h3 className="text-base font-bold text-foreground">Interactive Delivery Map</h3>
         <p className="mt-1 text-xs text-muted-foreground max-w-md">
           Pickup: <span className="text-foreground font-semibold">{order.pickupFormattedAddress}</span>

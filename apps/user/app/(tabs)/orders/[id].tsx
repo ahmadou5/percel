@@ -68,6 +68,7 @@ export default function OrderDetailScreen() {
   const user = useAuthStore((state) => state.user);
   const [confirmDeliveryVisible, setConfirmDeliveryVisible] = useState(false);
   const [orderReceiptOpen, setOrderReceiptOpen] = useState(false);
+  const [proofPreviewVisible, setProofPreviewVisible] = useState(false);
   const orderReceiptRef = useRef<View>(null);
   const [receiptResult, setReceiptResult] = useState<null | { visible: boolean; type: 'success' | 'failed' | 'pending'; title: string; message: string; amount?: string; reference?: string }>(null);
 
@@ -387,6 +388,22 @@ export default function OrderDetailScreen() {
         )}
       </View>
 
+      {/* Delivery proof */}
+      {(order.status === 'DELIVERED' || order.status === 'COMPLETED') && order.proofImageUrl ? (
+        <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Delivery proof</Text>
+          <Pressable
+            onPress={() => setProofPreviewVisible(true)}
+            style={{ width: '100%', height: 220, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: palette.border }}
+          >
+            <Image source={{ uri: order.proofImageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          </Pressable>
+          <Text style={[styles.emptyBodyMuted, { color: palette.textSecondary, marginTop: 8 }]}>
+            Photo captured by the driver at delivery{order.proofUploadedAt ? ` • ${new Date(order.proofUploadedAt).toLocaleString()}` : ''}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Status history */}
       <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
         <Text style={[styles.sectionTitle, { color: palette.text }]}>Status history</Text>
@@ -636,6 +653,17 @@ export default function OrderDetailScreen() {
       reference={receiptResult?.reference}
       onClose={() => setReceiptResult(null)}
     />
+
+    <Modal visible={proofPreviewVisible} transparent animationType="fade" onRequestClose={() => setProofPreviewVisible(false)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' }}>
+        <Pressable style={{ position: 'absolute', top: 48, right: 20, zIndex: 2 }} onPress={() => setProofPreviewVisible(false)}>
+          <XCircle size={28} color="#fff" />
+        </Pressable>
+        {order.proofImageUrl ? (
+          <Image source={{ uri: order.proofImageUrl }} style={{ flex: 1 }} resizeMode="contain" />
+        ) : null}
+      </View>
+    </Modal>
   </View>
   );
 }

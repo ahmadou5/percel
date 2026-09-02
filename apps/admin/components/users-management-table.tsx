@@ -621,7 +621,7 @@ export function UsersManagementTable({ initialUsers }: { initialUsers: AdminUser
                     <tr
                       key={user.id}
                       className={`transition-colors border-b border-border/70 last:border-b-0 ${isPending
-                        ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08] border-l-4 border-l-amber-500'
+                        ? 'bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/30'
                         : isSystem
                           ? 'bg-purple-500/[0.03] hover:bg-purple-500/[0.06] border-l-2 border-l-purple-500/50'
                           : 'hover:bg-muted/40'

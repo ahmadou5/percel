@@ -75,7 +75,7 @@ export function PhoneMockup() {
             {/* Route ETA Badge Pill */}
             <div className="absolute top-[270px] left-1/2 z-10 -translate-x-1/2 flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-[10px] font-extrabold text-white shadow-xl shadow-primary/40 border border-white/20">
               <Navigation className="h-3 w-3 fill-white" />
-              <span>686 min</span>
+              <span>11h 26m</span>
             </div>
           </div>
 
@@ -180,7 +180,7 @@ export function PhoneMockup() {
                       </div>
                       <div className="mt-2">
                         <p className="text-[11px] font-black text-foreground">Bike</p>
-                        <p className="text-[8px] text-muted-foreground">686 mins</p>
+                        <p className="text-[8px] text-muted-foreground">ETA 11h 26m</p>
                         <p className="text-[11px] font-extrabold text-primary mt-0.5">₦1,950</p>
                       </div>
                     </button>

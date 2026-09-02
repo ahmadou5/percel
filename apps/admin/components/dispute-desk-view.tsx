@@ -247,13 +247,19 @@ export function DisputeDeskView({
     const amt = refundAmount || refundModal.orderValue;
 
     try {
-      await fetch(`/api/v1/admin/disputes/${refundModal.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/admin/disputes/${refundModal.id}/refund`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'RESOLVED', resolutionNote: `Refund of ${amt}: ${refundNote || 'Customer refund'}` }),
+        body: JSON.stringify({ reason: `Refund of ${amt}: ${refundNote || 'Customer refund'}` }),
       });
-    } catch {
-      // Fallback
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.message || 'Refund failed');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Refund failed', 'error');
+      setRefunding(false);
+      return;
     }
 
     addAuditLog(
@@ -291,13 +297,19 @@ export function DisputeDeskView({
     const reason = resolveReason === 'Other' ? resolveReasonCustom || 'Other' : resolveReason;
 
     try {
-      await fetch(`/api/v1/admin/disputes/${resolveModal.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/admin/disputes/${resolveModal.id}/resolve`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'RESOLVED', resolutionNote: reason }),
+        body: JSON.stringify({ reason }),
       });
-    } catch {
-      // Fallback
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.message || 'Failed to resolve dispute');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to resolve dispute', 'error');
+      setResolving(false);
+      return;
     }
 
     addAuditLog('Dispute Resolved (No Refund)', `${resolveModal.trackingCode}`, reason);
@@ -346,7 +358,7 @@ export function DisputeDeskView({
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl animate-bounce ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl ${
             toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
           }`}
         >
@@ -471,7 +483,7 @@ export function DisputeDeskView({
               <Card
                 key={dispute.id}
                 className={`overflow-hidden border bg-card/90 backdrop-blur-md shadow-xs space-y-4 p-6 transition-all ${
-                  isEscalated ? 'border-rose-500/50 shadow-rose-500/10 shadow-lg border-l-4 border-l-rose-500' : 'border-border/80'
+                  isEscalated ? 'border-rose-500/40 bg-rose-500/[0.06] shadow-rose-500/10' : 'border-border/80'
                 } ${isResolved ? 'opacity-60' : ''}`}
               >
                 {/* Card Header */}

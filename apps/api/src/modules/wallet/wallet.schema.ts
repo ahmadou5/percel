@@ -61,6 +61,10 @@ export const ResetTransferPinBody = Type.Object({
   currentPin: Type.String({ minLength: 4, maxLength: 6 }),
 });
 
+export const ForgotPinConfirmBody = Type.Object({
+  otp: Type.String({ minLength: 6, maxLength: 6 }),
+});
+
 export const VerifyTransferPinBody = Type.Object({
   pin: Type.String({ minLength: 4, maxLength: 6 }),
 });

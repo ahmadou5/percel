@@ -225,22 +225,20 @@ export default function HomePage() {
       <section className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-12">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            { metric: '15,000+', label: 'Successful Deliveries' },
-            { metric: '99.4%', label: 'On-Time Completion' },
-            { metric: '4 Major', label: 'State Hub Networks' },
-            { metric: '4.9 ★', label: 'Average Rider Rating' },
+            { metric: 'Every', label: 'delivery escrowed until you confirm', fact: true },
+            { metric: 'KYC', label: 'verified drivers only, ID checked before first pickup', fact: true },
+            { metric: 'Live GPS', label: 'tracking on every interstate waybill', fact: true },
+            { metric: '₦', label: 'wallet with instant refunds if no driver accepts', fact: true },
           ].map((stat, idx) => (
-            <motion.div
+            <div
               key={idx}
-              whileHover={{ y: -3, scale: 1.02 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               className="apple-card rounded-3xl border border-white/15 bg-card/60 p-6 text-center backdrop-blur-xl shadow-sm"
             >
-              <p className="font-black text-2xl sm:text-3xl text-primary font-mono">
+              <p className={`font-black text-2xl sm:text-3xl font-mono ${stat.fact ? 'text-foreground' : 'text-primary'}`}>
                 {stat.metric}
               </p>
               <p className="mt-1.5 text-xs font-semibold text-muted-foreground">{stat.label}</p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </section>

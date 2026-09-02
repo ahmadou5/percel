@@ -564,7 +564,7 @@ export function GeographicDistributionTable({ hubs = [], serviceAreas = [], orde
           </div>
           <p className="text-[11px] text-muted-foreground">Top hubs & state delivery volume</p>
         </div>
-        <MapPin className="h-4 w-4 text-sky-400 animate-bounce" />
+        <MapPin className="h-4 w-4 text-sky-400" />
       </div>
 
       <div className="overflow-x-auto">
@@ -621,17 +621,6 @@ export function RecentActivityAlertsFeed({ notifications = [] }: { notifications
     setFeed(notifications);
   }, [notifications]);
 
-  const simulateSentryError = () => {
-    setFeed([{
-      id: `sentry-mock-${Date.now()}`,
-      title: 'TypeError: undefined is not an object',
-      body: 'evaluating (state.orders.map) at DashboardView (app/dashboard/page.tsx:42). This is a simulated Sentry error to test the modal integration.',
-      desc: 'An unhandled exception was caught by the boundary',
-      channel: 'SENTRY_ERROR',
-      sentAt: 'Just now'
-    }, ...feed]);
-  };
-
   return (
     <>
       <motion.div
@@ -646,14 +635,6 @@ export function RecentActivityAlertsFeed({ notifications = [] }: { notifications
             <h3 className="text-sm font-bold text-foreground tracking-tight">Recent Activity & Operational Alerts</h3>
           </div>
           <div className="flex items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={simulateSentryError}
-              className="rounded-full bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold text-purple-400 hover:bg-purple-500/20 transition-colors"
-            >
-              Test Sentry Alert
-            </motion.button>
             <span className="rounded-full bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 text-[10px] font-bold text-rose-400">
               Live Feed
             </span>

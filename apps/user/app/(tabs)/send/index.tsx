@@ -255,6 +255,7 @@ export default function SendOrderEntryScreen() {
   // ── delivery mode tab ────────────────────────────────────────────────────
   const [mode, setMode] = useState<DeliveryMode>('INTRASTATE');
   const [selectedVehicle, setSelectedVehicle] = useState<'BIKE' | 'TRICYCLE'>('BIKE');
+  const [sheetCollapsed, setSheetCollapsed] = useState(false);
 
   // ── interstate hub selection ─────────────────────────────────────────────
   const [originHub, setOriginHub] = useState<Hub | null>(null);
@@ -464,20 +465,10 @@ export default function SendOrderEntryScreen() {
     }
 
     if (!address) {
-      // Geographic region match fallback for Nigerian cities
-      const lat = point.latitude;
-      const lng = point.longitude;
-      if (lat >= 11.8 && lat <= 12.1 && lng >= 8.4 && lng <= 8.7) {
-        address = 'Zoo Road, Kano, Kano State';
-      } else if (lat >= 10.1 && lat <= 10.4 && lng >= 11.0 && lng <= 11.3) {
-        address = 'Central Market, Gombe, Gombe State';
-      } else if (lat >= 8.9 && lat <= 9.2 && lng >= 7.3 && lng <= 7.6) {
-        address = 'Central Business District, Abuja, FCT';
-      } else if (lat >= 6.3 && lat <= 6.6 && lng >= 3.2 && lng <= 3.6) {
-        address = 'Victoria Island, Lagos, Lagos State';
-      } else {
-        address = 'Zoo Road, Kano, Kano State';
-      }
+      // No geocoder available — fall back to an honest coordinate label
+      const lat = point.latitude.toFixed(5);
+      const lng = point.longitude.toFixed(5);
+      address = `Dropped pin (${lat}, ${lng})`;
     }
 
     if (mapPickerTarget === 'pickup') {
@@ -717,6 +708,7 @@ export default function SendOrderEntryScreen() {
         try {
           const res = await quoteQuery.mutateAsync({
             size: 'SMALL',
+            vehicleType: selectedVehicle,
             pickupAddress: pickupAddress.trim(),
             deliveryAddress: deliveryAddress.trim(),
             pickupLat: pickupPoint?.latitude,
@@ -735,7 +727,7 @@ export default function SendOrderEntryScreen() {
     } else {
       setQuoteData(null);
     }
-  }, [pickupAddress, deliveryAddress, pickupPoint, deliveryPoint, mode]);
+  }, [pickupAddress, deliveryAddress, pickupPoint, deliveryPoint, mode, selectedVehicle]);
 
   // ── route preview (interstate) ──
   const routePreview =
@@ -1019,7 +1011,12 @@ export default function SendOrderEntryScreen() {
             },
           ]}
         >
-          <View style={styles.sheetHandle} />
+          <Pressable onPress={() => setSheetCollapsed((v) => !v)} hitSlop={16}>
+            <View style={[styles.sheetHandle, sheetCollapsed && { backgroundColor: palette.primary }]} />
+          </Pressable>
+
+          {!sheetCollapsed && (
+          <>
 
           {errorMsg && <ErrorBanner message={errorMsg} />}
 
@@ -1045,19 +1042,17 @@ export default function SendOrderEntryScreen() {
                         id: 'BIKE' as const,
                         title: 'Bike',
                         subtitle: mapDurationMin ? `${Math.round(mapDurationMin)} mins` : 'Motorcycle',
-                        multiplier: 1.0,
                         badge: 'Fastest',
                       },
                       {
                         id: 'TRICYCLE' as const,
                         title: 'Keke Napep',
                         subtitle: 'Neighborhood load',
-                        multiplier: 1.25,
                         badge: 'Popular',
                       },
                     ].map((v) => {
                       const isSelected = selectedVehicle === v.id;
-                      const price = formatMoney(quoteData.totalPrice * v.multiplier);
+                      const price = formatMoney(quoteData.totalPrice);
                       return (
                         <Pressable
                           key={v.id}
@@ -1212,6 +1207,19 @@ export default function SendOrderEntryScreen() {
               {canContinue ? 'Continue' : 'Complete details to continue'}
             </Text>
           </Pressable>
+          </>
+          )}
+
+          {sheetCollapsed && (
+            <Pressable
+              onPress={() => setSheetCollapsed(false)}
+              style={{ alignItems: 'center', paddingVertical: Spacing.xs }}
+            >
+              <Text style={{ fontSize: Typography.sm, fontFamily: Typography.family.bold, color: palette.primary }}>
+                Show delivery details & fare
+              </Text>
+            </Pressable>
+          )}
         </Animated.View>
       )}
 

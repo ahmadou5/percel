@@ -56,8 +56,8 @@ export function PayoutModal({ visible, onClose, availableBalance, onSuccess }: P
         accountNumber: accountNumber.trim(),
       });
       modal.show({
-        title: 'Payout Initiated',
-        description: `${formatNaira(numericAmount)} is on its way to your bank account.`,
+        title: 'Payout Requested',
+        description: `${formatNaira(numericAmount)} is on hold and will be transferred to your bank account once approved.`,
         type: 'success',
         primaryText: 'OK',
         onPrimaryPress: () => {
@@ -67,16 +67,16 @@ export function PayoutModal({ visible, onClose, availableBalance, onSuccess }: P
         },
       });
     } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Your payout request could not be submitted. Please try again.';
       modal.show({
-        title: 'Payout Request',
-        description: 'Your payout request has been queued for processing.',
-        type: 'info',
+        title: 'Payout Request Failed',
+        description: message,
+        type: 'error',
         primaryText: 'OK',
-        onPrimaryPress: () => {
-          modal.hide();
-          onSuccess?.();
-          onClose();
-        },
+        onPrimaryPress: () => modal.hide(),
       });
     } finally {
       setLoading(false);

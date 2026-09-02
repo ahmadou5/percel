@@ -147,12 +147,7 @@ export default function PublicTrackScreen() {
 
   const packagePhotos = order.items
     ?.filter((i) => Boolean(i.imageUrl))
-    .map((i) => ({ url: i.imageUrl!, desc: i.description })) ?? [
-    {
-      url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80',
-      desc: 'Package item photo',
-    },
-  ];
+    .map((i) => ({ url: i.imageUrl!, desc: i.description })) ?? [];
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.bg }]}>
@@ -228,22 +223,33 @@ export default function PublicTrackScreen() {
         <View style={[styles.sectionCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <View style={styles.photoHeaderRow}>
             <Text style={[styles.sectionTitle, { color: palette.textSecondary }]}>Package Photo(s)</Text>
-            <Text style={{ fontSize: 11, fontFamily: Typography.family.medium, color: palette.primary }}>Tap to view</Text>
+            {packagePhotos.length > 0 && (
+              <Text style={{ fontSize: 11, fontFamily: Typography.family.medium, color: palette.primary }}>Tap to view</Text>
+            )}
           </View>
-          <View style={styles.photoGrid}>
-            {packagePhotos.map((photo, idx) => (
-              <Pressable
-                key={idx}
-                onPress={() => setPreviewPhoto(photo)}
-                style={({ pressed }) => [styles.photoThumbCard, { borderColor: palette.border }, pressed && { opacity: 0.8 }]}
-              >
-                <Image source={{ uri: photo.url }} style={styles.photoImg} />
-                <View style={styles.expandOverlay}>
-                  <Maximize2 size={14} color="#FFF" />
-                </View>
-              </Pressable>
-            ))}
-          </View>
+          {packagePhotos.length === 0 ? (
+            <View style={{ paddingVertical: 18, alignItems: 'center', gap: 6 }}>
+              <Package size={22} color={palette.textSecondary} />
+              <Text style={{ fontSize: Typography.sm, fontFamily: Typography.family.regular, color: palette.textSecondary }}>
+                No package photos were attached to this waybill.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.photoGrid}>
+              {packagePhotos.map((photo, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => setPreviewPhoto(photo)}
+                  style={({ pressed }) => [styles.photoThumbCard, { borderColor: palette.border }, pressed && { opacity: 0.8 }]}
+                >
+                  <Image source={{ uri: photo.url }} style={styles.photoImg} />
+                  <View style={styles.expandOverlay}>
+                    <Maximize2 size={14} color="#FFF" />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Driver Profile */}

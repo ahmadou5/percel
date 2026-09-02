@@ -212,7 +212,3 @@ export function useDriverLocation() {
     };
   }, [isAuthenticated, isOnline]);
 }
-
-export async function simulateLocation(lat: number, lng: number) {
-  await pushLocation(lat, lng);
-}

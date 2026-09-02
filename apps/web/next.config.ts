@@ -2,9 +2,6 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     remotePatterns: [
       {
@@ -12,11 +9,6 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
-  },
-  webpack: (config, { isServer }) => {
-    // Avoid webpack minify-plugin version conflict in pnpm monorepo
-    config.optimization.minimize = false;
-    return config;
   },
 };
 

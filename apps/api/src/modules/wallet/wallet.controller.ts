@@ -116,6 +116,19 @@ export class WalletController {
     return success(data, 'Transfer PIN removed');
   };
 
+  forgotPinRequest = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const data = await this.service.requestForgotPinOtp(userId);
+    return success(data, 'Reset code sent to your phone');
+  };
+
+  forgotPinConfirm = async (request: FastifyRequest) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const { otp } = request.body as { otp: string };
+    const data = await this.service.confirmForgotPin(userId, otp);
+    return success(data, 'Transfer PIN cleared. You can now set a new one.');
+  };
+
   verifyTransferPin = async (request: FastifyRequest) => {
     const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
     const { pin } = request.body as { pin: string };
@@ -179,7 +192,9 @@ export class WalletController {
   webhook = async (request: FastifyRequest, reply: FastifyReply) => {
     const signature = request.headers['x-paystack-signature'];
     const sig = Array.isArray(signature) ? signature[0] : signature;
-    await this.service.handlePaystackWebhook(request.body as Record<string, unknown>, sig);
+    const raw = (request as FastifyRequest & { rawBody?: Buffer }).rawBody;
+    const rawBody = raw ? raw.toString('utf8') : JSON.stringify(request.body ?? {});
+    await this.service.handlePaystackWebhook(request.body as Record<string, unknown>, sig, rawBody);
     return reply.status(200).send({ ok: true });
   };
 

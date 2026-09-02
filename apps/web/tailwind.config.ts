@@ -54,8 +54,8 @@ const config: Config = {
       },
       boxShadow: {
         glow: '0 0 0 1px hsl(var(--border)), 0 24px 60px rgba(2, 8, 23, 0.45)',
-        'glow-primary': '0 0 35px -5px rgba(99, 102, 241, 0.4)',
-        'glow-accent': '0 0 35px -5px rgba(6, 182, 212, 0.4)',
+        'glow-primary': '0 0 35px -5px rgba(91, 140, 255, 0.35)',
+        'glow-accent': '0 0 35px -5px rgba(240, 179, 90, 0.3)',
       },
       backgroundImage: {
         'brand-grid': 'radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.15) 1px, transparent 0)',

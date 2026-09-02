@@ -31,6 +31,7 @@ export default function PackageDetailsScreen() {
     // Intrastate passthrough
     pickupAddress?: string;
     deliveryAddress?: string;
+    vehicleType?: string;
   }>();
 
   const originHub = getHubById(params.originHubId);
@@ -277,6 +278,7 @@ export default function PackageDetailsScreen() {
               recipientName: params.recipientName ?? '',
               recipientPhone: params.recipientPhone ?? '',
               size,
+              vehicleType: params.vehicleType ?? 'BIKE',
               fragile: String(fragile),
               notes,
               items: JSON.stringify(

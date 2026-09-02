@@ -108,9 +108,8 @@ export function DriverDetailView({ initialDriver }: { initialDriver: AdminDriver
         if (found.value.toLowerCase().includes('verified')) status = 'VERIFIED';
         else if (found.value.toLowerCase().includes('missing')) status = 'MISSING';
         else if (found.value.toLowerCase().includes('rejected')) status = 'REJECTED';
-      } else if (initialDriver.kyc === 'APPROVED') {
-        // Mock default for demo
-        status = item.key === 'nin' || item.key === 'bvn' ? 'VERIFIED' : 'SUBMITTED';
+      } else {
+        status = 'MISSING';
       }
 
       return {
@@ -437,7 +436,7 @@ export function DriverDetailView({ initialDriver }: { initialDriver: AdminDriver
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl transition-all animate-bounce ${toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl transition-all ${toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
             }`}
         >
           {toastMessage.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}

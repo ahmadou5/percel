@@ -56,7 +56,7 @@ export default function DataScreen() {
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [biometricToast, setBiometricToast] = useState("");
   const [dataContactsModalOpen, setDataContactsModalOpen] = useState(false);
-  const { beneficiaries, removeBeneficiary } = useBeneficiaryStore();
+  const { beneficiaries, addBeneficiary, removeBeneficiary } = useBeneficiaryStore();
   // Reuse AIRTIME type — these are phone-based contacts shared with airtime screen
   const dataContacts = beneficiaries.filter((b) => b.type === 'AIRTIME');
   const { translateX } = useSlideStepTransition(step);
@@ -234,6 +234,8 @@ export default function DataScreen() {
       variationCode: selectedVariation.variation_code,
       serviceID: selectedService.serviceID,
     });
+
+    addBeneficiary({ name: normalizedPhone, phone: normalizedPhone, type: 'AIRTIME' });
 
     setResultModal({
       visible: true,

@@ -38,7 +38,7 @@ import { BankPickerModal, BankLogo } from '@/components/wallet/BankPickerModal';
 import { AppModal, useAppModal } from '@/components/ui/AppModal';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useDriverProfile as useProfile, useVerifyDriverBvn as useVerifyBvn, useVerifyDriverNin as useVerifyNin } from '@/hooks/useDriverProfile';
+import { useDriverProfile as useProfile, useVerifyDriverBvn as useVerifyBvn } from '@/hooks/useDriverProfile';
 import { useBanks, useWallet } from '@/hooks/useWallet';
 import { useAppPalette } from '@/lib/theme';
 import { DobDatePickerModal } from '@/components/ui/DobDatePickerModal';
@@ -87,7 +87,6 @@ export default function KycScreen() {
   const walletQuery = useWallet();
 
   const verifyBvn = useVerifyBvn();
-  const verifyNin = useVerifyNin();
 
   const banksQuery = useBanks();
 
@@ -108,8 +107,6 @@ export default function KycScreen() {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [consent, setConsent] = useState(true);
   const [submitted, setSubmitted] = useState(false);
-  const [nin, setNin] = useState('');
-  const [ninSubmitting, setNinSubmitting] = useState(false);
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
 
   const { opacity, translateX } = useSlideStepTransition(step);
@@ -270,28 +267,6 @@ export default function KycScreen() {
     const tierLimit = isTier3 ? '₦5,000,000' : (isTier2 ? '₦200,000' : '₦50,000');
     const tierColor = isTier3 ? palette.success : (isTier2 ? palette.primary : palette.textSecondary);
 
-    const handleNinSubmit = async () => {
-      if (!/^\d{11}$/.test(nin.trim())) {
-        modal.alert('Invalid NIN', 'Please enter your valid 11-digit National Identification Number.', 'warning');
-        return;
-      }
-      setNinSubmitting(true);
-      try {
-        await verifyNin.mutateAsync({ nin: nin.trim() });
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
-          queryClient.invalidateQueries({ queryKey: ['wallet'] }),
-        ]);
-        setUpgradeModalVisible(false);
-        modal.alert('NIN Verified!', 'Your limit has been upgraded to ₦5,000,000 daily. Welcome to Tier 3!', 'success');
-        setNin('');
-      } catch (error) {
-        modal.alert('NIN Verification Failed', error instanceof Error ? error.message : 'Please check your NIN and try again.', 'error');
-      } finally {
-        setNinSubmitting(false);
-      }
-    };
-
     return (
       <ScrollView
         style={[styles.screen, { backgroundColor: palette.bg }]}
@@ -376,9 +351,9 @@ export default function KycScreen() {
                     <Zap size={22} color={palette.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.upgradeTitle, { color: palette.text }]}>Unlock Tier 3 — ₦5,000,000</Text>
+                    <Text style={[styles.upgradeTitle, { color: palette.text }]}>Tier 3 upgrade</Text>
                     <Text style={[styles.upgradeSub, { color: palette.textSecondary }]}>
-                      Add your NIN to double-verify your identity and unlock maximum daily transfer limits.
+                      Maximum daily transfer limits via NIN verification.
                     </Text>
                   </View>
                   <Pressable
@@ -389,31 +364,18 @@ export default function KycScreen() {
                   </Pressable>
                 </View>
 
-                <Input
-                  label="National ID Number (NIN)"
-                  value={nin}
-                  onChangeText={setNin}
-                  placeholder="11-digit NIN"
-                  keyboardType="number-pad"
-                  maxLength={11}
-                  helperText="Your NIN is 11 digits found on your National ID card or slip."
-                />
-
-                <Pressable
-                  onPress={() => void handleNinSubmit()}
-                  disabled={ninSubmitting || nin.trim().length !== 11}
-                  style={({ pressed }) => [
+                <View
+                  style={[
                     styles.primaryAction,
-                    {
-                      width: '100%',
-                      backgroundColor: nin.trim().length === 11 ? palette.primary : palette.border,
-                      marginTop: 4,
-                    },
-                    pressed && { opacity: 0.85 },
+                    { width: '100%', backgroundColor: palette.bg, borderColor: palette.border, borderWidth: 1, alignItems: 'center', paddingVertical: 18 },
                   ]}
                 >
-                  <Text style={styles.primaryActionText}>{ninSubmitting ? 'Verifying…' : 'Verify NIN & Upgrade'}</Text>
-                </Pressable>
+                  <Text style={[styles.upgradeTitle, { fontSize: 16, color: palette.text }]}>Coming soon</Text>
+                  <Text style={{ fontSize: 12, color: palette.textSecondary, textAlign: 'center', marginTop: 6, paddingHorizontal: 12, lineHeight: 18 }}>
+                    NIN verification is being connected to a new verification provider. Your BVN already unlocks
+                    everything you need to drive and earn — we&apos;ll notify you the moment Tier 3 upgrades open.
+                  </Text>
+                </View>
 
                 <Pressable
                   onPress={() => setUpgradeModalVisible(false)}

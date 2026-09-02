@@ -475,7 +475,7 @@ export function WalletDashboardTable({
                     <tr
                       key={tx.id}
                       className={`transition-colors hover:bg-muted/30 ${
-                        tx.isAnomalous ? 'bg-amber-500/[0.04] border-l-4 border-l-amber-500' : ''
+                        tx.isAnomalous ? 'bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/30' : ''
                       }`}
                     >
                       {/* Reference */}

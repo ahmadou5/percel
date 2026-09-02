@@ -154,7 +154,7 @@ export default function AuthLockScreen() {
         <Pressable onPress={() => void logout.mutateAsync().then(() => router.replace('/(auth)/welcome'))} style={styles.topAction}>
           <Text style={[styles.logOutText, { color: palette.error }]}>Log out</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/settings/support')} style={[styles.helpPill, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+        <Pressable onPress={() => router.push('/support')} style={[styles.helpPill, { backgroundColor: palette.card, borderColor: palette.border }]}>
           <Text style={[styles.helpText, { color: palette.text }]}>Help</Text>
         </Pressable>
       </View>

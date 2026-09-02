@@ -95,6 +95,8 @@ export type AdminOrder = {
   recipientName?: string;
   recipientPhone?: string;
   cancellationReason?: string;
+  proofImageUrl?: string | null;
+  proofUploadedAt?: string | null;
 };
 
 export type NotificationRecipientLog = {

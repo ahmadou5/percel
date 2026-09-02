@@ -1,7 +1,16 @@
 import type { FastifyRequest } from 'fastify';
 
-import { success } from '../../utils/response.js';
+import { error, success } from '../../utils/response.js';
 import type { OrderService } from './order.service.js';
+
+type MultipartPart =
+  | { type: 'field'; fieldname: string; value: unknown }
+  | { type: 'file'; fieldname: string; toBuffer: () => Promise<Buffer> };
+
+type MultipartRequest = {
+  parts: () => AsyncIterable<MultipartPart>;
+  isMultipart?: () => boolean;
+};
 
 export class OrderController {
   constructor(private readonly service: OrderService) {}
@@ -108,8 +117,41 @@ export class OrderController {
   updateOrderStatus = async (request: FastifyRequest) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
     const { id } = request.params as { id: string };
-    const { status, lat, lng } = request.body as { status: 'IN_TRANSIT' | 'DELIVERED'; lat?: number; lng?: number };
-    return success(await this.service.updateOrderStatus(driverId, id, status, lat, lng), 'Order status updated');
+
+    let status: 'IN_TRANSIT' | 'DELIVERED' | undefined;
+    let lat: number | undefined;
+    let lng: number | undefined;
+    let proofBuffer: Buffer | undefined;
+    let proofOtp: string | undefined;
+
+    if ((request as unknown as MultipartRequest).isMultipart?.()) {
+      for await (const part of (request as unknown as MultipartRequest).parts()) {
+        if (part.type === 'field') {
+          if (part.fieldname === 'status') status = String(part.value) as 'IN_TRANSIT' | 'DELIVERED';
+          else if (part.fieldname === 'lat') lat = Number(part.value) || undefined;
+          else if (part.fieldname === 'lng') lng = Number(part.value) || undefined;
+          else if (part.fieldname === 'otp') proofOtp = String(part.value);
+        }
+        if (part.type === 'file' && part.fieldname === 'photo') {
+          proofBuffer = await part.toBuffer();
+        }
+      }
+    } else {
+      const body = request.body as { status: 'IN_TRANSIT' | 'DELIVERED'; lat?: number; lng?: number; otp?: string };
+      status = body.status;
+      lat = body.lat;
+      lng = body.lng;
+      proofOtp = body.otp;
+    }
+
+    if (!status) {
+      return error('Status is required', 'VALIDATION_ERROR', [{ message: 'Status is required' }]);
+    }
+
+    return success(
+      await this.service.updateOrderStatus(driverId, id, status, lat, lng, proofBuffer ? { buffer: proofBuffer, otp: proofOtp } : undefined),
+      'Order status updated',
+    );
   };
 
   getDriverOrdersHistory = async (request: FastifyRequest) => {

@@ -23,6 +23,7 @@ export default function PickupDetailsScreen() {
     pickupAddress?: string;
     deliveryAddress?: string;
     size?: string;
+    vehicleType?: string;
   }>();
 
   const isIntrastate = Boolean(params.pickupAddress && params.deliveryAddress && !params.originHubId);
@@ -70,6 +71,7 @@ export default function PickupDetailsScreen() {
           pickupAddress: params.pickupAddress ?? '',
           deliveryAddress: params.deliveryAddress ?? '',
           size: params.size ?? 'SMALL',
+          vehicleType: params.vehicleType ?? 'BIKE',
           contactName: finalContactName,
           contactPhone: finalContactPhone,
           pickupNote: finalPickupNote,

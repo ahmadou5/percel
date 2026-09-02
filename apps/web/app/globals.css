@@ -12,13 +12,13 @@
   --card-foreground: 210 40% 98%;
   --popover: 222 30% 9%;
   --popover-foreground: 210 40% 98%;
-  --primary: 239 84% 65%;         /* Dynamic Accent */
+  --primary: 222 100% 68%;        /* Cobalt #5B8CFF */
   --primary-foreground: 0 0% 100%;
   --secondary: 222 24% 14%;       /* Elevated Surface #0D1728 */
   --secondary-foreground: 210 40% 98%;
   --muted: 222 24% 13%;
   --muted-foreground: 215 20% 65%;/* #8FA2C7 */
-  --accent: 187 92% 43%;          /* Cyan Accent #06B6D4 */
+  --accent: 36 84% 65%;           /* Amber #F0B35A */
   --accent-foreground: 0 0% 100%;
   --destructive: 350 89% 60%;     /* #FB7185 */
   --destructive-foreground: 0 0% 100%;

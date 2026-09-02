@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
+import { requestDriverPayout } from '../wallet/payout.service.js';
 import { DriverService } from './driver.service.js';
 import { DriverReviewsQuery, UpdateVehicleBody } from './driver.schema.js';
 import type { DriverKycDocumentType } from './driver.types.js';
@@ -93,6 +94,19 @@ const driverRoutes: FastifyPluginAsync = async (app) => {
   app.post('/driver/kyc/submit', { preHandler: [app.authenticateDriver] }, async (request) => {
     const driverId = String((request.user as { driverId?: string } | null)?.driverId ?? '');
     return success(await service.submitKYC(driverId), 'KYC submitted');
+  });
+
+  app.post('/driver/payout', { preHandler: [app.authenticateDriver] }, async (request) => {
+    const userId = String((request.user as { sub?: string } | null)?.sub ?? '');
+    const body = request.body as { amount: number; bankName?: string; bankCode?: string; accountNumber?: string; accountName?: string };
+    const payout = await requestDriverPayout(app, userId, {
+      amount: Number(body.amount),
+      bankName: body.bankName,
+      bankCode: body.bankCode,
+      accountNumber: body.accountNumber,
+      accountName: body.accountName,
+    });
+    return success(payout, 'Payout request submitted. Funds are on hold pending admin approval.');
   });
 
   app.get('/driver/:id/reviews', { schema: { querystring: DriverReviewsQuery } }, async (request) => {

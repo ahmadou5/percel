@@ -1,14 +1,18 @@
-import { OrderStatus, VehicleType } from '@prisma/client';
+import { OrderStatus, PaymentStatus, VehicleType } from '@prisma/client';
 import { Worker } from 'bullmq';
 import { Sentry } from '../lib/sentry.js';
 import type { FastifyInstance } from 'fastify';
 
+import { WalletService } from '../modules/wallet/wallet.service.js';
 import { addNotificationJob } from './index.js';
 import { broadcastNewOrder, broadcastOrderStatusUpdate, type RealtimeApp } from '../lib/realtime.js';
 import { haversineDistanceKm } from '../utils/helpers.js';
 import { ORDER_MATCHING_QUEUE, type OrderMatchingJob } from './orderMatching.queue.js';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Candidate drivers must be within this radius of pickup (km). Configurable via env; 0 disables.
+const ORDER_RADIUS_KM = Number(process.env.ORDER_MATCH_RADIUS_KM ?? 20) || 0;
 
 export function createOrderMatchingWorker(app: FastifyInstance) {
   return new Worker<OrderMatchingJob>(
@@ -60,7 +64,7 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
               score: rating * 0.6 + completionRate * 0.4 - distanceKm * 0.1,
             };
           })
-          // .filter((c) => c.distanceKm <= 20) // Removed for testing
+          .filter((c) => c.distanceKm <= ORDER_RADIUS_KM)
           .sort((a, b) => b.score - a.score)
           .slice(0, 3);
       };
@@ -86,18 +90,42 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
         candidates = await findCandidates();
       }
 
-      // If still no candidates after the wait window, cancel the order
-      if (candidates.length === 0) {
+      // ─────────────────────────────────────────────────────────────────────
+      // Refund the prepaid fare and notify when an order is auto-cancelled.
+      // The customer was debited at creation — cancellation must never keep funds.
+      // ─────────────────────────────────────────────────────────────────────
+      const refundAndCancel = async (reason: string) => {
         await app.prisma.order.update({
           where: { id: orderId },
-          data: { status: OrderStatus.CANCELLED, cancelReason: 'No driver available in your area' },
+          data: { status: OrderStatus.CANCELLED, cancelReason: reason, paymentStatus: PaymentStatus.REFUNDED },
         });
+
+        if (order.paymentStatus === 'PAID' && Number(order.price ?? 0) > 0) {
+          try {
+            const walletService = new WalletService(app.prisma, app.log, app);
+            await walletService.refundOrderPayment(order.userId, orderId, Number(order.price), reason, app.prisma);
+          } catch (err) {
+            Sentry.captureException(err);
+            app.log.error({ orderId, err }, 'order.matching.auto_cancel.refund_failed');
+          }
+        }
+
         broadcastOrderStatusUpdate(app as RealtimeApp, {
           orderId,
           status: OrderStatus.CANCELLED,
-          message: 'No driver available in your area',
+          message: reason,
           userId: order.userId,
         });
+        await addNotificationJob(app, order.userId, 'ORDER_CANCELLED', {
+          orderId,
+          trackingCode: order.trackingCode,
+          reason,
+        });
+      };
+
+      // If still no candidates after the wait window, cancel the order
+      if (candidates.length === 0) {
+        await refundAndCancel('No driver available in your area');
         return;
       }
 
@@ -209,16 +237,7 @@ export function createOrderMatchingWorker(app: FastifyInstance) {
       }
 
       // All candidates exhausted without any acceptance — cancel the order
-      await app.prisma.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.CANCELLED, cancelReason: 'No driver accepted the order' },
-      });
-      broadcastOrderStatusUpdate(app as RealtimeApp, {
-        orderId,
-        status: OrderStatus.CANCELLED,
-        message: 'No driver accepted the order',
-        userId: order.userId,
-      });
+      await refundAndCancel('No driver accepted the order');
     },
     { connection: app.redis as never, autorun: true, concurrency: 5 },
   )

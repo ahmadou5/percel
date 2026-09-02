@@ -105,6 +105,7 @@ enum WalletTransactionCategory {
   COMMISSION
   REFUND
   REFERRAL_BONUS
+  PAYOUT
 }
 
 enum ReferralStatus {
@@ -124,6 +125,38 @@ enum NotificationType {
 enum DriverEarningStatus {
   PENDING
   SETTLED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  REJECTED
+  FAILED
+}
+
+model Payout {
+  id                  String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  driverId            String           @db.Uuid
+  walletTransactionId String           @unique @db.Uuid
+  amount              Decimal          @db.Decimal(14, 2)
+  status              PayoutStatus     @default(PENDING)
+  bankName            String?
+  bankCode            String?
+  accountNumber       String?
+  accountName         String?
+  provider            PaymentProvider?
+  providerReference   String?          @unique
+  failureReason       String?
+  rejectionReason     String?
+  processedAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  driver            Driver            @relation(fields: [driverId], references: [id])
+  walletTransaction WalletTransaction @relation(fields: [walletTransactionId], references: [id])
+
+  @@index([driverId])
+  @@index([status])
 }
 
 enum PaymentProvider {
@@ -210,6 +243,7 @@ model Driver {
   orders   Order[]
   earnings DriverEarning[]
   ratings  OrderRating[]
+  payouts  Payout[]
 
   @@index([isOnline])
   @@index([status])
@@ -283,6 +317,9 @@ model Order {
   pickedUpAt           DateTime?
   deliveredAt          DateTime?
   completedAt          DateTime?
+  proofImageUrl        String?
+  proofOtp             String?
+  proofUploadedAt      DateTime?
   cancelReason         String?
   disputeReason        String?
   paymentReference     String?
@@ -371,6 +408,7 @@ model WalletTransaction {
 
   wallet Wallet @relation(fields: [walletId], references: [id])
   order  Order? @relation(fields: [orderId], references: [id])
+  payout Payout?
 
   @@index([walletId])
   @@index([status])

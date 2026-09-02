@@ -12,6 +12,9 @@ import { getPriceQuote } from '../../lib/pricing.js';
 import { addOrderMatchingJob } from '../../queues/index.js';
 import { haversineDistanceKm } from '../../utils/helpers.js';
 import { cleanText } from '../../utils/sanitize.js';
+
+// Available-orders radius for drivers (km). Configurable via env; 0 disables the cap.
+const ORDER_RADIUS_KM = Number(process.env.ORDER_MATCH_RADIUS_KM ?? 20) || 0;
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
 import { AppError, ForbiddenError, NotFoundError, PaymentError, ValidationError } from '../../utils/errors.js';
 import type { WalletService } from '../wallet/wallet.service.js';
@@ -57,6 +60,8 @@ type OrderLike = {
   deliveryLat?: Prisma.Decimal | number | null;
   deliveryLng?: Prisma.Decimal | number | null;
   etaMinutes?: number | null;
+  proofImageUrl?: string | null;
+  proofUploadedAt?: Date | null;
   driver?: {
     id: string;
     userId: string;
@@ -109,6 +114,8 @@ function serializeOrder(order: OrderLike): OrderSummary {
     notes: order.notes ?? null,
     recipientName: order.recipientName ?? null,
     recipientPhone: order.recipientPhone ?? null,
+    proofImageUrl: order.proofImageUrl ?? null,
+    proofUploadedAt: order.proofUploadedAt ? order.proofUploadedAt.toISOString() : null,
     items: order.items
       ? order.items.map((i) => ({
         id: i.id,
@@ -177,6 +184,7 @@ export class OrderService {
 
   async getQuote(payload: {
     size: OrderSize;
+    vehicleType?: string | null;
     originHubId?: string | null;
     destinationHubId?: string | null;
     routeId?: string | null;
@@ -235,7 +243,8 @@ export class OrderService {
       const durationMin = staticRouteContext?.durationMin ?? Math.max(estimatedDays * 12 * 60, 60);
 
       const routeId = dbRoute?.id ?? staticRouteContext?.route.id ?? `${payload.originHubId}_${payload.destinationHubId}`;
-      const quoteKey = `cache:quote:${payload.size}:hub:${routeId}:${distanceKm.toFixed(1)}:${Math.round(durationMin)}:${onlineDrivers}`;
+      const vehicleKey = payload.vehicleType ?? 'DEFAULT';
+      const quoteKey = `cache:quote:${payload.size}:${vehicleKey}:hub:${routeId}:${distanceKm.toFixed(1)}:${Math.round(durationMin)}:${onlineDrivers}`;
       const cached = await getCachedJson<OrderQuote>(this.app.redis, quoteKey);
       if (cached) return cached;
 
@@ -245,7 +254,7 @@ export class OrderService {
         originModifier: originHubObj ? Number(originHubObj.basePricingModifier ?? 0) : 0,
         destModifier: destHubObj ? Number(destHubObj.basePricingModifier ?? 0) : 0,
       };
-      const quote = getPriceQuote(payload.size, distanceKm, durationMin, onlineDrivers, 'INTERSTATE', null, routeCtxForPricing);
+      const quote = getPriceQuote(payload.size, distanceKm, durationMin, onlineDrivers, 'INTERSTATE', null, routeCtxForPricing, payload.vehicleType);
       quote.deliveryType = 'INTERSTATE';
       await setCachedJson(this.app.redis, quoteKey, quote, 300);
       return quote;
@@ -298,7 +307,7 @@ export class OrderService {
       serviceArea = await this.findLocalServiceArea(pickup.city, pickup.state);
     }
 
-    const quoteKey = `cache:quote:${payload.size}:${route.distanceKm.toFixed(1)}:${Math.round(route.durationMin)}:${onlineDrivers}:${isIntrastate ? 'INTRASTATE' : 'INTERSTATE'}`;
+    const quoteKey = `cache:quote:${payload.size}:${payload.vehicleType ?? 'DEFAULT'}:${route.distanceKm.toFixed(1)}:${Math.round(route.durationMin)}:${onlineDrivers}:${isIntrastate ? 'INTRASTATE' : 'INTERSTATE'}`;
     const cached = await getCachedJson<OrderQuote>(this.app.redis, quoteKey);
     if (cached) return cached;
 
@@ -309,6 +318,8 @@ export class OrderService {
       onlineDrivers,
       isIntrastate ? 'INTRASTATE' : 'INTERSTATE',
       serviceArea,
+      null,
+      payload.vehicleType,
     );
     quote.deliveryType = isIntrastate ? 'INTRASTATE' : 'INTERSTATE';
 
@@ -318,6 +329,7 @@ export class OrderService {
 
   async createOrder(userId: string, data: {
     size: OrderSize;
+    vehicleType?: string | null;
     originHubId?: string | null;
     destinationHubId?: string | null;
     routeId?: string | null;
@@ -455,6 +467,7 @@ export class OrderService {
       isIntrastate ? 'INTRASTATE' : 'INTERSTATE',
       serviceArea,
       routePricingCtx,
+      data.vehicleType,
     );
 
     const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
@@ -672,7 +685,11 @@ export class OrderService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const cancelled = await tx.order.update({
         where: { id: order.id },
-        data: { status: OrderStatus.CANCELLED, cancelReason: cleanText(reason) ?? reason },
+        data: {
+          status: OrderStatus.CANCELLED,
+          cancelReason: cleanText(reason) ?? reason,
+          paymentStatus: PaymentStatus.REFUNDED,
+        },
       });
 
       await tx.orderStatusHistory.create({
@@ -814,7 +831,15 @@ export class OrderService {
 
     if (driver.currentLat == null || driver.currentLng == null) return [];
 
-    const offerKeys = await this.app.redis.keys('order:offer:*');
+    // SCAN instead of KEYS to avoid blocking Redis on large keyspaces
+    const offerKeys: string[] = [];
+    let scanCursor = '0';
+    do {
+      const [nextCursor, batch] = await this.app.redis.scan(scanCursor, 'MATCH', 'order:offer:*', 'COUNT', 500);
+      scanCursor = nextCursor;
+      offerKeys.push(...batch);
+    } while (scanCursor !== '0');
+
     const offerDriverIds = offerKeys.length ? await this.app.redis.mget(...offerKeys) : [];
     const offeredOrderIds = offerKeys
       .map((key, index) => (offerDriverIds[index] === driverId ? key.replace('order:offer:', '') : null))
@@ -847,7 +872,8 @@ export class OrderService {
           Number(order.pickupLng),
         ),
       }))
-      // .filter((item) => item.distanceKm <= 20) // Removed for testing so drivers can see all orders
+      .filter((item) => item.distanceKm <= ORDER_RADIUS_KM)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
       .map((item) => serializeOrder(item.order));
   }
 
@@ -924,7 +950,14 @@ export class OrderService {
     return { declined: true, orderId };
   }
 
-  async updateOrderStatus(driverId: string, orderId: string, status: 'IN_TRANSIT' | 'DELIVERED', lat?: number, lng?: number) {
+  async updateOrderStatus(
+    driverId: string,
+    orderId: string,
+    status: 'IN_TRANSIT' | 'DELIVERED',
+    lat?: number,
+    lng?: number,
+    proof?: { buffer: Buffer; otp?: string },
+  ) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, driverId } });
     if (!order) throw new NotFoundError('Order not found');
 
@@ -939,6 +972,25 @@ export class OrderService {
       throw new ValidationError(`Cannot update order status to ${status} from current status ${order.status}`);
     }
 
+    let proofImageUrl: string | undefined;
+    if (status === 'DELIVERED') {
+      if (!proof?.buffer && !order.proofImageUrl) {
+        throw new ValidationError('A delivery proof photo is required to mark this order as delivered');
+      }
+      if (proof?.buffer) {
+        try {
+          const uploaded = await uploadImageBuffer(proof.buffer, {
+            folder: 'percel/delivery-proof',
+            publicId: `proof_${orderId}`,
+          });
+          proofImageUrl = uploaded.secure_url;
+        } catch (err) {
+          this.logger.error({ orderId, err }, 'order.delivery_proof.upload_failed');
+          throw new ValidationError('Could not upload the delivery proof photo. Please try again.');
+        }
+      }
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await tx.order.update({
         where: { id: orderId },
@@ -946,6 +998,9 @@ export class OrderService {
           status,
           pickedUpAt: status === 'IN_TRANSIT' ? new Date() : order.pickedUpAt,
           deliveredAt: status === 'DELIVERED' ? new Date() : order.deliveredAt,
+          ...(proofImageUrl
+            ? { proofImageUrl, proofOtp: proof?.otp?.trim() || null, proofUploadedAt: new Date() }
+            : {}),
         },
         include: { driver: { include: { user: true } }, user: true },
       });

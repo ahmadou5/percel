@@ -65,7 +65,7 @@ export function OrderTimeline({ currentStatus, history, cancelReason }: OrderTim
               <div
                 className={`absolute -left-6 grid h-6 w-6 place-items-center rounded-full text-xs font-bold transition-all ${
                   isDone
-                    ? 'bg-emerald-500 text-slate-950 shadow-md ring-4 ring-emerald-500/20'
+                    ? 'bg-emerald-500 text-white shadow-md ring-4 ring-emerald-500/20'
                     : isCurrent
                     ? 'bg-primary text-white shadow-glow-primary ring-4 ring-primary/30 animate-pulse'
                     : 'bg-slate-800 text-muted-foreground border border-border/80'

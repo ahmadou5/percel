@@ -27,14 +27,11 @@ export function FinancialAnalyticsCard({
   const commVal = parseAmount(commissionEarned);
   const pendVal = parseAmount(pendingSettlement);
   const refVal = parseAmount(refundReserve);
-  const totalDerived = commVal + pendVal + refVal || 1;
-  const fareVal = totalDerived * 1.5;
-  
-  const grandTotal = fareVal + commVal + pendVal + refVal || 1;
+
+  const grandTotal = commVal + pendVal + refVal || 1;
 
   const incomeSources = [
-    { name: 'Customer Delivery Fares', amount: `₦${fareVal.toLocaleString()}`, percent: Math.round((fareVal / grandTotal) * 100), color: 'bg-primary' },
-    { name: 'Platform Commission (10%)', amount: commissionEarned, percent: Math.round((commVal / grandTotal) * 100), color: 'bg-emerald-400' },
+    { name: 'Platform Commission', amount: commissionEarned, percent: Math.round((commVal / grandTotal) * 100), color: 'bg-emerald-400' },
     { name: 'Driver Earnings Settlement', amount: pendingSettlement, percent: Math.round((pendVal / grandTotal) * 100), color: 'bg-amber-400' },
     { name: 'Refund & Dispute Reserve', amount: refundReserve, percent: Math.round((refVal / grandTotal) * 100), color: 'bg-sky-400' },
   ];

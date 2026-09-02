@@ -216,8 +216,24 @@ export async function initiateMonnifyTransfer(data: {
   }
 }
 
-export function verifyMonnifyWebhookSignature(payload: Record<string, unknown>, signature?: string) {
-  const secret = env.MONNIFY_WEBHOOK_SECRET || env.MONNIFY_SECRET_KEY;
+export async function getMonnifyTransferStatus(reference: string): Promise<'SUCCESS' | 'PENDING' | 'FAILED'> {
+  try {
+    const data = await unwrap<MonnifyTransferResponse & { status?: string }>(
+      monnify.get('/api/v2/disbursements/single/summary', {
+        headers: await authHeaders(),
+        params: { reference },
+      }),
+    );
+    const status = String(data.status ?? '').toUpperCase();
+    if (['SUCCESSFUL', 'SUCCESS', 'PAID', 'COMPLETED'].includes(status)) return 'SUCCESS';
+    if (['FAILED', 'REVERSED', 'REJECTED'].includes(status)) return 'FAILED';
+    return 'PENDING';
+  } catch {
+    return 'PENDING';
+  }
+}
+
+export function verifyMonnifyWebhookSignature(payload: Record<string, unknown>, signature?: string) {  const secret = env.MONNIFY_WEBHOOK_SECRET || env.MONNIFY_SECRET_KEY;
   const isSandbox = env.NODE_ENV !== 'production' || env.MONNIFY_BASE_URL.includes('sandbox');
 
   if (!secret || !signature) {

@@ -236,6 +236,24 @@ export function useResetTransferPin(options?: MutationOptions<WalletApiResponse<
   });
 }
 
+export function useForgotPinRequest() {
+  return useMutation({
+    mutationFn: async () =>
+      (await http.post<WalletApiResponse<{ sent: boolean; maskedPhone: string }>>('/api/v1/wallet/pin/forgot/request')).data,
+  });
+}
+
+export function useForgotPinConfirm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { otp: string }) =>
+      (await http.post<WalletApiResponse<{ updated: boolean }>>('/api/v1/wallet/pin/forgot/confirm', payload)).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    },
+  });
+}
+
 export function useVerifyTransferPin(options?: MutationOptions<WalletApiResponse<VerifyTransferPinResult>, { pin: string }>) {
   return useMutation({
     ...options,

@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, Zap, ChevronRight, Bell, Radar, SearchX } from 'lucide-react-native';
+import { MapPin, Zap, ChevronRight, Bell, Radar, SearchX, Navigation } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { hexToRgba, useAppPalette } from '@/lib/theme';
@@ -189,7 +189,9 @@ export default function DriverHomeScreen() {
   const user = useDriverStore((s) => s.user);
   const isOnline = useDriverStore((s) => s.isOnline);
   const currentOrder = useDriverStore((s) => s.currentOrder);
+  const setCurrentOrder = useDriverStore((s) => s.setCurrentOrder);
   const setOnlineStatus = useDriverStore((s) => s.setOnlineStatus);
+  const isAuthenticated = useDriverStore((s) => s.isAuthenticated);
 
   const walletQuery = useWallet();
   const availableOrdersQuery = useAvailableOrders();
@@ -202,6 +204,31 @@ export default function DriverHomeScreen() {
   const availableOrders = availableOrdersQuery.data ?? [];
   const activeOrders = activeOrdersQuery.data ?? [];
   const walletTransactions = wallet?.transactions ?? [];
+
+  // Reconcile the persisted current order against server truth after restart:
+  // drop stale entries, adopt live ones, and prompt to resume an in-progress delivery.
+  const [resumePrompt, setResumePrompt] = useState<{ orderId: string; trackingCode: string } | null>(null);
+  const promptedOrderIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeOrdersQuery.isSuccess) return;
+    if (!isAuthenticated) return;
+
+    const serverActive = activeOrders;
+    const liveMatch = currentOrder ? serverActive.find((o: DriverOrder) => o.id === currentOrder.id) : undefined;
+
+    if (currentOrder && !liveMatch) {
+      setCurrentOrder(serverActive[0] ?? null);
+      return;
+    }
+
+    const target = (liveMatch ?? serverActive[0]) as DriverOrder | undefined;
+    if (target && !promptedOrderIdRef.current) {
+      setCurrentOrder(target);
+      promptedOrderIdRef.current = target.id;
+      setResumePrompt({ orderId: target.id, trackingCode: target.trackingCode });
+    }
+  }, [activeOrdersQuery.isSuccess, activeOrders, currentOrder, isAuthenticated, setCurrentOrder]);
 
   const todayDateStr = new Date().toDateString();
   const todaysTx = walletTransactions.filter(
@@ -557,6 +584,26 @@ export default function DriverHomeScreen() {
           </View>
         </View>
 
+        {/* ── Resume delivery prompt (after restart/crash) ────────── */}
+        {resumePrompt ? (
+          <Pressable
+            onPress={() => {
+              setResumePrompt(null);
+              router.push({ pathname: '/(tabs)/orders/[id]', params: { id: resumePrompt.orderId } });
+            }}
+            style={[styles.resumeBanner, { backgroundColor: hexToRgba(palette.primary, 0.12), borderColor: palette.primary }]}
+          >
+            <Navigation size={18} color={palette.primary} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.resumeBannerTitle, { color: palette.text }]}>Delivery in progress</Text>
+              <Text style={[styles.resumeBannerSub, { color: palette.textSecondary }]}>
+                Tap to resume order {resumePrompt.trackingCode}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={palette.primary} />
+          </Pressable>
+        ) : null}
+
         {/* ── Active orders / dispatch entry ──────────────────────── */}
         <View ref={tourZone2Ref} style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>
@@ -784,6 +831,9 @@ const styles = StyleSheet.create({
 
   // empty state
   emptyStateCard: { borderRadius: 24, borderWidth: 1, padding: 32, alignItems: 'center', gap: 12, overflow: 'hidden' },
+  resumeBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1.5, paddingVertical: 14, paddingHorizontal: 16 },
+  resumeBannerTitle: { fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  resumeBannerSub: { fontSize: Typography.xs, fontFamily: Typography.family.regular },
   emptyStateIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center', marginBottom: 8, position: 'relative' },
   radarPing: { position: 'absolute', width: 100, height: 100, borderRadius: 50, borderWidth: 1, opacity: 0.2 },
   emptyStateTitle: { fontSize: 18, fontFamily: Typography.family.bold },

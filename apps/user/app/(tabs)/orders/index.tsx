@@ -67,13 +67,6 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
   const statusConfig = getStatusConfig(order.status);
 
   const uploadedImage = order.items?.find((i) => Boolean(i.imageUrl))?.imageUrl;
-  const fallbackImage = order.size === 'LARGE'
-    ? 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=200&q=80'
-    : order.size === 'MEDIUM'
-      ? 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=200&q=80'
-      : 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=200&q=80';
-
-  const packageImage = uploadedImage || fallbackImage;
 
   return (
     <Pressable
@@ -116,10 +109,16 @@ function OrderCard({ order, onPress }: { order: OrderItem; onPress: () => void }
           </View>
         </View>
 
-        <Image
-          source={{ uri: packageImage }}
-          style={[styles.packageCardThumb, { borderColor: palette.border }]}
-        />
+        {uploadedImage ? (
+          <Image
+            source={{ uri: uploadedImage }}
+            style={[styles.packageCardThumb, { borderColor: palette.border }]}
+          />
+        ) : (
+          <View style={[styles.packageCardThumb, styles.packageThumbPlaceholder, { borderColor: palette.border }]}>
+            <Package size={18} color={palette.textSecondary} />
+          </View>
+        )}
       </View>
 
       <View style={[styles.cardDivider, { backgroundColor: palette.border }]} />
@@ -282,6 +281,7 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
   cardMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   packageCardThumb: { width: 56, height: 56, borderRadius: 14, borderWidth: 1 },
+  packageThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   routeContainer: { flex: 1, flexDirection: 'row', gap: 12, paddingVertical: 4 },
   routeTimeline: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
   routeDotOuter: { width: 12, height: 12, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },

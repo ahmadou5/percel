@@ -34,6 +34,7 @@ export type OrderDraft = {
   recipientName?: string;
   recipientPhone?: string;
   size: OrderSize;
+  vehicleType?: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK';
   fragile: boolean;
   items: OrderItem[];
   notes: string;
@@ -62,6 +63,8 @@ export type OrderSummary = {
   etaMinutes?: number | null;
   createdAt: string;
   cancelReason?: string | null;
+  proofImageUrl?: string | null;
+  proofUploadedAt?: string | null;
   driver?: {
     id: string;
     userId: string;

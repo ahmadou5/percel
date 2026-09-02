@@ -78,7 +78,7 @@ export default function WalletCallbackScreen() {
 
   const handleFinish = () => {
     void haptics.tap();
-    router.replace("/wallet");
+    router.replace("/");
   };
 
   const handleRetry = () => {

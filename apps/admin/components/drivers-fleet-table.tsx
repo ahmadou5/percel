@@ -534,7 +534,7 @@ export function DriversFleetTable({ initialDrivers }: { initialDrivers: AdminDri
                   <tr
                     key={driver.id}
                     className={`transition-colors ${isPendingKyc
-                      ? 'bg-amber-500/10 border-l-4 border-l-amber-500 hover:bg-amber-500/15'
+                      ? 'bg-amber-500/10 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/15'
                       : 'hover:bg-muted/30'
                       }`}
                   >

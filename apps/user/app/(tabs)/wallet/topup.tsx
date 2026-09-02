@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ArrowLeft, Banknote, Copy, CreditCard, Landmark, PlusCircle } from "lucide-react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useState } from "react";
+import { ArrowLeft, Banknote, Copy, CreditCard, Landmark, PlusCircle, ShieldCheck } from "lucide-react-native";
 
 import { AppModal, useAppModal } from "@/components/ui/AppModal";
 import { StateCard } from "@/components/ui/StateCard";
@@ -8,10 +9,12 @@ import { FormSkeleton } from "@/components/ui/Skeleton";
 import { Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
 import { haptics } from "@/utils/haptics";
-import { useWallet } from "@/hooks/useWallet";
+import { useTopUp, useWallet } from "@/hooks/useWallet";
 import { useAuthStore } from "@/store/auth.store";
 import { useAppPalette } from "@/lib/theme";
 import { getBankLogoUrl } from "@percel/shared";
+
+const QUICK_AMOUNTS = [1000, 2000, 5000, 10000];
 
 export default function TopUpScreen() {
   const modal = useAppModal();
@@ -19,9 +22,29 @@ export default function TopUpScreen() {
   const palette = useAppPalette();
   const walletQuery = useWallet();
   const user = useAuthStore((state) => state.user);
+  const topUp = useTopUp();
+
+  const [cardAmount, setCardAmount] = useState("");
+  const numericAmount = Number(cardAmount.replace(/[^0-9.]/g, "")) || 0;
+  const canFundCard = numericAmount >= 100 && !topUp.isPending;
 
   const wallet = walletQuery.data;
   const kycReady = Boolean(wallet?.kycComplete);
+
+  const handleCardTopUp = async () => {
+    if (!canFundCard) return;
+    void haptics.heavy();
+    try {
+      const result = await topUp.mutateAsync({ amount: numericAmount });
+      if (result.authResult.type !== "success" && !result.authResult.url) {
+        modal.alert("Payment cancelled", "The Paystack checkout was closed before completion.", "info");
+        return;
+      }
+      router.replace({ pathname: "/wallet/callback", params: { reference: result.reference } });
+    } catch (err) {
+      modal.alert("Could not start payment", err instanceof Error ? err.message : "Please try again.", "error");
+    }
+  };
 
   const headerBack = () => {
     router.navigate('/');
@@ -49,8 +72,60 @@ export default function TopUpScreen() {
 
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: palette.primary }]}>Add funds</Text>
-        <Text style={[styles.title, { color: palette.text }]}>Bank Deposit</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Top Up Wallet</Text>
+      </View>
 
+      {/* ── Fund with card ── */}
+      <View style={[styles.cardFundCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <View style={styles.accountRow}>
+          <View style={[styles.accountIcon, { backgroundColor: "rgba(10,132,255,0.12)" }]}>
+            <CreditCard size={20} color={palette.primary} />
+          </View>
+          <View style={styles.accountCopy}>
+            <Text style={[styles.accountLabel, { color: palette.textSecondary }]}>Instant funding</Text>
+            <Text style={[styles.accountValue, { color: palette.text }]}>Pay with card</Text>
+          </View>
+          <ShieldCheck size={18} color={palette.success} />
+        </View>
+
+        <TextInput
+          value={cardAmount}
+          onChangeText={setCardAmount}
+          keyboardType="number-pad"
+          placeholder="Amount in naira (min ₦100)"
+          placeholderTextColor={palette.textSecondary}
+          style={[styles.amountInput, { backgroundColor: palette.bg, color: palette.text, borderColor: palette.border }]}
+        />
+
+        <View style={styles.quickRow}>
+          {QUICK_AMOUNTS.map((val) => (
+            <Pressable
+              key={val}
+              onPressIn={() => void haptics.tap()}
+              onPress={() => setCardAmount(String(val))}
+              style={[styles.quickChip, { backgroundColor: palette.bg, borderColor: palette.border }]}
+            >
+              <Text style={[styles.quickChipText, { color: palette.primary }]}>₦{val.toLocaleString()}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          onPress={() => void handleCardTopUp()}
+          disabled={!canFundCard}
+          style={({ pressed }) => [
+            styles.payButton,
+            { backgroundColor: canFundCard ? palette.primary : palette.border, opacity: pressed || topUp.isPending ? 0.85 : 1 },
+          ]}
+        >
+          <Text style={styles.payButtonText}>
+            {topUp.isPending ? "Opening Paystack…" : `Continue to Paystack${numericAmount > 0 ? ` · ₦${numericAmount.toLocaleString()}` : ""}`}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.headerCopy}>
+        <Text style={[styles.sectionHeading, { color: palette.textSecondary }]}>OR — BANK TRANSFER</Text>
       </View>
 
       <View style={[styles.depositHero, { backgroundColor: palette.primaryDark }]}>
@@ -176,6 +251,14 @@ const styles = StyleSheet.create({
   accountValue: { fontSize: Typography.md, fontFamily: Typography.family.bold },
   copyButton: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   divider: { height: StyleSheet.hairlineWidth, width: "100%" },
+  cardFundCard: { borderRadius: 28, borderWidth: 1, padding: Spacing.lg, gap: Spacing.md },
+  amountInput: { height: 52, borderRadius: 14, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: Typography.md, fontFamily: Typography.family.medium },
+  quickRow: { flexDirection: "row", gap: 8 },
+  quickChip: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: "center" },
+  quickChipText: { fontSize: Typography.xs, fontFamily: Typography.family.bold },
+  payButton: { minHeight: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  payButtonText: { color: "#fff", fontSize: Typography.sm, fontFamily: Typography.family.bold },
+  sectionHeading: { fontSize: Typography.xs, textTransform: "uppercase", letterSpacing: 1.2, fontFamily: Typography.family.bold },
   simButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 48, borderRadius: 16, marginTop: 8 },
   simButtonText: { color: "#fff", fontSize: Typography.sm, fontFamily: Typography.family.bold },
 });

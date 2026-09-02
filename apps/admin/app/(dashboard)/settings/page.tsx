@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PaymentProviderSettings } from '@/components/payment-provider-settings';
+import { IdentityProviderSettings } from '@/components/identity-provider-settings';
 import { ThemeCustomizer } from '@/components/theme-customizer';
 import { AdminProfileEditor } from '@/components/admin-profile-editor';
 import { MaintenanceModeControl } from '@/components/maintenance-mode-control';
@@ -46,6 +47,9 @@ export default function SettingsPage() {
 
       {/* Payment routing */}
       <PaymentProviderSettings />
+
+      {/* Identity verification routing */}
+      <IdentityProviderSettings />
 
       {/* Platform Operations / Maintenance Mode */}
       <Card className="p-6 space-y-6">

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { NotificationType as PrismaNotificationType, PaymentProvider, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
+import { DriverEarningStatus, NotificationType as PrismaNotificationType, PaymentProvider, Prisma, type PrismaClient, WalletTransactionCategory, WalletTransactionStatus, WalletTransactionType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 
@@ -10,10 +10,11 @@ import { verifyMonnifyWebhookSignature } from '../../lib/monnify.js';
 import { verifySquadWebhookSignature } from '../../lib/squad.js';
 import { PaymentProviderService } from '../payment/payment.service.js';
 import { emitToUser } from '../../lib/realtime.js';
-import { listServices, listVariations, payUtility, validateBillersCode } from '../../lib/vtpass.js';
+import { classifyVtpassResponse, listServices, listVariations, newVtpassRequestId, payUtility, validateBillersCode, type VtpassOutcome } from '../../lib/vtpass.js';
 import { addNotificationJob } from '../../queues/index.js';
 import { NotFoundError, PaymentError, UnauthorizedError, ValidationError } from '../../utils/errors.js';
 import { cleanText } from '../../utils/sanitize.js';
+import { sendSMS } from '../../utils/sms.js';
 
 const PLATFORM_WALLET_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -160,8 +161,8 @@ export class WalletService {
         data: {
           id: platformWalletId,
           userId: platformUserId,
-          balance: 9999999999.99,
-          ledgerBalance: 9999999999.99,
+          balance: 0,
+          ledgerBalance: 0,
         },
       });
     }
@@ -379,6 +380,66 @@ export class WalletService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { walletPinHash: null },
+    });
+
+    return { updated: true };
+  }
+
+  async requestForgotPinOtp(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneVerified: true, walletPinHash: true },
+    });
+    if (!user) throw new NotFoundError('User not found');
+    if (!user.walletPinHash) throw new ValidationError('No transfer PIN is set');
+    if (!user.phone || !user.phoneVerified) {
+      throw new ValidationError('A verified phone number is required to reset your transfer PIN. Contact support for help.');
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { phoneVerificationCode: otpCode, phoneVerificationExpiry: expiry },
+    });
+
+    void sendSMS({
+      to: user.phone,
+      message: `Your Percel password PIN reset code is: ${otpCode}. It expires in 15 minutes. Do not share this code.`,
+    }).catch((err) => {
+      this.logger.error({ userId, err: err?.message || err }, 'wallet.forgot_pin.sms_failed');
+    });
+
+    return { sent: true, maskedPhone: `••••${user.phone.slice(-4)}` };
+  }
+
+  async confirmForgotPin(userId: string, otp: string) {
+    const normalizedOtp = otp.trim();
+    if (!/^\d{6}$/.test(normalizedOtp)) throw new ValidationError('Enter the 6-digit code sent to your phone');
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phoneVerificationCode: true, phoneVerificationExpiry: true, walletPinHash: true },
+    });
+    if (!user) throw new NotFoundError('User not found');
+    if (!user.walletPinHash) throw new ValidationError('No transfer PIN is set');
+    if (!user.phoneVerificationCode || !user.phoneVerificationExpiry) {
+      throw new ValidationError('No reset code was requested. Start again.');
+    }
+    if (user.phoneVerificationExpiry < new Date()) {
+      throw new ValidationError('That code has expired. Request a new one.');
+    }
+    if (user.phoneVerificationCode !== normalizedOtp) {
+      throw new UnauthorizedError('Invalid reset code');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        walletPinHash: null,
+        phoneVerificationCode: null,
+        phoneVerificationExpiry: null,
+      },
     });
 
     return { updated: true };
@@ -684,13 +745,28 @@ export class WalletService {
     return { success: true, reference, amount, walletId: wallet.id };
   }
 
-  async handlePaystackWebhook(payload: Record<string, unknown>, signature?: string) {
+  async handlePaystackWebhook(payload: Record<string, unknown>, signature?: string, rawBody?: string) {
     const secret = env.PAYSTACK_SECRET_KEY;
-    if (secret && signature) {
-      const computed = crypto.createHmac('sha512', secret).update(JSON.stringify(payload)).digest('hex');
-      if (signature !== computed && process.env.NODE_ENV === 'production') {
-        this.logger.warn({ signature, computed }, 'Paystack webhook signature verification mismatch');
+    const computed = secret
+      ? crypto.createHmac('sha512', secret).update(rawBody ?? JSON.stringify(payload)).digest('hex')
+      : null;
+
+    const signatureValid = Boolean(secret && signature && computed && signature === computed);
+    if (!signatureValid) {
+      // Fail closed everywhere. An explicit non-production opt-in is required for unsigned local testing.
+      const devBypass =
+        env.NODE_ENV !== 'production' &&
+        process.env.ALLOW_UNSIGNED_WEBHOOKS === 'true';
+
+      if (!devBypass) {
+        this.logger.warn(
+          { hasSignature: Boolean(signature), hasSecret: Boolean(secret) },
+          'Paystack webhook rejected: signature verification failed',
+        );
+        throw new UnauthorizedError('Invalid Paystack webhook signature');
       }
+
+      this.logger.warn('Paystack webhook accepted WITHOUT signature verification (non-production bypass)');
     }
 
     const event = String(payload.event ?? '');
@@ -1078,7 +1154,7 @@ export class WalletService {
           amount: data.amount,
           type: WalletTransactionType.DEBIT,
           category: WalletTransactionCategory.TRANSFER_OUT,
-          status: WalletTransactionStatus.COMPLETED,
+          status: WalletTransactionStatus.PENDING,
           reference,
           description: reason,
           metadata: {
@@ -1086,15 +1162,36 @@ export class WalletService {
             accountNumber: data.accountNumber,
             accountName: recipient.accountName,
             transferRecipientCode: transfer.recipientCode,
+            providerReference: transfer.recipientCode,
+            provider,
           },
           balanceBefore: before,
           balanceAfter: after,
         },
       });
+
+      await this.ensurePlatformWallet(trx);
+      await trx.ledgerEntry.create({
+        data: {
+          debitWalletId: wallet.id,
+          creditWalletId: PLATFORM_WALLET_ID,
+          amount: data.amount,
+          reference: `LEDGER_${reference}`,
+          description: reason,
+        },
+      });
     });
 
     await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
-    return { reference, amount: data.amount, bankName: recipient.bankName, accountName: recipient.accountName, accountNumber: recipient.accountNumber };
+    return {
+      reference,
+      amount: data.amount,
+      status: WalletTransactionStatus.PENDING,
+      bankName: recipient.bankName,
+      accountName: recipient.accountName,
+      accountNumber: recipient.accountNumber,
+      message: 'Transfer submitted. It will be confirmed shortly.',
+    };
   }
 
   async buyAirtime(userId: string, phone: string, amount: number, network: string) {
@@ -1216,16 +1313,9 @@ export class WalletService {
     const balance = await this.getBalance(wallet.id);
     if (balance.realBalance < input.amount) throw new PaymentError('Insufficient balance');
 
-    await payUtility({
-      serviceID: input.serviceID,
-      billersCode: input.billersCode,
-      amount: input.amount,
-      phone: normalizeNigerianPhone(input.phone),
-      type: input.type,
-      variation_code: input.variation_code,
-    });
-
     const reference = `${input.category}_${Date.now()}_${userId.slice(0, 6)}`;
+    const vtpassRequestId = newVtpassRequestId(input.serviceID.replace(/[^a-z0-9]/gi, '').slice(0, 4));
+
     await this.prisma.$transaction(async (trx) => {
       const before = Number((await trx.wallet.findUnique({ where: { id: wallet.id } }))?.balance ?? 0);
       if (before < input.amount) throw new PaymentError('Insufficient balance');
@@ -1237,18 +1327,125 @@ export class WalletService {
           amount: input.amount,
           type: WalletTransactionType.DEBIT,
           category: input.category,
-          status: WalletTransactionStatus.COMPLETED,
+          status: WalletTransactionStatus.PENDING,
           reference,
           description: input.description,
-          metadata: { billersCode: input.billersCode, serviceID: input.serviceID, customerName: sender?.fullName ?? null },
+          metadata: {
+            billersCode: input.billersCode,
+            serviceID: input.serviceID,
+            customerName: sender?.fullName ?? null,
+            vtpassRequestId,
+          },
           balanceBefore: before,
           balanceAfter: after,
+        },
+      });
+      await this.ensurePlatformWallet(trx);
+      await trx.ledgerEntry.create({
+        data: {
+          debitWalletId: wallet.id,
+          creditWalletId: PLATFORM_WALLET_ID,
+          amount: input.amount,
+          reference: `LEDGER_${reference}`,
+          description: input.description,
         },
       });
     });
 
     await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
-    return { reference, amount: input.amount };
+
+    let outcome: VtpassOutcome;
+    let responseDescription = '';
+    let purchasedCode: string | null = null;
+    try {
+      const res = await payUtility({
+        serviceID: input.serviceID,
+        billersCode: input.billersCode,
+        amount: input.amount,
+        phone: normalizeNigerianPhone(input.phone),
+        type: input.type,
+        variation_code: input.variation_code,
+        request_id: vtpassRequestId,
+      });
+      outcome = classifyVtpassResponse(res);
+      purchasedCode = (res?.purchased_code as string | undefined) ?? null;
+      responseDescription = String(res?.response_description ?? '');
+    } catch (err) {
+      outcome = 'PENDING';
+      responseDescription = err instanceof Error ? err.message : 'VTpass request failed';
+    }
+
+    if (outcome === 'SUCCESS') {
+      await this.prisma.walletTransaction.update({
+        where: { reference },
+        data: {
+          status: WalletTransactionStatus.COMPLETED,
+          metadata: {
+            billersCode: input.billersCode,
+            serviceID: input.serviceID,
+            customerName: sender?.fullName ?? null,
+            vtpassRequestId,
+            purchasedCode,
+            responseDescription,
+          },
+        },
+      });
+    } else if (outcome === 'FAILED') {
+      await this.reversePendingDebit(reference, wallet.id, input.amount, responseDescription || 'VTpass rejected the transaction');
+      throw new PaymentError(responseDescription || 'The bill payment failed. Your wallet has been refunded.');
+    }
+
+    return {
+      reference,
+      amount: input.amount,
+      status: outcome === 'SUCCESS' ? WalletTransactionStatus.COMPLETED : WalletTransactionStatus.PENDING,
+      message: outcome === 'PENDING' ? 'Transaction is processing. Your balance will update shortly.' : undefined,
+    };
+  }
+
+  async reversePendingDebit(reference: string, walletId: string, amount: number, reason: string) {
+    await this.prisma.$transaction(async (trx) => {
+      const original = await trx.walletTransaction.findUnique({ where: { reference } });
+      if (!original || original.status !== WalletTransactionStatus.PENDING) return;
+
+      await trx.walletTransaction.update({ where: { reference }, data: { status: WalletTransactionStatus.FAILED } });
+
+      const wallet = await trx.wallet.findUnique({ where: { id: walletId } });
+      if (!wallet) return;
+
+      const before = Number(wallet.balance);
+      const after = before + amount;
+
+      await trx.wallet.update({ where: { id: walletId }, data: { balance: after, ledgerBalance: after } });
+
+      const reversalRef = `${reference}_REVERSAL`;
+      await trx.walletTransaction.create({
+        data: {
+          walletId,
+          amount,
+          type: WalletTransactionType.CREDIT,
+          category: WalletTransactionCategory.REFUND,
+          status: WalletTransactionStatus.COMPLETED,
+          reference: reversalRef,
+          description: `Reversal: ${reason}`.slice(0, 200),
+          metadata: { reversedReference: reference, reason },
+          balanceBefore: before,
+          balanceAfter: after,
+        },
+      });
+
+      await this.ensurePlatformWallet(trx);
+      await trx.ledgerEntry.create({
+        data: {
+          debitWalletId: PLATFORM_WALLET_ID,
+          creditWalletId: walletId,
+          amount,
+          reference: `LEDGER_${reversalRef}`,
+          description: 'Failed transaction reversal',
+        },
+      });
+    });
+    await deleteCache(this.app.redis, `cache:wallet:balance:${walletId}`);
   }
 
   async deductForOrder(userId: string, orderId: string, amount: number, tx: Prisma.TransactionClient | PrismaClient) {
@@ -1290,6 +1487,7 @@ export class WalletService {
 
   async refundOrderPayment(userId: string, orderId: string, amount: number, reason: string, tx: Prisma.TransactionClient | PrismaClient) {
     const client = this.getClient(tx);
+    await this.ensurePlatformWallet(client);
     const wallet = await client.wallet.findUnique({ where: { userId } });
     if (!wallet) throw new NotFoundError('Wallet not found');
 
@@ -1311,6 +1509,15 @@ export class WalletService {
         balanceAfter: after,
       },
     });
+    await client.ledgerEntry.create({
+      data: {
+        debitWalletId: PLATFORM_WALLET_ID,
+        creditWalletId: wallet.id,
+        amount,
+        reference: `LEDGER_REFUND_ORDER_${orderId}`,
+        description: 'Order refund',
+      },
+    });
     await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);
     return { updated: true };
   }
@@ -1319,6 +1526,7 @@ export class WalletService {
     const client = this.getClient(tx);
     const driver = await client.driver.findUnique({ where: { id: driverId }, select: { userId: true } });
     if (!driver) throw new NotFoundError('Driver not found');
+    await this.ensurePlatformWallet(client);
 
     // Ensure driver wallet exists — create it if missing rather than throwing
     let wallet = await client.wallet.findUnique({ where: { userId: driver.userId } });
@@ -1337,6 +1545,31 @@ export class WalletService {
       return { updated: false, skipped: true };
     }
 
+    const order = await client.order.findUnique({
+      where: { id: orderId },
+      select: { price: true },
+    });
+    const grossAmount = Number(order?.price ?? amount);
+    const netAmount = amount;
+    const commissionAmount = Math.max(0, grossAmount - netAmount);
+
+    const earningExists = await client.driverEarning.findFirst({
+      where: { orderId, driverId },
+      select: { id: true },
+    });
+    if (!earningExists) {
+      await client.driverEarning.create({
+        data: {
+          driverId,
+          orderId,
+          grossAmount,
+          commissionAmount,
+          netAmount,
+          status: DriverEarningStatus.PENDING,
+        },
+      });
+    }
+
     const before = Number(wallet.balance ?? 0);
     const after = before + amount;
 
@@ -1353,6 +1586,15 @@ export class WalletService {
         metadata: { orderId, driverId },
         balanceBefore: before,
         balanceAfter: after,
+      },
+    });
+    await client.ledgerEntry.create({
+      data: {
+        debitWalletId: PLATFORM_WALLET_ID,
+        creditWalletId: wallet.id,
+        amount,
+        reference: `LEDGER_${reference}`,
+        description: 'Driver order earning',
       },
     });
     await deleteCache(this.app.redis, `cache:wallet:balance:${wallet.id}`);

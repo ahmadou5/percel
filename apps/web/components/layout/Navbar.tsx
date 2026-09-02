@@ -5,13 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Search, Menu, X, Palette, Smartphone } from 'lucide-react';
-import { ThemeCustomizerModal } from '@/components/theme-customizer';
+import { Download, Search, Menu, X, Smartphone } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [themeModalOpen, setThemeModalOpen] = useState(false);
 
   const navLinks = [
     { href: '/', label: 'Home' },
@@ -68,18 +66,6 @@ export function Navbar() {
 
           {/* Action CTAs */}
           <div className="hidden items-center gap-3 md:flex">
-            {/* Theme Customizer Trigger */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              type="button"
-              onClick={() => setThemeModalOpen(true)}
-              className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2.5 text-foreground hover:bg-white/15 transition-all shadow-xs"
-              title="Customize Theme & Appearance"
-            >
-              <Palette className="h-4.5 w-4.5 text-primary" />
-            </motion.button>
-
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/track"
@@ -101,18 +87,8 @@ export function Navbar() {
             </motion.div>
           </div>
 
-          {/* Mobile Toggle & Theme Button */}
+          {/* Mobile Toggle */}
           <div className="flex items-center gap-2.5 md:hidden">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              type="button"
-              onClick={() => setThemeModalOpen(true)}
-              className="rounded-xl border border-white/15 bg-white/5 p-2.5 text-foreground hover:bg-white/15 focus:outline-none"
-            >
-              <Palette className="h-5 w-5 text-primary" />
-            </motion.button>
-
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -181,12 +157,6 @@ export function Navbar() {
           )}
         </AnimatePresence>
       </header>
-
-      {/* Theme Customizer Modal */}
-      <ThemeCustomizerModal
-        isOpen={themeModalOpen}
-        onClose={() => setThemeModalOpen(false)}
-      />
     </>
   );
 }

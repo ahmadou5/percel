@@ -66,6 +66,7 @@ export function useGetQuote() {
   return useMutation({
     mutationFn: async (payload: {
       size: 'SMALL' | 'MEDIUM' | 'LARGE';
+      vehicleType?: 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK';
       originHubId?: string;
       destinationHubId?: string;
       routeId?: string;

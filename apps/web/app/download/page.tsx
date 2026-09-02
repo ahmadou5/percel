@@ -7,8 +7,9 @@ export const metadata = {
 };
 
 export default function DownloadPage() {
-  const apkDownloadUrl =
-    process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL || '/downloads/percel-v1.0.0.apk';
+  const apkDownloadUrl = process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL || '';
+  const apkVersion = process.env.NEXT_PUBLIC_APK_VERSION || '1.0.0';
+  const isApkAvailable = Boolean(apkDownloadUrl);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 pt-24 sm:pt-28 sm:px-6 lg:px-8 space-y-10">
@@ -44,16 +45,12 @@ export default function DownloadPage() {
           </p>
 
           {/* Release Specs */}
-          <div className="grid grid-cols-3 gap-3 rounded-2xl border border-border/80 bg-slate-900/60 p-4 text-center text-xs font-semibold">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/80 bg-slate-900/60 p-4 text-center text-xs font-semibold">
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Version</p>
-              <p className="mt-0.5 font-bold text-foreground">v1.0.4</p>
+              <p className="mt-0.5 font-bold text-foreground">v{apkVersion}</p>
             </div>
-            <div className="border-x border-border/60">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">File Size</p>
-              <p className="mt-0.5 font-bold text-foreground">28.4 MB</p>
-            </div>
-            <div>
+            <div className="border-l border-border/60">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Min Android</p>
               <p className="mt-0.5 font-bold text-foreground">7.0 (Nougat)+</p>
             </div>
@@ -61,14 +58,26 @@ export default function DownloadPage() {
 
           {/* Download Action */}
           <div className="pt-2">
-            <a
-              href={apkDownloadUrl}
-              download="percel-latest.apk"
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-3 rounded-2xl bg-primary px-8 py-4 text-sm font-extrabold text-white shadow-glow-primary hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Download className="h-5 w-5" />
-              <span>Download APK Direct (28.4 MB)</span>
-            </a>
+            {isApkAvailable ? (
+              <a
+                href={apkDownloadUrl}
+                download="percel-latest.apk"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-3 rounded-2xl bg-primary px-8 py-4 text-sm font-extrabold text-white shadow-glow-primary hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Download className="h-5 w-5" />
+                <span>Download APK Direct</span>
+              </a>
+            ) : (
+              <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-sm text-amber-300 space-y-1.5 max-w-md">
+                <div className="flex items-center gap-2 font-bold">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Direct download temporarily unavailable</span>
+                </div>
+                <p className="leading-relaxed text-xs">
+                  The APK isn&apos;t hosted here yet. Please reach out to our support team or join the waitlist and we&apos;ll send you the official build link.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -20,6 +20,7 @@ import userRoutes from './modules/user/user.routes.js';
 import walletRoutes from './modules/wallet/wallet.routes.js';
 import referralRoutes from './modules/referral/referral.routes.js';
 import paymentProviderRoutes from './modules/payment/payment.routes.js';
+import identityRoutes from './modules/identity/identity.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import { supportRoutes } from './modules/support/support.routes.js';
 import corsPlugin from './plugins/cors.js';
@@ -33,6 +34,7 @@ import swaggerPlugin from './plugins/swagger.js';
 import { createQueues } from './queues/index.js';
 import { createNotificationWorker } from './queues/workers/notification.worker.js';
 import { createOrderMatchingWorker } from './queues/orderMatching.worker.js';
+import { createWalletOpsWorker } from './queues/walletOps.worker.js';
 import { AppError, InternalError, NotFoundError } from './utils/errors.js';
 import { error } from './utils/response.js';
 
@@ -71,6 +73,23 @@ export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
     bodyLimit: 15 * 1024 * 1024,
     logger: loggerOptions,
+  });
+
+  // Capture exact request bytes for webhook signature verification.
+  // (Fastify v5 dropped the core `rawBody` option; @fastify/raw-body is not available.)
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+    const url = req.url ?? '';
+    if (url.includes('/webhooks/')) {
+      (req as unknown as { rawBody?: Buffer }).rawBody = body as Buffer;
+    }
+    const buf = body as Buffer;
+    if (!buf || buf.length === 0) return done(null, {});
+    try {
+      done(null, JSON.parse(buf.toString('utf8')));
+    } catch (err) {
+      (err as Error & { statusCode?: number }).statusCode = 400;
+      done(err as Error);
+    }
   });
 
   await app.register(fastifyRequestContext, {
@@ -125,12 +144,25 @@ export async function buildApp(): Promise<FastifyInstance> {
     await instance.register(orderRoutes, { prefix: '/api/v1' });
     await instance.register(referralRoutes, { prefix: '/api/v1' });
     await instance.register(paymentProviderRoutes, { prefix: '/api/v1' });
+    await instance.register(identityRoutes, { prefix: '/api/v1' });
     await instance.register(adminRoutes, { prefix: '/api/v1' });
     await instance.register(supportRoutes, { prefix: '/api/v1' });
   });
 
   const orderWorker = createOrderMatchingWorker(app);
   const notificationWorker = createNotificationWorker(app);
+  const walletOpsWorker = createWalletOpsWorker(app);
+
+  await app.queues.walletOpsQueue.add(
+    'reconcile-wallets',
+    { type: 'RECONCILE', data: {} },
+    {
+      repeat: { every: 5 * 60 * 1000 },
+      jobId: 'reconcile-wallets',
+      removeOnComplete: 200,
+      removeOnFail: 500,
+    },
+  );
 
   const bullBoardAdapter = new FastifyAdapter();
   bullBoardAdapter.setBasePath('/admin/queues');
@@ -219,18 +251,20 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // ─── Bootstrap: Promote user to ADMIN (no auth — protected by BOOTSTRAP_SECRET env) ─────
-  // DELETE THIS ENDPOINT AFTER FIRST USE IN PRODUCTION
-  app.post('/api/v1/bootstrap/make-admin', async (request, reply) => {
-    const body = request.body as { email: string; secret: string };
-    const BOOTSTRAP_SECRET = process.env.BOOTSTRAP_SECRET ?? 'percel-bootstrap-2026';
-    if (body.secret !== BOOTSTRAP_SECRET) {
-      return reply.status(403).send({ error: 'Invalid bootstrap secret' });
-    }
-    const user = await app.prisma.user.findFirst({ where: { email: body.email } });
-    if (!user) return reply.status(404).send({ error: 'User not found' });
-    await app.prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } });
-    return { success: true, message: `${user.fullName} promoted to ADMIN`, email: user.email };
-  });
+  // DELETE THIS ENDPOINT AFTER FIRST USE IN PRODUCTION.
+  // Fail closed: the route does not exist unless BOOTSTRAP_SECRET is explicitly configured.
+  if (process.env.BOOTSTRAP_SECRET && process.env.BOOTSTRAP_SECRET.trim().length > 0) {
+    app.post('/api/v1/bootstrap/make-admin', async (request, reply) => {
+      const body = request.body as { email: string; secret: string };
+      if (!body?.secret || body.secret !== process.env.BOOTSTRAP_SECRET) {
+        return reply.status(403).send({ error: 'Invalid bootstrap secret' });
+      }
+      const user = await app.prisma.user.findFirst({ where: { email: body.email } });
+      if (!user) return reply.status(404).send({ error: 'User not found' });
+      await app.prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } });
+      return { success: true, message: `${user.fullName} promoted to ADMIN`, email: user.email };
+    });
+  }
 
   return app;
 }

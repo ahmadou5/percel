@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { WalletController } from './wallet.controller.js';
-import { AirtimeBody, AirtimeResolveBody, BankResolveBody, BankTransferBody, DataBody, ElectricityBody, ProviderServicesQuery, ProviderValidateBody, ProviderVariationsParams, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TransferRecipientResolveBody, TvBody, TxQuery, VerifyTransferPinBody, VerifyTopUpParams } from './wallet.schema.js';
+import { AirtimeBody, AirtimeResolveBody, BankResolveBody, BankTransferBody, DataBody, ElectricityBody, ForgotPinConfirmBody, ProviderServicesQuery, ProviderValidateBody, ProviderVariationsParams, ResetTransferPinBody, SetTransferPinBody, TopUpBody, TransferBody, TransferRecipientResolveBody, TvBody, TxQuery, VerifyTransferPinBody, VerifyTopUpParams } from './wallet.schema.js';
 import { WalletService } from './wallet.service.js';
 
 const walletRoutes: FastifyPluginAsync = async (app) => {
@@ -25,6 +25,8 @@ const walletRoutes: FastifyPluginAsync = async (app) => {
   app.post('/wallet/providers/validate', { preHandler: [app.authenticate], schema: { body: ProviderValidateBody } }, controller.providerValidate);
   app.put('/wallet/pin', { preHandler: [app.authenticate], schema: { body: SetTransferPinBody } }, controller.setTransferPin);
   app.post('/wallet/pin/reset', { preHandler: [app.authenticate], schema: { body: ResetTransferPinBody } }, controller.resetTransferPin);
+  app.post('/wallet/pin/forgot/request', { preHandler: [app.authenticate], config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, controller.forgotPinRequest);
+  app.post('/wallet/pin/forgot/confirm', { preHandler: [app.authenticate], config: { rateLimit: { max: 5, timeWindow: '15 minutes' } }, schema: { body: ForgotPinConfirmBody } }, controller.forgotPinConfirm);
   app.post('/wallet/pin/verify', { preHandler: [app.authenticate], schema: { body: VerifyTransferPinBody } }, controller.verifyTransferPin);
   app.post('/wallet/bills/airtime', { preHandler: [app.authenticate], schema: { body: AirtimeBody } }, controller.airtime);
   app.post('/wallet/bills/data', { preHandler: [app.authenticate], schema: { body: DataBody } }, controller.data);

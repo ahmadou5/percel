@@ -92,7 +92,7 @@ export function Footer() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-glow-primary hover:bg-primary/90 transition-all"
             >
               <Download className="h-4 w-4" />
-              <span>Download Percel APK (v1.0)</span>
+              <span>Download Percel for Android</span>
             </Link>
           </div>
         </div>

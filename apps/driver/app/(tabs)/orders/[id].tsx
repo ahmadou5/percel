@@ -32,14 +32,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppPalette, hexToRgba } from '@/lib/theme';
-import { useDriverRateOrder, useUpdateOrderStatus, useDriverActiveOrders, useDriverOrderDetail } from '@/hooks/useDriverOrders';
+import { useDriverRateOrder, useUpdateOrderStatus, useDriverOrderDetail } from '@/hooks/useDriverOrders';
 import { api } from '@/lib/api';
 import { subscribeDriverSocket } from '@/lib/socket';
 import { useDriverStore } from '@/store/driver.store';
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline';
 import { DeliveryRouteMap } from '@/components/orders/DeliveryRouteMap';
 import { DriverLiveNavigationModal } from '@/components/orders/DriverLiveNavigationModal';
-import { ActiveOrdersCarousel } from '@/components/orders/ActiveOrdersCarousel';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import type { DriverOrder } from '@/lib/types';
@@ -137,8 +136,6 @@ export default function OrderDetailScreen() {
   const queryClient = useQueryClient();
 
   const currentLocation = useDriverStore((s) => s.currentLocation);
-  const activeOrdersQuery = useDriverActiveOrders();
-  const activeOrders = activeOrdersQuery.data ?? [];
   const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
 
   useEffect(() => {
@@ -200,12 +197,37 @@ export default function OrderDetailScreen() {
   const advance = async () => {
     if (!canAdvance) return;
     const nextStatus = order.status === 'ACCEPTED' ? 'IN_TRANSIT' : 'DELIVERED';
+
+    let photoUri: string | undefined;
+    if (nextStatus === 'DELIVERED') {
+      try {
+        const ImagePicker = require('expo-image-picker');
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          modal.alert('Camera access needed', 'Percel needs camera access to capture a delivery proof photo.', 'error');
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.6,
+          allowsEditing: true,
+          aspect: [4, 3],
+        });
+        if (result.canceled || !result.assets?.[0]?.uri) return;
+        photoUri = result.assets[0].uri;
+      } catch {
+        modal.alert('Camera unavailable', 'Could not open the camera to capture a delivery proof photo.', 'error');
+        return;
+      }
+    }
+
     try {
       const updated = await updateStatus.mutateAsync({
         orderId: order.id,
         status: nextStatus,
         lat: currentLocation?.lat,
         lng: currentLocation?.lng,
+        ...(photoUri ? { photoUri } : {}),
       });
       if (updated.status === 'DELIVERED') {
         setFeedbackOrderId(updated.id);
@@ -250,13 +272,6 @@ export default function OrderDetailScreen() {
           </View>
           <View style={{ width: 40 }} />
         </View>
-
-        {/* ── Active Orders Switcher Carousel ── 
-        <ActiveOrdersCarousel
-          orders={activeOrders}
-          selectedOrderId={order.id}
-          onSelectOrder={(selectedId) => router.replace({ pathname: '/(tabs)/orders/[id]', params: { id: selectedId } })}
-        /> */}
 
         {/* ── Full-Screen Live Navigation Banner ── */}
         <View style={[styles.navCardBanner, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -429,6 +444,21 @@ export default function OrderDetailScreen() {
           <SectionLabel palette={palette}>DELIVERY TIMELINE</SectionLabel>
           <OrderStatusTimeline currentStatus={order.status} />
         </View>
+
+        {/* ── Delivery proof ── */}
+        {isFinished && order.proofImageUrl ? (
+          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <SectionLabel palette={palette}>DELIVERY PROOF</SectionLabel>
+            <Image
+              source={{ uri: order.proofImageUrl }}
+              style={{ width: '100%', height: 200, borderRadius: 14, marginTop: Spacing.xs }}
+              resizeMode="cover"
+            />
+            <Text style={{ fontSize: Typography.xs, color: palette.textSecondary, marginTop: Spacing.sm }}>
+              Photo captured at delivery{order.proofUploadedAt ? ` • ${new Date(order.proofUploadedAt).toLocaleString()}` : ''}
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
 
       {/* ── Floating rating modal ── */}

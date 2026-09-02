@@ -295,7 +295,7 @@ export function UserDetailView({ initialUser }: { initialUser: AdminUser }) {
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl transition-all animate-bounce ${toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl transition-all ${toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
             }`}
         >
           {toastMessage.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}

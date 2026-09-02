@@ -130,7 +130,7 @@ export function DriverCashoutsTable({
 
   // Platform Balance & Liquidity Comparison
   const numericPlatformBalance = useMemo(() => {
-    return parseFloat(platformBalanceStr.replace(/[^0-9.]/g, '')) || 8420000;
+    return parseFloat(platformBalanceStr.replace(/[^0-9.]/g, '')) || 0;
   }, [platformBalanceStr]);
 
   const isLiquiditySufficient = numericPlatformBalance >= pendingTotalAmount;
@@ -158,7 +158,7 @@ export function DriverCashoutsTable({
     historyPage * historyPageSize
   );
 
-  // 1. Handle Approve & Pay via Monnify NIP
+  // 1. Handle Approve & Pay — triggers real gateway disbursement on the backend
   const handleConfirmApprove = async () => {
     if (!approvingPayout) return;
     setApproving(true);
@@ -167,16 +167,22 @@ export function DriverCashoutsTable({
     const target = approvingPayout;
 
     try {
-      // Simulate Monnify API NIP Transfer call
-      await new Promise((r) => setTimeout(r, 1000));
-
-      // Generate Monnify NIP reference
-      const monnifyRef = `MNF-NIP-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      const res = await fetch(`/api/admin/payouts/${target.id}/approve`, { method: 'POST' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.message || 'Gateway transfer failed');
+      }
 
       setPayouts((prev) =>
         prev.map((p) =>
           p.id === target.id
-            ? { ...p, status: 'COMPLETED', monnifyReference: monnifyRef, processedAt: 'Just now' }
+            ? {
+                ...p,
+                status: 'COMPLETED',
+                monnifyReference: json?.data?.providerReference ?? p.monnifyReference,
+                processedAt: 'Just now',
+                failureReason: undefined,
+              }
             : p
         )
       );
@@ -185,36 +191,28 @@ export function DriverCashoutsTable({
         'Payout Approved & Transferred',
         target.driverName,
         target.amount,
-        `Monnify NIP Transfer executed (Ref: ${monnifyRef}) to ${target.bankName}`
+        `Transfer settled${json?.data?.providerReference ? ` (Ref: ${json.data.providerReference})` : ''} to ${target.bankName}`
       );
 
       showToast(`Payout of ${target.amount} approved & transferred to ${target.driverName}!`);
       setApprovingPayout(null);
-    } catch {
-      // Handle transfer failure case
-      const failReason = 'Monnify NIP Gateway Timeout — Bank NIBSS Switch Offline';
+    } catch (err) {
+      // Funds remain held on failure — admin sees the exact gateway reason
+      const failReason = err instanceof Error ? err.message : 'Gateway transfer failed';
       setApprovalError({ payout: target, error: failReason });
-
-      setPayouts((prev) =>
-        prev.map((p) =>
-          p.id === target.id
-            ? { ...p, status: 'FAILED', failureReason: failReason, processedAt: 'Just now' }
-            : p
-        )
-      );
 
       logAdminAction(
         'Payout Transfer Failed',
         target.driverName,
         target.amount,
-        `Monnify Transfer failed: ${failReason}`
+        `Transfer failed: ${failReason}`
       );
     } finally {
       setApproving(false);
     }
   };
 
-  // 2. Handle Reject & Refund Payout
+  // 2. Handle Reject & Refund Payout — releases the held funds back to the wallet
   const handleConfirmReject = async () => {
     if (!rejectingPayout) return;
     setRejecting(true);
@@ -226,12 +224,20 @@ export function DriverCashoutsTable({
         : rejectReasonCategory;
 
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      const res = await fetch(`/api/admin/payouts/${target.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reasonText }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.message || 'Failed to reject payout');
+      }
 
       setPayouts((prev) =>
         prev.map((p) =>
           p.id === target.id
-            ? { ...p, status: 'REJECTED', rejectionReason: reasonText, processedAt: 'Just now' }
+            ? { ...p, status: 'REJECTED', rejectionReason: reasonText, processedAt: 'Just now', failureReason: undefined }
             : p
         )
       );
@@ -247,8 +253,8 @@ export function DriverCashoutsTable({
       showToast(`Cashout request rejected. ${target.amount} refunded to ${target.driverName}'s wallet.`);
       setRejectingPayout(null);
       setCustomRejectReason('');
-    } catch {
-      showToast('Failed to reject payout', 'error');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to reject payout', 'error');
     } finally {
       setRejecting(false);
     }
@@ -265,7 +271,7 @@ export function DriverCashoutsTable({
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl transition-all animate-bounce ${
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-2xl transition-all ${
             toastMessage.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
           }`}
         >
@@ -405,7 +411,7 @@ export function DriverCashoutsTable({
 
                     {/* Driver Current Wallet Balance */}
                     <td className="px-5 py-4 font-mono text-xs text-muted-foreground font-semibold">
-                      {payout.driverWalletBalance || '₦38,500'}
+                      {payout.driverWalletBalance || '—'}
                     </td>
 
                     {/* Risk Flags */}
@@ -522,7 +528,7 @@ export function DriverCashoutsTable({
                     <tr
                       key={payout.id}
                       className={`transition-colors hover:bg-muted/30 ${
-                        isFailed ? 'bg-rose-500/[0.04] border-l-4 border-l-rose-500' : ''
+                        isFailed ? 'bg-rose-500/[0.08] ring-1 ring-inset ring-rose-500/30' : ''
                       }`}
                     >
                       {/* Driver */}
@@ -560,7 +566,7 @@ export function DriverCashoutsTable({
                       {/* Monnify Reference or Reason */}
                       <td className="px-5 py-3.5 text-xs text-muted-foreground">
                         {isCompleted && (
-                          <span className="font-mono font-bold text-emerald-400 block">{payout.monnifyReference || 'MNF-NIP-88192'}</span>
+                          <span className="font-mono font-bold text-emerald-400 block">{payout.monnifyReference || '—'}</span>
                         )}
                         {isFailed && <span className="text-rose-400 italic block">{payout.failureReason}</span>}
                         {isRejected && <span className="text-amber-400 italic block">{payout.rejectionReason}</span>}

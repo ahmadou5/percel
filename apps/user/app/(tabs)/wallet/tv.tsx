@@ -138,6 +138,7 @@ export default function TvScreen() {
     if (!selectedService || !selectedVariation) return;
 
     const response = await mutation.mutateAsync({ smartcardNumber: smartcardNumber.trim(), amount: selectedPrice, provider: selectedService.serviceID, variationCode: selectedVariation.variation_code });
+    addBeneficiary({ name: `${selectedService.name ?? 'TV'} • ${smartcardNumber.trim()}`, phone: smartcardNumber.trim(), accountNumber: smartcardNumber.trim(), serviceID: selectedService.serviceID, type: 'PHONE' });
     setResultModal({
       visible: true,
       type: "success",

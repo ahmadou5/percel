@@ -231,37 +231,60 @@ export function NotificationsManager({ initialNotifications }: { initialNotifica
     executeSendBroadcast();
   };
 
-  // Execute Broadcast Send
-  const executeSendBroadcast = () => {
+  // Execute Broadcast Send — hits the real backend; counts come from the response
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastStatus, setBroadcastStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const executeSendBroadcast = async () => {
+    if (isSendingBroadcast) return;
+    setIsSendingBroadcast(true);
     const nowStr = new Date().toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' });
     const targetCount = currentAudienceObj.count;
-    const mockDelivered = Math.round(targetCount * 0.98);
-    const mockFailed = targetCount - mockDelivered;
 
-    const newCampaign: AdminNotification = {
-      id: `cmp-${Date.now()}`,
-      campaignId: `cmp-${Date.now()}`,
-      channel: currentAudienceObj.label,
-      title: title.trim(),
-      body: body.trim(),
-      sentAt: sendMode === 'schedule' && scheduledDateTime ? `Scheduled for ${scheduledDateTime}` : `Sent ${nowStr}`,
-      isTransactional: false,
-      totalRecipients: targetCount,
-      deliveredCount: mockDelivered,
-      failedCount: mockFailed,
-      openRatePct: 45.0,
-      deepLink: deepLink.trim() || undefined,
-      recipientsList: [
-        { userId: 'u-mock-1', name: 'Sample User 1', email: 'user1@percel.app', pushToken: 'ExponentPushToken[888]', status: 'DELIVERED', sentAt: 'Just now' },
-        { userId: 'u-mock-2', name: 'Sample User 2', email: 'user2@percel.app', pushToken: 'ExponentPushToken[999]', status: 'DELIVERED', sentAt: 'Just now' },
-      ],
-    };
+    try {
+      const payload: Record<string, unknown> = { title: title.trim(), body: body.trim(), audience: currentAudienceObj.value };
+      if (deepLink.trim()) payload.data = { screen: deepLink.trim() };
 
-    setCampaigns((prev) => [newCampaign, ...prev]);
-    setConfirmModalOpen(false);
-    setTitle('');
-    setBody('');
-    setDeepLink('');
+      const res = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.message ?? json?.data?.message ?? 'Broadcast failed');
+      }
+
+      const result = (json?.data ?? {}) as { sent?: number; failed?: number; total?: number };
+      const delivered = Number(result.sent ?? 0);
+      const failed = Number(result.failed ?? targetCount - delivered);
+
+      const newCampaign: AdminNotification = {
+        id: `cmp-${Date.now()}`,
+        campaignId: `cmp-${Date.now()}`,
+        channel: currentAudienceObj.label,
+        title: title.trim(),
+        body: body.trim(),
+        sentAt: `Sent ${nowStr}`,
+        isTransactional: false,
+        totalRecipients: Number(result.total ?? delivered + failed),
+        deliveredCount: delivered,
+        failedCount: failed,
+        openRatePct: undefined,
+        deepLink: deepLink.trim() || undefined,
+        recipientsList: [],
+      };
+
+      setCampaigns((prev) => [newCampaign, ...prev]);
+      setConfirmModalOpen(false);
+      setTitle('');
+      setBody('');
+      setDeepLink('');
+      setBroadcastStatus({ type: 'success', text: `Broadcast sent to ${delivered} recipient${delivered === 1 ? '' : 's'}${failed > 0 ? ` (${failed} failed)` : ''}.` });
+    } catch (err) {
+      setBroadcastStatus({ type: 'error', text: err instanceof Error ? err.message : 'Broadcast failed' });
+    } finally {
+      setIsSendingBroadcast(false);
+    }
   };
 
   // Save current form as template
@@ -389,6 +412,17 @@ export function NotificationsManager({ initialNotifications }: { initialNotifica
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Form Container */}
         <Card className="lg:col-span-2 p-5 border-border/80 shadow-sm space-y-4">
+          {broadcastStatus && (
+            <div
+              className={`rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
+                broadcastStatus.type === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+              }`}
+            >
+              {broadcastStatus.text}
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border/70 pb-3 gap-2">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
@@ -938,11 +972,12 @@ export function NotificationsManager({ initialNotifications }: { initialNotifica
               </button>
               <button
                 type="button"
-                onClick={executeSendBroadcast}
-                className="rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 shadow-xs flex items-center gap-1.5"
+                disabled={isSendingBroadcast}
+                onClick={() => void executeSendBroadcast()}
+                className="rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 shadow-xs flex items-center gap-1.5 disabled:opacity-60"
               >
                 <Send className="h-3.5 w-3.5" />
-                Confirm & Send Broadcast
+                {isSendingBroadcast ? 'Sending…' : 'Confirm & Send Broadcast'}
               </button>
             </div>
           </div>

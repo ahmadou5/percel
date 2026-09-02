@@ -330,7 +330,7 @@ export class AuthService {
       this.logger.error({ userId, err: err?.message || err }, 'auth.email_verification.send_failed');
     });
 
-    this.logger.info({ userId, otpCode }, 'auth.email_verification.requested');
+    this.logger.info({ userId }, 'auth.email_verification.requested');
   }
 
   async confirmEmailVerification(userId: string, otp: string): Promise<{ verified: boolean }> {
@@ -387,7 +387,7 @@ export class AuthService {
       this.logger.error({ userId, err: err?.message || err }, 'auth.phone_verification.send_failed');
     });
 
-    this.logger.info({ userId, otpCode }, 'auth.phone_verification.requested');
+    this.logger.info({ userId }, 'auth.phone_verification.requested');
   }
 
   async confirmPhoneVerification(userId: string, otp: string): Promise<{ verified: boolean }> {

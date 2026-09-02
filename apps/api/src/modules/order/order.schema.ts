@@ -21,6 +21,7 @@ export const OrderItemBody = Type.Object({
 
 export const QuoteBody = Type.Object({
   size: Type.Union([Type.Literal('SMALL'), Type.Literal('MEDIUM'), Type.Literal('LARGE')]),
+  vehicleType: Type.Optional(Type.Union([Type.Literal('BIKE'), Type.Literal('TRICYCLE'), Type.Literal('CAR'), Type.Literal('VAN'), Type.Literal('TRUCK')])),
   originHubId: Type.Optional(Type.String()),
   destinationHubId: Type.Optional(Type.String()),
   routeId: Type.Optional(Type.String()),
@@ -42,6 +43,7 @@ export const DirectionsBody = Type.Object({
 
 export const CreateOrderBody = Type.Object({
   size: Type.Union([Type.Literal('SMALL'), Type.Literal('MEDIUM'), Type.Literal('LARGE')]),
+  vehicleType: Type.Optional(Type.Union([Type.Literal('BIKE'), Type.Literal('TRICYCLE'), Type.Literal('CAR'), Type.Literal('VAN'), Type.Literal('TRUCK')])),
   originHubId: Type.Optional(Type.String()),
   destinationHubId: Type.Optional(Type.String()),
   routeId: Type.Optional(Type.String()),

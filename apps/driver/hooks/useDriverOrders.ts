@@ -96,8 +96,31 @@ export function useUpdateOrderStatus() {
   const setCurrentOrder = useDriverStore((state) => state.setCurrentOrder);
 
   return useMutation({
-    mutationFn: async (payload: { orderId: string; status: 'IN_TRANSIT' | 'DELIVERED'; lat?: number; lng?: number }) => {
+    retry: (failureCount, error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      const transient = /network|timeout|Could not reach|aborted/i.test(message);
+      return transient && failureCount < 2;
+    },
+    retryDelay: 1500,
+    mutationFn: async (payload: { orderId: string; status: 'IN_TRANSIT' | 'DELIVERED'; lat?: number; lng?: number; photoUri?: string }) => {
       Sentry.addBreadcrumb({ category: 'dispatch', message: 'driver.order_status_update_requested', level: 'info', data: { orderId: payload.orderId, status: payload.status } });
+
+      if (payload.photoUri) {
+        const formData = new FormData();
+        formData.append('status', payload.status);
+        if (payload.lat != null) formData.append('lat', String(payload.lat));
+        if (payload.lng != null) formData.append('lng', String(payload.lng));
+        formData.append('photo', {
+          uri: payload.photoUri,
+          name: 'delivery-proof.jpg',
+          type: 'image/jpeg',
+        } as never);
+        const response = await http.patch<ApiResponse<DriverOrder>>(`/api/v1/driver/orders/${payload.orderId}/status`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data.data;
+      }
+
       const response = await http.patch<ApiResponse<DriverOrder>>(`/api/v1/driver/orders/${payload.orderId}/status`, {
         status: payload.status,
         lat: payload.lat,

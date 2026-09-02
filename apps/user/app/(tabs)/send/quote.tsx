@@ -39,6 +39,7 @@ export default function QuoteScreen() {
     recipientName?: string;
     recipientPhone?: string;
     size?: 'SMALL' | 'MEDIUM' | 'LARGE';
+    vehicleType?: string;
     fragile?: string;
     notes?: string;
     items?: string;
@@ -106,12 +107,16 @@ export default function QuoteScreen() {
     : [{ description: 'Package', quantity: 1, weightKg: 1, fragile, imageUrl: null }];
 
   const quote = quoteQuery.data;
+  const vehicleType = (params.vehicleType === 'TRICYCLE' || params.vehicleType === 'CAR' || params.vehicleType === 'VAN' || params.vehicleType === 'TRUCK'
+    ? params.vehicleType
+    : 'BIKE') as 'BIKE' | 'TRICYCLE' | 'CAR' | 'VAN' | 'TRUCK';
 
   const loadQuote = async () => {
     try {
       if (isIntrastate) {
         await quoteQuery.mutateAsync({
           size,
+          vehicleType,
           pickupAddress,
           deliveryAddress,
         });
@@ -119,6 +124,7 @@ export default function QuoteScreen() {
         if (!originHub || !destinationHub) return;
         await quoteQuery.mutateAsync({
           size,
+          vehicleType,
           originHubId: originHub.id,
           destinationHubId: destinationHub.id,
           routeId: route?.id,
@@ -141,6 +147,7 @@ export default function QuoteScreen() {
     try {
       const order = await createOrder.mutateAsync({
         size,
+        vehicleType,
         originHubId: isIntrastate ? undefined : originHub?.id,
         destinationHubId: isIntrastate ? undefined : destinationHub?.id,
         routeId: isIntrastate ? undefined : route?.id,

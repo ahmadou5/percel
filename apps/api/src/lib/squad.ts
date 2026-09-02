@@ -190,14 +190,35 @@ export async function initiateSquadTransfer(data: {
   }
 }
 
-export function listSquadBanks() {
-  return [
-    { name: 'GTBank Plc', code: '000013', slug: '000013', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
-    { name: 'Access Bank', code: '000014', slug: '000014', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
-    { name: 'Zenith Bank Plc', code: '000015', slug: '000015', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
-    { name: 'First Bank of Nigeria', code: '000016', slug: '000016', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
-    { name: 'Wema Bank', code: '000017', slug: '000017', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
-  ];
+const STATIC_FALLBACK_BANKS = [
+  { name: 'GTBank Plc', code: '000013', slug: '000013', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
+  { name: 'Access Bank', code: '000014', slug: '000014', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
+  { name: 'Zenith Bank Plc', code: '000015', slug: '000015', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
+  { name: 'First Bank of Nigeria', code: '000016', slug: '000016', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
+  { name: 'Wema Bank', code: '000017', slug: '000017', country: 'Nigeria', currency: 'NGN', type: 'nuban' },
+];
+
+type SquadBank = { name: string; code: string; slug?: string; country?: string; currency?: string; type?: string };
+
+let liveBanksCache: { banks: SquadBank[]; fetchedAt: number } | null = null;
+
+export async function listSquadBanks(): Promise<SquadBank[]> {
+  if (liveBanksCache && Date.now() - liveBanksCache.fetchedAt < 24 * 60 * 60 * 1000) {
+    return liveBanksCache.banks;
+  }
+
+  try {
+    const response = await squad.get<SquadEnvelope<SquadBank[]>>('/payout/banks', { headers: headers(), timeout: 10_000 });
+    const banks = Array.isArray(response.data?.data) ? response.data.data : [];
+    if (banks.length > 0) {
+      liveBanksCache = { banks, fetchedAt: Date.now() };
+      return banks;
+    }
+  } catch {
+    // Fall through to static list
+  }
+
+  return STATIC_FALLBACK_BANKS;
 }
 
 export function verifySquadWebhookSignature(payload: Record<string, unknown>, signature?: string) {

@@ -4,10 +4,11 @@ import { DriverKYCStatus, DriverStatus, VehicleVerificationStatus, Prisma, type 
 import { env } from '../../config/env.js';
 import { addNotificationJob } from '../../queues/index.js';
 import { uploadImageBuffer } from '../../lib/cloudinary.js';
-import { verifyBVN, verifyNIN } from '../../lib/smileIdentity.js';
+import { verifyIdentity } from '../../lib/identityVerification.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import type { DriverKycDocumentType, DriverProfileResponse, VerifyResponse } from './driver.types.js';
 import { PaymentProviderService } from '../payment/payment.service.js';
+import { IdentityProviderService } from '../identity/identity.service.js';
 
 type DriverRecord = {
   id: string;
@@ -331,13 +332,15 @@ export class DriverService {
     const name = splitName(driver.user.fullName);
 
     try {
-      const result = await verifyNIN(
-        env.SMILE_IDENTITY_PARTNER_ID,
-        nin,
-        name.firstName,
-        name.lastName,
-        driver.createdAt.toISOString().slice(0, 10),
-      );
+      const identityProviderService = new IdentityProviderService(this.prisma);
+      const activeIdentityProvider = await identityProviderService.getActiveProvider();
+      const result = await verifyIdentity({
+        provider: activeIdentityProvider,
+        type: 'NIN',
+        number: nin,
+        firstName: name.firstName,
+        lastName: name.lastName,
+      });
 
       const kyc = await ensureDriverKyc(this.prisma, driverId);
 
@@ -413,13 +416,16 @@ export class DriverService {
     const dobString = payload.dob?.trim() || (driver.user.dateOfBirth ? driver.user.dateOfBirth.toISOString().slice(0, 10) : '1995-01-01');
 
     try {
-      const result = await verifyBVN(
-        env.SMILE_IDENTITY_PARTNER_ID,
-        bvn,
+      const identityProviderService = new IdentityProviderService(this.prisma);
+      const activeIdentityProvider = await identityProviderService.getActiveProvider();
+      const result = await verifyIdentity({
+        provider: activeIdentityProvider,
+        type: 'BVN',
+        number: bvn,
         firstName,
         lastName,
-        dobString,
-      );
+        dob: dobString,
+      });
 
       await ensureDriverKyc(this.prisma, driverId);
 

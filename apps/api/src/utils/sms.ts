@@ -69,10 +69,9 @@ export async function sendSMS({ to, message }: { to: string; message: string }) 
   const from = process.env.TWILIO_FROM || process.env.TWILIO_FROM_NUMBER;
 
   if (!accountSid || !authToken || !from) {
-    console.log('----------------------------------------');
-    console.log(`[MOCK SMS / WHATSAPP] To: ${to}`);
-    console.log(`Message: ${message}`);
-    console.log('----------------------------------------');
+    console.warn('⚠️  [SMS NOT CONFIGURED] TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM are missing.');
+    console.warn(`⚠️  [SMS SUPPRESSED] To: ${to} | Message: ${message}`);
+    console.warn('⚠️  SMS-dependent flows (phone OTP, password reset) will NOT deliver until Twilio or WhatsApp credentials are set.');
     return;
   }
 

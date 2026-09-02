@@ -61,6 +61,8 @@ export interface OrderSummary {
   estimatedDurationMin: number;
   createdAt: string;
   cancelReason?: string | null;
+  proofImageUrl?: string | null;
+  proofUploadedAt?: string | null;
   items?: Array<{
     id: string;
     description: string;

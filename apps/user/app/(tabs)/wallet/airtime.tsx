@@ -167,6 +167,7 @@ export default function AirtimeScreen() {
     // backend can use it directly rather than relying on string matching.
     const networkId = selectedService?.serviceID ?? displayNetwork;
     const response = await mutation.mutateAsync({ phone: normalizedPhone || phone, network: networkId, amount: selectedAmount });
+    addBeneficiary({ name: normalizedPhone || phone, phone: normalizedPhone || phone, type: 'AIRTIME' });
     setResultModal({
       visible: true,
       type: "success",

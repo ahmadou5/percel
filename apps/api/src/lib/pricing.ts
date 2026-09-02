@@ -37,6 +37,19 @@ function distanceBand(distanceKm: number) {
   return '200km+';
 }
 
+export function vehicleMultiplier(vehicleType?: string | null): number {
+  switch (vehicleType) {
+    case 'TRICYCLE':
+      return 1.25;
+    case 'VAN':
+      return 1.5;
+    case 'TRUCK':
+      return 2.0;
+    default:
+      return 1.0;
+  }
+}
+
 export function getPriceQuote(
   size: OrderSize,
   distanceKm: number,
@@ -45,13 +58,14 @@ export function getPriceQuote(
   deliveryType: 'INTERSTATE' | 'INTRASTATE' = 'INTERSTATE',
   serviceArea?: { baseFareNgn: any; perKmNgn: any } | null,
   routeContext?: { baseFare: number; originModifier?: number; destModifier?: number } | null,
+  vehicleType?: string | null,
 ): PriceQuote {
   if (deliveryType === 'INTERSTATE' && routeContext) {
     const baseFare = routeContext.baseFare;
     const originModifier = routeContext.originModifier ?? 0;
     const destModifier = routeContext.destModifier ?? 0;
     const sizeMultiplier = size === 'SMALL' ? 1.0 : size === 'MEDIUM' ? 1.4 : 2.0;
-    const basePrice = (baseFare + originModifier + destModifier) * sizeMultiplier;
+    const basePrice = (baseFare + originModifier + destModifier) * sizeMultiplier * vehicleMultiplier(vehicleType);
     const surgeMultiplier = onlineDriverCount < 3 ? 1.2 : 1;
     const totalPrice = Number((basePrice * surgeMultiplier).toFixed(2));
 
@@ -77,7 +91,7 @@ export function getPriceQuote(
     const perKmRate = Number(serviceArea.perKmNgn);
 
     const sizeMultiplier = size === 'SMALL' ? 1.0 : size === 'MEDIUM' ? 1.5 : 2.2;
-    const basePrice = baseFare * sizeMultiplier;
+    const basePrice = baseFare * sizeMultiplier * vehicleMultiplier(vehicleType);
 
     const surgeMultiplier = onlineDriverCount < 2 ? 1.25 : 1;
     const calculatedPrice = (basePrice + distanceKm * perKmRate) * surgeMultiplier;
@@ -100,7 +114,7 @@ export function getPriceQuote(
     };
   }
 
-  const basePrice = basePrices[size];
+  const basePrice = basePrices[size] * vehicleMultiplier(vehicleType);
   const dm = distanceMultiplier(distanceKm);
   const surgeMultiplier = onlineDriverCount < 3 ? 1.3 : 1;
 

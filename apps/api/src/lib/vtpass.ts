@@ -83,6 +83,35 @@ function requestId(prefix: string) {
   return `${time}${prefix}${Math.floor(Math.random() * 1000)}`;
 }
 
+export function newVtpassRequestId(prefix: string) {
+  return requestId(prefix);
+}
+
+export type VtpassOutcome = 'SUCCESS' | 'PENDING' | 'FAILED';
+
+export function classifyVtpassResponse(data: VtpassEnvelope<unknown> | undefined | null): VtpassOutcome {
+  if (!data) return 'PENDING';
+  const description = String(data.response_description ?? '').toLowerCase();
+  const code = String(data.code ?? '');
+
+  if (code === '000' || description.includes('successful') || description.includes('delivered')) return 'SUCCESS';
+  if (code === '016' || description.includes('fail') || description.includes('invalid') || description.includes('insufficient') || description.includes('reverse')) {
+    return 'FAILED';
+  }
+  return 'PENDING';
+}
+
+export async function queryVtpassTransaction(requestIdValue: string) {
+  try {
+    const { data } = await vtpass.get<VtpassEnvelope<Record<string, unknown>>>('/requery', {
+      params: { request_id: requestIdValue },
+    });
+    return data;
+  } catch (error) {
+    wrap(error);
+  }
+}
+
 export async function listServices(identifier: string) {
   try {
     const { data } = await vtpass.get<VtpassEnvelope<VtpassService[]>>('/services', { params: { identifier } });
@@ -123,10 +152,11 @@ export async function payUtility(payload: {
   amount?: number;
   phone: string;
   type?: 'prepaid' | 'postpaid';
+  request_id?: string;
 }) {
   try {
     const { data } = await vtpass.post<VtpassEnvelope<Record<string, unknown>>>('/pay', {
-      request_id: requestId(payload.serviceID.replace(/[^a-z0-9]/gi, '').slice(0, 4)),
+      request_id: payload.request_id ?? requestId(payload.serviceID.replace(/[^a-z0-9]/gi, '').slice(0, 4)),
       serviceID: payload.serviceID,
       billersCode: payload.billersCode,
       variation_code: payload.variation_code,

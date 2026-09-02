@@ -92,6 +92,8 @@ export type DriverOrder = {
   distanceKm: number;
   estimatedDurationMin: number;
   createdAt: string;
+  proofImageUrl?: string | null;
+  proofUploadedAt?: string | null;
   driver?: DriverOrderDriver | null;
   customer?: DriverOrderCustomer | null;
   items?: Array<{ description: string; quantity: number; weightKg?: number; fragile?: boolean; imageUrl?: string | null }>;

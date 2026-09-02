@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 import { env } from '../config/env.js';
-import { AppError } from '../utils/errors.js';
+import { AppError, PaymentError } from '../utils/errors.js';
 
 type UploadOptions = {
   folder: string;
@@ -56,23 +56,17 @@ export async function uploadImageBuffer(
       body: form,
     });
 
-    if (response.ok) {
-      const data = (await response.json()) as { secure_url?: string; public_id?: string };
-      if (data.secure_url && data.public_id) {
-        return {
-          secure_url: data.secure_url,
-          public_id: data.public_id,
-        };
-      }
+    const data = (await response.json()) as { secure_url?: string; public_id?: string; error?: { message?: string } };
+    if (response.ok && data.secure_url && data.public_id) {
+      return {
+        secure_url: data.secure_url,
+        public_id: data.public_id,
+      };
     }
-  } catch {
-    // Fallback for dev environment without active Cloudinary key
+    throw new PaymentError(data.error?.message ?? 'Image upload failed');
+  } catch (err) {
+    if (err instanceof PaymentError) throw err;
+    throw new PaymentError('Image upload failed. Check your connection and try again.');
   }
-
-  const base64 = buffer.toString('base64');
-  return {
-    secure_url: `data:image/jpeg;base64,${base64}`,
-    public_id: `pkg_${Date.now()}`,
-  };
 }
 

@@ -570,7 +570,7 @@ export function HubsRoutesManager({ initialHubs, initialRoutes }: { initialHubs:
         <button
           type="button"
           onClick={() => setActiveTab('hubs')}
-          className={`px-5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all ${
+          className={`px-5 pb-2.5 pt-3 text-xs font-semibold border-b-2 -mb-px transition-all ${
             activeTab === 'hubs'
               ? 'border-primary text-primary bg-primary/5'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -583,7 +583,7 @@ export function HubsRoutesManager({ initialHubs, initialRoutes }: { initialHubs:
         <button
           type="button"
           onClick={() => setActiveTab('routes')}
-          className={`px-5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all ${
+          className={`px-5 pb-2.5 pt-3 text-xs font-semibold border-b-2 -mb-px transition-all ${
             activeTab === 'routes'
               ? 'border-primary text-primary bg-primary/5'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -596,7 +596,7 @@ export function HubsRoutesManager({ initialHubs, initialRoutes }: { initialHubs:
         <button
           type="button"
           onClick={() => setActiveTab('audit')}
-          className={`px-5 py-2.5 text-xs font-semibold rounded-t-xl border-b-2 transition-all ${
+          className={`px-5 pb-2.5 pt-3 text-xs font-semibold border-b-2 -mb-px transition-all ${
             activeTab === 'audit'
               ? 'border-primary text-primary bg-primary/5'
               : 'border-transparent text-muted-foreground hover:text-foreground'

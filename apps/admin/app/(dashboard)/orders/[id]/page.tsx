@@ -182,6 +182,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               </div>
             </div>
           )}
+          {order.proofImageUrl && (
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Delivery Proof{order.proofUploadedAt ? ` · ${order.proofUploadedAt}` : ''}
+              </h4>
+              <a href={order.proofImageUrl} target="_blank" rel="noopener noreferrer" className="block w-fit overflow-hidden rounded-xl border border-emerald-500/30 hover:opacity-90">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={order.proofImageUrl} alt="Delivery proof" className="h-40 w-auto max-w-xs object-cover" />
+              </a>
+            </div>
+          )}
         </Card>
 
         <Card className="space-y-4 p-5">

@@ -228,27 +228,15 @@ export async function initiateTransfer(data: {
   }
 }
 
-export async function initiateBillsCharge(
-  type: 'airtime' | 'data' | 'electricity',
-  customer: string,
-  amount: number,
-  code: string,
-) {
+export async function verifyTransferStatus(reference: string): Promise<'SUCCESS' | 'PENDING' | 'FAILED'> {
   try {
-    const { data } = await paystack.post('/charge', {
-      email: customer,
-      amount,
-      metadata: {
-        custom_fields: [{ variable_name: 'bill_type', value: type }],
-      },
-      mobile_money: {
-        phone: customer,
-        provider: code,
-      },
-    });
-    return data.data;
-  } catch (error) {
-    wrapPaystackError(error);
+    const { data } = await paystack.get(`/transfer/verify/${encodeURIComponent(reference)}`);
+    const status = String(data?.data?.status ?? '').toLowerCase();
+    if (status === 'success') return 'SUCCESS';
+    if (status === 'failed' || status === 'reversed') return 'FAILED';
+    return 'PENDING';
+  } catch {
+    return 'PENDING';
   }
 }
 

@@ -70,7 +70,10 @@ async function proxy(request: Request, method: string, slug: string[]) {
     const payload = await response.json().catch(() => null);
     return NextResponse.json(payload ?? { message: `Request to ${path} completed` }, { status: response.status });
   } catch (error) {
-    console.warn(`[admin proxy] Fetch failed for ${path} (${error instanceof Error ? error.message : 'network offline'}), returning fallback success response`);
-    return NextResponse.json({ success: true, message: `Action ${path} recorded successfully` });
+    console.error(`[admin proxy] Fetch failed for ${path}: ${error instanceof Error ? error.message : 'network offline'}`);
+    return NextResponse.json(
+      { success: false, message: `Could not reach the Percel API while calling ${path}. The action was NOT applied.` },
+      { status: 502 },
+    );
   }
 }
